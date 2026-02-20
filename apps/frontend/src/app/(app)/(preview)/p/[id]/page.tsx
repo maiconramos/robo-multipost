@@ -22,7 +22,7 @@ const RenderPreviewDate = dynamicLoad(
 
 dayjs.extend(utc);
 export const metadata: Metadata = {
-  title: `${isGeneralServerSide() ? 'Robo MultiPost' : 'Gitroom'} Preview`,
+  title: `${isGeneralServerSide() ? 'Robô MultiPost' : 'Gitroom'} Preview`,
   description: '',
 };
 export default async function Auth({

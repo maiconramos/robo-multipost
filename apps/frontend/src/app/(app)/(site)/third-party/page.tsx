@@ -5,7 +5,7 @@ import { Metadata } from 'next';
 import { isGeneralServerSide } from '@gitroom/helpers/utils/is.general.server.side';
 export const metadata: Metadata = {
   title: `${
-    isGeneralServerSide() ? 'Robo MultiPost Integrations' : 'Gitroom Integrations'
+    isGeneralServerSide() ? 'Robô MultiPost Integrations' : 'Gitroom Integrations'
   }`,
   description: '',
 };

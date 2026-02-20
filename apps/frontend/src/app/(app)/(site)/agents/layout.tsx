@@ -1,7 +1,7 @@
 import { Metadata } from 'next';
 import { Agent } from '@gitroom/frontend/components/agents/agent';
 export const metadata: Metadata = {
-  title: 'Robo MultiPost - Agent',
+  title: 'Robô MultiPost - Agent',
   description: '',
 };
 export default async function Layout({
