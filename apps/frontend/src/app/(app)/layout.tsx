@@ -42,14 +42,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
     <html>
       <head>
         <link rel="icon" href="/favicon.ico" sizes="any" />
-        {!!process.env.DATAFAST_WEBSITE_ID && (
-          <Script
-            data-website-id={process.env.DATAFAST_WEBSITE_ID}
-            data-domain="postiz.com"
-            src="https://datafa.st/js/script.js"
-            strategy="afterInteractive"
-          />
-        )}
+        {/* Datafast analytics removed for self-hosted */}
       </head>
       <body
         className={clsx(jakartaSans.className, 'dark text-primary !bg-primary')}
@@ -95,7 +88,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
             <DubAnalytics />
             <FacebookComponent />
             <Plausible
-              domain={!!process.env.IS_GENERAL ? 'postiz.com' : 'gitroom.com'}
+              domain={!!process.env.IS_GENERAL ? 'robomultipost.com' : 'gitroom.com'}
             >
               <PHProvider
                 phkey={process.env.NEXT_PUBLIC_POSTHOG_KEY}

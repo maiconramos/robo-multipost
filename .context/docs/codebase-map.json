@@ -1,0 +1,1782 @@
+{
+  "version": "1.0.0",
+  "generated": "2026-02-20T18:08:07.549Z",
+  "stack": {
+    "primaryLanguage": "typescript",
+    "languages": [
+      "javascript",
+      "typescript"
+    ],
+    "frameworks": [],
+    "buildTools": [
+      "docker-compose",
+      "pnpm-workspace"
+    ],
+    "testFrameworks": [
+      "jest"
+    ],
+    "packageManager": "pnpm",
+    "isMonorepo": true,
+    "hasDocker": true,
+    "hasCI": true,
+    "nodeVersion": ">=22.12.0 <23.0.0",
+    "runtimeEnvironment": "node"
+  },
+  "structure": {
+    "totalFiles": 2117,
+    "rootPath": ".",
+    "topDirectories": [
+      {
+        "name": "apps",
+        "fileCount": 1791,
+        "description": "Application entry (Next.js app router)"
+      },
+      {
+        "name": "dynamicconfig",
+        "fileCount": 2,
+        "description": "Configuration files"
+      },
+      {
+        "name": "Jenkins",
+        "fileCount": 2,
+        "description": "Jenkin definitions"
+      },
+      {
+        "name": "libraries",
+        "fileCount": 291,
+        "description": "Shared library code"
+      },
+      {
+        "name": "reports",
+        "fileCount": 1,
+        "description": "Report definitions"
+      },
+      {
+        "name": "var",
+        "fileCount": 4,
+        "description": "Module directory"
+      }
+    ],
+    "languageDistribution": [
+      {
+        "extension": ".ts",
+        "count": 760
+      },
+      {
+        "extension": ".js",
+        "count": 431
+      },
+      {
+        "extension": ".map",
+        "count": 427
+      },
+      {
+        "extension": ".tsx",
+        "count": 300
+      },
+      {
+        "extension": ".json",
+        "count": 54
+      },
+      {
+        "extension": ".png",
+        "count": 43
+      },
+      {
+        "extension": ".md",
+        "count": 30
+      },
+      {
+        "extension": ".svg",
+        "count": 16
+      },
+      {
+        "extension": ".jpg",
+        "count": 12
+      },
+      {
+        "extension": ".yaml",
+        "count": 6
+      }
+    ]
+  },
+  "architecture": {
+    "layers": [
+      {
+        "name": "Config",
+        "description": "Configuration and constants",
+        "directories": [
+          ".",
+          "apps/sdk",
+          "apps/extension",
+          "apps/cli",
+          "apps/frontend/src",
+          "apps/cli/src",
+          "apps/commands/src/tasks",
+          "apps/frontend"
+        ],
+        "symbolCount": 2,
+        "dependsOn": [
+          "Controllers"
+        ]
+      },
+      {
+        "name": "Controllers",
+        "description": "Request handling and routing",
+        "directories": [
+          "apps/cli/src",
+          "apps/backend/src/public-api",
+          "apps/backend/src/api",
+          "libraries/nestjs-libraries/src/dtos/integrations",
+          "apps/backend/src/api/routes",
+          "apps/backend/src/public-api/routes/v1",
+          "apps/frontend/src/app/(app)/api/uploads/[[...path]]",
+          "apps/frontend/src/components/public-api"
+        ],
+        "symbolCount": 29,
+        "dependsOn": []
+      },
+      {
+        "name": "Utils",
+        "description": "Shared utilities and helpers",
+        "directories": [
+          "libraries/react-shared-libraries/src/translation",
+          "libraries/react-shared-libraries/src/helpers",
+          "libraries/react-shared-libraries/src/sentry",
+          "libraries/nestjs-libraries/src/videos",
+          "libraries/nestjs-libraries/src/user",
+          "libraries/nestjs-libraries/src/upload",
+          "libraries/nestjs-libraries/src/throttler",
+          "libraries/nestjs-libraries/src/temporal",
+          "libraries/nestjs-libraries/src/short-linking",
+          "libraries/nestjs-libraries/src/sentry",
+          "libraries/nestjs-libraries/src/newsletter",
+          "libraries/nestjs-libraries/src/integrations",
+          "libraries/nestjs-libraries/src/emails",
+          "libraries/nestjs-libraries/src/crypto",
+          "libraries/nestjs-libraries/src/chat",
+          "libraries/nestjs-libraries/src/agent",
+          "libraries/nestjs-libraries/src/3rdparties",
+          "libraries/helpers/src/utils",
+          "libraries/helpers/src/swagger",
+          "libraries/helpers/src/decorators",
+          "libraries/helpers/src/configuration",
+          "libraries/nestjs-libraries/src/videos/veo3",
+          "libraries/nestjs-libraries/src/videos/images-slides",
+          "libraries/nestjs-libraries/src/short-linking/providers",
+          "libraries/nestjs-libraries/src/newsletter/providers",
+          "libraries/nestjs-libraries/src/integrations/social",
+          "libraries/nestjs-libraries/src/dtos/webhooks",
+          "libraries/nestjs-libraries/src/dtos/videos",
+          "libraries/nestjs-libraries/src/dtos/users",
+          "libraries/nestjs-libraries/src/dtos/signature",
+          "libraries/nestjs-libraries/src/dtos/settings",
+          "libraries/nestjs-libraries/src/dtos/sets",
+          "libraries/nestjs-libraries/src/dtos/posts",
+          "libraries/nestjs-libraries/src/dtos/plugs",
+          "libraries/nestjs-libraries/src/dtos/notifications",
+          "libraries/nestjs-libraries/src/dtos/media",
+          "libraries/nestjs-libraries/src/dtos/integrations",
+          "libraries/nestjs-libraries/src/dtos/generator",
+          "libraries/nestjs-libraries/src/dtos/comments",
+          "libraries/nestjs-libraries/src/dtos/billing",
+          "libraries/nestjs-libraries/src/dtos/autopost",
+          "libraries/nestjs-libraries/src/dtos/auth",
+          "libraries/nestjs-libraries/src/dtos/analytics",
+          "libraries/nestjs-libraries/src/dtos/agencies",
+          "libraries/nestjs-libraries/src/chat/tools",
+          "libraries/nestjs-libraries/src/3rdparties/heygen",
+          "libraries/nestjs-libraries/src/dtos/posts/transformers",
+          "libraries/nestjs-libraries/src/dtos/posts/providers-settings",
+          "apps/frontend/src/components/launches/helpers",
+          "libraries/react-shared-libraries/src/toaster",
+          "libraries/react-shared-libraries/src/form"
+        ],
+        "symbolCount": 265,
+        "dependsOn": [
+          "Services"
+        ]
+      },
+      {
+        "name": "Services",
+        "description": "Business logic and orchestration",
+        "directories": [
+          "libraries/react-shared-libraries/src/translation",
+          "libraries/nestjs-libraries/src/track",
+          "libraries/nestjs-libraries/src/short-linking",
+          "libraries/nestjs-libraries/src/services",
+          "libraries/nestjs-libraries/src/redis",
+          "libraries/nestjs-libraries/src/openai",
+          "libraries/nestjs-libraries/src/newsletter",
+          "libraries/nestjs-libraries/src/integrations",
+          "libraries/nestjs-libraries/src/chat",
+          "libraries/nestjs-libraries/src/agent",
+          "libraries/helpers/src/auth",
+          "libraries/nestjs-libraries/src/database/prisma",
+          "apps/backend/src/services/auth",
+          "libraries/nestjs-libraries/src/database/prisma/webhooks",
+          "libraries/nestjs-libraries/src/database/prisma/users",
+          "libraries/nestjs-libraries/src/database/prisma/third-party",
+          "libraries/nestjs-libraries/src/database/prisma/subscriptions",
+          "libraries/nestjs-libraries/src/database/prisma/signatures",
+          "libraries/nestjs-libraries/src/database/prisma/sets",
+          "libraries/nestjs-libraries/src/database/prisma/posts",
+          "libraries/nestjs-libraries/src/database/prisma/organizations",
+          "libraries/nestjs-libraries/src/database/prisma/notifications",
+          "libraries/nestjs-libraries/src/database/prisma/media",
+          "libraries/nestjs-libraries/src/database/prisma/integrations",
+          "libraries/nestjs-libraries/src/database/prisma/autopost",
+          "libraries/nestjs-libraries/src/database/prisma/agencies",
+          "apps/backend/src/services/auth/providers",
+          "apps/backend/src/services/auth/permissions"
+        ],
+        "symbolCount": 65,
+        "dependsOn": []
+      },
+      {
+        "name": "Models",
+        "description": "Data structures and domain objects",
+        "directories": [
+          "libraries/nestjs-libraries/src/chat",
+          "libraries/helpers/src/subdomain"
+        ],
+        "symbolCount": 2,
+        "dependsOn": []
+      },
+      {
+        "name": "Repositories",
+        "description": "Data access and persistence",
+        "directories": [
+          "libraries/nestjs-libraries/src/database/prisma",
+          "libraries/nestjs-libraries/src/database/prisma/webhooks",
+          "libraries/nestjs-libraries/src/database/prisma/users",
+          "libraries/nestjs-libraries/src/database/prisma/third-party",
+          "libraries/nestjs-libraries/src/database/prisma/subscriptions",
+          "libraries/nestjs-libraries/src/database/prisma/signatures",
+          "libraries/nestjs-libraries/src/database/prisma/sets",
+          "libraries/nestjs-libraries/src/database/prisma/posts",
+          "libraries/nestjs-libraries/src/database/prisma/organizations",
+          "libraries/nestjs-libraries/src/database/prisma/notifications",
+          "libraries/nestjs-libraries/src/database/prisma/media",
+          "libraries/nestjs-libraries/src/database/prisma/integrations",
+          "libraries/nestjs-libraries/src/database/prisma/autopost",
+          "libraries/nestjs-libraries/src/database/prisma/agencies",
+          "apps/frontend/src/components/launches/helpers"
+        ],
+        "symbolCount": 16,
+        "dependsOn": []
+      },
+      {
+        "name": "Components",
+        "description": "UI components and views",
+        "directories": [
+          "apps/frontend/src/components/plugs",
+          "apps/frontend/src/components/new-launch",
+          "apps/frontend/src/components/analytics",
+          "apps/frontend/src/components/launches/web3",
+          "apps/frontend/src/components",
+          "apps/frontend/src/components/webhooks",
+          "apps/frontend/src/components/videos",
+          "apps/frontend/src/components/ui",
+          "apps/frontend/src/components/third-parties",
+          "apps/frontend/src/components/standalone-modal",
+          "apps/frontend/src/components/settings",
+          "apps/frontend/src/components/sets",
+          "apps/frontend/src/components/preview",
+          "apps/frontend/src/components/post-url-selector",
+          "apps/frontend/src/components/platform-analytics",
+          "apps/frontend/src/components/onboarding",
+          "apps/frontend/src/components/notifications",
+          "apps/frontend/src/components/new-layout",
+          "apps/frontend/src/components/media",
+          "apps/frontend/src/components/layout",
+          "apps/frontend/src/components/launches",
+          "apps/frontend/src/components/billing",
+          "apps/frontend/src/components/autopost",
+          "apps/frontend/src/components/auth",
+          "apps/frontend/src/components/agents",
+          "apps/frontend/src/components/videos/providers",
+          "apps/frontend/src/components/ui/icons",
+          "apps/frontend/src/components/third-parties/providers",
+          "apps/frontend/src/components/new-launch/finisher",
+          "apps/frontend/src/components/new-launch/providers",
+          "apps/frontend/src/components/launches/polonto",
+          "apps/frontend/src/components/launches/menu",
+          "apps/frontend/src/components/launches/comments",
+          "apps/frontend/src/components/auth/providers",
+          "apps/frontend/src/app/(app)/auth",
+          "apps/frontend/src/components/new-launch/providers/youtube",
+          "apps/frontend/src/components/new-launch/providers/x",
+          "apps/frontend/src/components/new-launch/providers/wordpress",
+          "apps/frontend/src/components/new-launch/providers/whop",
+          "apps/frontend/src/components/new-launch/providers/warpcast",
+          "apps/frontend/src/components/new-launch/providers/vk",
+          "apps/frontend/src/components/new-launch/providers/twitch",
+          "apps/frontend/src/components/new-launch/providers/tiktok",
+          "apps/frontend/src/components/new-launch/providers/threads",
+          "apps/frontend/src/components/new-launch/providers/telegram",
+          "apps/frontend/src/components/new-launch/providers/slack",
+          "apps/frontend/src/components/new-launch/providers/skool",
+          "apps/frontend/src/components/new-launch/providers/reddit",
+          "apps/frontend/src/components/new-launch/providers/pinterest",
+          "apps/frontend/src/components/new-launch/providers/nostr",
+          "apps/frontend/src/components/new-launch/providers/moltbook",
+          "apps/frontend/src/components/new-launch/providers/medium",
+          "apps/frontend/src/components/new-launch/providers/mastodon",
+          "apps/frontend/src/components/new-launch/providers/listmonk",
+          "apps/frontend/src/components/new-launch/providers/linkedin",
+          "apps/frontend/src/components/new-launch/providers/lemmy",
+          "apps/frontend/src/components/new-launch/providers/kick",
+          "apps/frontend/src/components/new-launch/providers/instagram",
+          "apps/frontend/src/components/new-launch/providers/hashnode",
+          "apps/frontend/src/components/new-launch/providers/gmb",
+          "apps/frontend/src/components/new-launch/providers/facebook",
+          "apps/frontend/src/components/new-launch/providers/dribbble",
+          "apps/frontend/src/components/new-launch/providers/discord",
+          "apps/frontend/src/components/new-launch/providers/devto",
+          "apps/frontend/src/components/new-launch/providers/continue-provider",
+          "apps/frontend/src/components/new-launch/providers/bluesky",
+          "apps/frontend/src/components/launches/web3/providers",
+          "apps/frontend/src/components/auth/providers/placeholder",
+          "apps/frontend/src/app/(app)/auth/login-required",
+          "apps/frontend/src/app/(app)/auth/login",
+          "apps/frontend/src/app/(app)/auth/forgot",
+          "apps/frontend/src/app/(app)/auth/activate",
+          "apps/frontend/src/app/(app)/(site)/third-party",
+          "apps/frontend/src/app/(app)/(site)/settings",
+          "apps/frontend/src/app/(app)/(site)/plugs",
+          "apps/frontend/src/app/(app)/(site)/media",
+          "apps/frontend/src/app/(app)/(site)/launches",
+          "apps/frontend/src/app/(app)/(site)/err",
+          "apps/frontend/src/app/(app)/(site)/billing",
+          "apps/frontend/src/app/(app)/(site)/analytics",
+          "apps/frontend/src/app/(app)/(site)/agents",
+          "apps/frontend/src/components/new-launch/providers/continue-provider/youtube",
+          "apps/frontend/src/components/new-launch/providers/continue-provider/linkedin",
+          "apps/frontend/src/components/new-launch/providers/continue-provider/instagram",
+          "apps/frontend/src/components/new-launch/providers/continue-provider/gmb",
+          "apps/frontend/src/components/new-launch/providers/continue-provider/facebook",
+          "apps/frontend/src/app/(extension)/modal/[style]/[platform]",
+          "apps/frontend/src/app/(app)/integrations/social/[provider]",
+          "apps/frontend/src/app/(app)/auth/forgot/[token]",
+          "apps/frontend/src/app/(app)/auth/activate/[code]",
+          "apps/frontend/src/app/(app)/(site)/billing/lifetime",
+          "apps/frontend/src/app/(app)/(site)/agents/[id]",
+          "apps/frontend/src/app/(app)/(preview)/p/[id]"
+        ],
+        "symbolCount": 92,
+        "dependsOn": []
+      }
+    ],
+    "patterns": [
+      {
+        "name": "Factory",
+        "confidence": 0.9,
+        "description": "Creates instances of related objects without specifying concrete classes",
+        "occurrences": 2
+      },
+      {
+        "name": "Repository",
+        "confidence": 0.9,
+        "description": "Abstracts data access logic",
+        "occurrences": 14
+      },
+      {
+        "name": "Service Layer",
+        "confidence": 0.85,
+        "description": "Encapsulates business logic in service classes",
+        "occurrences": 31
+      },
+      {
+        "name": "Controller",
+        "confidence": 0.9,
+        "description": "Handles incoming requests and returns responses",
+        "occurrences": 22
+      }
+    ],
+    "entryPoints": [
+      "apps/sdk/src/index.ts",
+      "apps/orchestrator/src/main.ts",
+      "apps/commands/src/main.ts",
+      "apps/cli/src/index.ts",
+      "apps/backend/src/main.ts",
+      "apps/orchestrator/src/workflows/index.ts",
+      "apps/frontend/src/components/ui/icons/index.tsx"
+    ],
+    "mainEntryPoints": [],
+    "moduleExports": [
+      "apps/sdk/src/index.ts",
+      "apps/orchestrator/src/main.ts",
+      "apps/commands/src/main.ts",
+      "apps/cli/src/index.ts",
+      "apps/backend/src/main.ts",
+      "apps/orchestrator/src/workflows/index.ts",
+      "apps/frontend/src/components/ui/icons/index.tsx"
+    ]
+  },
+  "symbols": {
+    "classes": [
+      {
+        "name": "AddCommentDto",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/dtos/comments/add.comment.dto.ts",
+        "line": 1,
+        "exported": true
+      },
+      {
+        "name": "AddTeamMemberDto",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/dtos/settings/add.team.member.dto.ts",
+        "line": 10,
+        "exported": true
+      },
+      {
+        "name": "AgenciesRepository",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/database/prisma/agencies/agencies.repository.ts",
+        "line": 7,
+        "exported": true
+      },
+      {
+        "name": "AgenciesService",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/database/prisma/agencies/agencies.service.ts",
+        "line": 8,
+        "exported": true
+      },
+      {
+        "name": "AgentGraphInsertService",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/agent/agent.graph.insert.service.ts",
+        "line": 38,
+        "exported": true
+      },
+      {
+        "name": "AgentGraphService",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/agent/agent.graph.service.ts",
+        "line": 105,
+        "exported": true
+      },
+      {
+        "name": "AgentModule",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/agent/agent.module.ts",
+        "line": 12,
+        "exported": true
+      },
+      {
+        "name": "AgentRun",
+        "kind": "class",
+        "file": "apps/commands/src/tasks/agent.run.ts",
+        "line": 6,
+        "exported": true
+      },
+      {
+        "name": "AnalyticsController",
+        "kind": "class",
+        "file": "apps/backend/src/api/routes/analytics.controller.ts",
+        "line": 10,
+        "exported": true
+      },
+      {
+        "name": "ApiKeyDto",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/dtos/integrations/api.key.dto.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "ApiModule",
+        "kind": "class",
+        "file": "apps/backend/src/api/api.module.ts",
+        "line": 83,
+        "exported": true
+      },
+      {
+        "name": "AppModule",
+        "kind": "class",
+        "file": "apps/orchestrator/src/app.module.ts",
+        "line": 26,
+        "exported": true
+      },
+      {
+        "name": "AppModule",
+        "kind": "class",
+        "file": "apps/backend/src/app.module.ts",
+        "line": 61,
+        "exported": true
+      },
+      {
+        "name": "AuthController",
+        "kind": "class",
+        "file": "apps/backend/src/api/routes/auth.controller.ts",
+        "line": 29,
+        "exported": true
+      },
+      {
+        "name": "AuthMiddleware",
+        "kind": "class",
+        "file": "apps/backend/src/services/auth/auth.middleware.ts",
+        "line": 28,
+        "exported": true
+      },
+      {
+        "name": "AuthService",
+        "kind": "class",
+        "file": "libraries/helpers/src/auth/auth.service.ts",
+        "line": 35,
+        "exported": true
+      },
+      {
+        "name": "AuthService",
+        "kind": "class",
+        "file": "apps/backend/src/services/auth/auth.service.ts",
+        "line": 16,
+        "exported": true
+      },
+      {
+        "name": "AutopostActivity",
+        "kind": "class",
+        "file": "apps/orchestrator/src/activities/autopost.activity.ts",
+        "line": 20,
+        "exported": true
+      },
+      {
+        "name": "AutopostController",
+        "kind": "class",
+        "file": "apps/backend/src/api/routes/autopost.controller.ts",
+        "line": 21,
+        "exported": true
+      },
+      {
+        "name": "AutopostDto",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/dtos/autopost/autopost.dto.ts",
+        "line": 18,
+        "exported": true
+      },
+      {
+        "name": "AutopostRepository",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/database/prisma/autopost/autopost.repository.ts",
+        "line": 7,
+        "exported": true
+      },
+      {
+        "name": "AutopostService",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/database/prisma/autopost/autopost.service.ts",
+        "line": 62,
+        "exported": true
+      },
+      {
+        "name": "BadBody",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/integrations/social.abstract.ts",
+        "line": 17,
+        "exported": true
+      },
+      {
+        "name": "BeehiivProvider",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/newsletter/providers/beehiiv.provider.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "BillingController",
+        "kind": "class",
+        "file": "apps/backend/src/api/routes/billing.controller.ts",
+        "line": 16,
+        "exported": true
+      },
+      {
+        "name": "BillingSubscribeDto",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/dtos/billing/billing.subscribe.dto.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "BlueskyProvider",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/integrations/social/bluesky.provider.ts",
+        "line": 148,
+        "exported": true
+      },
+      {
+        "name": "ChatModule",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/chat/chat.module.ts",
+        "line": 13,
+        "exported": true
+      },
+      {
+        "name": "CodesService",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/services/codes.service.ts",
+        "line": 5,
+        "exported": true
+      },
+      {
+        "name": "Collaborators",
+        "kind": "class",
+        "file": "libraries/nestjs-libraries/src/dtos/posts/providers-settings/instagram.dto.ts",
+        "line": 11,
+        "exported": true
+      }
+    ],
+    "interfaces": [
+      {
+        "name": "AboutPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 854,
+        "exported": true
+      },
+      {
+        "name": "AddEditModalProps",
+        "kind": "interface",
+        "file": "apps/frontend/src/components/new-launch/add.edit.modal.tsx",
+        "line": 13,
+        "exported": true
+      },
+      {
+        "name": "AgentToolInterface",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/chat/agent.tool.interface.ts",
+        "line": 15,
+        "exported": true
+      },
+      {
+        "name": "AllDesktopPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 759,
+        "exported": true
+      },
+      {
+        "name": "AllMobilePageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 774,
+        "exported": true
+      },
+      {
+        "name": "AllPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 824,
+        "exported": true
+      },
+      {
+        "name": "AnalyticsData",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 53,
+        "exported": true
+      },
+      {
+        "name": "CareersPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 829,
+        "exported": true
+      },
+      {
+        "name": "Clicks",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 719,
+        "exported": true
+      },
+      {
+        "name": "ClientInformation",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "ContinueProviderConfig",
+        "kind": "interface",
+        "file": "apps/frontend/src/components/new-launch/providers/continue-provider/with-continue-provider.tsx",
+        "line": 32,
+        "exported": true
+      },
+      {
+        "name": "ContinueProviderProps",
+        "kind": "interface",
+        "file": "apps/frontend/src/components/new-launch/providers/continue-provider/with-continue-provider.tsx",
+        "line": 20,
+        "exported": true
+      },
+      {
+        "name": "CookieDefinition",
+        "kind": "interface",
+        "file": "apps/extension/src/providers/cookie-provider.interface.ts",
+        "line": 1,
+        "exported": true
+      },
+      {
+        "name": "CookieProvider",
+        "kind": "interface",
+        "file": "apps/extension/src/providers/cookie-provider.interface.ts",
+        "line": 8,
+        "exported": true
+      },
+      {
+        "name": "DesktopAboutPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 859,
+        "exported": true
+      },
+      {
+        "name": "DesktopCareersPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 869,
+        "exported": true
+      },
+      {
+        "name": "DesktopInsightsPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 874,
+        "exported": true
+      },
+      {
+        "name": "DesktopJobsPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 844,
+        "exported": true
+      },
+      {
+        "name": "DesktopLifeAtPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 879,
+        "exported": true
+      },
+      {
+        "name": "DesktopOverviewPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 814,
+        "exported": true
+      },
+      {
+        "name": "DesktopPeoplePageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 849,
+        "exported": true
+      },
+      {
+        "name": "DesktopProductsPageViews",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+        "line": 784,
+        "exported": true
+      },
+      {
+        "name": "EmailInterface",
+        "kind": "interface",
+        "file": "libraries/nestjs-libraries/src/emails/email.interface.ts",
+        "line": 1,
+        "exported": true
+      },
+      {
+        "name": "EmptyStateMessage",
+        "kind": "interface",
+        "file": "apps/frontend/src/components/new-launch/providers/continue-provider/with-continue-provider.tsx",
+        "line": 27,
+        "exported": true
+      },
+      {
+        "name": "ErrorResponse",
+        "kind": "interface",
+        "file": "apps/extension/src/types/messages.ts",
+        "line": 77,
+        "exported": true
+      },
+      {
+        "name": "FieldsInterface",
+        "kind": "interface",
+        "file": "apps/frontend/src/components/plugs/plugs.context.ts",
+        "line": 12,
+        "exported": true
+      },
+      {
+        "name": "ForksList",
+        "kind": "interface",
+        "file": "apps/frontend/src/components/analytics/stars.and.forks.interface.ts",
+        "line": 9,
+        "exported": true
+      },
+      {
+        "name": "GetCookiesErrorResponse",
+        "kind": "interface",
+        "file": "apps/extension/src/types/messages.ts",
+        "line": 60,
+        "exported": true
+      },
+      {
+        "name": "GetCookiesRequest",
+        "kind": "interface",
+        "file": "apps/extension/src/types/messages.ts",
+        "line": 11,
+        "exported": true
+      },
+      {
+        "name": "GetCookiesSuccessResponse",
+        "kind": "interface",
+        "file": "apps/extension/src/types/messages.ts",
+        "line": 54,
+        "exported": true
+      }
+    ],
+    "functions": [
+      {
+        "name": "abortMultipartUpload",
+        "kind": "function",
+        "file": "libraries/nestjs-libraries/src/upload/r2.uploader.ts",
+        "line": 187,
+        "exported": true
+      },
+      {
+        "name": "AppLayout",
+        "kind": "function",
+        "file": "apps/frontend/src/app/(extension)/layout.tsx",
+        "line": 18,
+        "exported": true
+      },
+      {
+        "name": "AppLayout",
+        "kind": "function",
+        "file": "apps/frontend/src/app/(app)/(preview)/p/[id]/layout.tsx",
+        "line": 4,
+        "exported": true
+      },
+      {
+        "name": "AppLayoutIn",
+        "kind": "function",
+        "file": "apps/frontend/src/app/(extension)/modal/layout.tsx",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "Auth",
+        "kind": "function",
+        "file": "apps/frontend/src/app/(app)/auth/login/page.tsx",
+        "line": 9,
+        "exported": true
+      },
+      {
+        "name": "Auth",
+        "kind": "function",
+        "file": "apps/frontend/src/app/(app)/auth/forgot/page.tsx",
+        "line": 9,
+        "exported": true
+      },
+      {
+        "name": "Auth",
+        "kind": "function",
+        "file": "apps/frontend/src/app/(app)/auth/activate/page.tsx",
+        "line": 11,
+        "exported": true
+      },
+      {
+        "name": "Auth",
+        "kind": "function",
+        "file": "apps/frontend/src/app/(app)/auth/forgot/[token]/page.tsx",
+        "line": 9,
+        "exported": true
+      },
+      {
+        "name": "Auth",
+        "kind": "function",
+        "file": "apps/frontend/src/app/(app)/auth/activate/[code]/page.tsx",
+        "line": 11,
+        "exported": true
+      },
+      {
+        "name": "autoPostWorkflow",
+        "kind": "function",
+        "file": "apps/orchestrator/src/workflows/autopost.workflow.ts",
+        "line": 14,
+        "exported": true
+      },
+      {
+        "name": "completeMultipartUpload",
+        "kind": "function",
+        "file": "libraries/nestjs-libraries/src/upload/r2.uploader.ts",
+        "line": 158,
+        "exported": true
+      },
+      {
+        "name": "convertBackRegex",
+        "kind": "function",
+        "file": "apps/frontend/src/components/plugs/plug.tsx",
+        "line": 29,
+        "exported": true
+      },
+      {
+        "name": "createMultipartUpload",
+        "kind": "function",
+        "file": "libraries/nestjs-libraries/src/upload/r2.uploader.ts",
+        "line": 81,
+        "exported": true
+      },
+      {
+        "name": "createPost",
+        "kind": "function",
+        "file": "apps/cli/src/commands/posts.ts",
+        "line": 5,
+        "exported": true
+      },
+      {
+        "name": "crxI18n",
+        "kind": "function",
+        "file": "apps/extension/custom-vite-plugins.ts",
+        "line": 27,
+        "exported": true
+      },
+      {
+        "name": "decrypt_legacy_using_IV",
+        "kind": "function",
+        "file": "libraries/helpers/src/auth/auth.service.ts",
+        "line": 22,
+        "exported": true
+      },
+      {
+        "name": "deletePost",
+        "kind": "function",
+        "file": "apps/cli/src/commands/posts.ts",
+        "line": 139,
+        "exported": true
+      },
+      {
+        "name": "digestEmailWorkflow",
+        "kind": "function",
+        "file": "apps/orchestrator/src/workflows/digest.email.workflow.ts",
+        "line": 22,
+        "exported": true
+      },
+      {
+        "name": "encrypt_legacy_using_IV",
+        "kind": "function",
+        "file": "libraries/helpers/src/auth/auth.service.ts",
+        "line": 29,
+        "exported": true
+      },
+      {
+        "name": "ExposeVideoFunction",
+        "kind": "function",
+        "file": "libraries/nestjs-libraries/src/videos/video.interface.ts",
+        "line": 40,
+        "exported": true
+      },
+      {
+        "name": "getAllProviders",
+        "kind": "function",
+        "file": "apps/extension/src/providers/provider.registry.ts",
+        "line": 12,
+        "exported": true
+      },
+      {
+        "name": "getAuth",
+        "kind": "function",
+        "file": "libraries/nestjs-libraries/src/chat/async.storage.ts",
+        "line": 19,
+        "exported": true
+      },
+      {
+        "name": "getConfig",
+        "kind": "function",
+        "file": "apps/cli/src/config.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "getContext",
+        "kind": "function",
+        "file": "libraries/nestjs-libraries/src/chat/async.storage.ts",
+        "line": 15,
+        "exported": true
+      },
+      {
+        "name": "getCookieUrlFromDomain",
+        "kind": "function",
+        "file": "libraries/helpers/src/subdomain/subdomain.management.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "getIntegrationSettings",
+        "kind": "function",
+        "file": "apps/cli/src/commands/integrations.ts",
+        "line": 19,
+        "exported": true
+      },
+      {
+        "name": "getProvider",
+        "kind": "function",
+        "file": "apps/extension/src/providers/provider.registry.ts",
+        "line": 16,
+        "exported": true
+      },
+      {
+        "name": "getRequestId",
+        "kind": "function",
+        "file": "libraries/nestjs-libraries/src/chat/async.storage.ts",
+        "line": 23,
+        "exported": true
+      },
+      {
+        "name": "getT",
+        "kind": "function",
+        "file": "libraries/react-shared-libraries/src/translation/get.translation.service.backend.ts",
+        "line": 4,
+        "exported": true
+      },
+      {
+        "name": "getValidationSchemas",
+        "kind": "function",
+        "file": "libraries/nestjs-libraries/src/chat/validation.schemas.helper.ts",
+        "line": 9,
+        "exported": true
+      }
+    ],
+    "types": [
+      {
+        "name": "AbilityPolicy",
+        "kind": "type",
+        "file": "apps/backend/src/services/auth/permissions/permissions.ability.ts",
+        "line": 5,
+        "exported": true
+      },
+      {
+        "name": "AllProvidersSettings",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/dtos/posts/providers-settings/all.providers.settings.ts",
+        "line": 28,
+        "exported": true
+      },
+      {
+        "name": "AppAbility",
+        "kind": "type",
+        "file": "apps/backend/src/services/auth/permissions/permissions.service.ts",
+        "line": 11,
+        "exported": true
+      },
+      {
+        "name": "AuthTokenDetails",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 66,
+        "exported": true
+      },
+      {
+        "name": "ChannelsContext",
+        "kind": "type",
+        "file": "apps/backend/src/api/routes/copilot.controller.ts",
+        "line": 27,
+        "exported": true
+      },
+      {
+        "name": "Email",
+        "kind": "type",
+        "file": "apps/orchestrator/src/signals/email.signal.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "ExtensionRequest",
+        "kind": "type",
+        "file": "apps/extension/src/types/messages.ts",
+        "line": 29,
+        "exported": true
+      },
+      {
+        "name": "ExtensionResponse",
+        "kind": "type",
+        "file": "apps/extension/src/types/messages.ts",
+        "line": 81,
+        "exported": true
+      },
+      {
+        "name": "FetchPageInformationResult",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 130,
+        "exported": true
+      },
+      {
+        "name": "GenerateAuthUrlResponse",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 60,
+        "exported": true
+      },
+      {
+        "name": "GetCookiesResponse",
+        "kind": "type",
+        "file": "apps/extension/src/types/messages.ts",
+        "line": 67,
+        "exported": true
+      },
+      {
+        "name": "MediaContent",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 122,
+        "exported": true
+      },
+      {
+        "name": "NotificationType",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/database/prisma/notifications/notification.service.ts",
+        "line": 9,
+        "exported": true
+      },
+      {
+        "name": "PollDetails",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 117,
+        "exported": true
+      },
+      {
+        "name": "PostDetails",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 109,
+        "exported": true
+      },
+      {
+        "name": "PostResponse",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "line": 102,
+        "exported": true
+      },
+      {
+        "name": "ProviderExtension",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/dtos/posts/providers-settings/all.providers.settings.ts",
+        "line": 27,
+        "exported": true
+      },
+      {
+        "name": "SendEmail",
+        "kind": "type",
+        "file": "apps/orchestrator/src/signals/send.email.signal.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "ToolReturn",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/chat/agent.tool.interface.ts",
+        "line": 7,
+        "exported": true
+      },
+      {
+        "name": "URL",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/videos/video.interface.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "Ctx",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/chat/async.storage.ts",
+        "line": 4,
+        "exported": false
+      },
+      {
+        "name": "Inputs",
+        "kind": "type",
+        "file": "apps/frontend/src/components/auth/register.tsx",
+        "line": 33,
+        "exported": false
+      },
+      {
+        "name": "Inputs",
+        "kind": "type",
+        "file": "apps/frontend/src/components/auth/login.tsx",
+        "line": 18,
+        "exported": false
+      },
+      {
+        "name": "Inputs",
+        "kind": "type",
+        "file": "apps/frontend/src/components/auth/forgot.tsx",
+        "line": 12,
+        "exported": false
+      },
+      {
+        "name": "Inputs",
+        "kind": "type",
+        "file": "apps/frontend/src/components/auth/forgot-return.tsx",
+        "line": 11,
+        "exported": false
+      },
+      {
+        "name": "None",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/dtos/posts/providers-settings/all.providers.settings.ts",
+        "line": 62,
+        "exported": false
+      },
+      {
+        "name": "PostWithConditionals",
+        "kind": "type",
+        "file": "libraries/nestjs-libraries/src/database/prisma/posts/posts.service.ts",
+        "line": 40,
+        "exported": false
+      },
+      {
+        "name": "ResendInputs",
+        "kind": "type",
+        "file": "apps/frontend/src/components/auth/activate.tsx",
+        "line": 11,
+        "exported": false
+      },
+      {
+        "name": "ResendStatus",
+        "kind": "type",
+        "file": "apps/frontend/src/components/auth/activate.tsx",
+        "line": 15,
+        "exported": false
+      },
+      {
+        "name": "ShortLinkPreference",
+        "kind": "type",
+        "file": "apps/frontend/src/components/settings/shortlink-preference.component.tsx",
+        "line": 10,
+        "exported": false
+      }
+    ],
+    "enums": [
+      {
+        "name": "AuthorizationActions",
+        "kind": "enum",
+        "file": "apps/backend/src/services/auth/permissions/permission.exception.class.ts",
+        "line": 16,
+        "exported": true
+      },
+      {
+        "name": "PostComment",
+        "kind": "enum",
+        "file": "apps/frontend/src/components/new-launch/providers/high.order.provider.tsx",
+        "line": 31,
+        "exported": true
+      },
+      {
+        "name": "Sections",
+        "kind": "enum",
+        "file": "apps/backend/src/services/auth/permissions/permission.exception.class.ts",
+        "line": 3,
+        "exported": true
+      },
+      {
+        "name": "TrackEnum",
+        "kind": "enum",
+        "file": "libraries/nestjs-libraries/src/user/track.enum.ts",
+        "line": 1,
+        "exported": true
+      }
+    ]
+  },
+  "publicAPI": [
+    {
+      "name": "AbilityPolicy",
+      "kind": "type",
+      "file": "apps/backend/src/services/auth/permissions/permissions.ability.ts",
+      "line": 5,
+      "exported": true
+    },
+    {
+      "name": "abortMultipartUpload",
+      "kind": "function",
+      "file": "libraries/nestjs-libraries/src/upload/r2.uploader.ts",
+      "line": 187,
+      "exported": true
+    },
+    {
+      "name": "AboutPageViews",
+      "kind": "interface",
+      "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+      "line": 854,
+      "exported": true
+    },
+    {
+      "name": "AddCommentDto",
+      "kind": "class",
+      "file": "libraries/nestjs-libraries/src/dtos/comments/add.comment.dto.ts",
+      "line": 1,
+      "exported": true
+    },
+    {
+      "name": "AddEditModalProps",
+      "kind": "interface",
+      "file": "apps/frontend/src/components/new-launch/add.edit.modal.tsx",
+      "line": 13,
+      "exported": true
+    },
+    {
+      "name": "AddTeamMemberDto",
+      "kind": "class",
+      "file": "libraries/nestjs-libraries/src/dtos/settings/add.team.member.dto.ts",
+      "line": 10,
+      "exported": true
+    },
+    {
+      "name": "AgenciesRepository",
+      "kind": "class",
+      "file": "libraries/nestjs-libraries/src/database/prisma/agencies/agencies.repository.ts",
+      "line": 7,
+      "exported": true
+    },
+    {
+      "name": "AgenciesService",
+      "kind": "class",
+      "file": "libraries/nestjs-libraries/src/database/prisma/agencies/agencies.service.ts",
+      "line": 8,
+      "exported": true
+    },
+    {
+      "name": "AgentGraphInsertService",
+      "kind": "class",
+      "file": "libraries/nestjs-libraries/src/agent/agent.graph.insert.service.ts",
+      "line": 38,
+      "exported": true
+    },
+    {
+      "name": "AgentGraphService",
+      "kind": "class",
+      "file": "libraries/nestjs-libraries/src/agent/agent.graph.service.ts",
+      "line": 105,
+      "exported": true
+    },
+    {
+      "name": "AgentModule",
+      "kind": "class",
+      "file": "libraries/nestjs-libraries/src/agent/agent.module.ts",
+      "line": 12,
+      "exported": true
+    },
+    {
+      "name": "AgentRun",
+      "kind": "class",
+      "file": "apps/commands/src/tasks/agent.run.ts",
+      "line": 6,
+      "exported": true
+    },
+    {
+      "name": "AgentToolInterface",
+      "kind": "interface",
+      "file": "libraries/nestjs-libraries/src/chat/agent.tool.interface.ts",
+      "line": 15,
+      "exported": true
+    },
+    {
+      "name": "AllDesktopPageViews",
+      "kind": "interface",
+      "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+      "line": 759,
+      "exported": true
+    },
+    {
+      "name": "AllMobilePageViews",
+      "kind": "interface",
+      "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+      "line": 774,
+      "exported": true
+    },
+    {
+      "name": "AllPageViews",
+      "kind": "interface",
+      "file": "libraries/nestjs-libraries/src/integrations/social/linkedin.page.provider.ts",
+      "line": 824,
+      "exported": true
+    },
+    {
+      "name": "AllProvidersSettings",
+      "kind": "type",
+      "file": "libraries/nestjs-libraries/src/dtos/posts/providers-settings/all.providers.settings.ts",
+      "line": 28,
+      "exported": true
+    },
+    {
+      "name": "AnalyticsController",
+      "kind": "class",
+      "file": "apps/backend/src/api/routes/analytics.controller.ts",
+      "line": 10,
+      "exported": true
+    },
+    {
+      "name": "AnalyticsData",
+      "kind": "interface",
+      "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+      "line": 53,
+      "exported": true
+    },
+    {
+      "name": "ApiKeyDto",
+      "kind": "class",
+      "file": "libraries/nestjs-libraries/src/dtos/integrations/api.key.dto.ts",
+      "line": 3,
+      "exported": true
+    },
+    {
+      "name": "ApiModule",
+      "kind": "class",
+      "file": "apps/backend/src/api/api.module.ts",
+      "line": 83,
+      "exported": true
+    },
+    {
+      "name": "AppAbility",
+      "kind": "type",
+      "file": "apps/backend/src/services/auth/permissions/permissions.service.ts",
+      "line": 11,
+      "exported": true
+    },
+    {
+      "name": "AppLayout",
+      "kind": "function",
+      "file": "apps/frontend/src/app/(extension)/layout.tsx",
+      "line": 18,
+      "exported": true
+    },
+    {
+      "name": "AppLayout",
+      "kind": "function",
+      "file": "apps/frontend/src/app/(app)/(preview)/p/[id]/layout.tsx",
+      "line": 4,
+      "exported": true
+    },
+    {
+      "name": "AppLayoutIn",
+      "kind": "function",
+      "file": "apps/frontend/src/app/(extension)/modal/layout.tsx",
+      "line": 3,
+      "exported": true
+    },
+    {
+      "name": "AppModule",
+      "kind": "class",
+      "file": "apps/orchestrator/src/app.module.ts",
+      "line": 26,
+      "exported": true
+    },
+    {
+      "name": "AppModule",
+      "kind": "class",
+      "file": "apps/backend/src/app.module.ts",
+      "line": 61,
+      "exported": true
+    },
+    {
+      "name": "Auth",
+      "kind": "function",
+      "file": "apps/frontend/src/app/(app)/auth/login/page.tsx",
+      "line": 9,
+      "exported": true
+    },
+    {
+      "name": "Auth",
+      "kind": "function",
+      "file": "apps/frontend/src/app/(app)/auth/forgot/page.tsx",
+      "line": 9,
+      "exported": true
+    },
+    {
+      "name": "Auth",
+      "kind": "function",
+      "file": "apps/frontend/src/app/(app)/auth/activate/page.tsx",
+      "line": 11,
+      "exported": true
+    }
+  ],
+  "dependencies": {
+    "mostImported": [
+      {
+        "file": "libraries/react-shared-libraries/src/translation/translated-label.tsx",
+        "importedBy": 6
+      },
+      {
+        "file": "apps/frontend/src/components/new-launch/providers/continue-provider/with-continue-provider.tsx",
+        "importedBy": 5
+      },
+      {
+        "file": "apps/cli/src/api.ts",
+        "importedBy": 4,
+        "description": "Source code root"
+      },
+      {
+        "file": "apps/extension/src/providers/cookie-provider.interface.ts",
+        "importedBy": 3,
+        "description": "Context providers"
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/upload/upload.interface.ts",
+        "importedBy": 3
+      },
+      {
+        "file": "apps/cli/src/config.ts",
+        "importedBy": 3,
+        "description": "Configuration and constants"
+      },
+      {
+        "file": "apps/backend/src/services/auth/permissions/permission.exception.class.ts",
+        "importedBy": 3
+      },
+      {
+        "file": "apps/extension/src/providers/provider.registry.ts",
+        "importedBy": 2,
+        "description": "Context providers"
+      },
+      {
+        "file": "libraries/react-shared-libraries/src/translation/i18n.config.ts",
+        "importedBy": 2
+      },
+      {
+        "file": "libraries/react-shared-libraries/src/translation/i18next.ts",
+        "importedBy": 2
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/integrations/social.abstract.ts",
+        "importedBy": 2
+      },
+      {
+        "file": "libraries/nestjs-libraries/src/integrations/social/social.integrations.interface.ts",
+        "importedBy": 2
+      },
+      {
+        "file": "apps/frontend/src/components/layout/user.context.tsx",
+        "importedBy": 2
+      },
+      {
+        "file": "apps/frontend/src/app/global.scss",
+        "importedBy": 2,
+        "description": "Application entry (Next.js app router)"
+      },
+      {
+        "file": "apps/extension/vite.config.base.ts",
+        "importedBy": 1
+      },
+      {
+        "file": "apps/extension/custom-vite-plugins.ts",
+        "importedBy": 1
+      },
+      {
+        "file": "apps/extension/manifest.json",
+        "importedBy": 1
+      },
+      {
+        "file": "apps/extension/manifest.dev.json",
+        "importedBy": 1
+      },
+      {
+        "file": "apps/extension/package.json",
+        "importedBy": 1
+      },
+      {
+        "file": "apps/extension/src/types/messages.ts",
+        "importedBy": 1,
+        "description": "TypeScript type definitions"
+      }
+    ]
+  },
+  "stats": {
+    "totalSymbols": 541,
+    "exportedSymbols": 455,
+    "analysisTimeMs": 1787
+  },
+  "keyFiles": [
+    {
+      "path": "apps/backend/src/main.ts",
+      "description": "Source code root",
+      "category": "entrypoint"
+    },
+    {
+      "path": "apps/cli/src/index.ts",
+      "description": "src module exports",
+      "category": "entrypoint"
+    },
+    {
+      "path": "apps/commands/src/main.ts",
+      "description": "Source code root",
+      "category": "entrypoint"
+    },
+    {
+      "path": "apps/frontend/src/components/ui/icons/index.tsx",
+      "description": "Module exports",
+      "category": "entrypoint"
+    },
+    {
+      "path": "apps/orchestrator/src/main.ts",
+      "description": "Source code root",
+      "category": "entrypoint"
+    },
+    {
+      "path": "apps/orchestrator/src/workflows/index.ts",
+      "description": "Module exports",
+      "category": "entrypoint"
+    },
+    {
+      "path": "apps/sdk/src/index.ts",
+      "description": "src module exports",
+      "category": "entrypoint"
+    },
+    {
+      "path": "apps/backend/tsconfig.build.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/backend/tsconfig.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/cli/tsconfig.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/cli/tsup.config.ts",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/commands/tsconfig.build.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/commands/tsconfig.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/extension/tsconfig.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/extension/vite.config.ts",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/frontend/next.config.js",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/frontend/postcss.config.mjs",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/frontend/src/sentry.edge.config.ts",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/frontend/src/sentry.server.config.ts",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/frontend/tailwind.config.js",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/frontend/tsconfig.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/orchestrator/tsconfig.build.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/orchestrator/tsconfig.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/sdk/tsconfig.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "apps/sdk/tsup.config.ts",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "eslint.config.mjs",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "jest.config.ts",
+      "description": "Tool configuration",
+      "category": "config"
+    },
+    {
+      "path": "libraries/nestjs-libraries/tsconfig.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "libraries/nestjs-libraries/tsconfig.lib.json",
+      "description": "TypeScript configuration",
+      "category": "config"
+    },
+    {
+      "path": "libraries/react-shared-libraries/src/translation/i18n.config.ts",
+      "description": "Tool configuration",
+      "category": "config"
+    }
+  ],
+  "navigation": {
+    "tests": "src/**/*.test.ts",
+    "config": [
+      "package.json",
+      "tsconfig.json",
+      "tsconfig.*.json",
+      "jest.config.ts",
+      "vite.config.ts",
+      "next.config.js"
+    ],
+    "types": [
+      "apps/frontend/next-env.d.ts",
+      "apps/frontend/src/chrome.d.ts",
+      "apps/orchestrator/dist/apps/orchestrator/src/main.d.ts",
+      "apps/orchestrator/dist/apps/orchestrator/src/app.module.d.ts",
+      "apps/backend/dist/apps/backend/src/main.d.ts",
+      "apps/backend/dist/apps/backend/src/app.module.d.ts",
+      "apps/orchestrator/dist/libraries/nestjs-libraries/src/user/track.enum.d.ts",
+      "apps/orchestrator/dist/libraries/nestjs-libraries/src/videos/video.manager.d.ts",
+      "apps/orchestrator/dist/libraries/nestjs-libraries/src/videos/video.interface.d.ts",
+      "apps/orchestrator/dist/libraries/nestjs-libraries/src/track/track.service.d.ts"
+    ],
+    "mainLogic": [
+      "src"
+    ]
+  }
+}

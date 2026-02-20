@@ -1,51 +1,74 @@
 
-# Copilot Coding Agent Instructions for Postiz
+# Copilot Coding Agent Instructions for Robô MultiPost
+
+This project is **Robô MultiPost**, a fork of [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
+A self-hosted social media scheduler for the Automação Sem Limites community.
+Read `AGENTS.md` for full project context before suggesting any code.
 
 ## Project Architecture
-- Monorepo managed by NX, with apps in `apps/` and shared code in `libraries/`.
-- Main services: `frontend` (Next.js), `backend` (NestJS), `cron`, `commands`, `extension`, `sdk`, and `workers`.
-- Data layer uses Prisma ORM (`libraries/nestjs-libraries/src/database/prisma/schema.prisma`) with PostgreSQL as the default database.
-- Redis (BullMQ) is used for queues and caching.
+- Monorepo managed with PNPM workspaces (not NX), apps in `apps/` and shared code in `libraries/`.
+- Main services: `frontend` (Next.js 14), `backend` (NestJS), `orchestrator` (Temporal.io), `commands`, `extension`, `sdk`, `cli`.
+- Data layer uses Prisma ORM (`libraries/nestjs-libraries/src/database/prisma/schema.prisma`) with PostgreSQL 17.
+- Redis 7 for cache and queues.
+- Temporal.io for all background job orchestration (scheduling, retries, publishing workflows).
 - Email notifications via Resend.
-- Social login integrations (Instagram, Facebook) and Make.com/N8N integrations.
+- AI via Mastra framework + MCP (already implemented — Phase 3 exposes configuration).
+- Social media integrations: 33 providers.
+
+## Critical Rules
+
+### Package Manager
+- **PNPM only.** Never suggest npm or yarn.
+
+### Backend Layer Pattern (NestJS — apps/backend)
+- Always follow: `Controller → Service → Repository`
+- With manager when needed: `Controller → Manager → Service → Repository`
+- **Never skip layers.** Business logic lives in `libraries/nestjs-libraries/src/`
+- Controllers import from libs only.
+
+### Frontend (Next.js 14 — apps/frontend)
+- Use `useFetch` hook from `libraries/helpers/src/utils/custom.fetch.tsx` for all API calls.
+- Every SWR hook must be isolated in its own function — `react-hooks/rules-of-hooks`.
+- **Never suggest installing React component libraries from npm** — write native components.
+- Check `apps/frontend/src/app/colors.scss` and `global.scss` before styling.
+- Never use `--color-custom*` CSS variables (deprecated).
+
+### Git Branches
+- `postiz` = upstream mirror only (Postiz official) — never commit customizations here
+- `main` = all custom development
+- `release` = production-ready, Docker is built from here + tag
+- Never suggest `git push --force` or `git reset --hard`
+
+### Code Quality
+- No `eslint-disable` comments
+- Document-First: suggest doc updates alongside code
+- API-First: suggest endpoint contracts before implementation
+- Keep `.env.example` updated with new env vars
 
 ## Developer Workflows
-- Use Node.js 20.17.0 and pnpm 8+.
-- Install dependencies: `pnpm install`
-- Build all apps: `pnpm run build`
-- Run all apps in dev mode: `pnpm run dev`
-- Test: `pnpm test` (Jest, coverage enabled)
-- Individual app scripts are in each app's `package.json` (e.g., `pnpm --filter ./apps/backend run dev`).
-- Prisma DB commands: `pnpm run prisma-generate`, `pnpm run prisma-db-push`, `pnpm run prisma-reset`.
-- Docker: `docker compose -f ./docker-compose.dev.yaml up -d`
-
-## Conventions & Patterns
-- Use conventional commits (`feat:`, `fix:`, `chore:`).
-- PRs should include clear descriptions, related issue links, and UI screenshots/GIFs if relevant.
-- Comments are required for complex logic.
-- Shared code lives in `libraries/` (e.g., helpers, React shared libraries, NestJS modules).
-- Environment variables are managed via `.env` and referenced in Docker and scripts.
-- Make sure to keep the `.env.example` file updated with new environment variables.
-
-## Integration Points
-- External APIs: Social media (Instagram, Facebook), Make.com, N8N, Resend, Stripe, etc.
-- SDK (`apps/sdk`) provides programmatic access to Postiz features.
-- Extension (`apps/extension`) is built with Vite, React, TypeScript, and Tailwind CSS.
+- Node.js: 20.17.0 (pinned via Volta)
+- Install: `pnpm install`
+- Dev: `pnpm dev` (all apps) or `pnpm dev-backend`
+- Build: `pnpm build`
+- Lint (from root only): `pnpm lint`
+- Prisma: `pnpm prisma-generate`, `pnpm prisma-db-push`
+- Docker dev: `docker compose -f ./docker-compose.dev.yaml up -d`
 
 ## Key Files & Directories
+- `AGENTS.md` — Full agent context (read this first)
+- `PRD.md` — Product requirements
 - `apps/` — Main services and applications
 - `libraries/` — Shared code and modules
+- `docker-compose.yaml` — Production Docker setup (5 services)
 - `docker-compose.dev.yaml` — Local development Docker setup
 - `.env` — Environment configuration
-- `jest.config.ts` — Test configuration
 - `pnpm-workspace.yaml` — Workspace package management
-- `README.md` — General project overview
-- `libraries/nestjs-libraries/src/database/prisma/schema.prisma` — Database schema
+- `libraries/nestjs-libraries/src/database/prisma/schema.prisma` — DB schema (45 models)
+- `libraries/react-shared-libraries/src/translation/locales/` — i18n (17 languages)
 
 ## Documentation
-- Main docs: https://docs.postiz.com/
-- Developer guide: https://docs.postiz.com/developer-guide
-- Public API: https://docs.postiz.com/public-api
+- Upstream docs: https://docs.postiz.com/
+- Late API: https://docs.getlate.dev/llms-full.txt
 
 ---
 
