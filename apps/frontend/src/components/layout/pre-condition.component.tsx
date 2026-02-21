@@ -3,9 +3,11 @@ import { useSearchParams } from 'next/navigation';
 import { ModalWrapperComponent } from '@gitroom/frontend/components/new-launch/modal.wrapper.component';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { Button } from '@gitroom/react/form/button';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export const PreConditionComponentModal: FC = () => {
   const modal = useModals();
+  const t = useT();
   return (
     <div className="flex flex-col gap-[16px]">
       <div className="whitespace-pre-line">
@@ -20,9 +22,9 @@ export const PreConditionComponentModal: FC = () => {
         <Button
           onClick={() => (window.location.href = '/billing?finishTrial=true')}
         >
-          Fast track - Charge me now
+          {t('fast_track_charge_now', 'Fast track - Charge me now')}
         </Button>
-        <Button onClick={modal.closeCurrent} secondary={true}>Cancel</Button>
+        <Button onClick={modal.closeCurrent} secondary={true}>{t('cancel', 'Cancel')}</Button>
       </div>
     </div>
   );
@@ -30,10 +32,11 @@ export const PreConditionComponentModal: FC = () => {
 export const PreConditionComponent: FC = () => {
   const modal = useModals();
   const query = useSearchParams();
+  const t = useT();
   useEffect(() => {
     if (query.get('precondition')) {
       modal.openModal({
-        title: 'Suspicious activity detected',
+        title: t('suspicious_activity_detected', 'Suspicious activity detected'),
         withCloseButton: true,
         classNames: {
           modal: 'text-textColor',

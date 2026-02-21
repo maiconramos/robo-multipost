@@ -54,7 +54,7 @@ const GenerateTab = observer(({ store }: any) => {
     });
     setLoading(false);
     if (!req.ok) {
-      alert('Something went wrong, please try again later...');
+      alert(t('something_went_wrong', 'Something went wrong, please try again later...'));
       return;
     }
     mutate();
@@ -92,7 +92,7 @@ const GenerateTab = observer(({ store }: any) => {
           marginBottom: '40px',
         }}
       >
-        {data?.credits <= 0 ? 'Click to purchase more credits' : 'Generate'}
+        {data?.credits <= 0 ? t('click_to_purchase_credits', 'Click to purchase more credits') : t('generate', 'Generate')}
       </Button>
       {image && (
         <ImagesGrid

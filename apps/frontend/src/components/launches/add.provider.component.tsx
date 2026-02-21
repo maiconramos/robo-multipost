@@ -24,10 +24,11 @@ const resolver = classValidatorResolver(ApiKeyDto);
 export const useAddProvider = (update?: () => void, invite?: boolean) => {
   const modal = useModals();
   const fetch = useFetch();
+  const t = useT();
   return useCallback(async () => {
     const data = await (await fetch('/integrations')).json();
     modal.openModal({
-      title: 'Add Channel',
+      title: t('top_title_add_channel', 'Add Channel'),
       withCloseButton: true,
       children: (
         <AddProviderComponent invite={!!invite} update={update} {...data} />
@@ -121,7 +122,7 @@ export const UrlModal: FC<{
   }, []);
   return (
     <div className="rounded-[4px] border border-customColor6 bg-sixth px-[16px] pb-[16px] relative">
-      <TopTitle title={`Instance URL`} />
+      <TopTitle title={t('label_instance_url', 'Instance URL')} />
       <button
         onClick={close}
         className="outline-none absolute end-[20px] top-[20px] mantine-UnstyledButton-root mantine-ActionIcon-root hover:bg-tableBorder cursor-pointer mantine-Modal-close mantine-1dcetaa"
@@ -322,10 +323,10 @@ const ChromeExtensionWarning: FC<{
           )}
         </li>
         <li>
-          We will store your cookies securely to facilitate the connection.
+          {t('extension_warning_cookies', 'We will store your cookies securely to facilitate the connection.')}
         </li>
         <li>
-          Postiz does not take responsibility for any issues arising or account termination due to the use of this method.
+          {t('extension_warning_responsibility', 'Postiz does not take responsibility for any issues arising or account termination due to the use of this method.')}
         </li>
       </ul>
       <div className="flex gap-[10px] mt-[8px]">
@@ -459,7 +460,7 @@ export const AddProviderComponent: FC<{
 
           if (invite) {
             toaster.show(
-              'Invite link copied to clipboard, link will be available for 1 hour',
+              t('invite_link_copied', 'Invite link copied to clipboard, link will be available for 1 hour'),
               'success'
             );
             modal.closeAll();
@@ -575,7 +576,7 @@ export const AddProviderComponent: FC<{
         }
         if (isExternal) {
           modal.openModal({
-            title: 'URL',
+            title: t('label_url', 'URL'),
             withCloseButton: true,
             classNames: {
               modal: 'bg-transparent text-textColor',

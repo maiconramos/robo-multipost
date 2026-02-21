@@ -34,10 +34,10 @@ export const LifetimeDeal = () => {
     ).json();
     if (success) {
       mutate('/user/self');
-      toast.show('Successfully claimed the code');
+      toast.show(t('code_claimed_successfully', 'Successfully claimed the code'));
       fireEvents('lifetime_claimed');
     } else {
-      toast.show('Code already claimed or invalid code', 'warning');
+      toast.show(t('code_invalid_or_claimed', 'Code already claimed or invalid code'), 'warning');
     }
     setCode('');
   }, [code]);
@@ -56,21 +56,21 @@ export const LifetimeDeal = () => {
     const list = [];
     list.push(
       `${user.totalChannels} ${
-        user.totalChannels === 1 ? 'channel' : 'channels'
+        user.totalChannels === 1 ? t('billing_channel', 'channel') : t('billing_channels', 'channels')
       }`
     );
     list.push(
       `${
         currentPricing.posts_per_month > 10000
-          ? 'Unlimited'
+          ? t('billing_unlimited', 'Unlimited')
           : currentPricing.posts_per_month
-      } posts per month`
+      } ${t('billing_posts_per_month', 'posts per month')}`
     );
     if (currentPricing.team_members) {
-      list.push(`Unlimited team members`);
+      list.push(t('billing_unlimited_team_members', 'Unlimited team members'));
     }
     if (currentPricing?.ai) {
-      list.push(`AI auto-complete`);
+      list.push(t('billing_ai_auto_complete', 'AI auto-complete'));
     }
     return list;
   }, [user]);
@@ -81,19 +81,19 @@ export const LifetimeDeal = () => {
     const currentPricing = pricing[nextPackage];
     const channelsOr = currentPricing.channel;
     const list = [];
-    list.push(`${channelsOr} ${channelsOr === 1 ? 'channel' : 'channels'}`);
+    list.push(`${channelsOr} ${channelsOr === 1 ? t('billing_channel', 'channel') : t('billing_channels', 'channels')}`);
     list.push(
       `${
         currentPricing.posts_per_month > 10000
-          ? 'Unlimited'
+          ? t('billing_unlimited', 'Unlimited')
           : currentPricing.posts_per_month
-      } posts per month`
+      } ${t('billing_posts_per_month', 'posts per month')}`
     );
     if (currentPricing.team_members) {
-      list.push(`Unlimited team members`);
+      list.push(t('billing_unlimited_team_members', 'Unlimited team members'));
     }
     if (currentPricing?.ai) {
-      list.push(`AI auto-complete`);
+      list.push(t('billing_ai_auto_complete', 'AI auto-complete'));
     }
     return list;
   }, [user, nextPackage]);
@@ -176,7 +176,7 @@ export const LifetimeDeal = () => {
               <Input
                 label="Code"
                 translationKey="label_code"
-                placeholder="Enter your code"
+                placeholder={t('enter_your_code', 'Enter your code')}
                 disableForm={true}
                 name="code"
                 value={code}

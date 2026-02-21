@@ -181,7 +181,7 @@ export const ContinueIntegration: FC<{
           onboarding ? '&onboarding=true' : ''
         }`,
         returnURL,
-        'Channel Updated'
+        t('channel_updated', 'Channel Updated')
       );
     })();
   }, []);

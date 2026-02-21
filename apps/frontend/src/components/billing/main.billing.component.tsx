@@ -139,6 +139,7 @@ const Accept: FC<{ resolve: (res: boolean) => void }> = ({ resolve }) => {
   const [loading, setLoading] = useState(false);
   const fetch = useFetch();
   const toaster = useToaster();
+  const t = useT();
 
   const apply = useCallback(async () => {
     setLoading(true);
@@ -147,20 +148,20 @@ const Accept: FC<{ resolve: (res: boolean) => void }> = ({ resolve }) => {
     });
 
     resolve(true);
-    toaster.show('50% discount applied successfully');
+    toaster.show(t('discount_applied_50', '50% discount applied successfully'));
   }, []);
 
   return (
     <div>
       <div className="mb-[20px]">
-        Would you accept 50% discount for 3 months instead? 🙏🏻
+        {t('accept_discount_offer', 'Would you accept 50% discount for 3 months instead?')}
       </div>
       <div className="flex gap-[10px]">
         <Button loading={loading} onClick={apply}>
-          Apply 50% discount for 3 months
+          {t('apply_discount_3_months', 'Apply 50% discount for 3 months')}
         </Button>
         <Button onClick={() => resolve(false)} className="!bg-red-800">
-          Cancel my subscription
+          {t('cancel_my_subscription', 'Cancel my subscription')}
         </Button>
       </div>
     </div>
@@ -191,7 +192,7 @@ const Info: FC<{
       <div>
         <Textarea
           className="bg-newBgColorInner"
-          label={'Feedback'}
+          label={t('label_feedback', 'Feedback')}
           name="feedback"
           disableForm={true}
           value={feedback}
@@ -290,7 +291,7 @@ export const MainBillingComponent: FC<{
             cancelAt: cancel_at,
           }));
 
-          toast.show('Subscription reactivated successfully');
+          toast.show(t('subscription_reactivated', 'Subscription reactivated successfully'));
           setLoading(false);
           return;
         }
@@ -301,7 +302,7 @@ export const MainBillingComponent: FC<{
           pricing[subscription?.subscriptionTier!]?.team_members
         ) {
           messages.push(
-            `Your team members will be removed from your organization`
+            t('team_members_will_be_removed', 'Your team members will be removed from your organization')
           );
         }
         if (billing === 'FREE') {
@@ -427,7 +428,7 @@ export const MainBillingComponent: FC<{
               revalidate: false,
             }
           );
-          toast.show('Subscription updated successfully');
+          toast.show(t('subscription_updated', 'Subscription updated successfully'));
         }
         setLoading(false);
       },
@@ -505,20 +506,20 @@ export const MainBillingComponent: FC<{
                     )}
                   >
                     {currentPackage === name.toUpperCase()
-                      ? 'Current Plan'
+                      ? t('current_plan', 'Current Plan')
                       : name.toUpperCase() === 'FREE'
                       ? subscription?.cancelAt
                         ? `Downgrade on ${dayjs
                             .utc(subscription?.cancelAt)
                             .local()
                             .format('D MMM, YYYY')}`
-                        : 'Cancel subscription'
+                        : t('cancel_subscription', 'Cancel subscription')
                       : // @ts-ignore
                       (user?.tier === 'FREE' ||
                           user?.tier?.current === 'FREE') &&
                         user.allowTrial
                       ? t('start_7_days_free_trial', 'Start 7 days free trial')
-                      : 'Purchase'}
+                      : t('purchase', 'Purchase')}
                   </Button>
                 )}
                 {subscription &&

@@ -20,6 +20,7 @@ export const SignaturesComponent: FC<{
   const fetch = useFetch();
   const modal = useModals();
   const toaster = useToaster();
+  const t = useT();
   const load = useCallback(async () => {
     return (await fetch('/signatures')).json();
   }, []);
@@ -27,7 +28,7 @@ export const SignaturesComponent: FC<{
   const addSignature = useCallback(
     (data?: any) => () => {
       modal.openModal({
-        title: data ? 'Edit Signature' : 'Add Signature',
+        title: data ? t('top_title_edit_signature', 'Edit Signature') : t('top_title_add_signature', 'Add Signature'),
         withCloseButton: true,
         children: <AddOrRemoveSignature data={data} reload={mutate} />,
       });
@@ -50,13 +51,11 @@ export const SignaturesComponent: FC<{
           method: 'DELETE',
         });
         mutate();
-        toaster.show('Signature deleted successfully', 'success');
+        toaster.show(t('signature_deleted', 'Signature deleted successfully'), 'success');
       }
     },
     []
   );
-
-  const t = useT();
 
   return (
     <div className="flex flex-col">
@@ -93,7 +92,7 @@ export const SignaturesComponent: FC<{
                   </div>
                   <div className="flex flex-col justify-center relative me-[20px]">
                     <div className="text-center w-full absolute start-0 line-clamp-1 top-[50%] -translate-y-[50%]">
-                      {p.autoAdd ? 'Yes' : 'No'}
+                      {p.autoAdd ? t('yes', 'Yes') : t('no', 'No')}
                     </div>
                   </div>
                   {!!appendSignature && (
@@ -155,6 +154,7 @@ const AddOrRemoveSignature: FC<{
   const text = form.watch('content');
   const autoAdd = form.watch('autoAdd');
   const modal = useModals();
+  const t = useT();
   const callBack = useCallback(
     async (values: any) => {
       await fetch(data?.id ? `/signatures/${data.id}` : '/signatures', {
@@ -163,8 +163,8 @@ const AddOrRemoveSignature: FC<{
       });
       toast.show(
         data?.id
-          ? 'Signature updated successfully'
-          : 'Signature added successfully',
+          ? t('signature_updated', 'Signature updated successfully')
+          : t('signature_added', 'Signature added successfully'),
         'success'
       );
       modal.closeCurrent();
@@ -172,8 +172,6 @@ const AddOrRemoveSignature: FC<{
     },
     [data, modal]
   );
-
-  const t = useT();
 
   return (
     <FormProvider {...form}>
@@ -210,7 +208,7 @@ const AddOrRemoveSignature: FC<{
               onChange={(e) => {
                 form.setValue('content', e.target.value);
               }}
-              placeholder="Write your signature..."
+              placeholder={t('write_signature_placeholder', 'Write your signature...')}
               autosuggestionsConfig={{
                 textareaPurpose: `Assist me in writing social media signature`,
                 chatApiConfigs: {},
@@ -219,8 +217,7 @@ const AddOrRemoveSignature: FC<{
           </div>
 
           <Select
-            label="Auto add signature?"
-            translationKey="label_auto_add_signature"
+            label={t('label_auto_add_signature', 'Auto add signature?')}
             {...form.register('autoAdd', {
               setValueAs: (value) => value === 'true',
             })}

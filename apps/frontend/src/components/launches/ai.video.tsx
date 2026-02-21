@@ -26,6 +26,7 @@ export const Modal: FC<{
   const form = useForm();
   const [position, setPosition] = useState('vertical');
   const toaster = useToaster();
+  const t = useT();
 
   const loadCredits = useCallback(async () => {
     return (
@@ -45,7 +46,7 @@ export const Modal: FC<{
 
     const customParams = form.getValues();
     if (!(await form.trigger())) {
-      toaster.show('Please fill all required fields', 'warning');
+      toaster.show(t('please_fill_required_fields', 'Please fill all required fields'), 'warning');
       return;
     }
     try {
@@ -79,9 +80,9 @@ export const Modal: FC<{
               <div className="flex gap-[10px] flex-col w-[500px] h-auto bg-sixth border-tableBorder border-2 rounded-xl pb-[20px] px-[20px] relative">
                 <div className="flex">
                   <div className="flex-1">
-                    <TopTitle title={'Video Type'}>
+                    <TopTitle title={t('video_type', 'Video Type')}>
                       <div className="mr-[25px]">
-                        {data?.credits || 0} credits left
+                        {data?.credits || 0} {t('credits_left', 'credits left')}
                       </div>
                     </TopTitle>
                   </div>
@@ -115,7 +116,7 @@ export const Modal: FC<{
                           onClick={() => setPosition('vertical')}
                           secondary={position === 'horizontal'}
                         >
-                          Vertical (Stories, Reels)
+                          {t('vertical_stories_reels', 'Vertical (Stories, Reels)')}
                         </Button>
                       </div>
                       <div className="flex-1 flex mt-[10px]">
@@ -124,7 +125,7 @@ export const Modal: FC<{
                           onClick={() => setPosition('horizontal')}
                           secondary={position === 'vertical'}
                         >
-                          Horizontal (Normal Post)
+                          {t('horizontal_normal_post', 'Horizontal (Normal Post)')}
                         </Button>
                       </div>
                     </div>
@@ -133,7 +134,7 @@ export const Modal: FC<{
                 </div>
                 <div className="flex">
                   <Button type="submit" className="flex-1">
-                    Generate
+                    {t('generate', 'Generate')}
                   </Button>
                 </div>
               </div>
@@ -204,7 +205,7 @@ export const AiVideo: FC<{
             ? {
                 'data-tooltip-id': 'tooltip',
                 'data-tooltip-content':
-                  'Please add at least 30 characters to generate AI video',
+                  t('ai_video_min_chars', 'Please add at least 30 characters to generate AI video'),
               }
             : {})}
           className={clsx(

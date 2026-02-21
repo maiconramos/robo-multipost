@@ -32,6 +32,7 @@ export const AddMember = () => {
   const modals = useModals();
   const fetch = useFetch();
   const toast = useToaster();
+  const t = useT();
   const resolver = useMemo(() => {
     return classValidatorResolver(AddTeamMemberDto);
   }, []);
@@ -68,20 +69,18 @@ export const AddMember = () => {
     []
   );
 
-  const t = useT();
-
   return (
     <FormProvider {...form}>
       <form onSubmit={form.handleSubmit(submit)}>
         <div className="relative flex gap-[10px] flex-col flex-1 p-[16px] pt-0">
           {sendEmail && (
             <Input
-              label="Email"
+              label={t('label_email', 'Email')}
               placeholder={t('enter_email', 'Enter email')}
               name="email"
             />
           )}
-          <Select label="Role" name="role">
+          <Select label={t('label_role', 'Role')} name="role">
             <option value="">{t('select_role', 'Select Role')}</option>
             {roles.map((role) => (
               <option key={role.value} value={role.value}>

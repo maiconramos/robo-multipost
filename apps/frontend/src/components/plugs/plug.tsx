@@ -114,6 +114,7 @@ export const PlugPop: FC<{
     values,
     mode: 'all',
   });
+  const t = useT();
   const submit: SubmitHandler<any> = useCallback(async (data) => {
     await fetch(`/integrations/${settings.providerId}/plugs`, {
       method: 'POST',
@@ -125,11 +126,9 @@ export const PlugPop: FC<{
         })),
       }),
     });
-    toaster.show('Plug updated', 'success');
+    toaster.show(t('plug_updated', 'Plug updated'), 'success');
     closeAll();
   }, []);
-
-  const t = useT();
 
   return (
     <FormProvider {...form}>

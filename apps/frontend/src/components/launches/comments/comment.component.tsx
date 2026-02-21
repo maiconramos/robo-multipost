@@ -9,6 +9,7 @@ import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { Input } from '@gitroom/react/form/input';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 export const CommentBox: FC<{
   value?: string;
   type: 'textarea' | 'input';
@@ -16,6 +17,7 @@ export const CommentBox: FC<{
 }> = (props) => {
   const { value, onChange, type } = props;
   const Component = type === 'textarea' ? Textarea : Input;
+  const t = useT();
   const [newComment, setNewComment] = useState(value || '');
   const newCommentFunc = useCallback(
     (event: {
@@ -40,8 +42,8 @@ export const CommentBox: FC<{
     >
       <div className={clsx(type === 'input' && 'flex-1')}>
         <Component
-          label={type === 'textarea' ? 'Add comment' : ''}
-          placeholder={type === 'input' ? 'Add comment' : ''}
+          label={type === 'textarea' ? t('add_comment_placeholder', 'Add comment') : ''}
+          placeholder={type === 'input' ? t('add_comment_placeholder', 'Add comment') : ''}
           name="comment"
           disableForm={true}
           value={newComment}
@@ -53,7 +55,7 @@ export const CommentBox: FC<{
         onClick={changeIt}
         className={clsx(type === 'input' && 'mb-[27px]')}
       >
-        {value ? 'Update' : 'Add comment'}
+        {value ? t('update', 'Update') : t('add_comment_placeholder', 'Add comment')}
       </Button>
     </div>
   );
@@ -76,6 +78,7 @@ export const EditableCommentComponent: FC<{
   const [commentContent, setCommentContent] = useState(comment.content);
   const [editMode, setEditMode] = useState(false);
   const user = useUser();
+  const t = useT();
   const updateComment = useCallback((commentValue: string) => {
     if (commentValue !== comment.content) {
       setCommentContent(commentValue);
@@ -86,8 +89,8 @@ export const EditableCommentComponent: FC<{
   const deleteCommentFunction = useCallback(async () => {
     if (
       await deleteDialog(
-        'Are you sure you want to delete this comment?',
-        'Yes, Delete'
+        t('are_you_sure_delete_comment', 'Are you sure you want to delete this comment?'),
+        t('yes_delete', 'Yes, Delete')
       )
     ) {
       onDelete();

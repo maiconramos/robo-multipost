@@ -64,7 +64,7 @@ ${type}
           ? {
               'data-tooltip-id': 'tooltip',
               'data-tooltip-content':
-                'Please add at least 30 characters to generate AI image',
+                t('ai_image_min_chars', 'Please add at least 30 characters to generate AI image'),
             }
           : {})}
         className={clsx(
