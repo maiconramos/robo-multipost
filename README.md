@@ -1,8 +1,5 @@
 <p align="center">
-  <picture>
-    <source media="(prefers-color-scheme: dark)" srcset="https://github.com/user-attachments/assets/765e9d72-3ee7-4a56-9d59-a2c9befe2311">
-    <img alt="Robô MultiPost Logo" src="https://github.com/user-attachments/assets/f0d30d70-dddb-4142-8876-e9aa6ed1cb99" width="280"/>
-  </picture>
+  <img alt="Robô MultiPost Logo" src="apps/frontend/public/logo-text.svg" width="280"/>
 </p>
 
 <h2 align="center">Robô MultiPost</h2>
