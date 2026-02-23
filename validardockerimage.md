@@ -107,7 +107,7 @@ export GHCR_IMAGE="ghcr.io/maiconramos/robo-multipost"
 # Build com tag de versao + latest
 docker build -f Dockerfile.dev \
   --build-arg NEXT_PUBLIC_VERSION=0.0.2 \
-  -t ${GHCR_IMAGE}:0.0.1 \
+  -t ${GHCR_IMAGE}:0.0.2 \
   -t ${GHCR_IMAGE}:latest \
   .
 ```
