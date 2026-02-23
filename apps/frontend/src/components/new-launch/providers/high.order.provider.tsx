@@ -59,7 +59,8 @@ export const withProvider = function <T extends object>(params: {
       }>
     >,
     settings: T,
-    additionalSettings: any
+    additionalSettings: any,
+    t?: (key: string, defaultValue: string) => string
   ) => Promise<string | true>;
   maximumCharacters?: number | ((settings: any) => number);
 }) {
@@ -209,7 +210,8 @@ export const withProvider = function <T extends object>(params: {
                   settings,
                   JSON.parse(
                     selectedIntegration.integration.additionalSettings || '[]'
-                  )
+                  ),
+                  t
                 )
               : true,
             settings,

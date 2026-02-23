@@ -368,7 +368,7 @@ export const MainBillingComponent: FC<{
               cancelAt: cancel_at,
             }));
             if (cancel_at)
-              toast.show('Subscription set to canceled successfully');
+              toast.show(t('subscription_canceled', 'Subscription set to canceled successfully'));
             setLoading(false);
           }
           return;

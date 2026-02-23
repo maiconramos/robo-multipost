@@ -1,18 +1,20 @@
 'use client';
 
 import { FC, useCallback } from 'react';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export const Bullets: FC<{
   editor: any;
   currentValue: string;
 }> = ({ editor }) => {
+  const t = useT();
   const bullet = () => {
     editor?.commands?.toggleBulletList();
   };
   return (
     <div
       data-tooltip-id="tooltip"
-      data-tooltip-content="Bullets"
+      data-tooltip-content={t('bullets_text', 'Bullets')}
       onClick={bullet}
       className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-newColColor flex justify-center items-center"
     >

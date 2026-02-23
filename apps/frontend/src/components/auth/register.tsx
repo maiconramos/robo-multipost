@@ -72,14 +72,14 @@ export function Register() {
     <RegisterAfter token={code} provider={provider?.toUpperCase() || 'LOCAL'} />
   );
 }
-function getHelpfulReasonForRegistrationFailure(httpCode: number) {
+function getHelpfulReasonForRegistrationFailure(httpCode: number, t: (key: string, defaultValue: string) => string) {
   switch (httpCode) {
     case 400:
-      return 'Email already exists';
+      return t('email_already_exists', 'Email already exists');
     case 404:
-      return 'Your browser got a 404 when trying to contact the API, the most likely reasons for this are the NEXT_PUBLIC_BACKEND_URL is set incorrectly, or the backend is not running.';
+      return t('browser_api_404', 'Your browser got a 404 when trying to contact the API, the most likely reasons for this are the NEXT_PUBLIC_BACKEND_URL is set incorrectly, or the backend is not running.');
   }
-  return 'Unhandled error: ' + httpCode;
+  return t('unhandled_error', 'Unhandled error') + ': ' + httpCode;
 }
 export function RegisterAfter({
   token,
@@ -139,9 +139,9 @@ export function RegisterAfter({
       .catch((e) => {
         form.setError('email', {
           message:
-            'General error: ' +
+            t('general_error', 'General error') + ': ' +
             e.toString() +
-            '. Please check your browser console.',
+            '. ' + t('check_browser_console', 'Please check your browser console.'),
         });
       });
   };

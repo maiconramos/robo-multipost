@@ -3,6 +3,7 @@
 import { FC, useCallback } from 'react';
 import { Editor, Transforms } from 'slate';
 import { ReactEditor } from 'slate-react';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 const originalMap = {
   a: '𝗮',
   b: '𝗯',
@@ -74,6 +75,7 @@ export const BoldText: FC<{
   editor: any;
   currentValue: string;
 }> = ({ editor }) => {
+  const t = useT();
   const mark = () => {
     editor?.commands?.unsetUnderline();
     editor?.commands?.toggleBold();
@@ -82,7 +84,7 @@ export const BoldText: FC<{
   return (
     <div
       data-tooltip-id="tooltip"
-      data-tooltip-content="Bold Text"
+      data-tooltip-content={t('bold_text', 'Bold Text')}
       onClick={mark}
       className="select-none cursor-pointer rounded-[6px] w-[30px] h-[30px] bg-newColColor flex justify-center items-center"
     >

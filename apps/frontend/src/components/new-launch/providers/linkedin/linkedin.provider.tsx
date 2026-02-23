@@ -43,7 +43,7 @@ export default withProvider<LinkedinDto>({
   SettingsComponent: LinkedInSettings,
   CustomPreviewComponent: LinkedinPreview,
   dto: LinkedinDto,
-  checkValidity: async (posts, vals) => {
+  checkValidity: async (posts, vals, _additionalSettings, t) => {
     const [firstPost, ...restPosts] = posts ?? [];
 
     if (
@@ -61,7 +61,7 @@ export default withProvider<LinkedinDto>({
       return 'Can have maximum 1 media when selecting a video.';
     }
     if (restPosts?.some((p) => (p?.length ?? 0) > 0)) {
-      return 'Comments can only contain text.';
+      return t?.('comments_only_text', 'Comments can only contain text.') ?? 'Comments can only contain text.';
     }
     return true;
   },

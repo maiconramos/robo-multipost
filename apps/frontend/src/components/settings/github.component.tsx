@@ -78,7 +78,7 @@ const ConnectComponent: FC<{
       }),
     });
     if (response.status === 404) {
-      toast.show('Repository not found', 'warning');
+      toast.show(t('repository_not_found', 'Repository not found'), 'warning');
       return;
     }
     setConnected(`${select}/${repo}`);

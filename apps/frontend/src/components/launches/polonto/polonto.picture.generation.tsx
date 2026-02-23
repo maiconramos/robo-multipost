@@ -41,7 +41,7 @@ const GenerateTab = observer(({ store }: any) => {
       return;
     }
     if (!inputRef.current.value) {
-      toast.show('Please type your prompt', 'warning');
+      toast.show(t('please_type_prompt', 'Please type your prompt'), 'warning');
       return;
     }
     setLoading(true);
@@ -73,7 +73,7 @@ const GenerateTab = observer(({ store }: any) => {
         {data?.credits ? `(${data?.credits} left)` : ``}
       </div>
       <InputGroup
-        placeholder="Type your image generation prompt here..."
+        placeholder={t('type_image_prompt', 'Type your image generation prompt here...')}
         onKeyDown={(e) => {
           if (e.key === 'Enter') {
             handleGenerate();

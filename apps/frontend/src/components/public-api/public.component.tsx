@@ -17,22 +17,23 @@ export const PublicComponent = () => {
   const fetch = useFetch();
   const decision = useDecisionModal();
   const { mutate } = useSWRConfig();
+  const t = useT();
   const [reveal, setReveal] = useState(false);
   const [reveal2, setReveal2] = useState(false);
   const copyToClipboard = useCallback(() => {
-    toaster.show('API Key copied to clipboard', 'success');
+    toaster.show(t('api_key_copied', 'API Key copied to clipboard'), 'success');
     copy(user?.publicApi!);
   }, [user]);
   const copyToClipboard2 = useCallback(() => {
-    toaster.show('MCP copied to clipboard', 'success');
+    toaster.show(t('mcp_copied', 'MCP copied to clipboard'), 'success');
     copy(`${backendUrl}/mcp/` + user?.publicApi);
   }, [user]);
 
   const rotateKey = useCallback(async () => {
     const approved = await decision.open({
-      title: 'Rotate API Key?',
+      title: t('rotate_api_key', 'Rotate API Key?'),
       description:
-        'This will generate a new API key and invalidate the current one. Any integrations using the old key will stop working.',
+        t('rotate_api_key_description', 'This will generate a new API key and invalidate the current one. Any integrations using the old key will stop working.'),
       approveLabel: 'Rotate',
       cancelLabel: 'Cancel',
     });
@@ -41,10 +42,8 @@ export const PublicComponent = () => {
     await mutate('/user/self');
     setReveal(false);
     setReveal2(false);
-    toaster.show('API Key rotated successfully', 'success');
+    toaster.show(t('api_key_rotated', 'API Key rotated successfully'), 'success');
   }, [decision, fetch, mutate, toaster]);
-
-  const t = useT();
 
   if (!user || !user.publicApi) {
     return null;
