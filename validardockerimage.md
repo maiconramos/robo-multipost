@@ -1,4 +1,4 @@
-# Postiz - Guia de Build e Publicacao de Imagem Docker
+# Robo MultiPost - Guia de Build e Publicacao de Imagem Docker
 
 ## Indice
 
@@ -38,10 +38,24 @@ Porta 5000 (Nginx)
 
 ## Build local da imagem
 
+> **IMPORTANTE: Arquitetura da imagem (ARM64 vs AMD64)**
+>
+> Se voce esta buildando no **Mac com Apple Silicon (M1/M2/M3/M4)**, a imagem sera
+> gerada para **ARM64** por padrao. A maioria das VPS roda **linux/amd64 (x86_64)**.
+> Uma imagem ARM64 **nao roda** em um servidor amd64 — o erro sera:
+> `no matching manifest for linux/amd64 in the manifest list entries`
+>
+> **Sempre use `--platform linux/amd64`** no build se a VPS for x86_64 (que e o caso
+> mais comum). Os comandos abaixo ja incluem essa flag.
+
 ### Build simples
 
 ```bash
-docker build -f Dockerfile.dev -t postiz-app:latest .
+# Para rodar em VPS x86_64 (padrao)
+docker build -f Dockerfile.dev --platform linux/amd64 -t robo-multipost:latest .
+
+# Para rodar localmente no Mac (ARM64)
+docker build -f Dockerfile.dev -t robo-multipost:latest .
 ```
 
 ### Build com versao
@@ -49,14 +63,16 @@ docker build -f Dockerfile.dev -t postiz-app:latest .
 ```bash
 # Substituir 1.0.0 pela versao desejada
 docker build -f Dockerfile.dev \
+  --platform linux/amd64 \
   --build-arg NEXT_PUBLIC_VERSION=1.0.0 \
-  -t postiz-app:1.0.0 \
-  -t postiz-app:latest \
+  -t robo-multipost:1.0.0 \
+  -t robo-multipost:latest \
   .
 ```
 
 > O build demora bastante (instala dependencias + faz build completo).
 > Recomenda-se pelo menos 4GB de RAM disponivel (o build usa `--max-old-space-size=4096`).
+> Build cross-platform (amd64 no Mac ARM) pode ser ainda mais lento por usar emulacao QEMU.
 
 ### Testar a imagem localmente
 
@@ -70,7 +86,7 @@ docker run --rm -p 5000:5000 \
   -e BACKEND_INTERNAL_URL="http://localhost:3000" \
   -e IS_GENERAL="true" \
   -e STORAGE_PROVIDER="local" \
-  postiz-app:latest
+  robo-multipost:latest
 ```
 
 Acesse http://localhost:5000 para validar.
@@ -101,13 +117,13 @@ echo "TOKEN_DO_USUARIO" | docker login ghcr.io -u USERNAME --password-stdin
 ### Passo 3: Build e tag da imagem
 
 ```bash
-# Substituir SEU_USUARIO e NOME_REPO
 export GHCR_IMAGE="ghcr.io/maiconramos/robo-multipost"
 
-# Build com tag de versao + latest
+# Build com tag de versao + latest (para VPS x86_64)
 docker build -f Dockerfile.dev \
-  --build-arg NEXT_PUBLIC_VERSION=0.0.2 \
-  -t ${GHCR_IMAGE}:0.0.2 \
+  --platform linux/amd64 \
+  --build-arg NEXT_PUBLIC_VERSION=0.0.3 \
+  -t ${GHCR_IMAGE}:0.0.3 \
   -t ${GHCR_IMAGE}:latest \
   .
 ```
@@ -115,12 +131,13 @@ docker build -f Dockerfile.dev \
 ### Passo 4: Push para o GHCR
 
 ```bash
-# Push da versao especifica
-docker push ${GHCR_IMAGE}:0.0.1
-
-# Push do latest
+# Push da versao especifica e latest
+docker push ${GHCR_IMAGE}:0.0.3
 docker push ${GHCR_IMAGE}:latest
 ```
+
+> **IMPORTANTE:** Nunca reutilize a mesma tag para imagens diferentes.
+> Sempre incremente a versao (ex: 0.0.3 -> 0.0.4) para evitar problemas de cache.
 
 ### Passo 5: Verificar
 
@@ -143,9 +160,11 @@ docker login -u SEU_USUARIO
 ### Passo 3: Build, tag e push
 
 ```bash
-export DOCKERHUB_IMAGE="SEU_USUARIO/postiz-app"
+export DOCKERHUB_IMAGE="SEU_USUARIO/robo-multipost"
 
+# Para VPS x86_64 (padrao)
 docker build -f Dockerfile.dev \
+  --platform linux/amd64 \
   --build-arg NEXT_PUBLIC_VERSION=1.0.0 \
   -t ${DOCKERHUB_IMAGE}:1.0.0 \
   -t ${DOCKERHUB_IMAGE}:latest \

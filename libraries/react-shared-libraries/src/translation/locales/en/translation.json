@@ -810,5 +810,9 @@
   "browser_api_404": "Your browser got a 404 when trying to contact the API. The most likely reasons are the NEXT_PUBLIC_BACKEND_URL is set incorrectly, or the backend is not running.",
   "send_invite_link_tooltip": "Send Invite Link to a customer to add channel",
   "event_name_placeholder": "Event name",
-  "valid_until_placeholder": "Valid until..."
+  "valid_until_placeholder": "Valid until...",
+  "configure_your_channel": "Configure Your Channel",
+  "select_the_page_or_account": "Select the {{provider}} page or account you want to connect.",
+  "channel_connected": "Channel Connected!",
+  "channel_connected_description": "Your {{provider}} channel has been successfully connected. You can close this window now."
 }
