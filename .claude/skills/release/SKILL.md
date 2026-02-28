@@ -173,10 +173,10 @@ version.txt:     X.Y.Z
 
 CI/CD:
   GitHub Actions: https://github.com/maiconramos/robo-multipost/actions
-  Imagem Docker:  ghcr.io/maiconramos/robo-multipost:vX.Y.Z
+  Imagem Docker:  ghcr.io/maiconramos/robo-multipost:X.Y.Z (sem prefixo v)
 
 Para atualizar na VPS:
-  docker pull ghcr.io/maiconramos/robo-multipost:vX.Y.Z
+  docker pull ghcr.io/maiconramos/robo-multipost:X.Y.Z
   docker compose up -d postiz
 ```
 
@@ -189,3 +189,5 @@ Para atualizar na VPS:
 - A tag deve ser ANOTADA (git tag -a), nao lightweight
 - A versao no package.json NAO tem prefixo v (ex: "0.1.0", nao "v0.1.0")
 - A tag no git TEM prefixo v (ex: v0.1.0)
+- A imagem Docker NAO tem prefixo v (ex: ghcr.io/maiconramos/robo-multipost:0.1.0)
+  O workflow strip o "v" automaticamente: tag v0.1.0 -> imagem :0.1.0
