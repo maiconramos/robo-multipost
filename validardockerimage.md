@@ -182,10 +182,10 @@ docker push ${DOCKERHUB_IMAGE}:latest
 
 ```bash
 # Ultima versao
-docker pull ghcr.io/SEU_USUARIO/NOME_REPO:latest
+docker pull ghcr.io/maiconramos/robo-multipost:latest
 
 # Versao especifica
-docker pull ghcr.io/SEU_USUARIO/NOME_REPO:1.0.0
+docker pull ghcr.io/maiconramos/robo-multipost:1.0.0
 ```
 
 > Se o repositorio for privado, faca `docker login ghcr.io` na VPS tambem.
@@ -194,10 +194,10 @@ docker pull ghcr.io/SEU_USUARIO/NOME_REPO:1.0.0
 
 ```bash
 # Ultima versao
-docker pull SEU_USUARIO/postiz-app:latest
+docker pull maiconramos/robo-multipost:latest
 
 # Versao especifica
-docker pull SEU_USUARIO/postiz-app:1.0.0
+docker pull maiconramos/robo-multipost:1.0.0
 ```
 
 ---
@@ -208,7 +208,7 @@ O projeto ja possui um workflow em `.github/workflows/build-containers.yml` que:
 
 1. **Trigger:** push de tags (`*`) ou dispatch manual
 2. **Build multi-arch:** amd64 + arm64 em paralelo
-3. **Push:** para `ghcr.io/gitroomhq/postiz-app:{tag}`
+3. **Push:** para `ghcr.io/maiconramos/robo-multipost:{tag}`
 4. **Manifest:** cria manifest multi-arch e atualiza `:latest`
 
 ### Como usar no seu fork
@@ -225,8 +225,8 @@ git push origin v1.0.0
 
 Isso dispara o GitHub Actions que:
 - Faz build para amd64 e arm64
-- Publica em `ghcr.io/SEU_USUARIO/NOME_REPO:v1.0.0`
-- Atualiza `ghcr.io/SEU_USUARIO/NOME_REPO:latest`
+- Publica em `ghcr.io/maiconramos/robo-multipost:v1.0.0`
+- Atualiza `ghcr.io/maiconramos/robo-multipost:latest`
 
 > O workflow usa `${{ github.actor }}` e `${{ github.token }}`, entao funciona
 > automaticamente no seu fork sem configuracao extra.
@@ -244,7 +244,7 @@ Isso dispara o GitHub Actions que:
 2. Commit e push para main
 3. Crie uma tag: git tag v1.2.3 && git push origin v1.2.3
 4. GitHub Actions builda e publica automaticamente
-5. Na VPS: docker pull ghcr.io/SEU_USUARIO/NOME_REPO:v1.2.3
+5. Na VPS: docker pull ghcr.io/maiconramos/robo-multipost:v1.2.3
 6. Na VPS: docker compose up -d (ou restart do container)
 ```
 
@@ -257,7 +257,7 @@ Crie um `docker-compose.yml` na sua VPS:
 ```yaml
 services:
   postiz:
-    image: ghcr.io/SEU_USUARIO/NOME_REPO:latest  # ou :v1.0.0
+    image: ghcr.io/maiconramos/robo-multipost:latest  # ou :v1.0.0
     container_name: postiz
     restart: always
     environment:
@@ -405,7 +405,7 @@ Crie um `deploy.sh` na VPS:
 set -e
 
 VERSION=${1:-latest}
-IMAGE="ghcr.io/SEU_USUARIO/NOME_REPO:${VERSION}"
+IMAGE="ghcr.io/maiconramos/robo-multipost:${VERSION}"
 
 echo "Atualizando para: ${IMAGE}"
 docker pull ${IMAGE}
