@@ -27,3 +27,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Upstream
 - Baseado no Postiz upstream em commit ccd66571 (era ~v2.16.0)
+- Sincronizado com Postiz upstream ate commit `6c39e810` (2026-02-28)
+  - feat: URL separada para MCP server (`mcpUrl`)
+  - feat: Redis throttler para rate limiting
+  - feat: Suporte a TLS e API key no Temporal
+  - feat: Melhor tratamento de erros no TikTok
+  - feat: Funcionalidade de logout
+  - feat: Compressao HTTP e melhores indices no banco
+  - feat: Cobrancas apenas para sucesso + reembolso e cancelamento
+  - fix: Colaboradores em carrossel do Instagram
