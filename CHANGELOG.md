@@ -12,7 +12,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ### Adicionado
 - Rebranding: Postiz renomeado para "Robo MultiPost" em todo o frontend
 - Traducoes pt-BR para componentes principais (canais, email, erros, midia)
-- Documentacao de build e publicacao Docker (validardockerimage.md)
+- Documentacao de build e publicacao Docker (guia-docker-release.md)
 - CLAUDE.md e AGENTS.md com instrucoes para agentes IA
 - Source maps para estilos CSS globais
 - Skills Claude Code: /sync-upstream, /new-release, /changelog, /fork-status
