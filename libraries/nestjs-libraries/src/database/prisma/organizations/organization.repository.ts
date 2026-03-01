@@ -410,4 +410,25 @@ export class OrganizationRepository {
       },
     });
   }
+
+  getLateApiKey(orgId: string) {
+    return this._organization.model.organization.findUnique({
+      where: { id: orgId },
+      select: { lateApiKey: true },
+    });
+  }
+
+  saveLateApiKey(orgId: string, encryptedKey: string) {
+    return this._organization.model.organization.update({
+      where: { id: orgId },
+      data: { lateApiKey: encryptedKey },
+    });
+  }
+
+  removeLateApiKey(orgId: string) {
+    return this._organization.model.organization.update({
+      where: { id: orgId },
+      data: { lateApiKey: null },
+    });
+  }
 }

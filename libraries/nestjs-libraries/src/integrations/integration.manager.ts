@@ -1,6 +1,7 @@
 import 'reflect-metadata';
 
-import { Injectable } from '@nestjs/common';
+import { Injectable, Optional } from '@nestjs/common';
+import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
 import { XProvider } from '@gitroom/nestjs-libraries/integrations/social/x.provider';
 import { SocialProvider } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { LinkedinProvider } from '@gitroom/nestjs-libraries/integrations/social/linkedin.provider';
@@ -35,6 +36,8 @@ import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.ab
 import { MoltbookProvider } from '@gitroom/nestjs-libraries/integrations/social/moltbook.provider';
 import { SkoolProvider } from '@gitroom/nestjs-libraries/integrations/social/skool.provider';
 import { WhopProvider } from '@gitroom/nestjs-libraries/integrations/social/whop.provider';
+import { LateTikTokProvider } from '@gitroom/nestjs-libraries/integrations/social/late-tiktok.provider';
+import { LatePinterestProvider } from '@gitroom/nestjs-libraries/integrations/social/late-pinterest.provider';
 
 export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new XProvider(),
@@ -69,11 +72,83 @@ export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new MoltbookProvider(),
   new WhopProvider(),
   new SkoolProvider(),
+  new LateTikTokProvider(),
+  new LatePinterestProvider(),
   // new MastodonCustomProvider(),
 ];
 
+const ENV_MAPPING: Record<string, Record<string, string>> = {
+  facebook: {
+    clientId: 'FACEBOOK_APP_ID',
+    clientSecret: 'FACEBOOK_APP_SECRET',
+  },
+  tiktok: {
+    clientId: 'TIKTOK_CLIENT_ID',
+    clientSecret: 'TIKTOK_CLIENT_SECRET',
+  },
+  pinterest: {
+    clientId: 'PINTEREST_CLIENT_ID',
+    clientSecret: 'PINTEREST_CLIENT_SECRET',
+  },
+  linkedin: {
+    clientId: 'LINKEDIN_CLIENT_ID',
+    clientSecret: 'LINKEDIN_CLIENT_SECRET',
+  },
+  twitter: { clientId: 'X_API_KEY', clientSecret: 'X_API_SECRET' },
+  youtube: {
+    clientId: 'YOUTUBE_CLIENT_ID',
+    clientSecret: 'YOUTUBE_CLIENT_SECRET',
+  },
+  reddit: {
+    clientId: 'REDDIT_CLIENT_ID',
+    clientSecret: 'REDDIT_CLIENT_SECRET',
+  },
+  discord: {
+    clientId: 'DISCORD_CLIENT_ID',
+    clientSecret: 'DISCORD_CLIENT_SECRET',
+    botToken: 'DISCORD_BOT_TOKEN_ID',
+  },
+  slack: {
+    clientId: 'SLACK_ID',
+    clientSecret: 'SLACK_SECRET',
+    signingSecret: 'SLACK_SIGNING_SECRET',
+  },
+};
+
 @Injectable()
 export class IntegrationManager {
+  constructor(
+    @Optional() private _credentialService?: CredentialService
+  ) {}
+
+  async getProviderCredentials(
+    provider: string,
+    organizationId: string
+  ): Promise<Record<string, string> | undefined> {
+    if (this._credentialService) {
+      const dbCredentials = await this._credentialService.getRaw(
+        organizationId,
+        provider
+      );
+      if (dbCredentials) {
+        return dbCredentials;
+      }
+    }
+
+    const mapping = ENV_MAPPING[provider];
+    if (!mapping) return undefined;
+
+    const envCredentials: Record<string, string> = {};
+    let hasAny = false;
+    for (const [key, envVar] of Object.entries(mapping)) {
+      const value = process.env[envVar] || '';
+      if (value) hasAny = true;
+      envCredentials[key] = value;
+    }
+
+    return hasAny ? envCredentials : undefined;
+  }
+
   async getAllIntegrations() {
     return {
       social: await Promise.all(

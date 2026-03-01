@@ -1,5 +1,5 @@
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository';
 import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service';
 import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.team.member.dto';
@@ -7,6 +7,7 @@ import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { Organization, ShortLinkPreference } from '@prisma/client';
+import Late from '@getlatedev/node';
 import { AutopostService } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.service';
 
 @Injectable()
@@ -129,5 +130,51 @@ export class OrganizationService {
       orgId,
       shortlink
     );
+  }
+
+  async getLateSettings(orgId: string) {
+    const org = await this._organizationRepository.getLateApiKey(orgId);
+    if (!org?.lateApiKey) {
+      return { configured: false, usage: null };
+    }
+
+    try {
+      const apiKey = AuthService.fixedDecryption(org.lateApiKey);
+      const late = new Late({ apiKey });
+      const usage = await late.usage.getUsageStats();
+      return { configured: true, usage };
+    } catch {
+      return { configured: true, usage: null };
+    }
+  }
+
+  async saveLateApiKey(orgId: string, apiKey: string) {
+    if (!apiKey.startsWith('sk_')) {
+      throw new HttpException('Invalid Late API key format. Key must start with "sk_".', 400);
+    }
+
+    // Validate key by calling Late API
+    try {
+      const late = new Late({ apiKey });
+      const usage = await late.usage.getUsageStats();
+      const encrypted = AuthService.fixedEncryption(apiKey);
+      await this._organizationRepository.saveLateApiKey(orgId, encrypted);
+      return { configured: true, usage };
+    } catch {
+      throw new HttpException('Invalid Late API key. Could not connect to Late.', 400);
+    }
+  }
+
+  async removeLateApiKey(orgId: string) {
+    await this._organizationRepository.removeLateApiKey(orgId);
+    return { configured: false };
+  }
+
+  async getDecryptedLateApiKey(orgId: string): Promise<string | null> {
+    const org = await this._organizationRepository.getLateApiKey(orgId);
+    if (!org?.lateApiKey) {
+      return null;
+    }
+    return AuthService.fixedDecryption(org.lateApiKey);
   }
 }

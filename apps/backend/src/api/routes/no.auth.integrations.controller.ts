@@ -5,8 +5,11 @@ import {
   HttpException,
   Param,
   Post,
+  Query,
+  Res,
   UseFilters,
 } from '@nestjs/common';
+import { Response } from 'express';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { ConnectIntegrationDto } from '@gitroom/nestjs-libraries/dtos/integrations/connect.integration.dto';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
@@ -320,6 +323,25 @@ export class NoAuthIntegrationsController {
     const org = await this._organizationService.getOrgById(organization);
 
     return this._integrationService.saveProviderPage(org.id, id, body);
+  }
+
+  @Get('/late/callback')
+  async lateCallback(
+    @Query('accountId') accountId: string,
+    @Query('profileId') profileId: string,
+    @Query('platform') platform: string,
+    @Query('state') state: string,
+    @Res() res: Response
+  ) {
+    if (!accountId || !state) {
+      throw new HttpException('Missing required parameters', 400);
+    }
+
+    const provider = platform === 'pinterest' ? 'late-pinterest' : 'late-tiktok';
+
+    // Redirect to frontend with the account data
+    const redirectUrl = `${process.env.FRONTEND_URL}/integrations/social/${provider}?code=${encodeURIComponent(accountId)}&state=${encodeURIComponent(state)}`;
+    return res.redirect(redirectUrl);
   }
 
   @Post('/extension-refresh')

@@ -32,6 +32,7 @@ import {
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import { uniqBy } from 'lodash';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
+import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -40,7 +41,8 @@ export class IntegrationsController {
     private _integrationManager: IntegrationManager,
     private _integrationService: IntegrationService,
     private _postService: PostsService,
-    private _refreshIntegrationService: RefreshIntegrationService
+    private _refreshIntegrationService: RefreshIntegrationService,
+    private _organizationService: OrganizationService
   ) {}
 
   @Get('/:identifier/internal-plugs')
@@ -199,17 +201,31 @@ export class IntegrationsController {
     const integrationProvider =
       this._integrationManager.getSocialIntegration(integration);
 
-    if (integrationProvider.externalUrl && !externalUrl) {
+    const isLateProvider = integration.startsWith('late-');
+
+    if (integrationProvider.externalUrl && !externalUrl && !isLateProvider) {
       throw new Error('Missing external url');
     }
 
     try {
-      const getExternalUrl = integrationProvider.externalUrl
-        ? {
-            ...(await integrationProvider.externalUrl(externalUrl)),
-            instanceUrl: externalUrl,
-          }
-        : undefined;
+      let getExternalUrl: { client_id: string; client_secret: string; instanceUrl: string } | undefined;
+
+      if (isLateProvider) {
+        const lateApiKey = await this._organizationService.getDecryptedLateApiKey(org.id);
+        if (!lateApiKey) {
+          throw new Error('Late API key not configured. Go to Settings > Late to configure it.');
+        }
+        getExternalUrl = {
+          client_id: '',
+          client_secret: '',
+          instanceUrl: lateApiKey,
+        };
+      } else if (integrationProvider.externalUrl) {
+        getExternalUrl = {
+          ...(await integrationProvider.externalUrl(externalUrl)),
+          instanceUrl: externalUrl,
+        };
+      }
 
       const { codeVerifier, state, url } =
         await integrationProvider.generateAuthUrl(getExternalUrl);

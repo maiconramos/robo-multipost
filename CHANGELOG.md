@@ -7,6 +7,16 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado
+- Suporte a pre-release (RC) no workflow de release — permite lancar versoes de teste sem afetar `:latest`
+- Workflow `promote-release.yml` para promover RC para estavel sem rebuild da imagem Docker
+- Opcoes `rc` e `promote` no skill `/new-release`
+- Changelog incremental — Claude Code preenche `[Unreleased]` conforme trabalha
+
+### Alterado
+- Skill `/changelog` reescrito para consolidar rascunho incremental em vez de gerar do zero
+- CI/CD detecta pre-releases e nao atualiza `:latest` para versoes RC/beta
+
 ## [0.2.0] - 2026-02-28
 
 ### Adicionado

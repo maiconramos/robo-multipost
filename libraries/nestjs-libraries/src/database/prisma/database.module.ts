@@ -36,6 +36,9 @@ import { ThirdPartyService } from '@gitroom/nestjs-libraries/database/prisma/thi
 import { VideoManager } from '@gitroom/nestjs-libraries/videos/video.manager';
 import { FalService } from '@gitroom/nestjs-libraries/openai/fal.service';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
+import { CredentialRepository } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.repository';
+import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 
 @Global()
 @Module({
@@ -81,6 +84,9 @@ import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integration
     ThirdPartyRepository,
     ThirdPartyService,
     VideoManager,
+    CredentialRepository,
+    CredentialService,
+    EncryptionService,
   ],
   get exports() {
     return this.providers;

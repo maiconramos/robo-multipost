@@ -64,4 +64,24 @@ export class SettingsController {
       body.shortlink
     );
   }
+
+  @Get('/late')
+  async getLateSettings(@GetOrgFromRequest() org: Organization) {
+    return this._organizationService.getLateSettings(org.id);
+  }
+
+  @Post('/late')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async saveLateApiKey(
+    @GetOrgFromRequest() org: Organization,
+    @Body('apiKey') apiKey: string
+  ) {
+    return this._organizationService.saveLateApiKey(org.id, apiKey);
+  }
+
+  @Delete('/late')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async removeLateApiKey(@GetOrgFromRequest() org: Organization) {
+    return this._organizationService.removeLateApiKey(org.id);
+  }
 }

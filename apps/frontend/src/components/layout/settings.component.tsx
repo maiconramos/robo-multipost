@@ -31,6 +31,8 @@ import { Autopost } from '@gitroom/frontend/components/autopost/autopost';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { SVGLine } from '@gitroom/frontend/components/launches/launches.component';
 import { GlobalSettings } from '@gitroom/frontend/components/settings/global.settings';
+import { LateSettingsSection } from '@gitroom/frontend/components/settings/late-settings.component';
+import { CredentialsSettingsSection } from '@gitroom/frontend/components/settings/credentials-settings.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -105,6 +107,8 @@ export const SettingsPopup: FC<{
     if (user?.tier?.public_api && isGeneral && showLogout) {
       arr.push({ tab: 'api', label: t('public_api', 'Public API') });
     }
+    arr.push({ tab: 'late', label: 'Late' });
+    arr.push({ tab: 'credentials', label: 'Credenciais' });
 
     return arr;
   }, [user, isGeneral, showLogout, t]);
@@ -201,6 +205,18 @@ export const SettingsPopup: FC<{
                     <PublicComponent />
                   </div>
                 )}
+
+              {tab === 'late' && (
+                <div>
+                  <LateSettingsSection />
+                </div>
+              )}
+
+              {tab === 'credentials' && (
+                <div>
+                  <CredentialsSettingsSection />
+                </div>
+              )}
             </div>
           </form>
         </FormProvider>

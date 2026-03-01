@@ -1,0 +1,211 @@
+'use client';
+
+import React, { useCallback, useState } from 'react';
+import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { useLateSettings } from '@gitroom/frontend/hooks/use-late-settings.hook';
+import { Button } from '@gitroom/react/form/button';
+import { useToaster } from '@gitroom/react/toaster/toaster';
+import { useDecisionModal } from '@gitroom/frontend/components/layout/new-modal';
+
+const UsageBar: React.FC<{
+  label: string;
+  used: number;
+  limit: number;
+}> = ({ label, used, limit }) => {
+  const percentage = limit > 0 ? Math.min((used / limit) * 100, 100) : 0;
+  const isWarning = percentage >= 80 && percentage < 100;
+  const isDanger = percentage >= 100;
+
+  let barColor = 'bg-forth';
+  if (isWarning) barColor = 'bg-customColor13';
+  if (isDanger) barColor = 'bg-customColor19';
+
+  return (
+    <div className="flex flex-col gap-[6px]">
+      <div className="flex justify-between text-[13px]">
+        <span>{label}</span>
+        <span className="text-customColor18">
+          {used} / {limit}
+        </span>
+      </div>
+      <div className="h-[6px] rounded-full bg-fifth overflow-hidden">
+        <div
+          className={`h-full rounded-full transition-all ${barColor}`}
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      {isWarning && (
+        <div className="text-[12px] text-customColor13">
+          Voce esta proximo do limite
+        </div>
+      )}
+      {isDanger && (
+        <div className="text-[12px] text-customColor19">
+          Limite atingido.{' '}
+          <a
+            href="https://getlate.dev"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="underline hover:font-bold"
+          >
+            Atualize em getlate.dev
+          </a>
+        </div>
+      )}
+    </div>
+  );
+};
+
+export const LateSettingsSection: React.FC = () => {
+  const fetch = useFetch();
+  const toaster = useToaster();
+  const decision = useDecisionModal();
+  const { data, isLoading, mutate } = useLateSettings();
+  const [apiKey, setApiKey] = useState('');
+  const [saving, setSaving] = useState(false);
+
+  const handleConnect = useCallback(async () => {
+    if (!apiKey.trim()) return;
+    setSaving(true);
+    try {
+      const res = await fetch('/settings/late', {
+        method: 'POST',
+        body: JSON.stringify({ apiKey: apiKey.trim() }),
+      });
+      if (res.ok) {
+        setApiKey('');
+        await mutate();
+        toaster.show('Late conectado com sucesso', 'success');
+      } else {
+        toaster.show('Erro ao conectar Late. Verifique sua API key.', 'warning');
+      }
+    } finally {
+      setSaving(false);
+    }
+  }, [apiKey, fetch, mutate, toaster]);
+
+  const handleDisconnect = useCallback(async () => {
+    const approved = await decision.open({
+      title: 'Remover conexao Late?',
+      description:
+        'Isso ira remover sua API key do Late. Publicacoes no TikTok e Pinterest via Late deixarao de funcionar.',
+      approveLabel: 'Sim, remover',
+      cancelLabel: 'Cancelar',
+    });
+    if (!approved) return;
+    await fetch('/settings/late', { method: 'DELETE' });
+    await mutate();
+    toaster.show('Conexao Late removida', 'success');
+  }, [decision, fetch, mutate, toaster]);
+
+  if (isLoading) {
+    return (
+      <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px]">
+        <div className="animate-pulse">Carregando...</div>
+      </div>
+    );
+  }
+
+  const configured = data?.configured ?? false;
+  const usage = data?.usage ?? null;
+
+  return (
+    <div className="flex flex-col">
+      <h3 className="text-[20px]">Late — TikTok e Pinterest</h3>
+      <div className="text-customColor18 mt-[4px]">
+        Configure sua API key do Late para publicar no TikTok e Pinterest sem
+        precisar de aprovacao de app.
+      </div>
+      <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px] flex flex-col gap-[24px]">
+        {!configured ? (
+          <>
+            <div className="flex flex-col gap-[6px]">
+              <div className="text-[14px]">Late API Key</div>
+              <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] text-textColor placeholder-textColor flex items-center">
+                <input
+                  className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px]"
+                  type="password"
+                  placeholder="sk_..."
+                  value={apiKey}
+                  onChange={(e) => setApiKey(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      e.preventDefault();
+                      handleConnect();
+                    }
+                  }}
+                />
+              </div>
+              <div className="text-[12px] text-customColor18">
+                Obtenha sua API key em{' '}
+                <a
+                  href="https://getlate.dev/settings/api-keys"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline hover:font-bold"
+                >
+                  getlate.dev/settings/api-keys
+                </a>
+              </div>
+            </div>
+            <div className="flex items-center gap-[12px]">
+              <Button
+                onClick={handleConnect}
+                loading={saving}
+                disabled={!apiKey.trim()}
+              >
+                Conectar
+              </Button>
+              <a
+                href="https://getlate.dev"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[14px] text-customColor18 underline hover:font-bold"
+              >
+                Criar conta no Late (gratuito)
+              </a>
+            </div>
+          </>
+        ) : (
+          <>
+            <div className="flex items-center gap-[8px]">
+              <span className="inline-flex items-center gap-[6px] rounded-full bg-customColor42/20 text-customColor42 px-[12px] py-[4px] text-[13px]">
+                <span className="w-[8px] h-[8px] rounded-full bg-customColor42 inline-block" />
+                Late conectado
+              </span>
+            </div>
+            {usage && (
+              <div className="flex flex-col gap-[16px]">
+                <UsageBar
+                  label="API Requests"
+                  used={usage.apiRequests.used}
+                  limit={usage.apiRequests.limit}
+                />
+                <UsageBar
+                  label="Tool Requests"
+                  used={usage.toolRequests.used}
+                  limit={usage.toolRequests.limit}
+                />
+                {usage.apiRequests.resetAt && (
+                  <div className="text-[12px] text-customColor18">
+                    Reseta em{' '}
+                    {new Date(usage.apiRequests.resetAt).toLocaleDateString(
+                      'pt-BR'
+                    )}
+                  </div>
+                )}
+              </div>
+            )}
+            <div>
+              <Button onClick={handleDisconnect} secondary>
+                Remover conexao
+              </Button>
+            </div>
+          </>
+        )}
+      </div>
+    </div>
+  );
+};
+
+export default LateSettingsSection;

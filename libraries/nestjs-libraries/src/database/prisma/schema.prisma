@@ -20,6 +20,7 @@ model Organization {
   allowTrial        Boolean             @default(false)
   isTrailing        Boolean             @default(false)
   shortlink         ShortLinkPreference @default(ASK)
+  lateApiKey        String?
   autoPost          AutoPost[]
   Comments          Comments[]
   credits           Credits[]
@@ -41,6 +42,7 @@ model Organization {
   usedCodes         UsedCodes[]
   users             UserOrganization[]
   webhooks          Webhooks[]
+  providerCredentials ProviderCredential[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -330,6 +332,7 @@ model Integration {
   customerId            String?
   rootInternalId        String?
   additionalSettings    String?                @default("[]")
+  tokenEncrypted        Boolean                @default(false)
   exisingPlugData       ExisingPlugData[]
   customer              Customer?              @relation(fields: [customerId], references: [id])
   organization          Organization           @relation(fields: [organizationId], references: [id])
@@ -834,6 +837,20 @@ model mastra_workflow_snapshot {
   updatedAtZ    DateTime? @default(now()) @db.Timestamptz(6)
 
   @@unique([workflow_name, run_id], map: "public_mastra_workflow_snapshot_workflow_name_run_id_key")
+}
+
+model ProviderCredential {
+  id             String       @id @default(cuid())
+  organizationId String
+  provider       String
+  encryptedData  String       @db.Text
+  keyVersion     Int          @default(1)
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+
+  @@unique([organizationId, provider])
+  @@index([organizationId])
 }
 
 enum OrderStatus {
