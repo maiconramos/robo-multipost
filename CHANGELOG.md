@@ -7,6 +7,8 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-02-28
+
 ### Adicionado
 - Rebranding: Postiz renomeado para "Robo MultiPost" em todo o frontend
 - Traducoes pt-BR para componentes principais (canais, email, erros, midia)
