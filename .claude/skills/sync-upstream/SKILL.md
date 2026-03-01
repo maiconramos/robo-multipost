@@ -157,7 +157,7 @@ Changelog:              Atualizado / Nao atualizado
 
 Proximos passos:
 - Testar a aplicacao localmente (pnpm dev)
-- Quando estiver satisfeito, considere usar /release para publicar
+- Quando estiver satisfeito, considere usar /new-release para publicar
 - NAO faca push de main ainda se quiser testar mais
 ```
 

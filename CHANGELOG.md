@@ -13,7 +13,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Documentacao de build e publicacao Docker (validardockerimage.md)
 - CLAUDE.md e AGENTS.md com instrucoes para agentes IA
 - Source maps para estilos CSS globais
-- Skills Claude Code: /sync-upstream, /release, /changelog, /fork-status
+- Skills Claude Code: /sync-upstream, /new-release, /changelog, /fork-status
 
 ### Corrigido
 - Interpolacao i18next no fluxo de conexao de canais

@@ -79,7 +79,7 @@ pnpm prisma-db-push       # Aplicar migracoes
 |-------------------|--------------------------------------------------|
 | `/fork-status`    | Status rapido do fork (divergencia, versao, etc) |
 | `/sync-upstream`  | Sincronizar com Postiz upstream                  |
-| `/release`        | Criar nova release (versao, tag, Docker)         |
+| `/new-release`    | Criar nova release (versao, tag, Docker)         |
 | `/changelog`      | Gerar/atualizar CHANGELOG.md                     |
 
 ## Documentacao Relacionada

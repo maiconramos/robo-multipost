@@ -1,5 +1,5 @@
 ---
-name: release
+name: new-release
 description: Criar nova release do Robo MultiPost. Valida main, calcula versao, atualiza changelog, faz bump, merge em release, cria tag anotada e faz push para disparar build Docker via CI/CD.
 argument-hint: "major|minor|patch ou vX.Y.Z"
 ---
