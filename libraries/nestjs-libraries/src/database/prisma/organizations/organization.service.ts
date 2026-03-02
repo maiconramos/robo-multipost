@@ -132,6 +132,25 @@ export class OrganizationService {
     );
   }
 
+  private async fetchLateUsage(apiKey: string) {
+    const late = new Late({ apiKey });
+    const result = await late.usage.getUsageStats();
+    // SDK returns { data: UsageStats } via RequestResult wrapper
+    const stats = (result as any)?.data ?? result;
+    return {
+      planName: stats?.planName ?? null,
+      uploads: {
+        used: stats?.usage?.uploads ?? 0,
+        limit: stats?.limits?.uploads ?? 0,
+      },
+      profiles: {
+        used: stats?.usage?.profiles ?? 0,
+        limit: stats?.limits?.profiles ?? 0,
+      },
+      lastReset: stats?.usage?.lastReset ?? null,
+    };
+  }
+
   async getLateSettings(orgId: string) {
     const org = await this._organizationRepository.getLateApiKey(orgId);
     if (!org?.lateApiKey) {
@@ -140,8 +159,7 @@ export class OrganizationService {
 
     try {
       const apiKey = AuthService.fixedDecryption(org.lateApiKey);
-      const late = new Late({ apiKey });
-      const usage = await late.usage.getUsageStats();
+      const usage = await this.fetchLateUsage(apiKey);
       return { configured: true, usage };
     } catch {
       return { configured: true, usage: null };
@@ -155,8 +173,7 @@ export class OrganizationService {
 
     // Validate key by calling Late API
     try {
-      const late = new Late({ apiKey });
-      const usage = await late.usage.getUsageStats();
+      const usage = await this.fetchLateUsage(apiKey);
       const encrypted = AuthService.fixedEncryption(apiKey);
       await this._organizationRepository.saveLateApiKey(orgId, encrypted);
       return { configured: true, usage };

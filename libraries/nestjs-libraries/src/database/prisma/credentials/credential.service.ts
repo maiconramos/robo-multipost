@@ -87,9 +87,59 @@ export class CredentialService {
   }
 
   async test(
-    _organizationId: string,
-    _provider: string
+    organizationId: string,
+    provider: string
   ): Promise<{ ok: boolean; error?: string }> {
-    return { ok: true };
+    const raw = await this.getRaw(organizationId, provider);
+    if (!raw) {
+      return { ok: false, error: 'Nenhuma credencial configurada para este provider.' };
+    }
+
+    const { clientId, clientSecret } = raw;
+    if (!clientId || !clientSecret) {
+      return { ok: false, error: 'Client ID e Client Secret são obrigatórios.' };
+    }
+
+    try {
+      const result = await this.validateCredential(provider, raw);
+      return result;
+    } catch (e: any) {
+      return { ok: false, error: e.message || 'Erro ao testar credencial.' };
+    }
+  }
+
+  private async validateCredential(
+    provider: string,
+    creds: Record<string, string>
+  ): Promise<{ ok: boolean; error?: string }> {
+    switch (provider) {
+      case 'facebook': {
+        // Facebook/Instagram: App Token endpoint validates client_id + client_secret
+        const res = await fetch(
+          `https://graph.facebook.com/oauth/access_token?client_id=${creds.clientId}&client_secret=${creds.clientSecret}&grant_type=client_credentials`
+        );
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          return { ok: false, error: body?.error?.message || `Facebook retornou ${res.status}` };
+        }
+        return { ok: true };
+      }
+      case 'linkedin': {
+        // LinkedIn doesn't have a simple token validation endpoint
+        // Validate format only
+        if (creds.clientId.length < 10 || creds.clientSecret.length < 5) {
+          return { ok: false, error: 'Client ID ou Client Secret parecem inválidos (muito curtos).' };
+        }
+        return { ok: true };
+      }
+      default: {
+        // For providers without a test endpoint, validate that fields are non-empty
+        const empty = Object.entries(creds).filter(([, v]) => !v).map(([k]) => k);
+        if (empty.length > 0) {
+          return { ok: false, error: `Campos vazios: ${empty.join(', ')}` };
+        }
+        return { ok: true };
+      }
+    }
   }
 }

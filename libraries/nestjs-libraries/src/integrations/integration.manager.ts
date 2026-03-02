@@ -77,11 +77,21 @@ export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   // new MastodonCustomProvider(),
 ];
 
+const facebookCreds = {
+  clientId: 'FACEBOOK_APP_ID',
+  clientSecret: 'FACEBOOK_APP_SECRET',
+};
+
+const linkedinCreds = {
+  clientId: 'LINKEDIN_CLIENT_ID',
+  clientSecret: 'LINKEDIN_CLIENT_SECRET',
+};
+
 const ENV_MAPPING: Record<string, Record<string, string>> = {
-  facebook: {
-    clientId: 'FACEBOOK_APP_ID',
-    clientSecret: 'FACEBOOK_APP_SECRET',
-  },
+  facebook: facebookCreds,
+  instagram: facebookCreds,
+  'instagram-standalone': facebookCreds,
+  threads: facebookCreds,
   tiktok: {
     clientId: 'TIKTOK_CLIENT_ID',
     clientSecret: 'TIKTOK_CLIENT_SECRET',
@@ -90,11 +100,9 @@ const ENV_MAPPING: Record<string, Record<string, string>> = {
     clientId: 'PINTEREST_CLIENT_ID',
     clientSecret: 'PINTEREST_CLIENT_SECRET',
   },
-  linkedin: {
-    clientId: 'LINKEDIN_CLIENT_ID',
-    clientSecret: 'LINKEDIN_CLIENT_SECRET',
-  },
-  twitter: { clientId: 'X_API_KEY', clientSecret: 'X_API_SECRET' },
+  linkedin: linkedinCreds,
+  'linkedin-page': linkedinCreds,
+  x: { clientId: 'X_API_KEY', clientSecret: 'X_API_SECRET' },
   youtube: {
     clientId: 'YOUTUBE_CLIENT_ID',
     clientSecret: 'YOUTUBE_CLIENT_SECRET',
@@ -115,6 +123,16 @@ const ENV_MAPPING: Record<string, Record<string, string>> = {
   },
 };
 
+// Map provider identifiers to their credential key in the DB
+// (e.g., instagram → facebook, since they share the same OAuth app)
+const CREDENTIAL_ALIAS: Record<string, string> = {
+  instagram: 'facebook',
+  'instagram-standalone': 'facebook',
+  threads: 'facebook',
+  'linkedin-page': 'linkedin',
+  x: 'twitter',
+};
+
 @Injectable()
 export class IntegrationManager {
   constructor(
@@ -125,10 +143,13 @@ export class IntegrationManager {
     provider: string,
     organizationId: string
   ): Promise<Record<string, string> | undefined> {
+    // Resolve alias (e.g., instagram → facebook for DB lookup)
+    const credentialKey = CREDENTIAL_ALIAS[provider] || provider;
+
     if (this._credentialService) {
       const dbCredentials = await this._credentialService.getRaw(
         organizationId,
-        provider
+        credentialKey
       );
       if (dbCredentials) {
         return dbCredentials;

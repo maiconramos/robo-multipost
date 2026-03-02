@@ -176,22 +176,25 @@ export const LateSettingsSection: React.FC = () => {
             </div>
             {usage && (
               <div className="flex flex-col gap-[16px]">
+                {usage.planName && (
+                  <div className="text-[14px]">
+                    Plano: <span className="font-semibold">{usage.planName}</span>
+                  </div>
+                )}
                 <UsageBar
-                  label="API Requests"
-                  used={usage.apiRequests.used}
-                  limit={usage.apiRequests.limit}
+                  label="Uploads"
+                  used={usage.uploads.used}
+                  limit={usage.uploads.limit}
                 />
                 <UsageBar
-                  label="Tool Requests"
-                  used={usage.toolRequests.used}
-                  limit={usage.toolRequests.limit}
+                  label="Perfis"
+                  used={usage.profiles.used}
+                  limit={usage.profiles.limit}
                 />
-                {usage.apiRequests.resetAt && (
+                {usage.lastReset && (
                   <div className="text-[12px] text-customColor18">
-                    Reseta em{' '}
-                    {new Date(usage.apiRequests.resetAt).toLocaleDateString(
-                      'pt-BR'
-                    )}
+                    Ultimo reset:{' '}
+                    {new Date(usage.lastReset).toLocaleDateString('pt-BR')}
                   </div>
                 )}
               </div>

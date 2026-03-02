@@ -227,6 +227,21 @@ export class IntegrationsController {
         };
       }
 
+      // Look up per-workspace credentials from DB (falls back to env vars inside providers)
+      if (!getExternalUrl) {
+        const dbCreds = await this._integrationManager.getProviderCredentials(
+          integration,
+          org.id
+        );
+        if (dbCreds) {
+          getExternalUrl = {
+            client_id: dbCreds.clientId || '',
+            client_secret: dbCreds.clientSecret || '',
+            instanceUrl: '',
+          };
+        }
+      }
+
       const { codeVerifier, state, url } =
         await integrationProvider.generateAuthUrl(getExternalUrl);
 

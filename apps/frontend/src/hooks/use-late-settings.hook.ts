@@ -5,8 +5,10 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 
 interface LateUsage {
-  apiRequests: { used: number; limit: number; resetAt: string };
-  toolRequests: { used: number; limit: number; resetAt: string };
+  planName: string | null;
+  uploads: { used: number; limit: number };
+  profiles: { used: number; limit: number };
+  lastReset: string | null;
 }
 
 export interface LateSettings {
