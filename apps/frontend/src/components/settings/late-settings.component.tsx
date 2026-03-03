@@ -36,7 +36,7 @@ const UsageBar: React.FC<{
       </div>
       {isWarning && (
         <div className="text-[12px] text-customColor13">
-          Voce esta proximo do limite
+          Você está próximo do limite
         </div>
       )}
       {isDanger && (
@@ -86,16 +86,16 @@ export const LateSettingsSection: React.FC = () => {
 
   const handleDisconnect = useCallback(async () => {
     const approved = await decision.open({
-      title: 'Remover conexao Late?',
+      title: 'Remover conexão Late?',
       description:
-        'Isso ira remover sua API key do Late. Publicacoes no TikTok e Pinterest via Late deixarao de funcionar.',
+        'Isso irá remover sua API key do Late. Publicações no TikTok e Pinterest via Late deixarão de funcionar.',
       approveLabel: 'Sim, remover',
       cancelLabel: 'Cancelar',
     });
     if (!approved) return;
     await fetch('/settings/late', { method: 'DELETE' });
     await mutate();
-    toaster.show('Conexao Late removida', 'success');
+    toaster.show('Conexão Late removida', 'success');
   }, [decision, fetch, mutate, toaster]);
 
   if (isLoading) {
@@ -114,7 +114,7 @@ export const LateSettingsSection: React.FC = () => {
       <h3 className="text-[20px]">Late — TikTok e Pinterest</h3>
       <div className="text-customColor18 mt-[4px]">
         Configure sua API key do Late para publicar no TikTok e Pinterest sem
-        precisar de aprovacao de app.
+        precisar de aprovação de app.
       </div>
       <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px] flex flex-col gap-[24px]">
         {!configured ? (
@@ -139,7 +139,7 @@ export const LateSettingsSection: React.FC = () => {
               <div className="text-[12px] text-customColor18">
                 Obtenha sua API key em{' '}
                 <a
-                  href="https://getlate.dev/settings/api-keys"
+                  href="https://getlate.dev/dashboard/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline hover:font-bold"
@@ -193,7 +193,7 @@ export const LateSettingsSection: React.FC = () => {
                 />
                 {usage.lastReset && (
                   <div className="text-[12px] text-customColor18">
-                    Ultimo reset:{' '}
+                    Último reset:{' '}
                     {new Date(usage.lastReset).toLocaleDateString('pt-BR')}
                   </div>
                 )}
@@ -201,7 +201,7 @@ export const LateSettingsSection: React.FC = () => {
             )}
             <div>
               <Button onClick={handleDisconnect} secondary>
-                Remover conexao
+                Remover conexão
               </Button>
             </div>
           </>

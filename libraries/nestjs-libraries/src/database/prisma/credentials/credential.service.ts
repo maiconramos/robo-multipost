@@ -114,9 +114,9 @@ export class CredentialService {
   ): Promise<{ ok: boolean; error?: string }> {
     switch (provider) {
       case 'facebook': {
-        // Facebook/Instagram: App Token endpoint validates client_id + client_secret
+        // Facebook/Instagram/Threads: client_credentials grant valida app_id + app_secret
         const res = await fetch(
-          `https://graph.facebook.com/oauth/access_token?client_id=${creds.clientId}&client_secret=${creds.clientSecret}&grant_type=client_credentials`
+          `https://graph.facebook.com/oauth/access_token?client_id=${encodeURIComponent(creds.clientId)}&client_secret=${encodeURIComponent(creds.clientSecret)}&grant_type=client_credentials`
         );
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
@@ -124,16 +124,78 @@ export class CredentialService {
         }
         return { ok: true };
       }
-      case 'linkedin': {
-        // LinkedIn doesn't have a simple token validation endpoint
-        // Validate format only
-        if (creds.clientId.length < 10 || creds.clientSecret.length < 5) {
-          return { ok: false, error: 'Client ID ou Client Secret parecem inválidos (muito curtos).' };
+      case 'twitter': {
+        // Twitter/X: App-only bearer token via client_credentials
+        const encoded = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
+        const res = await fetch('https://api.x.com/oauth2/token', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${encoded}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: 'grant_type=client_credentials',
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          const msg = body?.errors?.[0]?.message || `Twitter retornou ${res.status}`;
+          return { ok: false, error: msg };
+        }
+        return { ok: true };
+      }
+      case 'reddit': {
+        // Reddit: client_credentials grant
+        const encoded = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
+        const res = await fetch('https://www.reddit.com/api/v1/access_token', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${encoded}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+            'User-Agent': 'RoboMultipost/1.0',
+          },
+          body: 'grant_type=client_credentials',
+        });
+        if (!res.ok) {
+          return { ok: false, error: `Reddit retornou ${res.status} — credenciais inválidas.` };
+        }
+        return { ok: true };
+      }
+      case 'discord': {
+        // Discord: client_credentials grant com scope=identify
+        const encoded = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
+        const res = await fetch('https://discord.com/api/v10/oauth2/token', {
+          method: 'POST',
+          headers: {
+            'Authorization': `Basic ${encoded}`,
+            'Content-Type': 'application/x-www-form-urlencoded',
+          },
+          body: 'grant_type=client_credentials&scope=identify',
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          return { ok: false, error: body?.error_description || `Discord retornou ${res.status}` };
+        }
+        return { ok: true };
+      }
+      case 'tiktok': {
+        // TikTok: client access token (client_key no body, não no header)
+        const res = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: new URLSearchParams({
+            client_key: creds.clientId,
+            client_secret: creds.clientSecret,
+            grant_type: 'client_credentials',
+          }).toString(),
+        });
+        if (!res.ok) {
+          const body = await res.json().catch(() => ({}));
+          return { ok: false, error: body?.error_description || `TikTok retornou ${res.status}` };
         }
         return { ok: true };
       }
       default: {
-        // For providers without a test endpoint, validate that fields are non-empty
+        // LinkedIn, YouTube, Pinterest, Slack: sem endpoint client_credentials
+        // Valida apenas que os campos obrigatórios não estão vazios
         const empty = Object.entries(creds).filter(([, v]) => !v).map(([k]) => k);
         if (empty.length > 0) {
           return { ok: false, error: `Campos vazios: ${empty.join(', ')}` };

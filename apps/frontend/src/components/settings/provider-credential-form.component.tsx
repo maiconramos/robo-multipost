@@ -110,7 +110,7 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
       const result = await res.json();
       setTestResult(result);
     } catch {
-      setTestResult({ ok: false, error: 'Erro ao testar conexao' });
+      setTestResult({ ok: false, error: 'Erro ao testar conexão' });
     } finally {
       setTesting(false);
     }
@@ -119,7 +119,7 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
   const handleDelete = useCallback(async () => {
     const approved = await decision.open({
       title: 'Remover credenciais?',
-      description: `Isso ira remover as credenciais de ${label}. A plataforma usara as variaveis de ambiente como fallback.`,
+      description: `Isso irá remover as credenciais de ${label}. A plataforma usará as variáveis de ambiente como fallback.`,
       approveLabel: 'Sim, remover',
       cancelLabel: 'Cancelar',
     });
@@ -168,15 +168,15 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
             }`}
           >
             {testResult.ok
-              ? 'Conexao OK'
-              : testResult.error || 'Falha na conexao'}
+              ? 'Conexão OK'
+              : testResult.error || 'Falha na conexão'}
           </div>
         )}
 
         <div className="flex items-center gap-[12px]">
           <Button onClick={() => setEditing(true)}>Editar</Button>
           <Button onClick={handleTest} loading={testing} secondary>
-            Testar conexao
+            Testar conexão
           </Button>
           <Button onClick={handleDelete} secondary>
             Remover

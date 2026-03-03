@@ -15,7 +15,7 @@ interface ProviderConfig {
 const PROVIDERS: ProviderConfig[] = [
   {
     provider: 'facebook',
-    label: 'Facebook / Instagram',
+    label: 'Facebook / Instagram / Threads',
     fields: [
       {
         key: 'clientId',
@@ -204,7 +204,7 @@ const ProviderCard: React.FC<{
             </span>
           ) : (
             <span className="inline-flex items-center gap-[6px] rounded-full bg-fifth px-[10px] py-[2px] text-[12px] text-customColor18">
-              Usando variavel de ambiente
+              Usando variável de ambiente
             </span>
           )}
         </div>
@@ -268,8 +268,8 @@ export const CredentialsSettingsSection: React.FC = () => {
       <h3 className="text-[20px]">Credenciais de Apps</h3>
       <div className="text-customColor18 mt-[4px]">
         Configure as credenciais OAuth de cada rede social para seu workspace.
-        Isso permite que cada workspace use seus proprios apps em vez das
-        variaveis de ambiente globais.
+        Isso permite que cada workspace use seus próprios apps em vez das
+        variáveis de ambiente globais.
       </div>
       <div className="my-[16px] mt-[16px] flex flex-col gap-[8px]">
         {PROVIDERS.map((config) => (
