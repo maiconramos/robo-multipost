@@ -178,6 +178,7 @@ export class CredentialService {
       }
       case 'tiktok': {
         // TikTok: client access token (client_key no body, não no header)
+        // TikTok retorna HTTP 200 mesmo com credenciais inválidas — erro vem no body JSON
         const res = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -187,8 +188,8 @@ export class CredentialService {
             grant_type: 'client_credentials',
           }).toString(),
         });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
+        const body = await res.json().catch(() => ({}));
+        if (!res.ok || body.error) {
           return { ok: false, error: body?.error_description || `TikTok retornou ${res.status}` };
         }
         return { ok: true };
