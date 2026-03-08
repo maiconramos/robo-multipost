@@ -111,6 +111,16 @@ Toda nova feature com interface de backend deve ter **contrato de API definido p
 - A UI sempre consome a API, nunca o contrário
 - Mudanças de contrato devem ser versionadas
 
+### Changelog Incremental
+Ao concluir uma tarefa que resulta em commit (feature, fix, refactor, etc.), **sempre atualize** a secao `## [Unreleased]` do `CHANGELOG.md` com uma entrada descritiva:
+- Adicione na subcategoria correta: `### Adicionado`, `### Corrigido`, `### Alterado`, `### Removido`, `### Performance`, `### Documentacao`
+- Crie a subcategoria se ela nao existir ainda dentro de `[Unreleased]`
+- Escreva em portugues, sem acentos (compatibilidade de arquivos)
+- Descreva o impacto para o usuario, nao o detalhe tecnico (ex: "Suporte a agendamento de Reels no Instagram" em vez de "Adicionar InstagramReelsProvider")
+- Uma linha por mudanca; agrupar mudancas relacionadas do mesmo commit
+- NAO incluir hash de commit (sera adicionado pelo `/changelog` na consolidacao)
+- Se a mudanca for trivial (typo, ajuste interno sem impacto), nao adicionar entrada
+
 ## Estratégia Git (GitLab Flow)
 
 ### Branches
@@ -132,7 +142,7 @@ Toda nova feature com interface de backend deve ter **contrato de API definido p
 
 - Todo código customizado vai para `main`
 - `release` só recebe merge de `main` quando testado e aprovado
-- A imagem Docker é sempre gerada a partir de `release`, nunca de `main`
+- Releases estáveis são gerados a partir de `release`; pre-releases (RC/beta) são tags em `main`
 - Toda promoção `main` → `release` deve gerar uma tag semântica (ex: `v1.2.0`)
 - Features grandes: criar branch `custom/nome-da-feature` a partir de `main`
 - Features pequenas: podem ir direto em `main`

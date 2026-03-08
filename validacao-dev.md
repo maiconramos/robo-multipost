@@ -161,6 +161,10 @@ pnpm run dev:frontend
 
 # Apenas orchestrator
 pnpm run dev:orchestrator
+# Rodar com front + back + orchestrator em porta distinta
+pnpm run --filter ./apps/orchestrator --filter ./apps/backend --filter ./apps/frontend --parallel dev
+
+
 ```
 
 ### Desenvolvimento com Stripe (opcional)
@@ -494,3 +498,6 @@ pnpm run prisma-db-push
 # Rodar
 pnpm run dev
 ```
+
+# Dica 
+se algum processo ficar preso, use kill -9 $(lsof -ti :3000 :4200)

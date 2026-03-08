@@ -41,12 +41,15 @@ O projeto segue SemVer com uma convencao clara para tags e imagens:
 
 | Onde | Formato | Exemplo |
 |------|---------|---------|
-| Git tag | Com prefixo `v` | `v0.2.0` |
-| package.json | Sem prefixo | `0.2.0` |
-| version.txt | Sem prefixo | `0.2.0` |
-| Imagem Docker | Sem prefixo | `ghcr.io/maiconramos/robo-multipost:0.2.0` |
+| Git tag (estavel) | Com prefixo `v` | `v0.2.0` |
+| Git tag (RC) | Com prefixo `v` + sufixo | `v0.3.0-rc.1` |
+| package.json | Sem prefixo | `0.2.0` ou `0.3.0-rc.1` |
+| version.txt | Sem prefixo | `0.2.0` ou `0.3.0-rc.1` |
+| Imagem Docker (estavel) | Sem prefixo + `:latest` | `ghcr.io/maiconramos/robo-multipost:0.2.0` |
+| Imagem Docker (RC) | Sem prefixo, SEM `:latest` | `ghcr.io/maiconramos/robo-multipost:0.3.0-rc.1` |
 
 O workflow de CI/CD strip o `v` automaticamente: tag `v0.2.0` gera imagem `:0.2.0`.
+Pre-releases (versoes com `-` como `rc.1`, `beta.1`) **nao atualizam `:latest`**.
 
 ### Regras de incremento
 
@@ -59,15 +62,33 @@ O workflow de CI/CD strip o `v` automaticamente: tag `v0.2.0` gera imagem `:0.2.
 
 ---
 
+## Fluxo rapido: feature nova ate producao
+
+```
+1. Desenvolve a feature em main
+2. /new-release rc            → builda imagem RC (sem afetar :latest)
+3. Testa na VPS com a RC
+4. Encontrou bug? Corrige e roda /new-release rc de novo (rc.2, rc.3...)
+5. Tudo OK? /new-release promote  → re-taga RC como :latest (sem rebuild)
+```
+
+Quer pular o RC e ir direto para producao? Use `/new-release minor` ou `/new-release patch`.
+
+---
+
 ## Release automatizado (recomendado)
 
 A forma recomendada de criar releases e usando o skill do Claude Code:
 
 ```
-/new-release minor
-/new-release patch
-/new-release 0.3.0
+/new-release minor        # Release estavel (merge em release + :latest)
+/new-release patch        # Release estavel (correcao)
+/new-release 0.3.0        # Versao explicita estavel
+/new-release rc           # Pre-release RC (tag em main, sem :latest)
+/new-release promote      # Promover ultimo RC para estavel
 ```
+
+### Release estavel (major/minor/patch)
 
 O skill `/new-release` guia todo o processo:
 
@@ -81,6 +102,25 @@ O skill `/new-release` guia todo o processo:
 8. Push de `release` + tag (dispara CI/CD automaticamente)
 9. Opcionalmente cria GitHub Release
 
+### Pre-release RC
+
+Para testar uma versao antes de promover para `:latest`:
+
+1. `/new-release rc` — cria `vX.Y.Z-rc.1` direto em `main` (sem branch `release`)
+2. CI/CD builda imagem `ghcr.io/maiconramos/robo-multipost:X.Y.Z-rc.1`
+3. **`:latest` NAO e atualizado** — usuarios com `:latest` nao sao afetados
+4. Teste a RC na VPS com: `docker pull ghcr.io/maiconramos/robo-multipost:X.Y.Z-rc.1`
+5. Se precisar iterar, rode `/new-release rc` novamente (incrementa para `rc.2`, `rc.3`, etc.)
+
+### Promover RC para estavel
+
+Quando o RC estiver validado:
+
+1. `/new-release promote` — encontra o ultimo RC automaticamente
+2. Faz merge `main` → `release`, cria tag estavel `vX.Y.Z`
+3. Dispara `promote-release.yml` que **re-taga** a imagem RC existente como `:X.Y.Z` + `:latest`
+4. Nao rebuilda — reutiliza a mesma imagem Docker ja testada
+
 ### O que o CI/CD faz apos o push da tag
 
 O workflow `.github/workflows/build-containers.yml` e disparado por tags `v*`:
@@ -88,7 +128,8 @@ O workflow `.github/workflows/build-containers.yml` e disparado por tags `v*`:
 1. Builda imagem multi-arch (amd64 + arm64) em paralelo
 2. Publica em `ghcr.io/maiconramos/robo-multipost:X.Y.Z`
 3. Cria manifest multi-arch
-4. Atualiza tag `:latest`
+4. **Se release estavel:** atualiza tag `:latest`
+5. **Se pre-release (RC/beta):** NAO atualiza `:latest`
 
 > O workflow usa `${{ github.actor }}` e `${{ github.token }}`, entao funciona
 > automaticamente sem configuracao extra de secrets.
@@ -395,18 +436,49 @@ networks:
 
 ## Resumo do fluxo
 
-### Via CI/CD (recomendado — use `/new-release`)
+### Release estavel (recomendado — `/new-release minor`)
 
 ```
 [Claude Code]                [GitHub]                     [VPS]
    |                            |                           |
    |-- /new-release minor ----->|                           |
    |   (bump, changelog,        |                           |
-   |    merge, tag, push)       |                           |
+   |    merge release, tag)     |                           |
    |                            |-- GitHub Actions build -->|
-   |                            |-- Push to GHCR:0.2.0 --->|
-   |                            |-- Push to GHCR:latest --->|
+   |                            |-- Push GHCR:0.3.0 ------>|
+   |                            |-- Push GHCR:latest ------>|
    |                            |                           |-- docker pull
+   |                            |                           |-- docker compose up -d
+   |                            |                           |-- App rodando!
+```
+
+### Pre-release RC (`/new-release rc`)
+
+```
+[Claude Code]                [GitHub]                     [VPS teste]
+   |                            |                           |
+   |-- /new-release rc -------->|                           |
+   |   (bump rc, tag em main)   |                           |
+   |                            |-- GitHub Actions build -->|
+   |                            |-- Push GHCR:0.3.0-rc.1 ->|
+   |                            |-- :latest NAO atualizado  |
+   |                            |                           |-- docker pull :0.3.0-rc.1
+   |                            |                           |-- Testar RC
+```
+
+### Promover RC (`/new-release promote`)
+
+```
+[Claude Code]                [GitHub]                     [VPS]
+   |                            |                           |
+   |-- /new-release promote --->|                           |
+   |   (merge release, tag,     |                           |
+   |    changelog)              |                           |
+   |                            |-- promote-release.yml --->|
+   |                            |-- Re-tag :0.3.0-rc.1     |
+   |                            |--   como :0.3.0 + :latest |
+   |                            |-- SEM rebuild!            |
+   |                            |                           |-- docker pull :latest
    |                            |                           |-- docker compose up -d
    |                            |                           |-- App rodando!
 ```
@@ -417,7 +489,7 @@ networks:
 [Local]                      [GHCR]                       [VPS]
    |                            |                           |
    |-- docker build ----------->|                           |
-   |-- docker push 0.2.0 ----->|                           |
+   |-- docker push 0.3.0 ----->|                           |
    |-- docker push latest ---->|                           |
    |                            |                           |-- docker pull
    |                            |                           |-- docker compose up -d

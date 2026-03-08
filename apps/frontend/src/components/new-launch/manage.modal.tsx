@@ -208,11 +208,11 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       ) {
         const whatToDo = await new Promise((resolve) => {
           modal.openModal({
-            title: 'What do you want to do?',
+            title: t('what_do_you_want_to_do', 'What do you want to do?'),
             children: (
               <div className="flex flex-col">
                 <div className="text-[20px] mb-[20px]">
-                  This post was already published, what do you want to do?
+                  {t('post_already_published', 'This post was already published, what do you want to do?')}
                 </div>
                 <div className="flex w-full gap-[10px]">
                   <div className="flex-1 flex">
@@ -221,7 +221,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                       className="flex-1"
                       onClick={() => resolve('update')}
                     >
-                      Just update the post details
+                      {t('just_update_post_details', 'Just update the post details')}
                     </Button>
                   </div>
                   <div className="flex-1 flex">
@@ -230,7 +230,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
                       className="flex-1"
                       onClick={() => resolve('republish')}
                     >
-                      Republish the post
+                      {t('republish_the_post', 'Republish the post')}
                     </Button>
                   </div>
                 </div>

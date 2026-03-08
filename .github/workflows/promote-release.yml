@@ -1,0 +1,81 @@
+---
+name: "Promote Release"
+
+on:
+  workflow_dispatch:
+    inputs:
+      rc_version:
+        description: "Versao RC a promover (ex: 0.3.0-rc.1)"
+        required: true
+      stable_version:
+        description: "Versao estavel destino (ex: 0.3.0)"
+        required: true
+
+permissions:
+  packages: write
+
+jobs:
+  promote:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Validate Inputs
+        run: |
+          if [[ ! "${{ inputs.rc_version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+-rc\.[0-9]+$ ]]; then
+            echo "Erro: rc_version deve estar no formato X.Y.Z-rc.N (ex: 0.3.0-rc.1)"
+            exit 1
+          fi
+          if [[ ! "${{ inputs.stable_version }}" =~ ^[0-9]+\.[0-9]+\.[0-9]+$ ]]; then
+            echo "Erro: stable_version deve estar no formato X.Y.Z (ex: 0.3.0)"
+            exit 1
+          fi
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.repository_owner }}
+          password: ${{ secrets.CR_PAT }}
+
+      - name: Re-tag RC as Stable
+        env:
+          RC: ${{ inputs.rc_version }}
+          STABLE: ${{ inputs.stable_version }}
+          IMAGE: ghcr.io/maiconramos/robo-multipost
+        run: |
+          echo "Promovendo ${IMAGE}:${RC} para ${IMAGE}:${STABLE} + :latest"
+
+          # Verificar que as imagens RC existem
+          echo "Verificando imagens RC..."
+          docker buildx imagetools inspect ${IMAGE}:${RC}-amd64
+          docker buildx imagetools inspect ${IMAGE}:${RC}-arm64
+
+          # Criar manifest da versao estavel
+          echo "Criando manifest estavel :${STABLE}..."
+          docker manifest rm ${IMAGE}:${STABLE} || true
+          docker manifest create ${IMAGE}:${STABLE} \
+            --amend ${IMAGE}:${RC}-amd64 \
+            --amend ${IMAGE}:${RC}-arm64
+          docker manifest push ${IMAGE}:${STABLE}
+
+          # Atualizar :latest
+          echo "Atualizando :latest..."
+          docker manifest rm ${IMAGE}:latest || true
+          docker manifest create ${IMAGE}:latest \
+            --amend ${IMAGE}:${RC}-amd64 \
+            --amend ${IMAGE}:${RC}-arm64
+          docker manifest push ${IMAGE}:latest
+
+      - name: Verify
+        env:
+          STABLE: ${{ inputs.stable_version }}
+        run: |
+          echo "Verificando manifest estavel:"
+          docker manifest inspect ghcr.io/maiconramos/robo-multipost:${STABLE}
+
+          echo "Verificando manifest latest:"
+          docker manifest inspect ghcr.io/maiconramos/robo-multipost:latest
+
+          echo "Promocao concluida com sucesso!"
