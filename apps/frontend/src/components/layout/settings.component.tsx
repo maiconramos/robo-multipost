@@ -33,6 +33,7 @@ import { SVGLine } from '@gitroom/frontend/components/launches/launches.componen
 import { GlobalSettings } from '@gitroom/frontend/components/settings/global.settings';
 import { LateSettingsSection } from '@gitroom/frontend/components/settings/late-settings.component';
 import { CredentialsSettingsSection } from '@gitroom/frontend/components/settings/credentials-settings.component';
+import { ProfilesSettingsComponent } from '@gitroom/frontend/components/settings/profiles.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -106,6 +107,9 @@ export const SettingsPopup: FC<{
     }
     if (user?.tier?.public_api && isGeneral && showLogout) {
       arr.push({ tab: 'api', label: t('public_api', 'Public API') });
+    }
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'profiles', label: 'Perfis' });
     }
     arr.push({ tab: 'late', label: 'Late' });
     arr.push({ tab: 'credentials', label: 'Credenciais' });
@@ -209,6 +213,12 @@ export const SettingsPopup: FC<{
               {tab === 'late' && (
                 <div>
                   <LateSettingsSection />
+                </div>
+              )}
+
+              {tab === 'profiles' && user?.role !== 'USER' && (
+                <div>
+                  <ProfilesSettingsComponent />
                 </div>
               )}
 

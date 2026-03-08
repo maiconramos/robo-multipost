@@ -4,6 +4,7 @@ import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { User } from '@prisma/client';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { HttpForbiddenException } from '@gitroom/nestjs-libraries/services/exception.filter';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
@@ -28,7 +29,8 @@ export const removeAuth = (res: Response) => {
 export class AuthMiddleware implements NestMiddleware {
   constructor(
     private _organizationService: OrganizationService,
-    private _userService: UsersService
+    private _userService: UsersService,
+    private _profileService: ProfileService
   ) {}
   async use(req: Request, res: Response, next: NextFunction) {
     const auth = req.headers.auth || req.cookies.auth;
@@ -97,6 +99,23 @@ export class AuthMiddleware implements NestMiddleware {
       // eslint-disable-next-line @typescript-eslint/ban-ts-comment
       // @ts-expect-error
       req.org = setOrg;
+
+      // Resolve profile context
+      const profileHeader = req.cookies.showprofile || req.headers.showprofile;
+      const userProfileIds = await this._profileService.getUserProfileIds(user.id, setOrg.id);
+
+      if (userProfileIds.length > 0) {
+        const profiles = await this._profileService.getProfilesByOrgId(setOrg.id);
+        const accessibleProfiles = profiles.filter((p) => userProfileIds.includes(p.id));
+        const setProfile = profileHeader
+          ? accessibleProfiles.find((p) => p.id === profileHeader)
+          : accessibleProfiles.find((p) => p.isDefault) || accessibleProfiles[0];
+        // @ts-expect-error
+        req.profile = setProfile || null;
+      } else {
+        // @ts-expect-error
+        req.profile = null;
+      }
     } catch (err) {
       throw new HttpForbiddenException();
     }

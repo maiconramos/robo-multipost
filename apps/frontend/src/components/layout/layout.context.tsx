@@ -47,12 +47,18 @@ function LayoutContextInner(params: { children: ReactNode }) {
       if (showOrg) {
         setCookie('showorg', showOrg, 365);
       }
+      const showProfile =
+        response?.headers?.get('showprofile') || response?.headers?.get('Showprofile');
+      if (showProfile) {
+        setCookie('showprofile', showProfile, 365);
+      }
       if (impersonate) {
         setCookie('impersonate', impersonate, 365);
       }
       if (logout && !isSecured) {
         setCookie('auth', '', -10);
         setCookie('showorg', '', -10);
+        setCookie('showprofile', '', -10);
         setCookie('impersonate', '', -10);
         window.location.href = '/';
         return true;
@@ -83,6 +89,7 @@ function LayoutContextInner(params: { children: ReactNode }) {
         if (!isSecured) {
           setCookie('auth', '', -10);
           setCookie('showorg', '', -10);
+          setCookie('showprofile', '', -10);
           setCookie('impersonate', '', -10);
         }
         window.location.href = '/';

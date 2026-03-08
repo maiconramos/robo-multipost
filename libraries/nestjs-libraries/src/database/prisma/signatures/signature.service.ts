@@ -6,19 +6,20 @@ import { SignatureDto } from '@gitroom/nestjs-libraries/dtos/signature/signature
 export class SignatureService {
   constructor(private _signatureRepository: SignatureRepository) {}
 
-  getSignaturesByOrgId(orgId: string) {
-    return this._signatureRepository.getSignaturesByOrgId(orgId);
+  getSignaturesByOrgId(orgId: string, profileId?: string) {
+    return this._signatureRepository.getSignaturesByOrgId(orgId, profileId);
   }
 
-  getDefaultSignature(orgId: string) {
-    return this._signatureRepository.getDefaultSignature(orgId);
+  getDefaultSignature(orgId: string, profileId?: string) {
+    return this._signatureRepository.getDefaultSignature(orgId, profileId);
   }
 
-  createOrUpdateSignature(orgId: string, signature: SignatureDto, id?: string) {
+  createOrUpdateSignature(orgId: string, signature: SignatureDto, id?: string, profileId?: string) {
     return this._signatureRepository.createOrUpdateSignature(
       orgId,
       signature,
-      id
+      id,
+      profileId
     );
   }
 

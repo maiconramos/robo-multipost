@@ -39,6 +39,8 @@ import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integration
 import { CredentialRepository } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.repository';
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 
 @Global()
 @Module({
@@ -87,6 +89,8 @@ import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.s
     CredentialRepository,
     CredentialService,
     EncryptionService,
+    ProfileRepository,
+    ProfileService,
   ],
   get exports() {
     return this.providers;

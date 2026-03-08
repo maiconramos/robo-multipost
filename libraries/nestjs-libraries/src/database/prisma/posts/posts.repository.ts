@@ -120,7 +120,7 @@ export class PostsRepository {
     });
   }
 
-  async getPosts(orgId: string, query: GetPostsDto) {
+  async getPosts(orgId: string, query: GetPostsDto, profileId?: string) {
     // Use the provided start and end dates directly
     const startDate = dayjs.utc(query.startDate).toDate();
     const endDate = dayjs.utc(query.endDate).toDate();
@@ -135,6 +135,7 @@ export class PostsRepository {
               }
             ],
           },
+          ...(profileId ? [{ profileId }] : []),
           {
             OR: [
               {
@@ -212,7 +213,7 @@ export class PostsRepository {
     }, [] as any[]);
   }
 
-  async getPostsList(orgId: string, query: GetPostsListDto) {
+  async getPostsList(orgId: string, query: GetPostsListDto, profileId?: string) {
     const page = query.page || 0;
     const limit = query.limit || 20;
     const skip = page * limit;
@@ -226,6 +227,7 @@ export class PostsRepository {
             },
           ],
         },
+        ...(profileId ? [{ profileId }] : []),
         {
           publishDate: {
             gte: dayjs.utc().toDate(),
@@ -763,21 +765,23 @@ export class PostsRepository {
     });
   }
 
-  async getTags(orgId: string) {
+  async getTags(orgId: string, profileId?: string) {
     return this._tags.model.tags.findMany({
       where: {
         orgId,
         deletedAt: null,
+        ...(profileId ? { profileId } : {}),
       },
     });
   }
 
-  createTag(orgId: string, body: CreateTagDto) {
+  createTag(orgId: string, body: CreateTagDto, profileId?: string) {
     return this._tags.model.tags.create({
       data: {
         orgId,
         name: body.name,
         color: body.color,
+        ...(profileId ? { profileId } : {}),
       },
     });
   }

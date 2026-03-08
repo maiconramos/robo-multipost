@@ -16,6 +16,8 @@ import { StripeService } from '@gitroom/nestjs-libraries/services/stripe.service
 import { Response, Request } from 'express';
 import { AuthService } from '@gitroom/backend/services/auth/auth.service';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
+import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/pricing';
@@ -40,12 +42,14 @@ export class UsersController {
     private _authService: AuthService,
     private _orgService: OrganizationService,
     private _userService: UsersService,
-    private _trackService: TrackService
+    private _trackService: TrackService,
+    private _profileService: ProfileService
   ) {}
   @Get('/self')
   async getSelf(
     @GetUserFromRequest() user: User,
     @GetOrgFromRequest() organization: Organization,
+    @GetProfileFromRequest() profile: any,
     @Req() req: Request
   ) {
     if (!organization) {
@@ -72,6 +76,8 @@ export class UsersController {
       streakSince: organization?.streakSince || null,
       // @ts-ignore
       publicApi: organization?.users[0]?.role === 'SUPERADMIN' || organization?.users[0]?.role === 'ADMIN' ? organization?.apiKey : '',
+      profileId: profile?.id || null,
+      profileName: profile?.name || null,
     };
   }
 
@@ -216,6 +222,40 @@ export class UsersController {
     }
 
     response.status(200).send();
+  }
+
+  @Post('/change-profile')
+  changeProfile(
+    @Body('id') id: string,
+    @Res({ passthrough: true }) response: Response
+  ) {
+    response.cookie('showprofile', id, {
+      domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+      ...(!process.env.NOT_SECURED
+        ? {
+            secure: true,
+            httpOnly: true,
+            sameSite: 'none',
+          }
+        : {}),
+      expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
+    });
+
+    if (process.env.NOT_SECURED) {
+      response.header('showprofile', id);
+    }
+
+    response.status(200).send();
+  }
+
+  @Get('/profiles')
+  async getProfiles(
+    @GetUserFromRequest() user: User,
+    @GetOrgFromRequest() org: Organization
+  ) {
+    const userProfileIds = await this._profileService.getUserProfileIds(user.id, org.id);
+    const profiles = await this._profileService.getProfilesByOrgId(org.id);
+    return profiles.filter((p) => userProfileIds.includes(p.id));
   }
 
   @Post('/logout')

@@ -8,6 +8,16 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Multi-tenancy com perfis: suporte a 3 niveis (Workspace > Perfil > Recursos) para agencias gerenciarem multiplos clientes
+- Modelo Profile e ProfileMember no banco de dados com roles (OWNER, MANAGER, EDITOR, VIEWER)
+- API REST para CRUD de perfis e gerenciamento de membros (`/profiles`)
+- Troca de perfil ativo via cookie/header (`POST /user/change-profile`)
+- Filtragem de integracoes, posts, midia, tags e assinaturas por perfil ativo
+- Script de migracao SQL para criar perfis default e migrar dados existentes
+- Seletor de perfil no top bar para trocar entre perfis da organizacao
+- Tab "Perfis" nas configuracoes para criar, editar, excluir perfis e gerenciar membros (ADMIN+)
+- Cookie `showprofile` enviado como header nas requests para manter perfil ativo no frontend
+- Documentacao do fluxo de client login para fase futura
 - Suporte a pre-release (RC) no workflow de release — permite lancar versoes de teste sem afetar `:latest`
 - Workflow `promote-release.yml` para promover RC para estavel sem rebuild da imagem Docker
 - Opcoes `rc` e `promote` no skill `/new-release`

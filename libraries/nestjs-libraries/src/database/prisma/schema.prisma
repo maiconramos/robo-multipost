@@ -42,6 +42,7 @@ model Organization {
   usedCodes         UsedCodes[]
   users             UserOrganization[]
   webhooks          Webhooks[]
+  profiles            Profile[]
   providerCredentials ProviderCredential[]
 
   @@index([apiKey])
@@ -54,13 +55,16 @@ model Tags {
   name         String
   color        String
   orgId        String
+  profileId    String?
   deletedAt    DateTime?
   createdAt    DateTime     @default(now())
   updatedAt    DateTime     @updatedAt
   organization Organization @relation(fields: [orgId], references: [id])
+  profile      Profile?     @relation(fields: [profileId], references: [id])
   posts        TagsPosts[]
 
   @@index([orgId])
+  @@index([profileId])
   @@index([deletedAt])
 }
 
@@ -109,6 +113,7 @@ model User {
   agencies              SocialMediaAgency?
   picture               Media?             @relation(fields: [pictureId], references: [id])
   organizations         UserOrganization[]
+  profileMembers        ProfileMember[]
   sendSuccessEmails     Boolean            @default(true)
   sendFailureEmails     Boolean            @default(true)
   sendStreakEmails      Boolean            @default(true)
@@ -211,6 +216,7 @@ model Media {
   originalName       String?
   path               String
   organizationId     String
+  profileId          String?
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
   deletedAt          DateTime?
@@ -220,11 +226,13 @@ model Media {
   alt                String?
   thumbnailTimestamp Int?
   organization       Organization        @relation(fields: [organizationId], references: [id])
+  profile            Profile?            @relation(fields: [profileId], references: [id])
   agencies           SocialMediaAgency[]
   userPicture        User[]
 
   @@index([name])
   @@index([organizationId])
+  @@index([profileId])
   @@index([type])
 }
 
@@ -330,11 +338,13 @@ model Integration {
   postingTimes          String                 @default("[{\"time\":120}, {\"time\":400}, {\"time\":700}]")
   customInstanceDetails String?
   customerId            String?
+  profileId             String?
   rootInternalId        String?
   additionalSettings    String?                @default("[]")
   tokenEncrypted        Boolean                @default(false)
   exisingPlugData       ExisingPlugData[]
   customer              Customer?              @relation(fields: [customerId], references: [id])
+  clientProfile         Profile?               @relation(fields: [profileId], references: [id])
   organization          Organization           @relation(fields: [organizationId], references: [id])
   webhooks              IntegrationsWebhooks[]
   orderItems            OrderItems[]
@@ -349,6 +359,7 @@ model Integration {
   @@index([createdAt])
   @@index([deletedAt])
   @@index([customerId])
+  @@index([profileId])
   @@index([inBetweenSteps])
   @@index([refreshNeeded])
   @@index([disabled])
@@ -357,15 +368,18 @@ model Integration {
 model Signatures {
   id             String       @id @default(uuid())
   organizationId String
+  profileId      String?
   content        String
   autoAdd        Boolean
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
   organization   Organization @relation(fields: [organizationId], references: [id])
+  profile        Profile?     @relation(fields: [profileId], references: [id])
 
   @@index([createdAt])
   @@index([organizationId])
+  @@index([profileId])
   @@index([deletedAt])
 }
 
@@ -394,6 +408,7 @@ model Post {
   state                      State                     @default(QUEUE)
   publishDate                DateTime
   organizationId             String
+  profileId                  String?
   integrationId              String
   content                    String
   delay                      Int                       @default(0)
@@ -420,6 +435,7 @@ model Post {
   integration                Integration               @relation(fields: [integrationId], references: [id])
   lastMessage                Messages?                 @relation(fields: [lastMessageId], references: [id])
   organization               Organization              @relation("organization", fields: [organizationId], references: [id])
+  profile                    Profile?                  @relation("profilePosts", fields: [profileId], references: [id])
   parentPost                 Post?                     @relation("parentPostId", fields: [parentPostId], references: [id])
   childrenPost               Post[]                    @relation("parentPostId")
   submittedForOrder          Orders?                   @relation(fields: [submittedForOrderId], references: [id])
@@ -431,6 +447,7 @@ model Post {
   @@index([publishDate])
   @@index([state])
   @@index([organizationId])
+  @@index([profileId])
   @@index([parentPostId])
   @@index([submittedForOrderId])
   @@index([intervalInDays])
@@ -909,4 +926,51 @@ enum ShortLinkPreference {
   ASK
   YES
   NO
+}
+
+enum ProfileRole {
+  OWNER
+  MANAGER
+  EDITOR
+  VIEWER
+}
+
+model Profile {
+  id             String          @id @default(uuid())
+  name           String
+  slug           String
+  description    String?
+  avatarUrl      String?
+  organizationId String
+  isDefault      Boolean         @default(false)
+  createdAt      DateTime        @default(now())
+  updatedAt      DateTime        @updatedAt
+  deletedAt      DateTime?
+
+  organization   Organization    @relation(fields: [organizationId], references: [id])
+  members        ProfileMember[]
+  integrations   Integration[]
+  posts          Post[]          @relation("profilePosts")
+  media          Media[]
+  tags           Tags[]
+  signatures     Signatures[]
+
+  @@unique([organizationId, slug, deletedAt])
+  @@index([organizationId])
+  @@index([isDefault])
+}
+
+model ProfileMember {
+  id        String      @id @default(uuid())
+  profileId String
+  userId    String
+  role      ProfileRole @default(EDITOR)
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  profile   Profile     @relation(fields: [profileId], references: [id])
+  user      User        @relation(fields: [userId], references: [id])
+
+  @@unique([profileId, userId])
+  @@index([userId])
 }

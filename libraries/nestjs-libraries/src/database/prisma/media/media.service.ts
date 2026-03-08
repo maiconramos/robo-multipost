@@ -52,12 +52,12 @@ export class MediaService {
     return generating;
   }
 
-  saveFile(org: string, fileName: string, filePath: string, originalName?: string) {
-    return this._mediaRepository.saveFile(org, fileName, filePath, originalName);
+  saveFile(org: string, fileName: string, filePath: string, originalName?: string, profileId?: string) {
+    return this._mediaRepository.saveFile(org, fileName, filePath, originalName, profileId);
   }
 
-  getMedia(org: string, page: number) {
-    return this._mediaRepository.getMedia(org, page);
+  getMedia(org: string, page: number, profileId?: string) {
+    return this._mediaRepository.getMedia(org, page, profileId);
   }
 
   saveMediaInformation(org: string, data: SaveMediaInformationDto) {

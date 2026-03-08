@@ -144,8 +144,8 @@ export class IntegrationService {
     return this._integrationRepository.updateOnCustomerName(org, id, name);
   }
 
-  getIntegrationsList(org: string) {
-    return this._integrationRepository.getIntegrationsList(org);
+  getIntegrationsList(org: string, profileId?: string) {
+    return this._integrationRepository.getIntegrationsList(org, profileId);
   }
 
   getIntegrationForOrder(id: string, order: string, user: string, org: string) {

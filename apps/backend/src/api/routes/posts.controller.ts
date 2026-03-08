@@ -11,7 +11,8 @@ import {
 } from '@nestjs/common';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
-import { Organization, User } from '@prisma/client';
+import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
+import { Organization, Profile, User } from '@prisma/client';
 import { GetPostsDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.dto';
 import { GetPostsListDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.list.dto';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
@@ -78,16 +79,20 @@ export class PostsController {
   }
 
   @Get('/tags')
-  async getTags(@GetOrgFromRequest() org: Organization) {
-    return { tags: await this._postsService.getTags(org.id) };
+  async getTags(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
+    return { tags: await this._postsService.getTags(org.id, profile?.id) };
   }
 
   @Post('/tags')
   async createTag(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body() body: CreateTagDto
   ) {
-    return this._postsService.createTag(org.id, body);
+    return this._postsService.createTag(org.id, body, profile?.id);
   }
 
   @Put('/tags/:id')
@@ -110,9 +115,10 @@ export class PostsController {
   @Get('/')
   async getPosts(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Query() query: GetPostsDto
   ) {
-    return this._postsService.getPostsMinified(org.id, query);
+    return this._postsService.getPostsMinified(org.id, query, profile?.id);
   }
 
   @Get('/find-slot')
@@ -131,9 +137,10 @@ export class PostsController {
   @Get('/list')
   async getPostsList(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Query() query: GetPostsListDto
   ) {
-    return this._postsService.getPostsList(org.id, query);
+    return this._postsService.getPostsList(org.id, query, profile?.id);
   }
 
   @Get('/old')

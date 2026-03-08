@@ -305,19 +305,19 @@ export class PostsService {
     ];
   }
 
-  async getPosts(orgId: string, query: GetPostsDto) {
-    return this._postRepository.getPosts(orgId, query);
+  async getPosts(orgId: string, query: GetPostsDto, profileId?: string) {
+    return this._postRepository.getPosts(orgId, query, profileId);
   }
 
-  async getPostsMinified(orgId: string, query: GetPostsDto) {
+  async getPostsMinified(orgId: string, query: GetPostsDto, profileId?: string) {
     return minifyPosts({
-      posts: await this._postRepository.getPosts(orgId, query),
+      posts: await this._postRepository.getPosts(orgId, query, profileId),
     });
   }
 
-  async getPostsList(orgId: string, query: GetPostsListDto) {
+  async getPostsList(orgId: string, query: GetPostsListDto, profileId?: string) {
     return minifyPostsList(
-      await this._postRepository.getPostsList(orgId, query)
+      await this._postRepository.getPostsList(orgId, query, profileId)
     );
   }
 
@@ -912,12 +912,12 @@ export class PostsService {
     return this._postRepository.getComments(postId);
   }
 
-  getTags(orgId: string) {
-    return this._postRepository.getTags(orgId);
+  getTags(orgId: string, profileId?: string) {
+    return this._postRepository.getTags(orgId, profileId);
   }
 
-  createTag(orgId: string, body: CreateTagDto) {
-    return this._postRepository.createTag(orgId, body);
+  createTag(orgId: string, body: CreateTagDto, profileId?: string) {
+    return this._postRepository.createTag(orgId, body, profileId);
   }
 
   editTag(id: string, orgId: string, body: CreateTagDto) {

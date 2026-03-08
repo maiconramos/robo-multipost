@@ -470,11 +470,12 @@ export class IntegrationRepository {
     });
   }
 
-  getIntegrationsList(org: string) {
+  getIntegrationsList(org: string, profileId?: string) {
     return this._integration.model.integration.findMany({
       where: {
         organizationId: org,
         deletedAt: null,
+        ...(profileId ? { profileId } : {}),
       },
       include: {
         customer: true,

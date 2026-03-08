@@ -6,7 +6,7 @@ import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/sa
 export class MediaRepository {
   constructor(private _media: PrismaRepository<'media'>) {}
 
-  saveFile(org: string, fileName: string, filePath: string, originalName?: string) {
+  saveFile(org: string, fileName: string, filePath: string, originalName?: string, profileId?: string) {
     return this._media.model.media.create({
       data: {
         organization: {
@@ -14,6 +14,7 @@ export class MediaRepository {
             id: org,
           },
         },
+        ...(profileId ? { profile: { connect: { id: profileId } } } : {}),
         name: fileName,
         path: filePath,
         originalName: originalName || null,
@@ -72,13 +73,14 @@ export class MediaRepository {
     });
   }
 
-  async getMedia(org: string, page: number) {
+  async getMedia(org: string, page: number, profileId?: string) {
     const pageNum = (page || 1) - 1;
     const query = {
       where: {
         organization: {
           id: org,
         },
+        ...(profileId ? { profileId } : {}),
       },
     };
     const pages = Math.ceil((await this._media.model.media.count(query)) / 18);
@@ -86,6 +88,7 @@ export class MediaRepository {
       where: {
         organizationId: org,
         deletedAt: null,
+        ...(profileId ? { profileId } : {}),
       },
       orderBy: {
         createdAt: 'desc',

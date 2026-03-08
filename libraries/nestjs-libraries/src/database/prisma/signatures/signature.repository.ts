@@ -7,27 +7,29 @@ import { SignatureDto } from '@gitroom/nestjs-libraries/dtos/signature/signature
 export class SignatureRepository {
   constructor(private _signatures: PrismaRepository<'signatures'>) {}
 
-  getSignaturesByOrgId(orgId: string) {
+  getSignaturesByOrgId(orgId: string, profileId?: string) {
     return this._signatures.model.signatures.findMany({
-      where: { organizationId: orgId, deletedAt: null },
+      where: { organizationId: orgId, deletedAt: null, ...(profileId ? { profileId } : {}) },
     });
   }
 
-  getDefaultSignature(orgId: string) {
+  getDefaultSignature(orgId: string, profileId?: string) {
     return this._signatures.model.signatures.findFirst({
-      where: { organizationId: orgId, autoAdd: true, deletedAt: null },
+      where: { organizationId: orgId, autoAdd: true, deletedAt: null, ...(profileId ? { profileId } : {}) },
     });
   }
 
   async createOrUpdateSignature(
     orgId: string,
     signature: SignatureDto,
-    id?: string
+    id?: string,
+    profileId?: string
   ) {
     const values = {
       organizationId: orgId,
       content: signature.content,
       autoAdd: signature.autoAdd,
+      ...(profileId ? { profileId } : {}),
     };
 
     const { id: updatedId } = await this._signatures.model.signatures.upsert({

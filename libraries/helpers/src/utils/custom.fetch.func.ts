@@ -35,6 +35,14 @@ export const customFetch = (
             .find((p) => p.includes('showorg='))
             ?.split('=')[1];
 
+    const authNonSecuredProfile =
+      typeof document === 'undefined'
+        ? null
+        : document.cookie
+            .split(';')
+            .find((p) => p.includes('showprofile='))
+            ?.split('=')[1];
+
     const authNonSecuredImpersonate =
       typeof document === 'undefined'
         ? null
@@ -62,6 +70,9 @@ export const customFetch = (
           ? { auth }
           : authNonSecuredCookie
           ? { auth: authNonSecuredCookie }
+          : {}),
+        ...(authNonSecuredProfile
+          ? { showprofile: authNonSecuredProfile }
           : {}),
         ...(authNonSecuredImpersonate
           ? { impersonate: authNonSecuredImpersonate }
