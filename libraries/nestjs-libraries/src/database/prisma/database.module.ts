@@ -41,6 +41,7 @@ import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/cre
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
+import { StartupMigrationService } from '@gitroom/nestjs-libraries/database/prisma/startup-migration.service';
 
 @Global()
 @Module({
@@ -91,6 +92,7 @@ import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profil
     EncryptionService,
     ProfileRepository,
     ProfileService,
+    StartupMigrationService,
   ],
   get exports() {
     return this.providers;

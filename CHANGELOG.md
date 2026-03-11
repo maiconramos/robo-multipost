@@ -13,6 +13,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Late API key configuravel por perfil — cada perfil pode conectar sua propria conta Late
 - Preferencia de Shortlink independente por perfil
 - Script de migracao SQL para mover dados existentes de credenciais, webhooks, autopost, sets, late e shortlink para o perfil default
+- Migracao automatica no startup do backend — usuarios Docker nao precisam rodar SQL manualmente ao atualizar
 - Multi-tenancy com perfis: suporte a 3 niveis (Workspace > Perfil > Recursos) para agencias gerenciarem multiplos clientes
 - Modelo Profile e ProfileMember no banco de dados com roles (OWNER, MANAGER, EDITOR, VIEWER)
 - API REST para CRUD de perfis e gerenciamento de membros (`/profiles`)
