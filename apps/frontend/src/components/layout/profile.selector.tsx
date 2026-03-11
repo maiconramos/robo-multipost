@@ -68,7 +68,7 @@ export const ProfileSelector: FC = () => {
               />
             </svg>
             <span className="max-w-[80px] truncate">
-              {current?.name || 'Perfil'}
+              {current?.name || user?.profileName || 'Perfil'}
             </span>
           </div>
           <div

@@ -8,7 +8,8 @@ import {
   Put,
 } from '@nestjs/common';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
-import { Organization } from '@prisma/client';
+import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
+import { Organization, User } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
@@ -31,9 +32,10 @@ export class ProfilesController {
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async createProfile(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Body() body: { name: string; description?: string; avatarUrl?: string }
   ) {
-    return this._profileService.createProfile(org.id, body);
+    return this._profileService.createProfile(org.id, body, user.id);
   }
 
   @Put('/:id')
