@@ -35,25 +35,29 @@ export class CredentialService {
   async save(
     organizationId: string,
     provider: string,
-    data: Record<string, string>
+    data: Record<string, string>,
+    profileId?: string
   ) {
-    const existing = await this.getRaw(organizationId, provider);
+    const existing = await this.getRaw(organizationId, provider, profileId);
     const merged = existing ? this.unredact(data, existing) : data;
     const encryptedData = this._encryptionService.encryptJson(merged);
     return this._credentialRepository.upsert(
       organizationId,
       provider,
-      encryptedData
+      encryptedData,
+      profileId
     );
   }
 
   async getRedacted(
     organizationId: string,
-    provider: string
+    provider: string,
+    profileId?: string
   ): Promise<{ data: Record<string, string>; updatedAt: Date } | null> {
     const record = await this._credentialRepository.findByProvider(
       organizationId,
-      provider
+      provider,
+      profileId
     );
     if (!record) return null;
     const data = this._encryptionService.decryptJson(record.encryptedData) as Record<string, string>;
@@ -62,19 +66,21 @@ export class CredentialService {
 
   async getRaw(
     organizationId: string,
-    provider: string
+    provider: string,
+    profileId?: string
   ): Promise<Record<string, string> | null> {
     const record = await this._credentialRepository.findByProvider(
       organizationId,
-      provider
+      provider,
+      profileId
     );
     if (!record) return null;
     return this._encryptionService.decryptJson(record.encryptedData) as Record<string, string>;
   }
 
-  async listByOrg(organizationId: string) {
+  async listByOrg(organizationId: string, profileId?: string) {
     const records =
-      await this._credentialRepository.findAllByOrg(organizationId);
+      await this._credentialRepository.findAllByOrg(organizationId, profileId);
     return records.map((r) => ({
       provider: r.provider,
       configured: true,
@@ -82,15 +88,16 @@ export class CredentialService {
     }));
   }
 
-  async delete(organizationId: string, provider: string) {
-    return this._credentialRepository.delete(organizationId, provider);
+  async delete(organizationId: string, provider: string, profileId?: string) {
+    return this._credentialRepository.delete(organizationId, provider, profileId);
   }
 
   async test(
     organizationId: string,
-    provider: string
+    provider: string,
+    profileId?: string
   ): Promise<{ ok: boolean; error?: string }> {
-    const raw = await this.getRaw(organizationId, provider);
+    const raw = await this.getRaw(organizationId, provider, profileId);
     if (!raw) {
       return { ok: false, error: 'Nenhuma credencial configurada para este provider.' };
     }
@@ -114,7 +121,6 @@ export class CredentialService {
   ): Promise<{ ok: boolean; error?: string }> {
     switch (provider) {
       case 'facebook': {
-        // Facebook/Instagram/Threads: client_credentials grant valida app_id + app_secret
         const res = await fetch(
           `https://graph.facebook.com/oauth/access_token?client_id=${encodeURIComponent(creds.clientId)}&client_secret=${encodeURIComponent(creds.clientSecret)}&grant_type=client_credentials`
         );
@@ -125,7 +131,6 @@ export class CredentialService {
         return { ok: true };
       }
       case 'twitter': {
-        // Twitter/X: App-only bearer token via client_credentials
         const encoded = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
         const res = await fetch('https://api.x.com/oauth2/token', {
           method: 'POST',
@@ -143,7 +148,6 @@ export class CredentialService {
         return { ok: true };
       }
       case 'reddit': {
-        // Reddit: client_credentials grant
         const encoded = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
         const res = await fetch('https://www.reddit.com/api/v1/access_token', {
           method: 'POST',
@@ -160,7 +164,6 @@ export class CredentialService {
         return { ok: true };
       }
       case 'discord': {
-        // Discord: client_credentials grant com scope=identify
         const encoded = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
         const res = await fetch('https://discord.com/api/v10/oauth2/token', {
           method: 'POST',
@@ -177,8 +180,6 @@ export class CredentialService {
         return { ok: true };
       }
       case 'tiktok': {
-        // TikTok: client access token (client_key no body, não no header)
-        // TikTok retorna HTTP 200 mesmo com credenciais inválidas — erro vem no body JSON
         const res = await fetch('https://open.tiktokapis.com/v2/oauth/token/', {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
@@ -195,8 +196,6 @@ export class CredentialService {
         return { ok: true };
       }
       default: {
-        // LinkedIn, YouTube, Pinterest, Slack: sem endpoint client_credentials
-        // Valida apenas que os campos obrigatórios não estão vazios
         const empty = Object.entries(creds).filter(([, v]) => !v).map(([k]) => k);
         if (empty.length > 0) {
           return { ok: false, error: `Campos vazios: ${empty.join(', ')}` };

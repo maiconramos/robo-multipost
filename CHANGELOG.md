@@ -8,6 +8,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Credenciais OAuth independentes por perfil — cada perfil pode ter suas proprias credenciais de redes sociais
+- Webhooks, Auto Post e Sets isolados por perfil ativo
+- Late API key configuravel por perfil — cada perfil pode conectar sua propria conta Late
+- Preferencia de Shortlink independente por perfil
+- Script de migracao SQL para mover dados existentes de credenciais, webhooks, autopost, sets, late e shortlink para o perfil default
 - Multi-tenancy com perfis: suporte a 3 niveis (Workspace > Perfil > Recursos) para agencias gerenciarem multiplos clientes
 - Modelo Profile e ProfileMember no banco de dados com roles (OWNER, MANAGER, EDITOR, VIEWER)
 - API REST para CRUD de perfis e gerenciamento de membros (`/profiles`)

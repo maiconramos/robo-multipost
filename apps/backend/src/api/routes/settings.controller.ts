@@ -1,8 +1,10 @@
 import { Body, Controller, Delete, Get, Param, Post } from '@nestjs/common';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
-import { Organization } from '@prisma/client';
+import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
+import { Organization, Profile } from '@prisma/client';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { ShortlinkPreferenceDto } from '@gitroom/nestjs-libraries/dtos/settings/shortlink-preference.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -12,7 +14,8 @@ import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/p
 @Controller('/settings')
 export class SettingsController {
   constructor(
-    private _organizationService: OrganizationService
+    private _organizationService: OrganizationService,
+    private _profileService: ProfileService
   ) {}
 
   @Get('/team')
@@ -49,7 +52,13 @@ export class SettingsController {
   }
 
   @Get('/shortlink')
-  async getShortlinkPreference(@GetOrgFromRequest() org: Organization) {
+  async getShortlinkPreference(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
+    if (profile?.id) {
+      return this._profileService.getShortlinkPreference(profile.id);
+    }
     return this._organizationService.getShortlinkPreference(org.id);
   }
 
@@ -57,8 +66,12 @@ export class SettingsController {
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async updateShortlinkPreference(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body() body: ShortlinkPreferenceDto
   ) {
+    if (profile?.id) {
+      return this._profileService.updateShortlinkPreference(profile.id, body.shortlink);
+    }
     return this._organizationService.updateShortlinkPreference(
       org.id,
       body.shortlink
@@ -66,7 +79,13 @@ export class SettingsController {
   }
 
   @Get('/late')
-  async getLateSettings(@GetOrgFromRequest() org: Organization) {
+  async getLateSettings(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
+    if (profile?.id) {
+      return this._profileService.getLateSettings(profile.id);
+    }
     return this._organizationService.getLateSettings(org.id);
   }
 
@@ -74,14 +93,24 @@ export class SettingsController {
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async saveLateApiKey(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body('apiKey') apiKey: string
   ) {
+    if (profile?.id) {
+      return this._profileService.saveLateApiKey(profile.id, apiKey);
+    }
     return this._organizationService.saveLateApiKey(org.id, apiKey);
   }
 
   @Delete('/late')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
-  async removeLateApiKey(@GetOrgFromRequest() org: Organization) {
+  async removeLateApiKey(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
+    if (profile?.id) {
+      return this._profileService.removeLateApiKey(profile.id);
+    }
     return this._organizationService.removeLateApiKey(org.id);
   }
 }

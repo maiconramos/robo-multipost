@@ -7,19 +7,21 @@ import { v4 as uuidv4 } from 'uuid';
 export class WebhooksRepository {
   constructor(private _webhooks: PrismaRepository<'webhooks'>) {}
 
-  getTotal(orgId: string) {
+  getTotal(orgId: string, profileId?: string) {
     return this._webhooks.model.webhooks.count({
       where: {
         organizationId: orgId,
+        ...(profileId ? { profileId } : {}),
         deletedAt: null,
       },
     });
   }
 
-  getWebhooks(orgId: string) {
+  getWebhooks(orgId: string, profileId?: string) {
     return this._webhooks.model.webhooks.findMany({
       where: {
         organizationId: orgId,
+        ...(profileId ? { profileId } : {}),
         deletedAt: null,
       },
       include: {
@@ -38,11 +40,12 @@ export class WebhooksRepository {
     });
   }
 
-  deleteWebhook(orgId: string, id: string) {
+  deleteWebhook(orgId: string, id: string, profileId?: string) {
     return this._webhooks.model.webhooks.update({
       where: {
         id,
         organizationId: orgId,
+        ...(profileId ? { profileId } : {}),
       },
       data: {
         deletedAt: new Date(),
@@ -50,7 +53,7 @@ export class WebhooksRepository {
     });
   }
 
-  async createWebhook(orgId: string, body: WebhooksDto) {
+  async createWebhook(orgId: string, body: WebhooksDto, profileId?: string) {
     const { id } = await this._webhooks.model.webhooks.upsert({
       where: {
         id: body.id || uuidv4(),
@@ -60,6 +63,7 @@ export class WebhooksRepository {
         organizationId: orgId,
         url: body.url,
         name: body.name,
+        ...(profileId ? { profileId } : {}),
       },
       update: {
         url: body.url,

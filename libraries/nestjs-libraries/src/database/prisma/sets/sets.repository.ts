@@ -7,18 +7,20 @@ import { v4 as uuidv4 } from 'uuid';
 export class SetsRepository {
   constructor(private _sets: PrismaRepository<'sets'>) {}
 
-  getTotal(orgId: string) {
+  getTotal(orgId: string, profileId?: string) {
     return this._sets.model.sets.count({
       where: {
         organizationId: orgId,
+        ...(profileId ? { profileId } : {}),
       },
     });
   }
 
-  getSets(orgId: string) {
+  getSets(orgId: string, profileId?: string) {
     return this._sets.model.sets.findMany({
       where: {
         organizationId: orgId,
+        ...(profileId ? { profileId } : {}),
       },
       orderBy: {
         createdAt: 'desc',
@@ -26,16 +28,17 @@ export class SetsRepository {
     });
   }
 
-  deleteSet(orgId: string, id: string) {
+  deleteSet(orgId: string, id: string, profileId?: string) {
     return this._sets.model.sets.delete({
       where: {
         id,
         organizationId: orgId,
+        ...(profileId ? { profileId } : {}),
       },
     });
   }
 
-  async createSet(orgId: string, body: SetsDto) {
+  async createSet(orgId: string, body: SetsDto, profileId?: string) {
     const { id } = await this._sets.model.sets.upsert({
       where: {
         id: body.id || uuidv4(),
@@ -44,6 +47,7 @@ export class SetsRepository {
       create: {
         id: body.id || uuidv4(),
         organizationId: orgId,
+        ...(profileId ? { profileId } : {}),
         name: body.name,
         content: body.content,
       },
@@ -55,4 +59,4 @@ export class SetsRepository {
 
     return { id };
   }
-} 
+}

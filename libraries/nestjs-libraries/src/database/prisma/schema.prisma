@@ -610,20 +610,24 @@ model Webhooks {
   id             String                 @id @default(uuid())
   name           String
   organizationId String
+  profileId      String?
   url            String
   deletedAt      DateTime?
   createdAt      DateTime               @default(now())
   updatedAt      DateTime               @updatedAt
   integrations   IntegrationsWebhooks[]
   organization   Organization           @relation(fields: [organizationId], references: [id])
+  profile        Profile?               @relation(fields: [profileId], references: [id])
 
   @@index([organizationId])
+  @@index([profileId])
   @@index([deletedAt])
 }
 
 model AutoPost {
   id              String       @id @default(uuid())
   organizationId  String
+  profileId       String?
   title           String
   content         String?
   onSlot          Boolean
@@ -638,20 +642,25 @@ model AutoPost {
   createdAt       DateTime     @default(now())
   updatedAt       DateTime     @updatedAt
   organization    Organization @relation(fields: [organizationId], references: [id])
+  profile         Profile?     @relation(fields: [profileId], references: [id])
 
+  @@index([profileId])
   @@index([deletedAt])
 }
 
 model Sets {
   id             String       @id @default(uuid())
   organizationId String
+  profileId      String?
   name           String
   content        String
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id])
+  profile        Profile?     @relation(fields: [profileId], references: [id])
 
   @@index([organizationId])
+  @@index([profileId])
 }
 
 model ThirdParty {
@@ -859,15 +868,18 @@ model mastra_workflow_snapshot {
 model ProviderCredential {
   id             String       @id @default(cuid())
   organizationId String
+  profileId      String?
   provider       String
   encryptedData  String       @db.Text
   keyVersion     Int          @default(1)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   organization   Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  profile        Profile?     @relation(fields: [profileId], references: [id])
 
-  @@unique([organizationId, provider])
+  @@unique([organizationId, profileId, provider])
   @@index([organizationId])
+  @@index([profileId])
 }
 
 enum OrderStatus {
@@ -936,24 +948,30 @@ enum ProfileRole {
 }
 
 model Profile {
-  id             String          @id @default(uuid())
+  id             String              @id @default(uuid())
   name           String
   slug           String
   description    String?
   avatarUrl      String?
   organizationId String
-  isDefault      Boolean         @default(false)
-  createdAt      DateTime        @default(now())
-  updatedAt      DateTime        @updatedAt
+  isDefault      Boolean             @default(false)
+  lateApiKey     String?
+  shortlink      ShortLinkPreference @default(ASK)
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
   deletedAt      DateTime?
 
-  organization   Organization    @relation(fields: [organizationId], references: [id])
+  organization   Organization        @relation(fields: [organizationId], references: [id])
   members        ProfileMember[]
   integrations   Integration[]
-  posts          Post[]          @relation("profilePosts")
+  posts          Post[]              @relation("profilePosts")
   media          Media[]
   tags           Tags[]
   signatures     Signatures[]
+  credentials    ProviderCredential[]
+  webhooks       Webhooks[]
+  autoPosts      AutoPost[]
+  sets           Sets[]
 
   @@unique([organizationId, slug, deletedAt])
   @@index([organizationId])

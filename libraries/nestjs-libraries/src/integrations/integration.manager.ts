@@ -141,7 +141,8 @@ export class IntegrationManager {
 
   async getProviderCredentials(
     provider: string,
-    organizationId: string
+    organizationId: string,
+    profileId?: string
   ): Promise<Record<string, string> | undefined> {
     // Resolve alias (e.g., instagram → facebook for DB lookup)
     const credentialKey = CREDENTIAL_ALIAS[provider] || provider;
@@ -149,7 +150,8 @@ export class IntegrationManager {
     if (this._credentialService) {
       const dbCredentials = await this._credentialService.getRaw(
         organizationId,
-        credentialKey
+        credentialKey,
+        profileId
       );
       if (dbCredentials) {
         return dbCredentials;

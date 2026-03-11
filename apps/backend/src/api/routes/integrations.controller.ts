@@ -34,6 +34,7 @@ import {
 import { uniqBy } from 'lodash';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -43,7 +44,8 @@ export class IntegrationsController {
     private _integrationService: IntegrationService,
     private _postService: PostsService,
     private _refreshIntegrationService: RefreshIntegrationService,
-    private _organizationService: OrganizationService
+    private _organizationService: OrganizationService,
+    private _profileService: ProfileService
   ) {}
 
   @Get('/:identifier/internal-plugs')
@@ -192,7 +194,8 @@ export class IntegrationsController {
     @Query('refresh') refresh: string,
     @Query('externalUrl') externalUrl: string,
     @Query('onboarding') onboarding: string,
-    @GetOrgFromRequest() org: Organization
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
   ) {
     if (
       !this._integrationManager
@@ -215,7 +218,13 @@ export class IntegrationsController {
       let getExternalUrl: { client_id: string; client_secret: string; instanceUrl: string } | undefined;
 
       if (isLateProvider) {
-        const lateApiKey = await this._organizationService.getDecryptedLateApiKey(org.id);
+        let lateApiKey: string | null = null;
+        if (profile?.id) {
+          lateApiKey = await this._profileService.getDecryptedLateApiKey(profile.id);
+        }
+        if (!lateApiKey) {
+          lateApiKey = await this._organizationService.getDecryptedLateApiKey(org.id);
+        }
         if (!lateApiKey) {
           throw new Error('Late API key not configured. Go to Settings > Late to configure it.');
         }
@@ -235,7 +244,8 @@ export class IntegrationsController {
       if (!getExternalUrl) {
         const dbCreds = await this._integrationManager.getProviderCredentials(
           integration,
-          org.id
+          org.id,
+          profile?.id
         );
         if (dbCreds) {
           getExternalUrl = {

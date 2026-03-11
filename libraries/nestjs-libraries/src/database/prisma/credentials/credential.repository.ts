@@ -7,33 +7,40 @@ export class CredentialRepository {
     private _credential: PrismaRepository<'providerCredential'>
   ) {}
 
-  upsert(organizationId: string, provider: string, encryptedData: string) {
-    return this._credential.model.providerCredential.upsert({
-      where: {
-        organizationId_provider: { organizationId, provider },
-      },
-      create: {
+  async upsert(organizationId: string, provider: string, encryptedData: string, profileId?: string) {
+    const existing = await this.findByProvider(organizationId, provider, profileId);
+    if (existing) {
+      return this._credential.model.providerCredential.update({
+        where: { id: existing.id },
+        data: { encryptedData },
+      });
+    }
+    return this._credential.model.providerCredential.create({
+      data: {
         organizationId,
         provider,
         encryptedData,
-      },
-      update: {
-        encryptedData,
+        ...(profileId ? { profileId } : {}),
       },
     });
   }
 
-  findByProvider(organizationId: string, provider: string) {
-    return this._credential.model.providerCredential.findUnique({
+  findByProvider(organizationId: string, provider: string, profileId?: string) {
+    return this._credential.model.providerCredential.findFirst({
       where: {
-        organizationId_provider: { organizationId, provider },
+        organizationId,
+        provider,
+        ...(profileId ? { profileId } : {}),
       },
     });
   }
 
-  findAllByOrg(organizationId: string) {
+  findAllByOrg(organizationId: string, profileId?: string) {
     return this._credential.model.providerCredential.findMany({
-      where: { organizationId },
+      where: {
+        organizationId,
+        ...(profileId ? { profileId } : {}),
+      },
       select: {
         provider: true,
         updatedAt: true,
@@ -41,10 +48,12 @@ export class CredentialRepository {
     });
   }
 
-  delete(organizationId: string, provider: string) {
-    return this._credential.model.providerCredential.delete({
+  delete(organizationId: string, provider: string, profileId?: string) {
+    return this._credential.model.providerCredential.deleteMany({
       where: {
-        organizationId_provider: { organizationId, provider },
+        organizationId,
+        provider,
+        ...(profileId ? { profileId } : {}),
       },
     });
   }

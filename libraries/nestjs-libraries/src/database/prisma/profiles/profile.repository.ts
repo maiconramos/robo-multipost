@@ -1,6 +1,6 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
-import { ProfileRole } from '@prisma/client';
+import { ProfileRole, ShortLinkPreference } from '@prisma/client';
 
 @Injectable()
 export class ProfileRepository {
@@ -135,6 +135,41 @@ export class ProfileRepository {
           },
         },
       },
+    });
+  }
+
+  getLateApiKey(profileId: string) {
+    return this._profile.model.profile.findUnique({
+      where: { id: profileId },
+      select: { lateApiKey: true },
+    });
+  }
+
+  saveLateApiKey(profileId: string, encryptedKey: string) {
+    return this._profile.model.profile.update({
+      where: { id: profileId },
+      data: { lateApiKey: encryptedKey },
+    });
+  }
+
+  removeLateApiKey(profileId: string) {
+    return this._profile.model.profile.update({
+      where: { id: profileId },
+      data: { lateApiKey: null },
+    });
+  }
+
+  getShortlinkPreference(profileId: string) {
+    return this._profile.model.profile.findUnique({
+      where: { id: profileId },
+      select: { shortlink: true },
+    });
+  }
+
+  updateShortlinkPreference(profileId: string, shortlink: ShortLinkPreference) {
+    return this._profile.model.profile.update({
+      where: { id: profileId },
+      data: { shortlink },
     });
   }
 }

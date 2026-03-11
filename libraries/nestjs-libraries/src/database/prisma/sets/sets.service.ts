@@ -6,19 +6,19 @@ import { SetsDto } from '@gitroom/nestjs-libraries/dtos/sets/sets.dto';
 export class SetsService {
   constructor(private _setsRepository: SetsRepository) {}
 
-  getTotal(orgId: string) {
-    return this._setsRepository.getTotal(orgId);
+  getTotal(orgId: string, profileId?: string) {
+    return this._setsRepository.getTotal(orgId, profileId);
   }
 
-  getSets(orgId: string) {
-    return this._setsRepository.getSets(orgId);
+  getSets(orgId: string, profileId?: string) {
+    return this._setsRepository.getSets(orgId, profileId);
   }
 
-  createSet(orgId: string, body: SetsDto) {
-    return this._setsRepository.createSet(orgId, body);
+  createSet(orgId: string, body: SetsDto, profileId?: string) {
+    return this._setsRepository.createSet(orgId, body, profileId);
   }
 
-  deleteSet(orgId: string, id: string) {
-    return this._setsRepository.deleteSet(orgId, id);
+  deleteSet(orgId: string, id: string, profileId?: string) {
+    return this._setsRepository.deleteSet(orgId, id, profileId);
   }
-} 
+}

@@ -6,19 +6,19 @@ import { WebhooksDto } from '@gitroom/nestjs-libraries/dtos/webhooks/webhooks.dt
 export class WebhooksService {
   constructor(private _webhooksRepository: WebhooksRepository) {}
 
-  getTotal(orgId: string) {
-    return this._webhooksRepository.getTotal(orgId);
+  getTotal(orgId: string, profileId?: string) {
+    return this._webhooksRepository.getTotal(orgId, profileId);
   }
 
-  getWebhooks(orgId: string) {
-    return this._webhooksRepository.getWebhooks(orgId);
+  getWebhooks(orgId: string, profileId?: string) {
+    return this._webhooksRepository.getWebhooks(orgId, profileId);
   }
 
-  createWebhook(orgId: string, body: WebhooksDto) {
-    return this._webhooksRepository.createWebhook(orgId, body);
+  createWebhook(orgId: string, body: WebhooksDto, profileId?: string) {
+    return this._webhooksRepository.createWebhook(orgId, body, profileId);
   }
 
-  deleteWebhook(orgId: string, id: string) {
-    return this._webhooksRepository.deleteWebhook(orgId, id);
+  deleteWebhook(orgId: string, id: string, profileId?: string) {
+    return this._webhooksRepository.deleteWebhook(orgId, id, profileId);
   }
 }

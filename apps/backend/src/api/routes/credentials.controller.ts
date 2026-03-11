@@ -9,7 +9,8 @@ import {
   Post,
 } from '@nestjs/common';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
-import { Organization } from '@prisma/client';
+import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
+import { Organization, Profile } from '@prisma/client';
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import {
@@ -24,16 +25,20 @@ export class CredentialsController {
   constructor(private _credentialService: CredentialService) {}
 
   @Get('/')
-  async list(@GetOrgFromRequest() org: Organization) {
-    return this._credentialService.listByOrg(org.id);
+  async list(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
+    return this._credentialService.listByOrg(org.id, profile?.id);
   }
 
   @Get('/:provider')
   async getByProvider(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('provider') provider: string
   ) {
-    const result = await this._credentialService.getRedacted(org.id, provider);
+    const result = await this._credentialService.getRedacted(org.id, provider, profile?.id);
     if (!result) {
       return { provider, data: {}, updatedAt: null };
     }
@@ -48,11 +53,12 @@ export class CredentialsController {
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async create(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('provider') provider: string,
     @Body() body: Record<string, string>
   ) {
-    await this._credentialService.save(org.id, provider, body);
-    const result = await this._credentialService.getRedacted(org.id, provider);
+    await this._credentialService.save(org.id, provider, body, profile?.id);
+    const result = await this._credentialService.getRedacted(org.id, provider, profile?.id);
     return {
       provider,
       data: result!.data,
@@ -64,11 +70,12 @@ export class CredentialsController {
   @CheckPolicies([AuthorizationActions.Update, Sections.ADMIN])
   async update(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('provider') provider: string,
     @Body() body: Record<string, string>
   ) {
-    await this._credentialService.save(org.id, provider, body);
-    const result = await this._credentialService.getRedacted(org.id, provider);
+    await this._credentialService.save(org.id, provider, body, profile?.id);
+    const result = await this._credentialService.getRedacted(org.id, provider, profile?.id);
     return {
       provider,
       data: result!.data,
@@ -81,17 +88,19 @@ export class CredentialsController {
   @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
   async remove(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('provider') provider: string
   ) {
-    await this._credentialService.delete(org.id, provider);
+    await this._credentialService.delete(org.id, provider, profile?.id);
   }
 
   @Post('/:provider/test')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async test(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('provider') provider: string
   ) {
-    return this._credentialService.test(org.id, provider);
+    return this._credentialService.test(org.id, provider, profile?.id);
   }
 }
