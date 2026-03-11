@@ -500,4 +500,6 @@ pnpm run dev
 ```
 
 # Dica 
-se algum processo ficar preso, use kill -9 $(lsof -ti :3000 :4200)
+se algum processo ficar preso, use kill -9 $(lsof -ti :3000 :4200) 
+ou
+  lsof -ti:4200 | xargs kill -9; lsof -ti:3000 | xargs kill -9; pnpm run --filter ./apps/orchestrator --filter ./apps/backend --filter ./apps/frontend --parallel dev
