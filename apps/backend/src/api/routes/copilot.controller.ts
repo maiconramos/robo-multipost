@@ -15,7 +15,8 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
-import { Organization } from '@prisma/client';
+import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
+import { Organization, Profile } from '@prisma/client';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { MastraAgent } from '@ag-ui/mastra';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
@@ -27,6 +28,7 @@ import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/p
 export type ChannelsContext = {
   integrations: string;
   organization: string;
+  profileId: string;
   ui: string;
 };
 
@@ -62,7 +64,8 @@ export class CopilotController {
   async agent(
     @Req() req: Request,
     @Res() res: Response,
-    @GetOrgFromRequest() organization: Organization
+    @GetOrgFromRequest() organization: Organization,
+    @GetProfileFromRequest() profile: Profile | null
   ) {
     if (
       process.env.OPENAI_API_KEY === undefined ||
@@ -79,10 +82,12 @@ export class CopilotController {
     );
 
     runtimeContext.set('organization', JSON.stringify(organization));
+    runtimeContext.set('profileId', profile?.id || '');
     runtimeContext.set('ui', 'true');
 
+    const resourceId = profile ? `${organization.id}:${profile.id}` : organization.id;
     const agents = MastraAgent.getLocalAgents({
-      resourceId: organization.id,
+      resourceId,
       mastra,
       // @ts-ignore
       runtimeContext,
@@ -119,13 +124,15 @@ export class CopilotController {
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async getMessagesList(
     @GetOrgFromRequest() organization: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('thread') threadId: string
   ): Promise<any> {
     const mastra = await this._mastraService.mastra();
     const memory = await mastra.getAgent('postiz').getMemory();
+    const resourceId = profile ? `${organization.id}:${profile.id}` : organization.id;
     try {
       return await memory.query({
-        resourceId: organization.id,
+        resourceId,
         threadId,
       });
     } catch (err) {
@@ -135,12 +142,16 @@ export class CopilotController {
 
   @Get('/list')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
-  async getList(@GetOrgFromRequest() organization: Organization) {
+  async getList(
+    @GetOrgFromRequest() organization: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
     const mastra = await this._mastraService.mastra();
     // @ts-ignore
     const memory = await mastra.getAgent('postiz').getMemory();
+    const resourceId = profile ? `${organization.id}:${profile.id}` : organization.id;
     const list = await memory.getThreadsByResourceIdPaginated({
-      resourceId: organization.id,
+      resourceId,
       perPage: 100000,
       page: 0,
       orderBy: 'createdAt',

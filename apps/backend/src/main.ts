@@ -18,6 +18,7 @@ import { SubscriptionExceptionFilter } from '@gitroom/backend/services/auth/perm
 import { HttpExceptionFilter } from '@gitroom/nestjs-libraries/services/exception.filter';
 import { ConfigurationChecker } from '@gitroom/helpers/configuration/configuration.checker';
 import { startMcp } from '@gitroom/nestjs-libraries/chat/start.mcp';
+import { PrismaClient } from '@prisma/client';
 
 async function start() {
   const app = await NestFactory.create(AppModule, {
@@ -63,6 +64,9 @@ async function start() {
 
   loadSwagger(app);
 
+  // Auto-migrate orphan records to default profile (idempotent)
+  await migrateOrphanRecordsToDefaultProfile();
+
   const port = process.env.PORT || 3000;
 
   try {
@@ -73,6 +77,52 @@ async function start() {
     Logger.log(`🚀 Backend is running on: http://localhost:${port}`);
   } catch (e) {
     Logger.error(`Backend failed to start on port ${port}`, e);
+  }
+}
+
+async function migrateOrphanRecordsToDefaultProfile() {
+  const prisma = new PrismaClient();
+  try {
+    // Find all organizations that have profiles
+    const orgsWithProfiles = await prisma.profile.findMany({
+      where: { isDefault: true },
+      select: { id: true, organizationId: true },
+    });
+
+    if (!orgsWithProfiles.length) {
+      return;
+    }
+
+    for (const defaultProfile of orgsWithProfiles) {
+      // Assign orphan posts to default profile
+      const postsUpdated = await prisma.post.updateMany({
+        where: {
+          organizationId: defaultProfile.organizationId,
+          profileId: null,
+        },
+        data: { profileId: defaultProfile.id },
+      });
+
+      // Assign orphan media to default profile
+      const mediaUpdated = await prisma.media.updateMany({
+        where: {
+          organizationId: defaultProfile.organizationId,
+          profileId: null,
+        },
+        data: { profileId: defaultProfile.id },
+      });
+
+      if (postsUpdated.count > 0 || mediaUpdated.count > 0) {
+        Logger.log(
+          `Migrated ${postsUpdated.count} posts and ${mediaUpdated.count} media to default profile for org ${defaultProfile.organizationId}`,
+          'ProfileMigration'
+        );
+      }
+    }
+  } catch (err) {
+    Logger.warn('Profile migration skipped (non-critical): ' + (err as Error).message, 'ProfileMigration');
+  } finally {
+    await prisma.$disconnect();
   }
 }
 

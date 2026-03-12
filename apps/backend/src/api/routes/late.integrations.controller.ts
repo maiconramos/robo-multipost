@@ -153,13 +153,20 @@ export class LateIntegrationsController {
     const providerIdentifier = `late-${platform}`;
     const name = displayName || username || `${platform} Account`;
 
+    // Late SDK doesn't provide profile pictures for accounts.
+    // Use the platform icon as fallback so the integration doesn't show a blank avatar.
+    const picture =
+      platform === 'youtube'
+        ? '/icons/platforms/youtube.svg'
+        : `/icons/platforms/${platform}.png`;
+
     const integration =
       await this._integrationService.createOrUpdateIntegration(
         undefined,
         false,
         org.id,
         name.trim(),
-        undefined,
+        picture,
         'social',
         accountId,
         providerIdentifier,
@@ -170,16 +177,9 @@ export class LateIntegrationsController {
         false,
         undefined,
         undefined,
-        JSON.stringify({ lateProfileId })
+        JSON.stringify({ lateProfileId }),
+        profile?.id
       );
-
-    // Associate with active profile so the integration appears in profile-scoped lists
-    if (profile?.id) {
-      await this._integrationService.setIntegrationProfile(
-        integration.id,
-        profile.id
-      );
-    }
 
     return {
       id: integration.id,

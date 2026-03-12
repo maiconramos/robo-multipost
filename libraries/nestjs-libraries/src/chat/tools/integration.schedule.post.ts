@@ -121,6 +121,8 @@ If the tools return errors, you would need to rerun it with the right parameters
           // @ts-ignore
           runtimeContext.get('organization') as string
         ).id;
+        // @ts-ignore
+        const profileId = runtimeContext.get('profileId') as string || undefined;
         const finalOutput = [];
 
         const integrations = {} as Record<string, Integration>;
@@ -130,6 +132,11 @@ If the tools return errors, you would need to rerun it with the right parameters
               organizationId,
               platform.integrationId
             );
+
+          if (profileId && integrations[platform.integrationId]?.profileId &&
+              integrations[platform.integrationId].profileId !== profileId) {
+            throw new Error('Integration does not belong to the active profile');
+          }
 
           const { dto, maxLength, identifier } = socialIntegrationList.find(
             (p) =>
@@ -216,7 +223,7 @@ If the tools return errors, you would need to rerun it with the right parameters
                 })),
               },
             ],
-          });
+          }, profileId);
           finalOutput.push(...output);
         }
 

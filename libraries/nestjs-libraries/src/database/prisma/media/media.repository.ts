@@ -38,11 +38,12 @@ export class MediaRepository {
     });
   }
 
-  deleteMedia(org: string, id: string) {
+  deleteMedia(org: string, id: string, profileId?: string) {
     return this._media.model.media.update({
       where: {
         id,
         organizationId: org,
+        ...(profileId ? { OR: [{ profileId }, { profileId: null }] } : {}),
       },
       data: {
         deletedAt: new Date(),
@@ -75,12 +76,16 @@ export class MediaRepository {
 
   async getMedia(org: string, page: number, profileId?: string) {
     const pageNum = (page || 1) - 1;
+    // Show media for the active profile + unscoped media (profileId is null)
+    const profileFilter = profileId
+      ? { OR: [{ profileId }, { profileId: null }] }
+      : {};
     const query = {
       where: {
         organization: {
           id: org,
         },
-        ...(profileId ? { profileId } : {}),
+        ...profileFilter,
       },
     };
     const pages = Math.ceil((await this._media.model.media.count(query)) / 18);
@@ -88,7 +93,7 @@ export class MediaRepository {
       where: {
         organizationId: org,
         deletedAt: null,
-        ...(profileId ? { profileId } : {}),
+        ...profileFilter,
       },
       orderBy: {
         createdAt: 'desc',

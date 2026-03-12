@@ -28,14 +28,35 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Suporte a 13 plataformas via Late: Twitter, Instagram, TikTok, YouTube, Facebook, LinkedIn, Pinterest, Reddit, Bluesky, Threads, Google Business, Telegram, Snapchat
 - Modal de selecao Late com 2 etapas: escolher perfil Late e depois selecionar conta (agrupada por plataforma)
 - Opcao de conectar nova conta via OAuth do Late diretamente no modal
-- Badge visual "L" nos icones de canais conectados via Late para diferenciar de conexoes nativas
+- Badge visual Late (asterisco oficial) nos icones de canais conectados via Late para diferenciar de conexoes nativas
+- Icone de plataforma como foto de perfil para canais Late (Late SDK nao fornece fotos de perfil)
 - Suporte a pre-release (RC) no workflow de release — permite lancar versoes de teste sem afetar `:latest`
 - Workflow `promote-release.yml` para promover RC para estavel sem rebuild da imagem Docker
 - Opcoes `rc` e `promote` no skill `/new-release`
 - Changelog incremental — Claude Code preenche `[Unreleased]` conforme trabalha
 
 ### Corrigido
+- Isolamento completo de dados por perfil — posts, tags, analytics, agents e canais agora respeitam o perfil ativo em todas as operacoes de escrita e leitura
+- Posts criados em um perfil nao aparecem mais em outros perfis
+- Find-slot calcula horarios livres considerando apenas posts do perfil ativo
+- Analytics valida que a integracao/post pertence ao perfil antes de retornar dados
+- Agent (copilot) lista apenas canais do perfil ativo e nao consegue postar em canais de outro perfil
+- Threads do agent isoladas por perfil — cada perfil tem suas proprias conversas
+- Upload de midia pelo agent agora salva com profileId correto
+- Enable/disable/delete de canal valida que a integracao pertence ao perfil ativo
+- Integracoes sem perfil (org-level) agora aparecem em todos os perfis corretamente
+- Edit/delete de tags agora respeita o perfil ativo
+- Autopost busca apenas integracoes do perfil correto ao disparar
+- Conexao OAuth agora salva profileId atomicamente na integracao (sem race condition)
+- Late connect salva profileId diretamente no createOrUpdateIntegration (eliminada race condition)
+- Webhooks preservam profileId ao ser atualizados
+- API publica aceita profileId como query param para filtrar integracoes
+- Quota de canais conta apenas canais do perfil ativo ao habilitar canal
+- Migracao automatica no startup associa posts e midias orfaos ao perfil default
 - Conexao de canais Late (TikTok/Pinterest) falhava com erro de sessao expirada ao adicionar canal
+- Upload de midia nao aparecia na listagem quando perfil ativo estava selecionado (profileId nao era salvo no registro de midia)
+- Midia sem perfil associado (upload anterior ao recurso de perfis) agora aparece para todos os perfis
+- Icones de plataforma Late quebravam em 15+ componentes por usar identificador `late-xxx` como path de icone (centralizado via `PlatformIconBadge`)
 
 ### Alterado
 - Skill `/changelog` reescrito para consolidar rascunho incremental em vez de gerar do zero

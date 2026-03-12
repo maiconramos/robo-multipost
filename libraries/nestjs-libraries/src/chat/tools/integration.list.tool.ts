@@ -37,10 +37,12 @@ export class IntegrationListTool implements AgentToolInterface {
           // @ts-ignore
           runtimeContext.get('organization') as string
         ).id;
+        // @ts-ignore
+        const profileId = runtimeContext.get('profileId') as string || undefined;
 
         return {
           output: (
-            await this._integrationService.getIntegrationsList(organizationId)
+            await this._integrationService.getIntegrationsList(organizationId, profileId)
           ).map((p) => ({
             name: p.name,
             id: p.id,

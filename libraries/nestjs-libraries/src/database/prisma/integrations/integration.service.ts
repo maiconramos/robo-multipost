@@ -108,7 +108,8 @@ export class IntegrationService {
     isBetweenSteps = false,
     refresh?: string,
     timezone?: number,
-    customInstanceDetails?: string
+    customInstanceDetails?: string,
+    profileId?: string
   ) {
     const uploadedPicture = picture
       ? picture?.indexOf('imagedelivery.net') > -1
@@ -132,7 +133,8 @@ export class IntegrationService {
       isBetweenSteps,
       refresh,
       timezone,
-      customInstanceDetails
+      customInstanceDetails,
+      profileId
     );
   }
 
@@ -251,13 +253,24 @@ export class IntegrationService {
     }
   }
 
+  async validateIntegrationProfile(orgId: string, integrationId: string, profileId?: string) {
+    if (!profileId) return;
+    const integration = await this._integrationRepository.getIntegrationById(orgId, integrationId);
+    if (!integration) {
+      throw new Error('Integration not found');
+    }
+    if (integration.profileId && integration.profileId !== profileId) {
+      throw new Error('Integration does not belong to this profile');
+    }
+  }
+
   async disableChannel(org: string, id: string) {
     return this._integrationRepository.disableChannel(org, id);
   }
 
-  async enableChannel(org: string, totalChannels: number, id: string) {
+  async enableChannel(org: string, totalChannels: number, id: string, profileId?: string) {
     const integrations = (
-      await this._integrationRepository.getIntegrationsList(org)
+      await this._integrationRepository.getIntegrationsList(org, profileId)
     ).filter((f) => !f.disabled);
     if (
       !!process.env.STRIPE_PUBLISHABLE_KEY &&
@@ -334,12 +347,17 @@ export class IntegrationService {
     org: Organization,
     integration: string,
     date: string,
-    forceRefresh = false
+    forceRefresh = false,
+    profileId?: string
   ): Promise<AnalyticsData[]> {
     const getIntegration = await this.getIntegrationById(org.id, integration);
 
     if (!getIntegration) {
       throw new Error('Invalid integration');
+    }
+
+    if (profileId && getIntegration.profileId && getIntegration.profileId !== profileId) {
+      throw new Error('Integration does not belong to this profile');
     }
 
     if (getIntegration.type !== 'social') {

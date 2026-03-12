@@ -223,7 +223,8 @@ export class IntegrationRepository {
     isBetweenSteps = false,
     refresh?: string,
     timezone?: number,
-    customInstanceDetails?: string
+    customInstanceDetails?: string,
+    profileId?: string
   ) {
     const postTimes = timezone
       ? {
@@ -259,6 +260,7 @@ export class IntegrationRepository {
         refreshNeeded: false,
         rootInternalId: internalId.split('_').pop(),
         ...(customInstanceDetails ? { customInstanceDetails } : {}),
+        ...(profileId ? { profileId } : {}),
         additionalSettings: additionalSettings
           ? JSON.stringify(additionalSettings)
           : '[]',
@@ -368,11 +370,12 @@ export class IntegrationRepository {
     });
   }
 
-  getIntegrationById(org: string, id: string) {
+  getIntegrationById(org: string, id: string, profileId?: string) {
     return this._integration.model.integration.findFirst({
       where: {
         organizationId: org,
         id,
+        ...(profileId ? { OR: [{ profileId }, { profileId: null }] } : {}),
       },
     });
   }
@@ -482,7 +485,7 @@ export class IntegrationRepository {
       where: {
         organizationId: org,
         deletedAt: null,
-        ...(profileId ? { profileId } : {}),
+        ...(profileId ? { OR: [{ profileId }, { profileId: null }] } : {}),
       },
       include: {
         customer: true,

@@ -175,9 +175,12 @@ export class PublicIntegrationsController {
   }
 
   @Get('/integrations')
-  async listIntegration(@GetOrgFromRequest() org: Organization) {
+  async listIntegration(
+    @GetOrgFromRequest() org: Organization,
+    @Query('profileId') profileId?: string
+  ) {
     Sentry.metrics.count('public_api-request', 1);
-    return (await this._integrationService.getIntegrationsList(org.id)).map(
+    return (await this._integrationService.getIntegrationsList(org.id, profileId)).map(
       (org) => ({
         id: org.id,
         name: org.name,

@@ -39,9 +39,10 @@ export class SignatureController {
   @Delete('/:id')
   async deleteSignature(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string
   ) {
-    return this._signatureService.deleteSignature(org.id, id);
+    return this._signatureService.deleteSignature(org.id, id, profile?.id);
   }
 
   @Put('/:id')

@@ -23,7 +23,7 @@ export class SignatureService {
     );
   }
 
-  deleteSignature(orgId: string, id: string) {
-    return this._signatureRepository.deleteSignature(orgId, id);
+  deleteSignature(orgId: string, id: string, profileId?: string) {
+    return this._signatureRepository.deleteSignature(orgId, id, profileId);
   }
 }

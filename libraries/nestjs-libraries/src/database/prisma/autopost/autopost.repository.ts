@@ -46,6 +46,11 @@ export class AutopostRepository {
         id,
         deletedAt: null,
       },
+      include: {
+        profile: {
+          select: { id: true },
+        },
+      },
     });
   }
 

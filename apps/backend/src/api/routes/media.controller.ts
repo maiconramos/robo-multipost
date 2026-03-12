@@ -37,8 +37,12 @@ export class MediaController {
   ) {}
 
   @Delete('/:id')
-  deleteMedia(@GetOrgFromRequest() org: Organization, @Param('id') id: string) {
-    return this._mediaService.deleteMedia(org.id, id);
+  deleteMedia(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string
+  ) {
+    return this._mediaService.deleteMedia(org.id, id, profile?.id);
   }
 
   @Post('/generate-video')
@@ -72,6 +76,7 @@ export class MediaController {
   @Post('/generate-image-with-prompt')
   async generateImageFromText(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Req() req: Request,
     @Body('prompt') prompt: string
   ) {
@@ -82,7 +87,7 @@ export class MediaController {
 
     const file = await this.storage.uploadSimple(image.output);
 
-    return this._mediaService.saveFile(org.id, file.split('/').pop(), file);
+    return this._mediaService.saveFile(org.id, file.split('/').pop(), file, undefined, profile?.id);
   }
 
   @Post('/upload-server')
@@ -90,6 +95,7 @@ export class MediaController {
   @UsePipes(new CustomFileValidationPipe())
   async uploadServer(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @UploadedFile() file: Express.Multer.File
   ) {
     const originalName = file?.originalname || '';
@@ -98,13 +104,15 @@ export class MediaController {
       org.id,
       uploadedFile.originalname,
       uploadedFile.path,
-      originalName
+      originalName,
+      profile?.id
     );
   }
 
   @Post('/save-media')
   async saveMedia(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Req() req: Request,
     @Body('name') name: string,
     @Body('originalName') originalName: string
@@ -116,7 +124,8 @@ export class MediaController {
       org.id,
       name,
       process.env.CLOUDFLARE_BUCKET_URL + '/' + name,
-      originalName || undefined
+      originalName || undefined,
+      profile?.id
     );
   }
 
@@ -132,6 +141,7 @@ export class MediaController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadSimple(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @UploadedFile('file') file: Express.Multer.File,
     @Body('preventSave') preventSave: string = 'false'
   ) {
@@ -147,13 +157,15 @@ export class MediaController {
       org.id,
       getFile.originalname,
       getFile.path,
-      originalName
+      originalName,
+      profile?.id
     );
   }
 
   @Post('/:endpoint')
   async uploadFile(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Req() req: Request,
     @Res() res: Response,
     @Param('endpoint') endpoint: string
@@ -172,7 +184,8 @@ export class MediaController {
       name,
       // @ts-ignore
       upload.Location,
-      originalName || undefined
+      originalName || undefined,
+      profile?.id
     );
 
     res.status(200).json({ ...upload, saved: saveFile });

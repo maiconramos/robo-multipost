@@ -98,18 +98,20 @@ export class PostsController {
   @Put('/tags/:id')
   async editTag(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body() body: CreateTagDto,
     @Param('id') id: string
   ) {
-    return this._postsService.editTag(id, org.id, body);
+    return this._postsService.editTag(id, org.id, body, profile?.id);
   }
 
   @Delete('/tags/:id')
   async deleteTag(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string
   ) {
-    return this._postsService.deleteTag(id, org.id);
+    return this._postsService.deleteTag(id, org.id, profile?.id);
   }
 
   @Get('/')
@@ -122,16 +124,20 @@ export class PostsController {
   }
 
   @Get('/find-slot')
-  async findSlot(@GetOrgFromRequest() org: Organization) {
-    return { date: await this._postsService.findFreeDateTime(org.id) };
+  async findSlot(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
+    return { date: await this._postsService.findFreeDateTime(org.id, undefined, profile?.id) };
   }
 
   @Get('/find-slot/:id')
   async findSlotIntegration(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id?: string
   ) {
-    return { date: await this._postsService.findFreeDateTime(org.id, id) };
+    return { date: await this._postsService.findFreeDateTime(org.id, id, profile?.id) };
   }
 
   @Get('/list')
@@ -165,31 +171,34 @@ export class PostsController {
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
   async createPost(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body() rawBody: any
   ) {
     console.log(JSON.stringify(rawBody, null, 2));
     const body = await this._postsService.mapTypeToPost(rawBody, org.id);
-    return this._postsService.createPost(org.id, body);
+    return this._postsService.createPost(org.id, body, profile?.id);
   }
 
   @Post('/generator/draft')
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
   generatePostsDraft(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body() body: CreateGeneratedPostsDto
   ) {
-    return this._postsService.generatePostsDraft(org.id, body);
+    return this._postsService.generatePostsDraft(org.id, body, profile?.id);
   }
 
   @Post('/generator')
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
   async generatePosts(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body() body: GeneratorDto,
     @Res({ passthrough: false }) res: Response
   ) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    for await (const event of this._agentGraphService.start(org.id, body)) {
+    for await (const event of this._agentGraphService.start(org.id, body, profile?.id)) {
       res.write(JSON.stringify(event) + '\n');
     }
 
@@ -199,19 +208,21 @@ export class PostsController {
   @Delete('/:group')
   deletePost(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('group') group: string
   ) {
-    return this._postsService.deletePost(org.id, group);
+    return this._postsService.deletePost(org.id, group, profile?.id);
   }
 
   @Put('/:id/date')
   changeDate(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string,
     @Body('date') date: string,
     @Body('action') action: 'schedule' | 'update' = 'schedule'
   ) {
-    return this._postsService.changeDate(org.id, id, date, action);
+    return this._postsService.changeDate(org.id, id, date, action, profile?.id);
   }
 
   @Post('/separate-posts')

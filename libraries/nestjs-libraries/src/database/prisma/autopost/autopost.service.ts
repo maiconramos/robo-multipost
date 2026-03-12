@@ -324,7 +324,8 @@ export class AutopostService {
     }
 
     const integrations = await this._integrationService.getIntegrationsList(
-      getPost.organizationId
+      getPost.organizationId,
+      getPost.profileId || undefined
     );
 
     const parseIntegrations = JSON.parse(getPost.integrations || '[]') || [];

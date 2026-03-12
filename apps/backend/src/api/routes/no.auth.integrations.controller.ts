@@ -94,6 +94,11 @@ export class NoAuthIntegrationsController {
       await ioRedis.del(`onboarding:${body.state}`);
     }
 
+    const profileId = await ioRedis.get(`profile:${body.state}`) || undefined;
+    if (profileId) {
+      await ioRedis.del(`profile:${body.state}`);
+    }
+
     const {
       error,
       accessToken,
@@ -237,7 +242,8 @@ export class NoAuthIntegrationsController {
           ? AuthService.signJWT(
               JSON.parse(Buffer.from(body.code, 'base64').toString())
             )
-          : undefined
+          : undefined,
+        profileId
       );
 
     this._refreshIntegrationService
@@ -407,7 +413,8 @@ export class NoAuthIntegrationsController {
       undefined,
       AuthService.signJWT(
         JSON.parse(Buffer.from(body.cookies, 'base64').toString())
-      )
+      ),
+      integration.profileId || undefined
     );
 
     return { success: true };

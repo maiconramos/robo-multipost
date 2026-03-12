@@ -35,6 +35,7 @@ const dalle = new DallEAPIWrapper({
 interface WorkflowChannelsState {
   messages: BaseMessage[];
   orgId: string;
+  profileId?: string;
   question: string;
   hook?: string;
   fresearch?: string;
@@ -121,6 +122,7 @@ export class AgentGraphService {
         tone: null,
         question: null,
         orgId: null,
+        profileId: null,
         hook: null,
         content: null,
         date: null,
@@ -342,7 +344,9 @@ export class AgentGraphService {
           const uploadWithId = await this._mediaService.saveFile(
             state.orgId,
             name,
-            upload
+            upload,
+            undefined,
+            state.profileId
           );
 
           return {
@@ -367,10 +371,10 @@ export class AgentGraphService {
   }
 
   async postDateTime(state: WorkflowChannelsState) {
-    return { date: await this._postsService.findFreeDateTime(state.orgId) };
+    return { date: await this._postsService.findFreeDateTime(state.orgId, undefined, state.profileId) };
   }
 
-  start(orgId: string, body: GeneratorDto) {
+  start(orgId: string, body: GeneratorDto, profileId?: string) {
     const state = AgentGraphService.state();
     const workflow = state
       .addNode('agent', this.startCall.bind(this))
@@ -411,6 +415,7 @@ export class AgentGraphService {
         format: body.format,
         tone: body.tone,
         orgId,
+        profileId,
       },
       {
         streamMode: 'values',

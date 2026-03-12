@@ -133,10 +133,15 @@ export class PostsService {
     orgId: string,
     postId: string,
     date: number,
-    forceRefresh = false
+    forceRefresh = false,
+    profileId?: string
   ): Promise<AnalyticsData[] | { missing: true }> {
     const post = await this._postRepository.getPostById(postId, orgId);
     if (!post || !post.releaseId) {
+      return [];
+    }
+
+    if (profileId && post.profileId && post.profileId !== profileId) {
       return [];
     }
 
@@ -205,7 +210,7 @@ export class PostsService {
     } catch (e) {
       console.log(e);
       if (e instanceof RefreshToken) {
-        return this.checkPostAnalytics(orgId, postId, date, true);
+        return this.checkPostAnalytics(orgId, postId, date, true, profileId);
       }
     }
 
@@ -585,8 +590,8 @@ export class PostsService {
       });
   }
 
-  async deletePost(orgId: string, group: string) {
-    const post = await this._postRepository.deletePost(orgId, group);
+  async deletePost(orgId: string, group: string, profileId?: string) {
+    const post = await this._postRepository.deletePost(orgId, group, profileId);
 
     if (post?.id) {
       try {
@@ -684,7 +689,7 @@ export class PostsService {
     } catch (err) {}
   }
 
-  async createPost(orgId: string, body: CreatePostDto): Promise<any[]> {
+  async createPost(orgId: string, body: CreatePostDto, profileId?: string): Promise<any[]> {
     const postList = [];
     for (const post of body.posts) {
       const messages = (post.value || []).map((p) => p.content);
@@ -703,7 +708,8 @@ export class PostsService {
         body.type === 'now' ? dayjs().format('YYYY-MM-DDTHH:mm:00') : body.date,
         post,
         body.tags,
-        body.inter
+        body.inter,
+        profileId
       );
 
       if (!posts?.length) {
@@ -741,9 +747,14 @@ export class PostsService {
     orgId: string,
     id: string,
     date: string,
-    action: 'schedule' | 'update' = 'schedule'
+    action: 'schedule' | 'update' = 'schedule',
+    profileId?: string
   ) {
     const getPostById = await this._postRepository.getPostById(id, orgId);
+
+    if (profileId && getPostById?.profileId && getPostById.profileId !== profileId) {
+      throw new BadRequestException('Post does not belong to this profile');
+    }
 
     // schedule: Set status to QUEUE and change date (reschedule the post)
     // update: Just change the date without changing the status
@@ -769,9 +780,9 @@ export class PostsService {
     return newDate;
   }
 
-  async generatePostsDraft(orgId: string, body: CreateGeneratedPostsDto) {
+  async generatePostsDraft(orgId: string, body: CreateGeneratedPostsDto, profileId?: string) {
     const getAllIntegrations = (
-      await this._integrationService.getIntegrationsList(orgId)
+      await this._integrationService.getIntegrationsList(orgId, profileId)
     ).filter((f) => !f.disabled && f.providerIdentifier !== 'reddit');
 
     // const posts = chunk(body.posts, getAllIntegrations.length);
@@ -845,7 +856,7 @@ export class PostsService {
               ],
             },
           ],
-        });
+        }, profileId);
       }
     }
   }
@@ -862,7 +873,7 @@ export class PostsService {
     return this._postRepository.findPopularPosts(category, topic);
   }
 
-  async findFreeDateTime(orgId: string, integrationId?: string) {
+  async findFreeDateTime(orgId: string, integrationId?: string, profileId?: string) {
     const findTimes = await this._integrationService.findFreeDateTime(
       orgId,
       integrationId
@@ -870,7 +881,8 @@ export class PostsService {
     return this.findFreeDateTimeRecursive(
       orgId,
       findTimes,
-      dayjs.utc().startOf('day')
+      dayjs.utc().startOf('day'),
+      profileId
     );
   }
 
@@ -886,16 +898,18 @@ export class PostsService {
   private async findFreeDateTimeRecursive(
     orgId: string,
     times: number[],
-    date: dayjs.Dayjs
+    date: dayjs.Dayjs,
+    profileId?: string
   ): Promise<string> {
     const list = await this._postRepository.getPostsCountsByDates(
       orgId,
       times,
-      date
+      date,
+      profileId
     );
 
     if (!list.length) {
-      return this.findFreeDateTimeRecursive(orgId, times, date.add(1, 'day'));
+      return this.findFreeDateTimeRecursive(orgId, times, date.add(1, 'day'), profileId);
     }
 
     const num = list.reduce<null | number>((prev, curr) => {
@@ -920,12 +934,12 @@ export class PostsService {
     return this._postRepository.createTag(orgId, body, profileId);
   }
 
-  editTag(id: string, orgId: string, body: CreateTagDto) {
-    return this._postRepository.editTag(id, orgId, body);
+  editTag(id: string, orgId: string, body: CreateTagDto, profileId?: string) {
+    return this._postRepository.editTag(id, orgId, body, profileId);
   }
 
-  deleteTag(id: string, orgId: string) {
-    return this._postRepository.deleteTag(id, orgId);
+  deleteTag(id: string, orgId: string, profileId?: string) {
+    return this._postRepository.deleteTag(id, orgId, profileId);
   }
 
   createComment(

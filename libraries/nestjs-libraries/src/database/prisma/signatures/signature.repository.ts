@@ -48,9 +48,9 @@ export class SignatureRepository {
     return { id: updatedId };
   }
 
-  deleteSignature(orgId: string, id: string) {
+  deleteSignature(orgId: string, id: string, profileId?: string) {
     return this._signatures.model.signatures.update({
-      where: { id, organizationId: orgId },
+      where: { id, organizationId: orgId, ...(profileId ? { profileId } : {}) },
       data: { deletedAt: new Date() },
     });
   }

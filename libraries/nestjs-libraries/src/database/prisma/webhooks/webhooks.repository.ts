@@ -68,6 +68,7 @@ export class WebhooksRepository {
       update: {
         url: body.url,
         name: body.name,
+        ...(profileId ? { profileId } : {}),
       },
     });
 

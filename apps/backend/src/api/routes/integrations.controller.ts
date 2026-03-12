@@ -123,6 +123,7 @@ export class IntegrationsController {
   @Post('/:id/settings')
   async updateProviderSettings(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string,
     @Body('additionalSettings') body: string
   ) {
@@ -130,14 +131,17 @@ export class IntegrationsController {
       throw new Error('Invalid body');
     }
 
+    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
     await this._integrationService.updateProviderSettings(org.id, id, body);
   }
   @Post('/:id/nickname')
   async setNickname(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string,
     @Body() body: { name: string; picture: string }
   ) {
+    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
     const integration = await this._integrationService.getIntegrationById(
       org.id,
       id
@@ -276,6 +280,10 @@ export class IntegrationsController {
         3600
       );
 
+      if (profile?.id) {
+        await ioRedis.set(`profile:${state}`, profile.id, 'EX', 3600);
+      }
+
       return { url };
     } catch (err) {
       return { err: true };
@@ -285,9 +293,11 @@ export class IntegrationsController {
   @Post('/:id/time')
   async setTime(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string,
     @Body() body: IntegrationTimeDto
   ) {
+    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
     return this._integrationService.setTimes(org.id, id, body);
   }
 
@@ -408,31 +418,38 @@ export class IntegrationsController {
   }
 
   @Post('/disable')
-  disableChannel(
+  async disableChannel(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body('id') id: string
   ) {
+    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
     return this._integrationService.disableChannel(org.id, id);
   }
 
   @Post('/enable')
-  enableChannel(
+  async enableChannel(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body('id') id: string
   ) {
+    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
     return this._integrationService.enableChannel(
       org.id,
       // @ts-ignore
       org?.subscription?.totalChannels || pricing.FREE.channel,
-      id
+      id,
+      profile?.id
     );
   }
 
   @Delete('/')
   async deleteChannel(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body('id') id: string
   ) {
+    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
     const isTherePosts = await this._integrationService.getPostsForChannel(
       org.id,
       id

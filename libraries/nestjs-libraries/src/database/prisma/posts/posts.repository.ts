@@ -289,11 +289,12 @@ export class PostsRepository {
     };
   }
 
-  async deletePost(orgId: string, group: string) {
+  async deletePost(orgId: string, group: string, profileId?: string) {
     await this._post.model.post.updateMany({
       where: {
         organizationId: orgId,
         group,
+        ...(profileId ? { profileId } : {}),
       },
       data: {
         deletedAt: new Date(),
@@ -476,7 +477,8 @@ export class PostsRepository {
     date: string,
     body: PostBody,
     tags: { value: string; label: string }[],
-    inter?: number
+    inter?: number,
+    profileId?: string
   ) {
     const posts: Post[] = [];
     const uuid = uuidv4();
@@ -523,6 +525,7 @@ export class PostsRepository {
             id: orgId,
           },
         },
+        ...(profileId ? { profile: { connect: { id: profileId } } } : {}),
       });
 
       posts.push(
@@ -727,12 +730,14 @@ export class PostsRepository {
   async getPostsCountsByDates(
     orgId: string,
     times: number[],
-    date: dayjs.Dayjs
+    date: dayjs.Dayjs,
+    profileId?: string
   ) {
     const dates = await this._post.model.post.findMany({
       where: {
         deletedAt: null,
         organizationId: orgId,
+        ...(profileId ? { profileId } : {}),
         publishDate: {
           in: times.map((time) => {
             return date.clone().add(time, 'minutes').toDate();
@@ -786,10 +791,12 @@ export class PostsRepository {
     });
   }
 
-  editTag(id: string, orgId: string, body: CreateTagDto) {
+  editTag(id: string, orgId: string, body: CreateTagDto, profileId?: string) {
     return this._tags.model.tags.update({
       where: {
         id,
+        orgId,
+        ...(profileId ? { profileId } : {}),
       },
       data: {
         name: body.name,
@@ -798,11 +805,12 @@ export class PostsRepository {
     });
   }
 
-  deleteTag(id: string, orgId: string) {
+  deleteTag(id: string, orgId: string, profileId?: string) {
     return this._tags.model.tags.update({
       where: {
         id,
         orgId,
+        ...(profileId ? { profileId } : {}),
       },
       data: {
         deletedAt: new Date(),
