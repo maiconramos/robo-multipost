@@ -7,6 +7,7 @@ import {
 } from '@gitroom/frontend/components/new-launch/store';
 import clsx from 'clsx';
 import Image from 'next/image';
+import { PlatformIconBadge } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import { useShallow } from 'zustand/react/shallow';
 import { GlobalIcon } from '@gitroom/frontend/components/ui/icons';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -159,21 +160,11 @@ export const SelectCurrent: FC = () => {
                     e.currentTarget.srcset = '/no-picture.jpg';
                   }}
                 />
-                {integration.identifier === 'youtube' ? (
-                  <img
-                    src="/icons/platforms/youtube.svg"
-                    className="absolute z-10 bottom-[2px] end-[2px] min-w-[12px]"
-                    width={12}
-                  />
-                ) : (
-                  <Image
-                    src={`/icons/platforms/${integration.identifier}.png`}
-                    className="min-w-[12px] min-h-[12px] rounded-[3px] absolute z-10 bottom-[6px] end-[6px]"
-                    alt={integration.identifier}
-                    width={12}
-                    height={12}
-                  />
-                )}
+                <PlatformIconBadge
+                  identifier={integration.identifier}
+                  size={12}
+                  className="min-w-[12px] min-h-[12px] rounded-[3px] absolute z-10 bottom-[6px] end-[6px]"
+                />
               </div>
             </div>
           ))}

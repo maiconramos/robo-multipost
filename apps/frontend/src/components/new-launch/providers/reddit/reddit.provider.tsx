@@ -19,6 +19,7 @@ import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import Image from 'next/image';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import { useFormatting } from '@gitroom/frontend/components/launches/helpers/use.formatting';
 const RenderRedditComponent: FC<{
   type: string;
@@ -129,7 +130,7 @@ const RedditPreview: FC = (props) => {
                       <Image
                         width={24}
                         height={24}
-                        src={`/icons/platforms/${integration?.identifier!}.png`}
+                        src={getPlatformIconPath(integration?.identifier!)}
                         alt="x"
                         className="rounded-full absolute -end-[5px] -bottom-[5px] z-[2]"
                       />

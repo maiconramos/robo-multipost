@@ -585,6 +585,7 @@
   "autopost_updated_successfully": "Autopost updated successfully",
   "autopost_added_successfully": "Autopost added successfully",
   "write_your_post_placeholder": "Write your post...",
+  "select_or_upload_pictures_max_1gb": "Select or upload pictures (maximum 1 GB per upload).",
   "select_or_upload_pictures_max_5": "Select or upload pictures (maximum 5 at a time).",
   "you_can_drag_drop_pictures": "You can also drag & drop pictures.",
   "you_dont_have_any_media_yet": "You don't have any media yet",

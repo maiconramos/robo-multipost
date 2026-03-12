@@ -57,10 +57,20 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Upload de midia nao aparecia na listagem quando perfil ativo estava selecionado (profileId nao era salvo no registro de midia)
 - Midia sem perfil associado (upload anterior ao recurso de perfis) agora aparece para todos os perfis
 - Icones de plataforma Late quebravam em 15+ componentes por usar identificador `late-xxx` como path de icone (centralizado via `PlatformIconBadge`)
+- Componente `PlatformIconBadge` reutilizavel com badge Late (asterisco SVG oficial) substitui codigo duplicado em 8+ componentes
+- Canais Late agora mostram icone da plataforma como foto de perfil (Late SDK nao fornece fotos)
+- Layout do frontend falhava ao renderizar `PlausibleProvider` como Fragment (corrigido com renderizacao condicional)
+- Rota de uploads retornava erro 500 para arquivos inexistentes (agora retorna 404 com verificacao de existencia)
+- Rota de uploads falhava quando `UPLOAD_DIRECTORY` nao estava configurado (agora retorna erro 500 descritivo)
+- Adicionada traducao `select_or_upload_pictures_max_1gb` em pt e en
 
 ### Alterado
 - Skill `/changelog` reescrito para consolidar rascunho incremental em vez de gerar do zero
 - CI/CD detecta pre-releases e nao atualiza `:latest` para versoes RC/beta
+
+### Documentacao
+- Secao Multi-Tenancy adicionada ao README com link para guia completo
+- Guia detalhado de multi-tenancy em `docs/multi-tenancy.md`
 
 ## [0.2.0] - 2026-02-28
 

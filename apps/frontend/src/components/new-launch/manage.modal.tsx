@@ -11,6 +11,7 @@ import React, {
 } from 'react';
 import { AddEditModalProps } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import clsx from 'clsx';
+import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { PicksSocialsComponent } from '@gitroom/frontend/components/new-launch/picks.socials.component';
 import { EditorWrapper } from '@gitroom/frontend/components/new-launch/editor';
@@ -123,7 +124,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       <div className="flex items-center gap-[10px]">
         <div className="relative">
           <img
-            src={`/icons/platforms/${currentIntegration.identifier}.png`}
+            src={getPlatformIconPath(currentIntegration.identifier)}
             className="w-[20px] h-[20px] rounded-[4px]"
             alt={currentIntegration.identifier}
           />

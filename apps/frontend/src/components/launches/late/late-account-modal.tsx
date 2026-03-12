@@ -11,6 +11,7 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Button } from '@gitroom/react/form/button';
 import Image from 'next/image';
+import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 
 const PLATFORM_NAMES: Record<string, string> = {
   twitter: 'Twitter/X',
@@ -32,10 +33,10 @@ const PlatformIcon: FC<{ platform: string; size?: number }> = ({
   platform,
   size = 24,
 }) => {
-  const iconId = platform === 'twitter' ? 'x' : platform;
+  const iconPath = getPlatformIconPath(platform);
   return (
     <Image
-      src={`/icons/platforms/${iconId}.png`}
+      src={iconPath}
       alt={platform}
       width={size}
       height={size}

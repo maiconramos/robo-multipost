@@ -136,15 +136,22 @@ Explicar: isso dispara o workflow `build-containers.yml` que vai buildar
 imagens Docker multi-arch (amd64 + arm64) e publicar em
 `ghcr.io/maiconramos/robo-multipost:X.Y.Z` e `:latest`.
 
-### Passo 9: GitHub Release (opcional)
+### Passo 9: GitHub Release (obrigatorio)
 
-Perguntar se o usuario quer criar um GitHub Release:
+Criar o GitHub Release com as notas do CHANGELOG desta versao.
+Escrever as notas em um arquivo temporario e usar `--notes-file`:
 
 ```bash
+# Escrever notas em /tmp/release-notes.md com conteudo do CHANGELOG da versao
 gh release create vX.Y.Z \
-  --title "Robo MultiPost vX.Y.Z" \
-  --notes "<conteudo do changelog desta versao>"
+  -R maiconramos/robo-multipost \
+  --title "vX.Y.Z: <descricao curta>" \
+  --latest \
+  --notes-file /tmp/release-notes.md
 ```
+
+IMPORTANTE: Sempre usar `-R maiconramos/robo-multipost` (o `gh` pode apontar para o upstream).
+Sempre usar `--notes-file` (o flag `--body` nao existe no `gh release create`).
 
 ### Passo 10: Voltar para main
 
@@ -162,6 +169,7 @@ Tag:             vX.Y.Z (anotada)
 CHANGELOG.md:    Atualizado
 package.json:    X.Y.Z
 version.txt:     X.Y.Z
+GitHub Release:  https://github.com/maiconramos/robo-multipost/releases/tag/vX.Y.Z
 
 CI/CD:
   GitHub Actions: https://github.com/maiconramos/robo-multipost/actions
@@ -252,6 +260,40 @@ Explicar: isso dispara o workflow `build-containers.yml` que vai buildar
 a imagem Docker mas **NAO atualizar :latest**. A imagem fica disponivel
 apenas como `ghcr.io/maiconramos/robo-multipost:X.Y.Z-rc.N`.
 
+### Passo 7: GitHub Release (obrigatorio)
+
+Gerar notas da release a partir dos commits desde a ultima tag.
+Listar os commits com `git log <ultima-tag>..HEAD --oneline` e agrupar por tipo:
+- Novidades (feat)
+- Correcoes (fix)
+- Outros (chore, refactor, etc.)
+
+Escrever as notas em um arquivo temporario e criar o release:
+
+```bash
+# Escrever notas em /tmp/release-notes.md
+gh release create vX.Y.Z-rc.N \
+  -R maiconramos/robo-multipost \
+  --title "vX.Y.Z-rc.N: <descricao curta>" \
+  --prerelease \
+  --notes-file /tmp/release-notes.md
+```
+
+IMPORTANTE: Sempre usar `-R maiconramos/robo-multipost` (o `gh` pode apontar para o upstream).
+Sempre usar `--notes-file` (o flag `--body` nao existe no `gh release create`).
+Sempre usar `--prerelease` para marcar como pre-release.
+
+Incluir no final das notas:
+
+```markdown
+---
+> **Pre-release** — para teste. Nao atualiza `:latest`.
+>
+> ```bash
+> docker pull ghcr.io/maiconramos/robo-multipost:X.Y.Z-rc.N
+> ```
+```
+
 ### Resumo Final (RC)
 
 ```
@@ -261,6 +303,7 @@ Versao:          X.Y.Z-rc.N
 Tag:             vX.Y.Z-rc.N (anotada)
 package.json:    X.Y.Z-rc.N
 version.txt:     X.Y.Z-rc.N
+GitHub Release:  https://github.com/maiconramos/robo-multipost/releases/tag/vX.Y.Z-rc.N (pre-release)
 
 CI/CD:
   GitHub Actions: https://github.com/maiconramos/robo-multipost/actions
@@ -375,13 +418,22 @@ O push da tag estavel no passo 8 tambem dispara `build-containers.yml`.
 O workflow `promote-release.yml` e um atalho — se ele falhar, o build normal
 via tag ainda cria a imagem estavel.
 
-### Passo 10: GitHub Release (opcional)
+### Passo 10: GitHub Release (obrigatorio)
+
+Criar o GitHub Release com as notas do CHANGELOG desta versao.
+Escrever as notas em um arquivo temporario e usar `--notes-file`:
 
 ```bash
+# Escrever notas em /tmp/release-notes.md com conteudo do CHANGELOG da versao
 gh release create vX.Y.Z \
-  --title "Robo MultiPost vX.Y.Z" \
-  --notes "<conteudo do changelog desta versao>"
+  -R maiconramos/robo-multipost \
+  --title "vX.Y.Z: <descricao curta>" \
+  --latest \
+  --notes-file /tmp/release-notes.md
 ```
+
+IMPORTANTE: Sempre usar `-R maiconramos/robo-multipost` (o `gh` pode apontar para o upstream).
+Sempre usar `--notes-file` (o flag `--body` nao existe no `gh release create`).
 
 ### Passo 11: Voltar para main
 
@@ -400,6 +452,7 @@ Tag:             vX.Y.Z (anotada)
 CHANGELOG.md:    Atualizado
 package.json:    X.Y.Z
 version.txt:     X.Y.Z
+GitHub Release:  https://github.com/maiconramos/robo-multipost/releases/tag/vX.Y.Z
 
 CI/CD:
   Promote:        https://github.com/maiconramos/robo-multipost/actions (re-tag sem rebuild)

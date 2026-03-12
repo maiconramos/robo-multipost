@@ -5,6 +5,7 @@ import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
 import clsx from 'clsx';
 import Image from 'next/image';
+import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import { capitalize } from 'lodash';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
@@ -192,7 +193,7 @@ export const InformationComponent: FC<{
                 <Fragment key={p.integration.id}>
                   <div>
                     <Image
-                      src={`/icons/platforms/${p.integration.identifier}.png`}
+                      src={getPlatformIconPath(p.integration.identifier)}
                       alt={p.integration.name}
                       className="rounded-[4px] w-[16px] h-[16px] min-w-[16px] min-h-[16px]"
                       width={16}

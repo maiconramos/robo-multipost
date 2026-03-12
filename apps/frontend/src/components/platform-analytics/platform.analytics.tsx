@@ -13,6 +13,7 @@ import { Button } from '@gitroom/react/form/button';
 import { useRouter } from 'next/navigation';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import useCookie from 'react-use-cookie';
 import { SVGLine } from '@gitroom/frontend/components/launches/launches.component';
@@ -245,7 +246,7 @@ export const PlatformAnalytics = () => {
                   <SVGLine />
                 </div>
                 <ImageWithFallback
-                  fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
+                  fallbackSrc={getPlatformIconPath(integration.identifier)}
                   src={integration.picture}
                   className="rounded-[8px]"
                   alt={integration.identifier}
@@ -253,7 +254,7 @@ export const PlatformAnalytics = () => {
                   height={36}
                 />
                 <Image
-                  src={`/icons/platforms/${integration.identifier}.png`}
+                  src={getPlatformIconPath(integration.identifier)}
                   className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
                   alt={integration.identifier}
                   width={18.41}

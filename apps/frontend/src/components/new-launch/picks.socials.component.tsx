@@ -8,6 +8,7 @@ import { useShallow } from 'zustand/react/shallow';
 import { useExistingData } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
+import { PlatformIconBadge } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 
 export const PicksSocialsComponent: FC<{ toolTip?: boolean }> = ({
   toolTip,
@@ -80,21 +81,11 @@ export const PicksSocialsComponent: FC<{ toolTip?: boolean }> = ({
                       width={42}
                       height={42}
                     />
-                    {integration.identifier === 'youtube' ? (
-                      <img
-                        src="/icons/platforms/youtube.svg"
-                        className="absolute z-10 bottom-0 -end-[5px] min-w-[16px]"
-                        width={16}
-                      />
-                    ) : (
-                      <Image
-                        src={`/icons/platforms/${integration.identifier}.png`}
-                        className="rounded-[4px] absolute z-10 bottom-0 -end-[5px] min-w-[16px] min-h-[16px]"
-                        alt={integration.identifier}
-                        width={16}
-                        height={16}
-                      />
-                    )}
+                    <PlatformIconBadge
+                      identifier={integration.identifier}
+                      size={16}
+                      className="absolute z-10 bottom-0 -end-[5px] min-w-[16px] min-h-[16px] rounded-[4px]"
+                    />
                   </div>
                 </div>
               ))}

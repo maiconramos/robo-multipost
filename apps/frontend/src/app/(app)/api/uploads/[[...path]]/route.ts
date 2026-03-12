@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createReadStream, statSync } from 'fs';
+import { createReadStream, existsSync, statSync } from 'fs';
 // @ts-ignore
 import mime from 'mime';
 async function* nodeStreamToIterator(stream: any) {
@@ -27,22 +27,25 @@ export const GET = (
     };
   }
 ) => {
+  if (!process.env.UPLOAD_DIRECTORY) {
+    return new NextResponse('Upload directory not configured', { status: 500 });
+  }
   const filePath =
     process.env.UPLOAD_DIRECTORY + '/' + context.params.path.join('/');
-  const response = createReadStream(filePath);
+  if (!existsSync(filePath)) {
+    return new NextResponse('File not found', { status: 404 });
+  }
   const fileStats = statSync(filePath);
   const contentType = mime.getType(filePath) || 'application/octet-stream';
+  const response = createReadStream(filePath);
   const iterator = nodeStreamToIterator(response);
   const webStream = iteratorToStream(iterator);
   return new Response(webStream, {
     headers: {
       'Content-Type': contentType,
-      // Set the appropriate content-type header
       'Content-Length': fileStats.size.toString(),
-      // Set the content-length header
       'Last-Modified': fileStats.mtime.toUTCString(),
-      // Set the last-modified header
-      'Cache-Control': 'public, max-age=31536000, immutable', // Example cache-control header
+      'Cache-Control': 'public, max-age=31536000, immutable',
     },
   });
 };

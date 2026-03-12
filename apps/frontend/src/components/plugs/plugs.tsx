@@ -11,6 +11,7 @@ import { Select } from '@gitroom/react/form/select';
 import { Button } from '@gitroom/react/form/button';
 import { useRouter } from 'next/navigation';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import { PlugsContext } from '@gitroom/frontend/components/plugs/plugs.context';
 import { Plug } from '@gitroom/frontend/components/plugs/plug';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -193,7 +194,7 @@ export const Plugs = () => {
                   <SVGLine />
                 </div>
                 <ImageWithFallback
-                  fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
+                  fallbackSrc={getPlatformIconPath(integration.identifier)}
                   src={integration.picture}
                   className="rounded-[8px]"
                   alt={integration.identifier}
@@ -201,7 +202,7 @@ export const Plugs = () => {
                   height={36}
                 />
                 <Image
-                  src={`/icons/platforms/${integration.identifier}.png`}
+                  src={getPlatformIconPath(integration.identifier)}
                   className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
                   alt={integration.identifier}
                   width={18.41}

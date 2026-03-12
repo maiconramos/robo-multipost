@@ -1,4 +1,5 @@
 import { internalFetch } from '@gitroom/helpers/utils/internal.fetch';
+import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
 import { isGeneralServerSide } from '@gitroom/helpers/utils/is.general.server.side';
@@ -117,7 +118,7 @@ export default async function Auth({
                         <img
                           className="w-full h-full bg-black aspect-square rounded-full border-tableBorder"
                           alt={post[0].integration.providerIdentifier}
-                          src={`/icons/platforms/${post[0].integration.providerIdentifier}.png`}
+                          src={getPlatformIconPath(post[0].integration.providerIdentifier)}
                         />
                       </div>
                     </div>

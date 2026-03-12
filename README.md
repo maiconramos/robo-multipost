@@ -115,6 +115,12 @@ docker compose up -d
 
 Para atualizar para uma versão específica, edite o `docker-compose.yml` e altere a tag da imagem antes de rodar os comandos acima.
 
+## Multi-Tenancy (Organizacoes e Perfis)
+
+O Robo MultiPost suporta multi-tenancy em 3 niveis: **Usuario > Organizacao > Perfil**. Isso permite desde uso individual ate agencias gerenciando multiplos clientes com equipes e permissoes isoladas.
+
+Para o guia completo com exemplos de casos de uso, consulte a [documentacao de Multi-Tenancy](docs/multi-tenancy.md).
+
 ## Integração com n8n
 
 O Robô MultiPost possui API pública disponível em `/api/`. Você pode usar essa API para integrar com o n8n e automatizar seus fluxos de publicação.

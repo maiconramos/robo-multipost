@@ -4,7 +4,7 @@ import { useMoveToIntegrationListener } from '@gitroom/frontend/components/launc
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import clsx from 'clsx';
 import Image from 'next/image';
-import { getPlatformFromIdentifier } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
+import { PlatformIconBadge } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import { useCopilotAction, useCopilotReadable } from '@copilotkit/react-core';
 import { useStateCallback } from '@gitroom/react/helpers/use.state.callback';
 import { timer } from '@gitroom/helpers/utils/timer';
@@ -252,33 +252,11 @@ export const PickPlatforms: FC<{
                           width={32}
                           height={32}
                         />
-                        {(() => {
-                          const { platform, isLate } = getPlatformFromIdentifier(integration.identifier);
-                          return (
-                            <>
-                              {platform === 'youtube' ? (
-                                <img
-                                  src="/icons/platforms/youtube.svg"
-                                  className="absolute z-10 bottom-0 -end-[5px]"
-                                  width={20}
-                                />
-                              ) : (
-                                <Image
-                                  src={`/icons/platforms/${platform}.png`}
-                                  className="rounded-full absolute z-10 -bottom-[5px] -end-[5px] border border-fifth"
-                                  alt={platform}
-                                  width={20}
-                                  height={20}
-                                />
-                              )}
-                              {isLate && (
-                                <span className="absolute z-20 top-[-4px] -end-[3px] bg-purple-600 text-white text-[7px] font-bold px-[3px] py-[0.5px] rounded-[3px] leading-tight">
-                                  L
-                                </span>
-                              )}
-                            </>
-                          );
-                        })()}
+                        <PlatformIconBadge
+                          identifier={integration.identifier}
+                          size={20}
+                          className="rounded-full absolute z-10 -bottom-[5px] -end-[5px] border border-fifth"
+                        />
                       </div>
                     </div>
                   ) : (
@@ -303,25 +281,11 @@ export const PickPlatforms: FC<{
                               width={24}
                               height={24}
                             />
-                            {(() => {
-                              const { platform, isLate } = getPlatformFromIdentifier(integration.identifier);
-                              return (
-                                <>
-                                  <Image
-                                    src={`/icons/platforms/${platform}.png`}
-                                    className="rounded-full absolute z-10 -bottom-[5px] -end-[5px] border border-fifth"
-                                    alt={platform}
-                                    width={15}
-                                    height={15}
-                                  />
-                                  {isLate && (
-                                    <span className="absolute z-20 top-[-4px] -end-[3px] bg-purple-600 text-white text-[7px] font-bold px-[3px] py-[0.5px] rounded-[3px] leading-tight">
-                                      L
-                                    </span>
-                                  )}
-                                </>
-                              );
-                            })()}
+                            <PlatformIconBadge
+                              identifier={integration.identifier}
+                              size={15}
+                              className="rounded-full absolute z-10 -bottom-[5px] -end-[5px] border border-fifth"
+                            />
                           </div>
                           <div>
                             {integration.name.slice(0, 10)}

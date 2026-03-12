@@ -100,13 +100,20 @@ export class LateBaseProvider
       (a: any) => a._id === lateAccountId
     );
 
+    // Late SDK doesn't provide profile pictures for accounts.
+    // Use the platform icon as fallback.
+    const picture =
+      this.platform === 'youtube'
+        ? '/icons/platforms/youtube.svg'
+        : `/icons/platforms/${this.platform}.png`;
+
     return {
       id: lateAccountId,
       name: account?.displayName || account?.username || `${this.platformName} Account`,
       accessToken: lateApiKey,
       refreshToken: '',
       expiresIn: 999999999,
-      picture: '',
+      picture,
       username: account?.username || account?.displayName || `${this.platform}_user`,
     };
   }
