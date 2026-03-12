@@ -8,6 +8,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Infraestrutura de testes com TDD: configuracao Jest multi-projeto, utilitarios de mock compartilhados e exemplos de teste para SetsService e SetsRepository
+- Scripts de teste no package.json: `test:watch`, `test:backend`, `test:libs`
+- Step de testes automatizados no CI (GitHub Actions) antes do build
 - Credenciais OAuth independentes por perfil — cada perfil pode ter suas proprias credenciais de redes sociais
 - Webhooks, Auto Post e Sets isolados por perfil ativo
 - Late API key configuravel por perfil — cada perfil pode conectar sua propria conta Late
