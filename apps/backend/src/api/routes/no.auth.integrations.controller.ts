@@ -335,7 +335,7 @@ export class NoAuthIntegrationsController {
       throw new HttpException('Missing required parameters', 400);
     }
 
-    const provider = platform === 'pinterest' ? 'late-pinterest' : 'late-tiktok';
+    const provider = `late-${platform}`;
 
     // Redirect to frontend with the account data
     const redirectUrl = `${process.env.FRONTEND_URL}/integrations/social/${provider}?code=${encodeURIComponent(accountId)}&state=${encodeURIComponent(state)}`;

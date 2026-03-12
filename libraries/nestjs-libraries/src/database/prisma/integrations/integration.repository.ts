@@ -180,6 +180,13 @@ export class IntegrationRepository {
     });
   }
 
+  setIntegrationProfile(id: string, profileId: string) {
+    return this._integration.model.integration.update({
+      where: { id },
+      data: { profileId },
+    });
+  }
+
   disconnectChannel(org: string, id: string) {
     return this._integration.model.integration.update({
       where: {

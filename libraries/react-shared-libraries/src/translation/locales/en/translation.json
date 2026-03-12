@@ -868,5 +868,14 @@
   "waiting_for_claim": "Waiting for you to claim your agent...",
   "what_do_you_want_to_do": "What do you want to do?",
   "yes_cancel_subscription": "Yes, cancel subscription",
-  "yes_refund": "Yes, refund"
+  "yes_refund": "Yes, refund",
+  "no_late_profiles_found": "No Late profiles found. Make sure your Late API key is configured in Settings.",
+  "select_late_profile": "Select a Late profile to see connected accounts:",
+  "back_to_profiles": "Back to profiles",
+  "no_late_accounts_found": "No connected accounts found in this profile.",
+  "channel_added_successfully": "Channel added successfully!",
+  "failed_to_add_channel": "Failed to add channel",
+  "failed_to_get_connect_url": "Failed to get connection URL",
+  "connect_new_account": "Connect a new account via Late",
+  "select_platform_to_connect": "Select a platform to connect:"
 }

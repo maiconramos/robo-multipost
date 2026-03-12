@@ -24,6 +24,7 @@ import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { NewPost } from '@gitroom/frontend/components/launches/new.post';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { getPlatformFromIdentifier } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import useCookie from 'react-use-cookie';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
 
@@ -294,21 +295,34 @@ export const MenuComponent: FC<
           width={36}
           height={36}
         />
-        {integration.identifier === 'youtube' ? (
-          <img
-            src="/icons/platforms/youtube.svg"
-            className="absolute z-10 bottom-[5px] -end-[5px]"
-            width={20}
-          />
-        ) : (
-          <Image
-            src={`/icons/platforms/${integration.identifier}.png`}
-            className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-            alt={integration.identifier}
-            width={18.41}
-            height={18.41}
-          />
-        )}
+        {(() => {
+          const { platform, isLate } = getPlatformFromIdentifier(integration.identifier);
+          const iconId = platform === 'youtube' ? undefined : platform;
+          return (
+            <>
+              {platform === 'youtube' ? (
+                <img
+                  src="/icons/platforms/youtube.svg"
+                  className="absolute z-10 bottom-[5px] -end-[5px]"
+                  width={20}
+                />
+              ) : (
+                <Image
+                  src={`/icons/platforms/${iconId}.png`}
+                  className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
+                  alt={platform}
+                  width={18.41}
+                  height={18.41}
+                />
+              )}
+              {isLate && (
+                <span className="absolute z-20 top-[-2px] -end-[4px] bg-purple-600 text-white text-[7px] font-bold px-[3px] py-[0.5px] rounded-[3px] leading-tight">
+                  L
+                </span>
+              )}
+            </>
+          );
+        })()}
       </div>
       <div
         // @ts-ignore

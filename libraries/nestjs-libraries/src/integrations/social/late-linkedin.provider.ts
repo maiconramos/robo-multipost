@@ -1,7 +1,7 @@
 import { LateBaseProvider } from '@gitroom/nestjs-libraries/integrations/social/late.base.provider';
 
-export class LateTikTokProvider extends LateBaseProvider {
+export class LateLinkedinProvider extends LateBaseProvider {
   constructor() {
-    super('tiktok', 'TikTok', 2200);
+    super('linkedin', 'LinkedIn', 3000);
   }
 }

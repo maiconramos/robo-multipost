@@ -38,6 +38,17 @@ import { SkoolProvider } from '@gitroom/nestjs-libraries/integrations/social/sko
 import { WhopProvider } from '@gitroom/nestjs-libraries/integrations/social/whop.provider';
 import { LateTikTokProvider } from '@gitroom/nestjs-libraries/integrations/social/late-tiktok.provider';
 import { LatePinterestProvider } from '@gitroom/nestjs-libraries/integrations/social/late-pinterest.provider';
+import { LateTwitterProvider } from '@gitroom/nestjs-libraries/integrations/social/late-twitter.provider';
+import { LateInstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/late-instagram.provider';
+import { LateYoutubeProvider } from '@gitroom/nestjs-libraries/integrations/social/late-youtube.provider';
+import { LateFacebookProvider } from '@gitroom/nestjs-libraries/integrations/social/late-facebook.provider';
+import { LateLinkedinProvider } from '@gitroom/nestjs-libraries/integrations/social/late-linkedin.provider';
+import { LateRedditProvider } from '@gitroom/nestjs-libraries/integrations/social/late-reddit.provider';
+import { LateBlueskyProvider } from '@gitroom/nestjs-libraries/integrations/social/late-bluesky.provider';
+import { LateThreadsProvider } from '@gitroom/nestjs-libraries/integrations/social/late-threads.provider';
+import { LateTelegramProvider } from '@gitroom/nestjs-libraries/integrations/social/late-telegram.provider';
+import { LateGoogleBusinessProvider } from '@gitroom/nestjs-libraries/integrations/social/late-googlebusiness.provider';
+import { LateSnapchatProvider } from '@gitroom/nestjs-libraries/integrations/social/late-snapchat.provider';
 
 export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new XProvider(),
@@ -74,7 +85,17 @@ export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new SkoolProvider(),
   new LateTikTokProvider(),
   new LatePinterestProvider(),
-  // new MastodonCustomProvider(),
+  new LateTwitterProvider(),
+  new LateInstagramProvider(),
+  new LateYoutubeProvider(),
+  new LateFacebookProvider(),
+  new LateLinkedinProvider(),
+  new LateRedditProvider(),
+  new LateBlueskyProvider(),
+  new LateThreadsProvider(),
+  new LateTelegramProvider(),
+  new LateGoogleBusinessProvider(),
+  new LateSnapchatProvider(),
 ];
 
 const facebookCreds = {
@@ -173,20 +194,39 @@ export class IntegrationManager {
   }
 
   async getAllIntegrations() {
+    const visibleProviders = socialIntegrationList.filter(
+      (p) => !p.hiddenFromList
+    );
+
+    const social = await Promise.all(
+      visibleProviders.map(async (p) => ({
+        name: p.name,
+        identifier: p.identifier,
+        toolTip: p.toolTip,
+        editor: p.editor,
+        isExternal: !!p.externalUrl,
+        isWeb3: !!p.isWeb3,
+        isChromeExtension: !!p.isChromeExtension,
+        ...(p.extensionCookies
+          ? { extensionCookies: p.extensionCookies }
+          : {}),
+        ...(p.customFields ? { customFields: await p.customFields() } : {}),
+      }))
+    );
+
+    // Add virtual "Late" entry for the unified Late connector
+    social.push({
+      name: 'Late',
+      identifier: 'late',
+      toolTip: undefined,
+      editor: 'normal' as const,
+      isExternal: false,
+      isWeb3: false,
+      isChromeExtension: false,
+    });
+
     return {
-      social: await Promise.all(
-        socialIntegrationList.map(async (p) => ({
-          name: p.name,
-          identifier: p.identifier,
-          toolTip: p.toolTip,
-          editor: p.editor,
-          isExternal: !!p.externalUrl,
-          isWeb3: !!p.isWeb3,
-          isChromeExtension: !!p.isChromeExtension,
-          ...(p.extensionCookies ? { extensionCookies: p.extensionCookies } : {}),
-          ...(p.customFields ? { customFields: await p.customFields() } : {}),
-        }))
-      ),
+      social,
       article: [] as any[],
     };
   }

@@ -136,6 +136,10 @@ export class IntegrationService {
     );
   }
 
+  setIntegrationProfile(id: string, profileId: string) {
+    return this._integrationRepository.setIntegrationProfile(id, profileId);
+  }
+
   updateIntegrationGroup(org: string, id: string, group: string) {
     return this._integrationRepository.updateIntegrationGroup(org, id, group);
   }

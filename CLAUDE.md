@@ -79,6 +79,20 @@ const useCommunity = () => {
 }
 ```
 
+### Traducoes (obrigatorio)
+
+Todo texto visivel ao usuario no frontend **deve** usar o hook `useT()` de `@gitroom/react/translation/get.transation.service.client`:
+
+```typescript
+const t = useT();
+// t('chave_unica', 'Texto fallback em ingles')
+```
+
+- **Nunca** usar strings hardcoded em JSX — sempre passar pelo `t()`
+- Ao criar novas chaves, adicionar a traducao em **pt** (`libraries/react-shared-libraries/src/translation/locales/pt/translation.json`) e **en** (`locales/en/translation.json`)
+- Manter as chaves em snake_case e descritivas (ex: `select_late_profile`, `failed_to_add_channel`)
+- Os demais idiomas usam o fallback em ingles automaticamente
+
 ### Tailwind e estilos
 
 Antes de escrever qualquer componente, verificar:

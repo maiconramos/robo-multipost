@@ -35,6 +35,7 @@ import { NoAuthIntegrationsController } from '@gitroom/backend/api/routes/no.aut
 import { EnterpriseController } from '@gitroom/backend/api/routes/enterprise.controller';
 import { CredentialsController } from '@gitroom/backend/api/routes/credentials.controller';
 import { ProfilesController } from '@gitroom/backend/api/routes/profiles.controller';
+import { LateIntegrationsController } from '@gitroom/backend/api/routes/late.integrations.controller';
 
 const authenticatedController = [
   UsersController,
@@ -53,6 +54,7 @@ const authenticatedController = [
   ThirdPartyController,
   CredentialsController,
   ProfilesController,
+  LateIntegrationsController,
 ];
 @Module({
   imports: [UploadModule],

@@ -39,6 +39,10 @@ import MoltbookProvider from '@gitroom/frontend/components/new-launch/providers/
 import SkoolProvider from '@gitroom/frontend/components/new-launch/providers/skool/skool.provider';
 import WhopProvider from '@gitroom/frontend/components/new-launch/providers/whop/whop.provider';
 
+export const Empty: FC = () => {
+  return null;
+};
+
 export const Providers = [
   {
     identifier: 'devto',
@@ -167,7 +171,60 @@ export const Providers = [
   {
     identifier: 'whop',
     component: WhopProvider,
-  }
+  },
+  // Late providers — reuse existing provider settings components
+  {
+    identifier: 'late-twitter',
+    component: XProvider,
+  },
+  {
+    identifier: 'late-instagram',
+    component: InstagramProvider,
+  },
+  {
+    identifier: 'late-tiktok',
+    component: TiktokProvider,
+  },
+  {
+    identifier: 'late-youtube',
+    component: YoutubeProvider,
+  },
+  {
+    identifier: 'late-facebook',
+    component: FacebookProvider,
+  },
+  {
+    identifier: 'late-linkedin',
+    component: LinkedinProvider,
+  },
+  {
+    identifier: 'late-pinterest',
+    component: PinterestProvider,
+  },
+  {
+    identifier: 'late-reddit',
+    component: RedditProvider,
+  },
+  {
+    identifier: 'late-bluesky',
+    component: BlueskyProvider,
+  },
+  {
+    identifier: 'late-threads',
+    component: ThreadsProvider,
+  },
+  {
+    identifier: 'late-telegram',
+    component: TelegramProvider,
+  },
+  {
+    identifier: 'late-googlebusiness',
+    component: GmbProvider,
+  },
+  {
+    identifier: 'late-snapchat',
+    component: Empty,
+  },
 ];
 export const ShowAllProviders = forwardRef((props, ref) => {
   const { date, current, global, selectedIntegrations, allIntegrations } =
@@ -250,7 +307,3 @@ export const ShowAllProviders = forwardRef((props, ref) => {
     </div>
   );
 });
-
-export const Empty: FC = () => {
-  return null;
-};

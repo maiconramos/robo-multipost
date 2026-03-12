@@ -19,6 +19,7 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import clsx from 'clsx';
 import copy from 'copy-to-clipboard';
 import { capitalize } from 'lodash';
+import { LateAccountModal } from '@gitroom/frontend/components/launches/late/late-account-modal';
 const resolver = classValidatorResolver(ApiKeyDto);
 
 export const useAddProvider = (update?: () => void, invite?: boolean) => {
@@ -404,6 +405,21 @@ export const AddProviderComponent: FC<{
         }>
       ) =>
       async () => {
+        if (identifier === 'late') {
+          modal.openModal({
+            title: 'Late',
+            withCloseButton: true,
+            children: (
+              <LateAccountModal
+                onComplete={() => {
+                  modal.closeAll();
+                  update?.();
+                }}
+              />
+            ),
+          });
+          return;
+        }
         const onboardingParam = onboarding ? 'onboarding=true' : '';
         const openWeb3 = async () => {
           const { component: Web3Providers } = web3List.find(

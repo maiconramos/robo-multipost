@@ -49,6 +49,7 @@ function safeStringify(obj: any) {
 export abstract class SocialAbstract {
   abstract identifier: string;
   maxConcurrentJob = 1;
+  hiddenFromList = false;
 
   public handleErrors(
     body: string

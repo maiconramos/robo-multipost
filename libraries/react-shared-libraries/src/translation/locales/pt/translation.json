@@ -866,5 +866,14 @@
   "waiting_for_claim": "Aguardando você reivindicar seu agente...",
   "what_do_you_want_to_do": "O que você deseja fazer?",
   "yes_cancel_subscription": "Sim, cancelar assinatura",
-  "yes_refund": "Sim, reembolsar"
+  "yes_refund": "Sim, reembolsar",
+  "no_late_profiles_found": "Nenhum perfil Late encontrado. Verifique se a chave da API Late está configurada em Configurações.",
+  "select_late_profile": "Selecione um perfil Late para ver as contas conectadas:",
+  "back_to_profiles": "Voltar aos perfis",
+  "no_late_accounts_found": "Nenhuma conta conectada encontrada neste perfil.",
+  "channel_added_successfully": "Canal adicionado com sucesso!",
+  "failed_to_add_channel": "Falha ao adicionar canal",
+  "failed_to_get_connect_url": "Falha ao obter URL de conexão",
+  "connect_new_account": "Conectar uma nova conta via Late",
+  "select_platform_to_connect": "Selecione uma plataforma para conectar:"
 }

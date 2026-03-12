@@ -24,10 +24,18 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Tab "Perfis" nas configuracoes para criar, editar, excluir perfis e gerenciar membros (ADMIN+)
 - Cookie `showprofile` enviado como header nas requests para manter perfil ativo no frontend
 - Documentacao do fluxo de client login para fase futura
+- Provider Late unificado — botao unico "Late" no modal de adicionar canal abre selecao de contas ja conectadas no Late
+- Suporte a 13 plataformas via Late: Twitter, Instagram, TikTok, YouTube, Facebook, LinkedIn, Pinterest, Reddit, Bluesky, Threads, Google Business, Telegram, Snapchat
+- Modal de selecao Late com 2 etapas: escolher perfil Late e depois selecionar conta (agrupada por plataforma)
+- Opcao de conectar nova conta via OAuth do Late diretamente no modal
+- Badge visual "L" nos icones de canais conectados via Late para diferenciar de conexoes nativas
 - Suporte a pre-release (RC) no workflow de release — permite lancar versoes de teste sem afetar `:latest`
 - Workflow `promote-release.yml` para promover RC para estavel sem rebuild da imagem Docker
 - Opcoes `rc` e `promote` no skill `/new-release`
 - Changelog incremental — Claude Code preenche `[Unreleased]` conforme trabalha
+
+### Corrigido
+- Conexao de canais Late (TikTok/Pinterest) falhava com erro de sessao expirada ao adicionar canal
 
 ### Alterado
 - Skill `/changelog` reescrito para consolidar rascunho incremental em vez de gerar do zero
