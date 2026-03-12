@@ -63,6 +63,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Rota de uploads retornava erro 500 para arquivos inexistentes (agora retorna 404 com verificacao de existencia)
 - Rota de uploads falhava quando `UPLOAD_DIRECTORY` nao estava configurado (agora retorna erro 500 descritivo)
 - Adicionada traducao `select_or_upload_pictures_max_1gb` em pt e en
+- Agendamento de posts via canais Late falhava silenciosamente — providers `late-*` nao estavam registrados no discriminator de validacao do DTO
 
 ### Alterado
 - Skill `/changelog` reescrito para consolidar rascunho incremental em vez de gerar do zero

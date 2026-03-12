@@ -57,7 +57,20 @@ export type AllProvidersSettings =
   | ProviderExtension<'moltbook', MoltbookDto>
   | ProviderExtension<'vk', None>
   | ProviderExtension<'skool', SkoolDto>
-  | ProviderExtension<'whop', WhopDto>;
+  | ProviderExtension<'whop', WhopDto>
+  | ProviderExtension<'late-tiktok', TikTokDto>
+  | ProviderExtension<'late-instagram', InstagramDto>
+  | ProviderExtension<'late-youtube', YoutubeSettingsDto>
+  | ProviderExtension<'late-facebook', FacebookDto>
+  | ProviderExtension<'late-linkedin', LinkedinDto>
+  | ProviderExtension<'late-pinterest', PinterestSettingsDto>
+  | ProviderExtension<'late-reddit', RedditSettingsDto>
+  | ProviderExtension<'late-twitter', XDto>
+  | ProviderExtension<'late-bluesky', None>
+  | ProviderExtension<'late-threads', None>
+  | ProviderExtension<'late-telegram', None>
+  | ProviderExtension<'late-googlebusiness', GmbSettingsDto>
+  | ProviderExtension<'late-snapchat', None>;
 
 type None = NonNullable<unknown>;
 
@@ -95,6 +108,19 @@ export const allProviders = (setEmpty?: any) => {
     { value: MoltbookDto, name: 'moltbook' },
     { value: SkoolDto, name: 'skool' },
     { value: WhopDto, name: 'whop' },
+    { value: TikTokDto, name: 'late-tiktok' },
+    { value: InstagramDto, name: 'late-instagram' },
+    { value: YoutubeSettingsDto, name: 'late-youtube' },
+    { value: FacebookDto, name: 'late-facebook' },
+    { value: LinkedinDto, name: 'late-linkedin' },
+    { value: PinterestSettingsDto, name: 'late-pinterest' },
+    { value: RedditSettingsDto, name: 'late-reddit' },
+    { value: XDto, name: 'late-twitter' },
+    { value: setEmpty, name: 'late-bluesky' },
+    { value: setEmpty, name: 'late-threads' },
+    { value: setEmpty, name: 'late-telegram' },
+    { value: GmbSettingsDto, name: 'late-googlebusiness' },
+    { value: setEmpty, name: 'late-snapchat' },
   ].filter((f) => f.value);
 };
 
