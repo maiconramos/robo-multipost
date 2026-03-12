@@ -39,6 +39,11 @@
           {
             "type": "command",
             "command": "input=$(cat); cmd=$(echo \"$input\" | jq -r '.tool_input.command // empty'); if echo \"$cmd\" | grep -qE '^git commit'; then branch=$(git branch --show-current 2>/dev/null); if [ \"$branch\" = \"postiz\" ]; then echo 'Nao e permitido commitar na branch postiz. Esta branch e espelho limpo do upstream Postiz.' >&2; exit 2; fi; fi; exit 0"
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/tdd-check.sh",
+            "statusMessage": "Verificando TDD compliance..."
           }
         ]
       }

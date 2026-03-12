@@ -114,6 +114,77 @@ pnpm lint
 
 ## Princípios de Desenvolvimento
 
+### TDD Obrigatorio (Test-Driven Development)
+
+Toda nova feature, bug fix ou refactor **deve** seguir o ciclo TDD:
+
+1. **RED** — Escrever o teste `.spec.ts` primeiro com o comportamento esperado (o teste deve falhar)
+2. **GREEN** — Implementar o minimo de codigo para o teste passar
+3. **REFACTOR** — Melhorar o codigo mantendo os testes verdes
+
+#### Regras
+
+- **Nunca** commitar codigo de producao sem o `.spec.ts` correspondente
+- Testes devem ser co-localizados: `foo.service.ts` → `foo.service.spec.ts` (mesmo diretorio)
+- Usar sempre `.spec.ts` (nao `.test.ts`)
+- Rodar `pnpm test` antes de cada commit para garantir que nada quebrou
+
+#### Utilitarios de teste (usar sempre)
+
+Os helpers estao em `libraries/nestjs-libraries/src/test/`:
+
+```typescript
+import { createMock, createPrismaRepositoryMock, createTestModule } from '@gitroom/nestjs-libraries/test';
+```
+
+- `createMock<T>()` — mock de qualquer classe via jest-mock-extended (sem necessidade de interfaces)
+- `createPrismaRepositoryMock('tableName')` — mock de `PrismaRepository<T>` com `model.[table]` mockado
+- `createTestModule({ service, mocks })` — factory para NestJS TestingModule com mocks automaticos
+
+#### Abordagem por camada
+
+| Camada | O que testar | Como mockar |
+|---|---|---|
+| **Service** | Logica de negocio, branching, delegacao | `createMock<Repository>()` ou `createTestModule()` para muitas deps |
+| **Repository** | Construcao de queries, transformacao de dados | `createPrismaRepositoryMock('table')` |
+| **Controller** | Camada HTTP, extracao de params | `@nestjs/testing` com service mockado |
+| **Social Provider** | Formatacao de posts, auth URLs, tratamento de erros | Instanciacao direta, `jest.spyOn` para HTTP |
+
+#### Estrutura do teste
+
+```typescript
+describe('NomeClasse', () => {
+  describe('nomeMetodo', () => {
+    it('deve <comportamento esperado> quando <condicao>', async () => {
+      // ARRANGE — preparar mocks e dados
+      // ACT — executar o metodo
+      // ASSERT — verificar resultado
+    });
+  });
+});
+```
+
+#### Prioridade de cobertura
+
+1. Services com logica de negocio (maior valor)
+2. Social providers (isolados, sem DI)
+3. Repositories com transformacao de dados
+4. Controllers (menor prioridade — camada fina)
+
+#### Comandos
+
+```bash
+pnpm test              # Todos os testes com coverage
+pnpm test:watch        # Watch mode durante desenvolvimento
+pnpm test:backend      # Apenas testes do backend
+pnpm test:libs         # Apenas testes das libraries
+```
+
+#### Exemplos de referencia
+
+- Service simples: `libraries/nestjs-libraries/src/database/prisma/sets/sets.service.spec.ts`
+- Repository: `libraries/nestjs-libraries/src/database/prisma/sets/sets.repository.spec.ts`
+
 ### Document-First
 Toda nova feature deve ter documentação escrita **antes ou em conjunto** com a implementação:
 - Atualizar `docs/` antes de abrir PR
