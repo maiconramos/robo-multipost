@@ -64,6 +64,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Rota de uploads falhava quando `UPLOAD_DIRECTORY` nao estava configurado (agora retorna erro 500 descritivo)
 - Adicionada traducao `select_or_upload_pictures_max_1gb` em pt e en
 - Agendamento de posts via canais Late falhava silenciosamente — providers `late-*` nao estavam registrados no discriminator de validacao do DTO
+- Perfis sem Late configurado conseguiam acessar contas Late de outros perfis — fallback para API key da organizacao removido quando perfil ativo esta selecionado
 
 ### Alterado
 - Skill `/changelog` reescrito para consolidar rascunho incremental em vez de gerar do zero

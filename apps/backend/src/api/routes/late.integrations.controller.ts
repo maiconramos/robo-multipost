@@ -51,11 +51,12 @@ export class LateIntegrationsController {
   ): Promise<string> {
     let lateApiKey: string | null = null;
     if (profile?.id) {
+      // When a profile is active, only use that profile's key — no fallback to org
       lateApiKey = await this._profileService.getDecryptedLateApiKey(
         profile.id
       );
-    }
-    if (!lateApiKey) {
+    } else {
+      // No active profile — use org-level key
       lateApiKey = await this._organizationService.getDecryptedLateApiKey(
         org.id
       );
