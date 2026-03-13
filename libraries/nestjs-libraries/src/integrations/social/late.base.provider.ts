@@ -168,6 +168,18 @@ export class LateBaseProvider
       }
     }
 
+    // Use the real Late accountId from customInstanceDetails if available,
+    // otherwise fall back to internalId (backwards compat with old integrations).
+    let realAccountId = id;
+    if (integration.customInstanceDetails) {
+      try {
+        const details = JSON.parse(integration.customInstanceDetails);
+        if (details.lateAccountId) {
+          realAccountId = details.lateAccountId;
+        }
+      } catch {}
+    }
+
     const firstPost = postDetails[0];
 
     const mediaItems: Array<{ url: string }> = [];
@@ -187,7 +199,7 @@ export class LateBaseProvider
           platforms: [
             {
               platform: this.platform as any,
-              accountId: id,
+              accountId: realAccountId,
               platformSpecificData,
             },
           ],
@@ -195,10 +207,25 @@ export class LateBaseProvider
         },
       });
 
+      const latePostId = data?.post?._id || '';
+
+      // Poll Late API to verify the post was actually published on the platform.
+      // Late accepts the post immediately but publishing may fail asynchronously
+      // (e.g. expired token, account disconnected).
+      if (latePostId) {
+        const finalStatus = await this.pollPostStatus(late, latePostId);
+        if (finalStatus === 'failed') {
+          const errorMsg = await this.getPostErrorMessage(late, latePostId);
+          throw new Error(
+            errorMsg || `Post was sent to Late but failed to publish on ${this.platformName}. Check your Late dashboard for details.`
+          );
+        }
+      }
+
       return [
         {
           id: firstPost.id,
-          postId: data?.post?._id || '',
+          postId: latePostId,
           releaseURL: '',
           status: 'success',
         },
@@ -215,6 +242,47 @@ export class LateBaseProvider
         );
       }
       throw err;
+    }
+  }
+
+  private async pollPostStatus(
+    late: InstanceType<typeof Late>,
+    postId: string,
+    maxAttempts = 10,
+    intervalMs = 3000
+  ): Promise<string> {
+    for (let i = 0; i < maxAttempts; i++) {
+      await new Promise((resolve) => setTimeout(resolve, intervalMs));
+      try {
+        const { data } = await late.posts.getPost({
+          path: { postId },
+        });
+        const status = data?.post?.status;
+        if (status === 'published' || status === 'failed' || status === 'partial') {
+          return status;
+        }
+        // 'publishing' or 'scheduled' — keep polling
+      } catch {
+        // Ignore errors during polling, keep trying
+      }
+    }
+    // Timed out — assume success since Late accepted the post
+    return 'unknown';
+  }
+
+  private async getPostErrorMessage(
+    late: InstanceType<typeof Late>,
+    postId: string
+  ): Promise<string | null> {
+    try {
+      const { data } = await late.logs.getPostLogs({
+        path: { postId },
+      });
+      const logs = (data as any)?.logs || [];
+      const failedLog = logs.find((log: any) => log.status === 'failed');
+      return failedLog?.response?.errorMessage || failedLog?.response?.rawBody || null;
+    } catch {
+      return null;
     }
   }
 }

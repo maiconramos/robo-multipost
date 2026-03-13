@@ -55,9 +55,11 @@ export class PostActivity {
           signalArgs: [],
           args: [
             {
-              taskQueue: post.integration.providerIdentifier
-                .split('-')[0]
-                .toLowerCase(),
+              taskQueue: post.integration.providerIdentifier.startsWith('late-')
+                ? 'main'
+                : post.integration.providerIdentifier
+                    .split('-')[0]
+                    .toLowerCase(),
               postId: post.id,
               organizationId: post.organizationId,
             },

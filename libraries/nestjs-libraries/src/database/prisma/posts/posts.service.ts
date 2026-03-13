@@ -718,7 +718,9 @@ export class PostsService {
 
       if (body.type !== 'update') {
         this.startWorkflow(
-          post.settings.__type.split('-')[0].toLowerCase(),
+          post.settings.__type.startsWith('late-')
+            ? 'main'
+            : post.settings.__type.split('-')[0].toLowerCase(),
           posts[0].id,
           orgId,
           posts[0].state
@@ -769,7 +771,9 @@ export class PostsService {
     if (action === 'schedule') {
       try {
         await this.startWorkflow(
-          getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
+          getPostById.integration.providerIdentifier.startsWith('late-')
+            ? 'main'
+            : getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
           getPostById.id,
           orgId,
           getPostById.state === 'DRAFT' ? 'DRAFT' : 'QUEUE'
