@@ -431,4 +431,18 @@ export class OrganizationRepository {
       data: { lateApiKey: null },
     });
   }
+
+  getShareLateWithProfiles(orgId: string) {
+    return this._organization.model.organization.findUnique({
+      where: { id: orgId },
+      select: { shareLateWithProfiles: true },
+    });
+  }
+
+  updateShareLateWithProfiles(orgId: string, enabled: boolean) {
+    return this._organization.model.organization.update({
+      where: { id: orgId },
+      data: { shareLateWithProfiles: enabled },
+    });
+  }
 }

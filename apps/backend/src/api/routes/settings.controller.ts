@@ -113,4 +113,20 @@ export class SettingsController {
     }
     return this._organizationService.removeLateApiKey(org.id);
   }
+
+  @Get('/share-late-with-profiles')
+  async getShareLateWithProfiles(
+    @GetOrgFromRequest() org: Organization
+  ) {
+    return this._organizationService.getShareLateWithProfiles(org.id);
+  }
+
+  @Post('/share-late-with-profiles')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async updateShareLateWithProfiles(
+    @GetOrgFromRequest() org: Organization,
+    @Body('enabled') enabled: boolean
+  ) {
+    return this._organizationService.updateShareLateWithProfiles(org.id, enabled);
+  }
 }

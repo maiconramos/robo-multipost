@@ -194,4 +194,12 @@ export class OrganizationService {
     }
     return AuthService.fixedDecryption(org.lateApiKey);
   }
+
+  async getShareLateWithProfiles(orgId: string) {
+    return this._organizationRepository.getShareLateWithProfiles(orgId);
+  }
+
+  async updateShareLateWithProfiles(orgId: string, enabled: boolean) {
+    return this._organizationRepository.updateShareLateWithProfiles(orgId, enabled);
+  }
 }

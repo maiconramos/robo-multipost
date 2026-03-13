@@ -20,7 +20,8 @@ model Organization {
   allowTrial        Boolean             @default(false)
   isTrailing        Boolean             @default(false)
   shortlink         ShortLinkPreference @default(ASK)
-  lateApiKey        String?
+  lateApiKey              String?
+  shareLateWithProfiles   Boolean             @default(false)
   autoPost          AutoPost[]
   Comments          Comments[]
   credits           Credits[]

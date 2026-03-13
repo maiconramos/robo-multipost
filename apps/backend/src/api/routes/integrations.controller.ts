@@ -224,8 +224,15 @@ export class IntegrationsController {
       if (isLateProvider) {
         let lateApiKey: string | null = null;
         if (profile?.id) {
-          // When a profile is active, only use that profile's key — no fallback to org
           lateApiKey = await this._profileService.getDecryptedLateApiKey(profile.id);
+          // If profile has no key, check if org shares Late with profiles
+          if (!lateApiKey) {
+            const shareSettings =
+              await this._organizationService.getShareLateWithProfiles(org.id);
+            if (shareSettings?.shareLateWithProfiles) {
+              lateApiKey = await this._organizationService.getDecryptedLateApiKey(org.id);
+            }
+          }
         } else {
           // No active profile — use org-level key
           lateApiKey = await this._organizationService.getDecryptedLateApiKey(org.id);
