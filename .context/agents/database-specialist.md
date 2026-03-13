@@ -35,7 +35,7 @@ The Database Specialist agent is responsible for all database-related tasks in t
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Overview of all agents and collaboration protocols.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Overview of all agents and collaboration protocols.
 - [Agent Handbook](https://github.com/example/agent-handbook) - General guidelines for phase-based workflows.
 - [Contributor Guide](../CONTRIBUTING.md) - PR processes, testing, and deployment.
 - [Prisma Docs](https://www.prisma.io/docs) - Reference for schema, migrations, and accelerators.
@@ -109,7 +109,7 @@ The Database Specialist agent is responsible for all database-related tasks in t
 
 - Update `prisma/schema.prisma` comments for new fields.
 - Add JSDoc to repository methods (e.g., `@param`, `@returns`).
-- Contribute to `AGENTS.md` with DB patterns.
+- Contribute to `../../docs/planning/agents.md` with DB patterns.
 - Maintain migration changelogs in `prisma/migrations/`.
 
 ## Collaboration Checklist

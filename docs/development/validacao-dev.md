@@ -503,3 +503,9 @@ pnpm run dev
 se algum processo ficar preso, use kill -9 $(lsof -ti :3000 :4200) 
 ou
   lsof -ti:4200 | xargs kill -9; lsof -ti:3000 | xargs kill -9; pnpm run --filter ./apps/orchestrator --filter ./apps/backend --filter ./apps/frontend --parallel dev
+
+  ou 
+
+  pkill -f "nest start --watch" 2>/dev/null; pkill -f "pnpm run --filter ./apps" 2>/dev/null; sleep 1; pnpm run --filter ./apps/orchestrator --filter ./apps/backend --filter ./apps/frontend --parallel dev
+
+  pkill -f "nest start --watch" 2>/dev/null; lsof -ti:4200,3000 | xargs kill -9 2>/dev/null; sleep 1; pnpm run --filter ./apps/orchestrator --filter ./apps/backend --filter ./apps/frontend --parallel dev

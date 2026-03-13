@@ -26,7 +26,7 @@ The DevOps Specialist agent ensures reliable, scalable deployments across the mo
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Agent collaboration guidelines.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Agent collaboration guidelines.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Repo contributor guide.
 - [README.md](../README.md) - Project overview and setup.
 - [Agent Handbook](https://github.com/your-org/agent-handbook) - Cross-agent best practices (adapt to repo).

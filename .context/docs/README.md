@@ -110,7 +110,7 @@ Monorepo with pnpm workspaces (`apps/`, `libraries/`).
 
 ## 📊 Repository Snapshot
 ```
-AGENTS.md/
+../../docs/planning/agents.md/
 apps/                 # 6 apps (backend, frontend, sdk, cli, extension, orchestrator)
 CLAUDE.md/
 CODE_OF_CONDUCT.md/

@@ -882,8 +882,8 @@ Todos os endpoints escopados ao workspace do usuário autenticado via JWT.
 
 ## Referências
 
-- Dossiê n8n: `n8n-credential-architecture-dossier.md`
-- PRD: `PRD.md` (Fase 2 — Multi-workspace)
+- Dossiê n8n: `docs/architecture/n8n-credentials.md`
+- PRD: `docs/planning/prd.md` (Fase 2 — Multi-workspace)
 - Padrão de providers atual: `libraries/nestjs-libraries/src/integrations/social.abstract.ts`
 - Criptografia legacy: `libraries/helpers/src/auth/auth.service.ts`
 - prisma-field-encryption: https://github.com/47ng/prisma-field-encryption

@@ -309,8 +309,8 @@ X (Twitter), LinkedIn, LinkedIn Page, Instagram, Instagram Standalone, Facebook,
 | File | Purpose |
 |---|---|
 | `CLAUDE.md` | Claude Code agent instructions |
-| `AGENTS.md` | This file — generic agent context |
-| `PRD.md` | Full product requirements document |
+| `docs/planning/agents.md` | This file — generic agent context |
+| `docs/planning/prd.md` | Full product requirements document |
 | `libraries/nestjs-libraries/src/database/prisma/schema.prisma` | Full DB schema (45 models) |
 | `apps/frontend/src/app/colors.scss` | Design token colors |
 | `apps/frontend/tailwind.config.js` | Tailwind config |

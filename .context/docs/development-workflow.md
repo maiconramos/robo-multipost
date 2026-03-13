@@ -85,5 +85,5 @@ pnpm prisma-db-push       # Aplicar migracoes
 ## Documentacao Relacionada
 
 - [CLAUDE.md](../../CLAUDE.md) — instrucoes detalhadas do projeto
-- [AGENTS.md](../../AGENTS.md) — contexto para agentes IA
+- [../../docs/planning/agents.md](../../../docs/planning/agents.md) — contexto para agentes IA
 - [CHANGELOG.md](../../CHANGELOG.md) — historico de mudancas

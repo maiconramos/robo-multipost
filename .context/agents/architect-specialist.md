@@ -10,7 +10,7 @@ The Architect Specialist agent designs, evaluates, and evolves the high-level sy
 - **Scalability Reviews**: Assess Redis usage (`libraries/nestjs-libraries/src/redis`), caching, and async patterns for high-throughput features like autoposting.
 - **Integration Architecture**: Design orchestration for third-parties (Stripe, OpenAI, newsletters) using factories and services.
 - **Monorepo Governance**: Propose shared library extractions or app-specific modules to avoid duplication.
-- **Documentation Updates**: Maintain architecture diagrams in docs and AGENTS.md.
+- **Documentation Updates**: Maintain architecture diagrams in docs and ../../docs/planning/agents.md.
 
 ## Best Practices
 
@@ -27,7 +27,7 @@ The Architect Specialist agent designs, evaluates, and evolves the high-level sy
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Agent roles and workflows.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Agent roles and workflows.
 - [Contributor Guide](../CONTRIBUTING.md) - Code standards and PR process.
 - [Architecture Docs](../docs/architecture.md) - High-level diagrams (update as needed).
 - [Agent Handbook](../docs/agents.md) - Collaboration protocols.
@@ -105,7 +105,7 @@ The Architect Specialist agent designs, evaluates, and evolves the high-level sy
 ## Documentation Touchpoints
 
 - Update [architecture.md](../docs/architecture.md) with new diagrams (use Mermaid).
-- Reference [AGENTS.md](../AGENTS.md) for agent integrations.
+- Reference [../../docs/planning/agents.md](../../docs/planning/agents.md) for agent integrations.
 - Add ADR (Architecture Decision Records) to `docs/adrs/`.
 - Ensure Prisma schema comments align with repo purposes.
 

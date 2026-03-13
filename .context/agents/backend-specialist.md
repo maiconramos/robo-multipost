@@ -63,7 +63,7 @@ Derived from codebase analysis:
 
 ## Key Project Resources
 
-- [Agent Handbook](../AGENTS.md) - Core agent guidelines.
+- [Agent Handbook](../../docs/planning/agents.md) - Core agent guidelines.
 - [Contributor Guide](../CONTRIBUTING.md) - PR process, linting, CI/CD.
 - [Documentation Index](../docs/) - API specs, deployment.
 - [Prisma Schema](../libraries/nestjs-libraries/prisma/schema.prisma) - Database models.
@@ -148,7 +148,7 @@ Derived from codebase analysis:
 5. [ ] Lint/format: `npm run lint`.
 6. [ ] Update docs/PR description with changes.
 7. [ ] Review PR with team; address feedback.
-8. [ ] Capture learnings in AGENTS.md or issue.
+8. [ ] Capture learnings in ../../docs/planning/agents.md or issue.
 
 ## Hand-off Notes
 
