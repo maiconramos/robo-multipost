@@ -21,7 +21,7 @@ export class ProfileRepository {
         },
         _count: {
           select: {
-            integrations: true,
+            integrations: { where: { deletedAt: null } },
           },
         },
       },
