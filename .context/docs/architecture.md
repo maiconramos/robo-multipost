@@ -124,6 +124,38 @@ graph LR
     SVCS --> WF --> EXT
 ```
 
+## Late Integration (Platform Invites & Unified Provider)
+
+Late is an external service that provides OAuth-based social media account connections for 13 platforms (Twitter, Instagram, TikTok, YouTube, Facebook, LinkedIn, Pinterest, Reddit, Bluesky, Threads, Google Business, Telegram, Snapchat). The integration lives in:
+
+- **Backend controller**: `apps/backend/src/api/routes/late.integrations.controller.ts` — REST endpoints for Late operations
+- **Base provider**: `libraries/nestjs-libraries/src/integrations/social/late.base.provider.ts` — Shared posting logic for all `late-*` providers
+- **Frontend modal**: `apps/frontend/src/components/launches/late/late-account-modal.tsx` — 2-step modal (profile → account) for adding Late channels
+- **Frontend invite modal**: `apps/frontend/src/components/launches/late/late-invite-modal.tsx` — 2-step modal (profile → platform) for generating invite links
+
+### Late API Key Resolution
+
+Late API keys are resolved per-profile first, then fall back to org-level if the org has `shareLateWithProfiles` enabled. This is handled by `getLateApiKey()` in the controller.
+
+### Two Channel Addition Flows
+
+1. **Direct (admin)**: "Add Channel" → "Late" → `LateAccountModal` → select profile → select existing account → creates integration in DB
+2. **Invite (for clients)**: "Send Invite Link" → "Late" → `LateInviteModal` → select profile → select platform → calls `POST /api/v1/platform-invites` (undocumented Late endpoint, not in SDK) → generates single-use OAuth link (expires 7 days) → client connects their account on Late side → admin then adds the new account via flow #1
+
+### Key Backend Endpoints
+
+| Endpoint | Method | Purpose |
+|----------|--------|---------|
+| `/integrations/late/profiles` | GET | List Late profiles |
+| `/integrations/late/accounts?profileId=` | GET | List accounts in a Late profile |
+| `/integrations/late/connect-account` | POST | Register a Late account as a Multipost channel |
+| `/integrations/late/invite-link` | POST | Generate platform-specific invite link (calls Late `platform-invites` API) |
+| `/integrations/late/new-account-url` | GET | Get OAuth URL to connect a new account via Late |
+
+### Risk
+
+The `POST /api/v1/platform-invites` endpoint is **undocumented** in the Late OpenAPI spec. It was discovered via the Late dashboard's Network tab. If Late changes this endpoint, the invite feature will break. Error handling is in place to surface failures clearly.
+
 ## Risks & Constraints
 
 - **Rate Limits**: Social APIs cap bursts; mitigated by Temporal throttling.

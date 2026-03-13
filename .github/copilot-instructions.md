@@ -3,7 +3,7 @@
 
 This project is **Robô MultiPost**, a fork of [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 A self-hosted social media scheduler for the Automação Sem Limites community.
-Read `AGENTS.md` for full project context before suggesting any code.
+Read `docs/planning/agents.md` for full project context before suggesting any code.
 
 ## Project Architecture
 - Monorepo managed with PNPM workspaces (not NX), apps in `apps/` and shared code in `libraries/`.
@@ -55,8 +55,8 @@ Read `AGENTS.md` for full project context before suggesting any code.
 - Docker dev: `docker compose -f ./docker-compose.dev.yaml up -d`
 
 ## Key Files & Directories
-- `AGENTS.md` — Full agent context (read this first)
-- `PRD.md` — Product requirements
+- `docs/planning/agents.md` — Full agent context (read this first)
+- `docs/planning/prd.md` — Product requirements
 - `apps/` — Main services and applications
 - `libraries/` — Shared code and modules
 - `docker-compose.yaml` — Production Docker setup (5 services)
@@ -65,6 +65,16 @@ Read `AGENTS.md` for full project context before suggesting any code.
 - `pnpm-workspace.yaml` — Workspace package management
 - `libraries/nestjs-libraries/src/database/prisma/schema.prisma` — DB schema (45 models)
 - `libraries/react-shared-libraries/src/translation/locales/` — i18n (17 languages)
+
+## Late Integration
+- Late provides OAuth-based social media connections for 13 platforms as an alternative to native integrations.
+- Controller: `apps/backend/src/api/routes/late.integrations.controller.ts`
+- Base provider: `libraries/nestjs-libraries/src/integrations/social/late.base.provider.ts`
+- Frontend modals: `apps/frontend/src/components/launches/late/` (late-account-modal.tsx + late-invite-modal.tsx)
+- Late API key resolves per-profile first, then org-level with `shareLateWithProfiles` flag.
+- **Platform invite flow** uses undocumented `POST https://getlate.dev/api/v1/platform-invites` (not in SDK) — response is `{ invite: { inviteUrl, ... } }`.
+- Two flows: direct "Add Channel > Late" (select existing account) and "Send Invite Link > Late" (generate platform-specific OAuth link for clients).
+- After a client connects via invite, the admin adds the new account via "Add Channel > Late".
 
 ## Documentation
 - Upstream docs: https://docs.postiz.com/
