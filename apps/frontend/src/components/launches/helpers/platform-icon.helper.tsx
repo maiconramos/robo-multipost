@@ -26,7 +26,7 @@ export function getPlatformIconPath(identifier: string) {
 /**
  * Late badge SVG — small version of the official Late logo (asterisk).
  */
-const LateBadge: FC<{ size?: number }> = ({ size = 14 }) => (
+const LateBadge: FC<{ size?: number }> = ({ size = 16 }) => (
   <span
     className="absolute z-20 top-[-3px] -end-[3px] flex items-center justify-center rounded-full bg-[#1a1a2e] border border-[#ffeda0]/40"
     style={{ width: size, height: size }}
@@ -39,7 +39,7 @@ const LateBadge: FC<{ size?: number }> = ({ size = 14 }) => (
       strokeWidth="3"
       strokeLinecap="round"
       strokeLinejoin="round"
-      style={{ width: size * 0.65, height: size * 0.65 }}
+      style={{ width: size * 0.95, height: size * 0.95 }}
     >
       <path d="M12 6v12" />
       <path d="M17.196 9 6.804 15" />

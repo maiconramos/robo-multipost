@@ -112,7 +112,7 @@ export class IntegrationService {
     profileId?: string
   ) {
     const uploadedPicture = picture
-      ? picture?.indexOf('imagedelivery.net') > -1
+      ? picture?.indexOf('imagedelivery.net') > -1 || picture?.startsWith('/icons/')
         ? picture
         : await this.storage.uploadSimple(picture)
       : undefined;
