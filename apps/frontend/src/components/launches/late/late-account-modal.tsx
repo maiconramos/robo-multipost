@@ -13,7 +13,7 @@ import { Button } from '@gitroom/react/form/button';
 import Image from 'next/image';
 import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 
-const PLATFORM_NAMES: Record<string, string> = {
+export const PLATFORM_NAMES: Record<string, string> = {
   twitter: 'Twitter/X',
   instagram: 'Instagram',
   tiktok: 'TikTok',
@@ -29,7 +29,7 @@ const PLATFORM_NAMES: Record<string, string> = {
   snapchat: 'Snapchat',
 };
 
-const PlatformIcon: FC<{ platform: string; size?: number }> = ({
+export const PlatformIcon: FC<{ platform: string; size?: number }> = ({
   platform,
   size = 24,
 }) => {

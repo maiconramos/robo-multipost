@@ -8,6 +8,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Link de convite Late — botao "Enviar link de convite" abre modal com selecao de perfil e plataforma, gerando link OAuth direto via Late platform-invites
 - Credenciais OAuth independentes por perfil — cada perfil pode ter suas proprias credenciais de redes sociais
 - Webhooks, Auto Post e Sets isolados por perfil ativo
 - Late API key configuravel por perfil — cada perfil pode conectar sua propria conta Late
@@ -65,6 +66,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Adicionada traducao `select_or_upload_pictures_max_1gb` em pt e en
 - Agendamento de posts via canais Late falhava silenciosamente — providers `late-*` nao estavam registrados no discriminator de validacao do DTO
 - Perfis sem Late configurado conseguiam acessar contas Late de outros perfis — fallback para API key da organizacao removido quando perfil ativo esta selecionado
+- Toggle "Compartilhar Late com Perfis" nas Configuracoes Globais — permite controlar se perfis sem chave Late propria usam a chave do workspace padrao
+- Mesma conta Late pode ser conectada em perfis diferentes sem conflito (internalId composto com profileId)
+- Conexao de canais Late falhava com erro ao tentar fazer upload de icone local como URL (`/icons/platforms/tiktok.png`)
+- Posts via Late agora verificam o status real da publicacao na plataforma — se o Late aceita mas a rede social rejeita (ex: token expirado), o erro eh detectado e reportado em vez de marcar como sucesso
+- Posts via Late ficavam presos na fila porque a task queue `late` nao tinha worker — Late providers agora usam a task queue `main`
 
 ### Alterado
 - Skill `/changelog` reescrito para consolidar rascunho incremental em vez de gerar do zero

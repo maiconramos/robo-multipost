@@ -20,6 +20,7 @@ import clsx from 'clsx';
 import copy from 'copy-to-clipboard';
 import { capitalize } from 'lodash';
 import { LateAccountModal } from '@gitroom/frontend/components/launches/late/late-account-modal';
+import { LateInviteModal } from '@gitroom/frontend/components/launches/late/late-invite-modal';
 const resolver = classValidatorResolver(ApiKeyDto);
 
 export const useAddProvider = (update?: () => void, invite?: boolean) => {
@@ -76,7 +77,7 @@ export const AddProviderButton: FC<{
         onClick={invite}
         data-tooltip-id="tooltip"
         data-tooltip-content={t(
-          'invite_link',
+          'send_invite_link_tooltip',
           'Send Invite Link to a customer to add channel'
         )}
         className="group-[.sidebar]:hidden min-h-[44px] min-w-[44px] bg-btnSimple justify-center items-center flex rounded-[8px] cursor-pointer"
@@ -405,6 +406,29 @@ export const AddProviderComponent: FC<{
         }>
       ) =>
       async () => {
+        if (invite && identifier === 'late') {
+          modal.openModal({
+            title: t('late_invite_link', 'Late - Invite Link'),
+            withCloseButton: true,
+            children: (
+              <LateInviteModal
+                onComplete={(url) => {
+                  toaster.show(
+                    t(
+                      'invite_link_copied_late',
+                      'Invite link copied! After the client connects, the account will be available in Add Channel > Late.'
+                    ),
+                    'success'
+                  );
+                  modal.closeAll();
+                  copy(url);
+                }}
+              />
+            ),
+          });
+          return;
+        }
+
         if (identifier === 'late') {
           modal.openModal({
             title: 'Late',
@@ -662,7 +686,7 @@ export const AddProviderComponent: FC<{
                 {...(!!item.toolTip
                   ? {
                       'data-tooltip-id': 'tooltip',
-                      'data-tooltip-content': item.toolTip,
+                      'data-tooltip-content': t(`tooltip_${item.identifier}`, item.toolTip),
                     }
                   : {})}
                 className={

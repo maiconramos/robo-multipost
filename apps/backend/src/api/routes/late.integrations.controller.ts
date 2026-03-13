@@ -51,10 +51,19 @@ export class LateIntegrationsController {
   ): Promise<string> {
     let lateApiKey: string | null = null;
     if (profile?.id) {
-      // When a profile is active, only use that profile's key — no fallback to org
       lateApiKey = await this._profileService.getDecryptedLateApiKey(
         profile.id
       );
+      // If profile has no key, check if org shares Late with profiles
+      if (!lateApiKey) {
+        const shareSettings =
+          await this._organizationService.getShareLateWithProfiles(org.id);
+        if (shareSettings?.shareLateWithProfiles) {
+          lateApiKey = await this._organizationService.getDecryptedLateApiKey(
+            org.id
+          );
+        }
+      }
     } else {
       // No active profile — use org-level key
       lateApiKey = await this._organizationService.getDecryptedLateApiKey(
@@ -161,6 +170,13 @@ export class LateIntegrationsController {
         ? '/icons/platforms/youtube.svg'
         : `/icons/platforms/${platform}.png`;
 
+    // Compose internalId with profileId suffix so the same Late account can exist
+    // in multiple profiles (the unique constraint is [organizationId, internalId]).
+    // The real accountId is stored in customInstanceDetails for use during posting.
+    const internalId = profile?.id
+      ? `${accountId}_p${profile.id}`
+      : accountId;
+
     const integration =
       await this._integrationService.createOrUpdateIntegration(
         undefined,
@@ -169,7 +185,7 @@ export class LateIntegrationsController {
         name.trim(),
         picture,
         'social',
-        accountId,
+        internalId,
         providerIdentifier,
         apiKey,
         '',
@@ -178,7 +194,7 @@ export class LateIntegrationsController {
         false,
         undefined,
         undefined,
-        JSON.stringify({ lateProfileId }),
+        JSON.stringify({ lateProfileId, lateAccountId: accountId }),
         profile?.id
       );
 
@@ -186,6 +202,46 @@ export class LateIntegrationsController {
       id: integration.id,
       inBetweenSteps: false,
     };
+  }
+
+  @Post('/invite-link')
+  @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
+  async createInviteLink(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile,
+    @Body() body: { profileId: string; platform: string }
+  ) {
+    if (!body.profileId || !body.platform) {
+      throw new HttpException('profileId and platform are required', 400);
+    }
+
+    const apiKey = await this.getLateApiKey(org, profile);
+
+    // Undocumented Late endpoint — direct HTTP call (not in SDK)
+    const response = await globalThis.fetch(
+      'https://getlate.dev/api/v1/platform-invites',
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${apiKey}`,
+        },
+        body: JSON.stringify({
+          profileId: body.profileId,
+          platform: body.platform,
+        }),
+      }
+    );
+
+    if (!response.ok) {
+      const err = await response.json().catch(() => ({}));
+      throw new HttpException(
+        err.message || 'Failed to create Late platform invite',
+        response.status >= 500 ? 502 : response.status
+      );
+    }
+
+    return await response.json();
   }
 
   @Get('/new-account-url')
