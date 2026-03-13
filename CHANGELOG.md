@@ -76,9 +76,22 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Skill `/changelog` reescrito para consolidar rascunho incremental em vez de gerar do zero
 - CI/CD detecta pre-releases e nao atualiza `:latest` para versoes RC/beta
 
+### Upstream
+- Sincronizado com Postiz upstream ate commit e20565fb (2026-03-13)
+- Novo provider MeWe para publicacao em grupos
+- Sistema OAuth Apps — apps de terceiros podem autenticar via Postiz OAuth
+- Refactor de auth providers (factory → manager pattern)
+- MCP com suporte a OAuth2
+- Fixes de Stripe (skip subscription check sem Stripe, require API key)
+- Facebook/Instagram connect melhorado, Google My Business com paginacao
+- Telegram fix, X API update
+- AppSumo webhook handling melhorado
+- PR Quality workflow no CI
+
 ### Documentacao
 - Secao Multi-Tenancy adicionada ao README com link para guia completo
 - Guia detalhado de multi-tenancy em `docs/multi-tenancy.md`
+- Documentacao reorganizada em estrutura `docs/` (architecture, development, operations, planning)
 
 ## [0.2.0] - 2026-02-28
 
