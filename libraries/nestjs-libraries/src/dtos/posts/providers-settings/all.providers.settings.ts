@@ -23,6 +23,7 @@ import { FacebookDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-sett
 import { MoltbookDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/moltbook.dto';
 import { SkoolDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/skool.dto';
 import { WhopDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/whop.dto';
+import { MeweDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/mewe.dto';
 
 export type ProviderExtension<T extends string, M> = { __type: T } & M;
 export type AllProvidersSettings =
@@ -57,6 +58,7 @@ export type AllProvidersSettings =
   | ProviderExtension<'moltbook', MoltbookDto>
   | ProviderExtension<'vk', None>
   | ProviderExtension<'skool', SkoolDto>
+  | ProviderExtension<'mewe', MeweDto>
   | ProviderExtension<'whop', WhopDto>
   | ProviderExtension<'late-tiktok', TikTokDto>
   | ProviderExtension<'late-instagram', InstagramDto>
@@ -108,6 +110,7 @@ export const allProviders = (setEmpty?: any) => {
     { value: MoltbookDto, name: 'moltbook' },
     { value: SkoolDto, name: 'skool' },
     { value: WhopDto, name: 'whop' },
+    { value: MeweDto, name: 'mewe' },
     { value: TikTokDto, name: 'late-tiktok' },
     { value: InstagramDto, name: 'late-instagram' },
     { value: YoutubeSettingsDto, name: 'late-youtube' },

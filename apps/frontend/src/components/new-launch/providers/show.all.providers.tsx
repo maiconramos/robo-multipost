@@ -38,6 +38,7 @@ import GmbProvider from '@gitroom/frontend/components/new-launch/providers/gmb/g
 import MoltbookProvider from '@gitroom/frontend/components/new-launch/providers/moltbook/moltbook.provider';
 import SkoolProvider from '@gitroom/frontend/components/new-launch/providers/skool/skool.provider';
 import WhopProvider from '@gitroom/frontend/components/new-launch/providers/whop/whop.provider';
+import MeweProvider from '@gitroom/frontend/components/new-launch/providers/mewe/mewe.provider';
 
 export const Empty: FC = () => {
   return null;
@@ -171,6 +172,10 @@ export const Providers = [
   {
     identifier: 'whop',
     component: WhopProvider,
+  },
+  {
+    identifier: 'mewe',
+    component: MeweProvider,
   },
   // Late providers — reuse existing provider settings components
   {

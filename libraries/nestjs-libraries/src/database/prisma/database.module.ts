@@ -42,6 +42,8 @@ import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.s
 import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { StartupMigrationService } from '@gitroom/nestjs-libraries/database/prisma/startup-migration.service';
+import { OAuthRepository } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.repository';
+import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 
 @Global()
 @Module({
@@ -86,6 +88,8 @@ import { StartupMigrationService } from '@gitroom/nestjs-libraries/database/pris
     SetsRepository,
     ThirdPartyRepository,
     ThirdPartyService,
+    OAuthRepository,
+    OAuthService,
     VideoManager,
     CredentialRepository,
     CredentialService,

@@ -36,6 +36,15 @@ import { EnterpriseController } from '@gitroom/backend/api/routes/enterprise.con
 import { CredentialsController } from '@gitroom/backend/api/routes/credentials.controller';
 import { ProfilesController } from '@gitroom/backend/api/routes/profiles.controller';
 import { LateIntegrationsController } from '@gitroom/backend/api/routes/late.integrations.controller';
+import { OAuthAppController } from '@gitroom/backend/api/routes/oauth-app.controller';
+import { ApprovedAppsController } from '@gitroom/backend/api/routes/approved-apps.controller';
+import { OAuthController, OAuthAuthorizedController } from '@gitroom/backend/api/routes/oauth.controller';
+import { AuthProviderManager } from '@gitroom/backend/services/auth/providers/providers.manager';
+import { GithubProvider } from '@gitroom/backend/services/auth/providers/github.provider';
+import { GoogleProvider } from '@gitroom/backend/services/auth/providers/google.provider';
+import { FarcasterProvider } from '@gitroom/backend/services/auth/providers/farcaster.provider';
+import { WalletProvider } from '@gitroom/backend/services/auth/providers/wallet.provider';
+import { OauthProvider } from '@gitroom/backend/services/auth/providers/oauth.provider';
 
 const authenticatedController = [
   UsersController,
@@ -55,6 +64,9 @@ const authenticatedController = [
   CredentialsController,
   ProfilesController,
   LateIntegrationsController,
+  OAuthAppController,
+  ApprovedAppsController,
+  OAuthAuthorizedController,
 ];
 @Module({
   imports: [UploadModule],
@@ -66,6 +78,7 @@ const authenticatedController = [
     MonitorController,
     EnterpriseController,
     NoAuthIntegrationsController,
+    OAuthController,
     ...authenticatedController,
   ],
   providers: [
@@ -81,6 +94,12 @@ const authenticatedController = [
     TrackService,
     ShortLinkService,
     Nowpayments,
+    AuthProviderManager,
+    GithubProvider,
+    GoogleProvider,
+    FarcasterProvider,
+    WalletProvider,
+    OauthProvider,
   ],
   get exports() {
     return [...this.imports, ...this.providers];

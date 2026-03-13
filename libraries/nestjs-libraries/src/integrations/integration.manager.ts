@@ -36,6 +36,7 @@ import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.ab
 import { MoltbookProvider } from '@gitroom/nestjs-libraries/integrations/social/moltbook.provider';
 import { SkoolProvider } from '@gitroom/nestjs-libraries/integrations/social/skool.provider';
 import { WhopProvider } from '@gitroom/nestjs-libraries/integrations/social/whop.provider';
+import { MeweProvider } from '@gitroom/nestjs-libraries/integrations/social/mewe.provider';
 import { LateTikTokProvider } from '@gitroom/nestjs-libraries/integrations/social/late-tiktok.provider';
 import { LatePinterestProvider } from '@gitroom/nestjs-libraries/integrations/social/late-pinterest.provider';
 import { LateTwitterProvider } from '@gitroom/nestjs-libraries/integrations/social/late-twitter.provider';
@@ -83,6 +84,7 @@ export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new MoltbookProvider(),
   new WhopProvider(),
   new SkoolProvider(),
+  // new MeweProvider(),
   new LateTikTokProvider(),
   new LatePinterestProvider(),
   new LateTwitterProvider(),
