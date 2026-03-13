@@ -145,19 +145,15 @@ export const PublicComponent = () => {
       </div>
 
       <div className="flex flex-col">
-        <h3 className="text-[20px]">Building your Postiz payload</h3>
+        <h3 className="text-[20px]">{t('building_your_payload', 'Building your payload')}</h3>
         <div className="text-customColor18 mt-[4px] whitespace-pre-line">
-          Sending a POST request to <strong className="text-textColor">/posts</strong> might feel a bit overwhelming as many
-          platforms have different requirements.{'\n'}
-          We have created an easy way to build your Postiz payload to schedule
-          posts. {'\n'}
-          You can use the Postiz wizard, and schedule a post with our UI, after
-          you added all your text and settings, the wizard will generate the
-          payload for you.{'\n'}
+          {t('payload_description_line1', 'Sending a POST request to /posts might feel a bit overwhelming as many platforms have different requirements.')}{'\n'}
+          {t('payload_description_line2', 'We have created an easy way to build your payload to schedule posts.')}{'\n'}
+          {t('payload_description_line3', 'You can use the wizard, and schedule a post with our UI, after you added all your text and settings, the wizard will generate the payload for you.')}{'\n'}
         </div>
         <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[4px] p-[24px] flex gap-[24px]">
           <Button onClick={() => window.open(`${frontEndUrl}/modal/dark/all`, '_blank')}>
-            Open the payload wizard
+            {t('open_payload_wizard', 'Open the payload wizard')}
           </Button>
         </div>
       </div>

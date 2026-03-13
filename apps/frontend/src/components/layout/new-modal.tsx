@@ -15,6 +15,7 @@ import { Button } from '@gitroom/react/form/button';
 import { useHotkeys } from 'react-hotkeys-hook';
 import clsx from 'clsx';
 import { EventEmitter } from 'events';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 interface OpenModalInterface {
   title?: string;
@@ -393,13 +394,14 @@ export const DecisionEverywhere: FC = () => {
 
 export const useDecisionModal = () => {
   const modals = useModals();
+  const t = useT();
   const open = useCallback(
     ({
-      title = 'Are you sure?',
-      description = 'Are you sure you want to close this modal?' as any,
+      title = t('are_you_sure', 'Are you sure?'),
+      description = t('are_you_sure_close_modal', 'Are you sure you want to close this modal?') as any,
       onlyApprove = false,
-      approveLabel = 'Yes',
-      cancelLabel = 'No',
+      approveLabel = t('yes', 'Yes'),
+      cancelLabel = t('no', 'No'),
       newRes = undefined as any,
     } = {}) => {
       return new Promise<boolean>((res) => {
@@ -419,7 +421,7 @@ export const useDecisionModal = () => {
         });
       });
     },
-    [modals]
+    [modals, t]
   );
 
   return { open };

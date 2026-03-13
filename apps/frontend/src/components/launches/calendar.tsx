@@ -822,6 +822,10 @@ export const CalendarColumn: FC<{
             isBeforeNow ? 'flex-1' : 'cursor-pointer',
             isBeforeNow && postList.length === 0 && 'col-calendar'
           )}
+          {...(isBeforeNow && postList.length === 0 && {
+            'data-date-passed': t('date_passed', 'Date passed'),
+          }
+          )}
         >
           {loading && (
             <div className="h-full w-full p-[5px] animate-pulse absolute left-0 top-0 z-[50]">

@@ -152,12 +152,12 @@ export const Sets: FC = () => {
 
   const deleteSet = useCallback(
     (data: any) => async () => {
-      if (await deleteDialog(`Are you sure you want to delete ${data.name}?`)) {
+      if (await deleteDialog(t('are_you_sure_delete_set', 'Are you sure you want to delete {{name}}?', { name: data.name }))) {
         await fetch(`/sets/${data.id}`, {
           method: 'DELETE',
         });
         mutate();
-        toaster.show('Set deleted successfully', 'success');
+        toaster.show(t('set_deleted_successfully', 'Set deleted successfully'), 'success');
       }
     },
     []
@@ -167,9 +167,9 @@ export const Sets: FC = () => {
 
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">Sets ({data?.length || 0})</h3>
+      <h3 className="text-[20px]">{t('sets_count', 'Sets ({{count}})', { count: data?.length || 0 })}</h3>
       <div className="text-customColor18 mt-[4px]">
-        Manage your content sets for easy reuse across posts.
+        {t('manage_content_sets', 'Manage your content sets for easy reuse across posts.')}
       </div>
       <div className="my-[16px] mt-[16px] bg-sixth border-fifth items-center border rounded-[4px] p-[24px] flex gap-[24px]">
         <div className="flex flex-col w-full">
@@ -202,7 +202,7 @@ export const Sets: FC = () => {
               onClick={addSet()}
               className={clsx((data?.length || 0) > 0 && 'my-[16px]')}
             >
-              Add a set
+              {t('add_a_set', 'Add a set')}
             </Button>
           </div>
         </div>

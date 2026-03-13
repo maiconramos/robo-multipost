@@ -154,7 +154,7 @@ export const ThirdPartyComponent = () => {
                 )}
               >
                 {!isLoading && !data?.length ? (
-                  <div>No Integrations Yet</div>
+                  <div>{t('no_integrations_yet', 'No Integrations Yet')}</div>
                 ) : (
                   data?.map((p: any) => (
                     <div
