@@ -7,6 +7,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Corrigido
+- Login/registro com Google via Generic OAuth falhava com redirect_uri_mismatch — middleware detectava provider incorreto devido a "googleapis.com" nos parametros de scope
+
 ### Adicionado
 - Link de convite Late — botao "Enviar link de convite" abre modal com selecao de perfil e plataforma, gerando link OAuth direto via Late platform-invites
 - Credenciais OAuth independentes por perfil — cada perfil pode ter suas proprias credenciais de redes sociais
