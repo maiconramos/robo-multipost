@@ -73,17 +73,19 @@ export async function middleware(request: NextRequest) {
   const org = nextUrl.searchParams.get('org');
   const url = new URL(nextUrl).search;
   if (!nextUrl.pathname.startsWith('/auth') && !authCookie) {
-    const providers = ['google', 'settings'];
-    const findIndex = providers.find((p) => nextUrl.href.indexOf(p) > -1);
-    const additional = !findIndex
+    const path = nextUrl.pathname.toLowerCase();
+    const isSettingsPath = path.indexOf('/settings') > -1;
+    const isGooglePath = path.indexOf('/integrations/social/youtube') > -1;
+
+    const provider = isSettingsPath
+      ? (process.env.POSTIZ_GENERIC_OAUTH ? 'GENERIC' : 'GITHUB')
+      : isGooglePath
+        ? 'GOOGLE'
+        : '';
+
+    const additional = !provider
       ? ''
-      : (url.indexOf('?') > -1 ? '&' : '?') +
-        `provider=${(findIndex === 'settings'
-          ? process.env.POSTIZ_GENERIC_OAUTH
-            ? 'generic'
-            : 'github'
-          : findIndex
-        ).toUpperCase()}`;
+      : (url.indexOf('?') > -1 ? '&' : '?') + `provider=${provider}`;
     return NextResponse.redirect(
       new URL(`/auth${url}${additional}`, nextUrl.href)
     );
