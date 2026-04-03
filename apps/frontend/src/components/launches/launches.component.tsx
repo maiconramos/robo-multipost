@@ -2,7 +2,7 @@
 
 import { AddProviderButton } from '@gitroom/frontend/components/launches/add.provider.component';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
-import Image from 'next/image';
+import SafeImage from '@gitroom/react/helpers/safe.image';
 import { capitalize, groupBy, orderBy } from 'lodash';
 import { CalendarWeekProvider } from '@gitroom/frontend/components/launches/calendar.context';
 import { Filters } from '@gitroom/frontend/components/launches/filters';
@@ -260,7 +260,6 @@ export const MenuComponent: FC<
             'data-tooltip-content': integration.name,
           }
         : {})}
-      key={integration.id}
       className={clsx(
         'flex gap-[12px] items-center bg-newBgColorInner hover:bg-boxHover group/profile transition-all rounded-e-[8px]',
         integration.refreshNeeded && 'cursor-pointer'

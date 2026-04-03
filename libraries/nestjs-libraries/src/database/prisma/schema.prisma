@@ -1043,3 +1043,17 @@ model ProfileMember {
   @@unique([profileId, userId])
   @@index([userId])
 }
+
+enum AnnouncementColor {
+  INFO
+  WARNING
+  ERROR
+}
+
+model Announcement {
+  id          String            @id @default(uuid())
+  title       String
+  description String
+  color       AnnouncementColor @default(INFO)
+  createdAt   DateTime          @default(now())
+}

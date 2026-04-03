@@ -19,19 +19,20 @@ function iteratorToStream(iterator: any) {
     },
   });
 }
-export const GET = (
+export const GET = async (
   request: NextRequest,
   context: {
-    params: {
-      path: string[];
-    };
+    params: Promise<{
+      path?: string[];
+    }>;
   }
 ) => {
   if (!process.env.UPLOAD_DIRECTORY) {
     return new NextResponse('Upload directory not configured', { status: 500 });
   }
+  const { path } = await context.params;
   const filePath =
-    process.env.UPLOAD_DIRECTORY + '/' + context.params.path.join('/');
+    process.env.UPLOAD_DIRECTORY + '/' + (path ?? []).join('/');
   if (!existsSync(filePath)) {
     return new NextResponse('File not found', { status: 404 });
   }

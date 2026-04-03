@@ -44,6 +44,8 @@ import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profil
 import { StartupMigrationService } from '@gitroom/nestjs-libraries/database/prisma/startup-migration.service';
 import { OAuthRepository } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.repository';
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
+import { AnnouncementsRepository } from '@gitroom/nestjs-libraries/database/prisma/announcements/announcements.repository';
+import { AnnouncementsService } from '@gitroom/nestjs-libraries/database/prisma/announcements/announcements.service';
 
 @Global()
 @Module({
@@ -97,6 +99,8 @@ import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oa
     ProfileRepository,
     ProfileService,
     StartupMigrationService,
+    AnnouncementsRepository,
+    AnnouncementsService,
   ],
   get exports() {
     return this.providers;

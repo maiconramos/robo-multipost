@@ -1,5 +1,5 @@
 import { FC } from 'react';
-import Image from 'next/image';
+import SafeImage from '@gitroom/react/helpers/safe.image';
 
 /**
  * Helper to extract real platform from Late provider identifiers.
@@ -69,7 +69,7 @@ export const PlatformIconBadge: FC<{
           alt="youtube"
         />
       ) : (
-        <Image
+        <SafeImage
           src={`/icons/platforms/${platform}.png`}
           className={`rounded-full ${className}`}
           alt={platform}

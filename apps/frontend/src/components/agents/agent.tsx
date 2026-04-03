@@ -14,7 +14,7 @@ import useSWR from 'swr';
 import { orderBy } from 'lodash';
 import { SVGLine } from '@gitroom/frontend/components/launches/launches.component';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
-import Image from 'next/image';
+import SafeImage from '@gitroom/react/helpers/safe.image';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useWaitForClass } from '@gitroom/helpers/utils/use.wait.for.class';
 import { MultiMediaComponent } from '@gitroom/frontend/components/media/media.component';
@@ -173,7 +173,7 @@ export const AgentList: FC<{ onChange: (arr: any[]) => void }> = ({
                   width={36}
                   height={36}
                 />
-                <Image
+                <SafeImage
                   src={getPlatformIconPath(integration.identifier)}
                   className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
                   alt={integration.identifier}

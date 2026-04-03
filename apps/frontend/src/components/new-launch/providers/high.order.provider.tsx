@@ -21,7 +21,7 @@ import useSWR from 'swr';
 import { InternalChannels } from '@gitroom/frontend/components/launches/internal.channels';
 import { createPortal } from 'react-dom';
 import clsx from 'clsx';
-import Image from 'next/image';
+import SafeImage from '@gitroom/react/helpers/safe.image';
 import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 
 class Empty {
@@ -321,14 +321,14 @@ export const withProvider = function <T extends object>(params: {
                   {isGlobal && (
                     <div className="flex py-[20px] items-center gap-[15px]">
                       <div className="relative">
-                        <Image
+                        <SafeImage
                           alt={selectedIntegration?.integration.name!}
                           width={42}
                           height={42}
                           className="min-w-[42px] min-h-[42px] w-[42px] h-[42px] rounded-full"
                           src={selectedIntegration?.integration.picture}
                         />
-                        <Image
+                        <SafeImage
                           alt={selectedIntegration?.integration.identifier}
                           width={16}
                           height={16}

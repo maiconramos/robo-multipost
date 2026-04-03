@@ -3,7 +3,7 @@ import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpe
 export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
 import { isGeneralServerSide } from '@gitroom/helpers/utils/is.general.server.side';
-
+import SafeImage from '@gitroom/react/helpers/safe.image';
 import Link from 'next/link';
 import { CommentsComponents } from '@gitroom/frontend/components/preview/comments.components';
 import dayjs from 'dayjs';
@@ -11,32 +11,30 @@ import utc from 'dayjs/plugin/utc';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
 import { CopyClient } from '@gitroom/frontend/components/preview/copy.client';
 import { getT } from '@gitroom/react/translation/get.translation.service.backend';
-import dynamicLoad from 'next/dynamic';
-
-const RenderPreviewDate = dynamicLoad(
-  () =>
-    import('@gitroom/frontend/components/preview/render.preview.date').then(
-      (mod) => mod.RenderPreviewDate
-    ),
-  { ssr: false }
-);
+import { RenderPreviewDateClient } from '@gitroom/frontend/components/preview/render.preview.date.client';
 
 dayjs.extend(utc);
 export const metadata: Metadata = {
   title: `${isGeneralServerSide() ? 'Robô MultiPost' : 'Gitroom'} Preview`,
   description: '',
 };
-export default async function Auth({
-  params: { id },
-  searchParams,
-}: {
-  params: {
-    id: string;
-  };
-  searchParams?: {
-    share?: string;
-  };
-}) {
+export default async function Auth(
+  props: {
+    params: Promise<{
+      id: string;
+    }>;
+    searchParams?: Promise<{
+      share?: string;
+    }>;
+  }
+) {
+  const searchParams = await props.searchParams;
+  const params = await props.params;
+
+  const {
+    id
+  } = params;
+
   const post = await (await internalFetch(`/public/posts/${id}`)).json();
   const t = await getT();
   if (!post.length) {
@@ -78,6 +76,7 @@ export default async function Auth({
                       <image xlinkHref="data:image/png;base64,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" id="preview-logo-c" width="375" height="93" />
                     </defs>
                   </svg>
+
                 </Link>
               </div>
             </div>
@@ -90,7 +89,7 @@ export default async function Auth({
             )}
             <div className="flex-1">
               {t('publication_date', 'Publication Date:')}{' '}
-              <RenderPreviewDate date={post[0].publishDate} />
+              <RenderPreviewDateClient date={post[0].publishDate} />
             </div>
           </div>
         </div>
