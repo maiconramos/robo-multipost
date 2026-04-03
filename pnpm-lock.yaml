@@ -49,6 +49,9 @@ importers:
       '@dub/analytics':
         specifier: ^0.0.32
         version: 0.0.32
+      '@getlatedev/node':
+        specifier: ^0.1.35
+        version: 0.1.58
       '@hookform/resolvers':
         specifier: ^3.3.4
         version: 3.10.0(react-hook-form@7.71.2(react@19.2.4))
@@ -2503,6 +2506,10 @@ packages:
 
   '@fractalwagmi/solana-wallet-adapter@0.1.1':
     resolution: {integrity: sha512-oTZLEuD+zLKXyhZC5tDRMPKPj8iaxKLxXiCjqRfOo4xmSbS2izGRWLJbKMYYsJysn/OI3UJ3P6CWP8WUWi0dZg==}
+
+  '@getlatedev/node@0.1.58':
+    resolution: {integrity: sha512-0mrF1i7tKgpTpGM9xJJE2Q1JXLut+cRXchiZv2BEatSwHWrcQYL1vKDeAqvV5iGY6Cy8+rP2Drv6cEG6ZsnIpQ==}
+    engines: {node: '>=18'}
 
   '@graphql-tools/executor@1.5.1':
     resolution: {integrity: sha512-n94Qcu875Mji9GQ52n5UbgOTxlgvFJicBPYD+FRks9HKIQpdNPjkkrKZUYNG51XKa+bf03rxNflm4+wXhoHHrA==}
@@ -20055,6 +20062,8 @@ snapshots:
       - '@solana/web3.js'
       - react
       - react-dom
+
+  '@getlatedev/node@0.1.58': {}
 
   '@graphql-tools/executor@1.5.1(graphql@16.13.1)':
     dependencies:
