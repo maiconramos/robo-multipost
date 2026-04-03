@@ -13,6 +13,9 @@ services:
       REDIS_URL: 'redis://postiz-redis:6379'
       BACKEND_INTERNAL_URL: 'http://localhost:3000'
       TEMPORAL_ADDRESS: "temporal:7233"
+      # TEMPORAL_NAMESPACE: 'default'
+      # TEMPORAL_API_KEY: ''
+      # TEMPORAL_TLS: 'false'
       IS_GENERAL: 'true'
       DISABLE_REGISTRATION: 'false'
 
@@ -30,6 +33,21 @@ services:
       # CLOUDFLARE_BUCKET_URL: 'https://your-bucket-url.r2.cloudflarestorage.com/'
       # CLOUDFLARE_REGION: 'auto'
 
+      # === Email Settings
+      # EMAIL_PROVIDER: 'resend'  # 'resend' (default) ou 'smtp'
+
+      ## Resend (se existir, ativacao por email e obrigatoria)
+      # RESEND_API_KEY: ''
+      # EMAIL_FROM_ADDRESS: ''
+      # EMAIL_FROM_NAME: ''
+
+      ## SMTP (alternativa ao Resend)
+      # EMAIL_HOST: ''
+      # EMAIL_PORT: '587'
+      # EMAIL_USER: ''
+      # EMAIL_PASS: ''
+      # EMAIL_SECURE: 'false'
+
       # === Social Media API Settings
       X_API_KEY: ''
       X_API_SECRET: ''
@@ -41,10 +59,17 @@ services:
       GITHUB_CLIENT_SECRET: ''
       BEEHIIVE_API_KEY: ''
       BEEHIIVE_PUBLICATION_ID: ''
+      LISTMONK_DOMAIN: ''
+      LISTMONK_USER: ''
+      LISTMONK_API_KEY: ''
+      LISTMONK_LIST_ID: ''
+      # LISTMONK_WELCOME_TEMPLATE_ID: ''
       THREADS_APP_ID: ''
       THREADS_APP_SECRET: ''
       FACEBOOK_APP_ID: ''
       FACEBOOK_APP_SECRET: ''
+      INSTAGRAM_APP_ID: ''
+      INSTAGRAM_APP_SECRET: ''
       YOUTUBE_CLIENT_ID: ''
       YOUTUBE_CLIENT_SECRET: ''
       TIKTOK_CLIENT_ID: ''
@@ -62,6 +87,24 @@ services:
       MASTODON_URL: 'https://mastodon.social'
       MASTODON_CLIENT_ID: ''
       MASTODON_CLIENT_SECRET: ''
+      TELEGRAM_BOT_NAME: ''
+      TELEGRAM_TOKEN: ''
+      TWITCH_CLIENT_ID: ''
+      TWITCH_CLIENT_SECRET: ''
+      KICK_CLIENT_ID: ''
+      KICK_SECRET: ''
+      VK_ID: ''
+      MEWE_API_KEY: ''
+      MEWE_APP_ID: ''
+      MEWE_HOST: ''
+      WHOP_CLIENT_ID: ''
+      NEYNAR_CLIENT_ID: ''
+      NEYNAR_LOGIN_URL: ''
+      NEYNAR_SECRET_KEY: ''
+      DATAFAST_API_KEY: ''
+
+      # Chrome Extension Settings
+      # EXTENSION_ID: ''
 
       # === OAuth & Authentik Settings
       # NEXT_PUBLIC_POSTIZ_OAUTH_DISPLAY_NAME: 'Authentik'
@@ -73,15 +116,33 @@ services:
       # POSTIZ_OAUTH_USERINFO_URL: 'https://authentik.example.com/application/o/userinfo'
       # POSTIZ_OAUTH_CLIENT_ID: ''
       # POSTIZ_OAUTH_CLIENT_SECRET: ''
-      # POSTIZ_OAUTH_SCOPE: "openid profile email"  # Optional: uncomment to override default scope
+      # POSTIZ_OAUTH_SCOPE: "openid profile email"
 
-      # === Sentry
+      # === AI Settings
+      OPENAI_API_KEY: ''
+      # FAL_KEY: ''
+      # KIEAI_API_KEY: ''
+      # ELEVENSLABS_API_KEY: ''
+      # TRANSLOADIT_AUTH: ''
+      # TRANSLOADIT_SECRET: ''
+      # TRANSLOADIT_TEMPLATE: ''
+      # TAVILY_API_KEY: ''
+      # MCP_URL: ''
+      # AGENT_API_KEY: ''
+      # AGENT_MEDIA_SSO_KEY: ''
 
-      # NEXT_PUBLIC_SENTRY_DSN: 'http://spotlight:8969/stream'
+      # === Monitoring
+      # NEXT_PUBLIC_SENTRY_DSN: ''
+      # SENTRY_AUTH_TOKEN: ''
+      # SENTRY_ORG: ''
+      # SENTRY_PROJECT: ''
       # SENTRY_SPOTLIGHT: '1'
+      # NEXT_PUBLIC_POSTHOG_KEY: ''
+      # NEXT_PUBLIC_POSTHOG_HOST: ''
+      # NEXT_PUBLIC_FACEBOOK_PIXEL: ''
+      # FACEBOOK_PIXEL_ACCESS_TOKEN: ''
 
       # === Misc Settings
-      OPENAI_API_KEY: ''
       NEXT_PUBLIC_DISCORD_SUPPORT: ''
       NEXT_PUBLIC_POLOTNO: ''
       API_LIMIT: 30
@@ -92,11 +153,14 @@ services:
       STRIPE_SECRET_KEY: ''
       STRIPE_SIGNING_KEY: ''
       STRIPE_SIGNING_KEY_CONNECT: ''
+      # STRIPE_DISCOUNT_ID: ''
+      # NOWPAYMENTS_API_KEY: ''
+      # NOWPAYMENTS_AMOUNT: ''
 
       # === Developer Settings
       NX_ADD_PLUGINS: false
 
-      # === Short Link Service Settings (Optional - leave blank if unused)
+      # === Short Link Service Settings
       # DUB_TOKEN: ""
       # DUB_API_ENDPOINT: "https://api.dub.co"
       # DUB_SHORT_LINK_DOMAIN: "dub.sh"
@@ -107,6 +171,19 @@ services:
       # LINK_DRIP_API_KEY: ""
       # LINK_DRIP_API_ENDPOINT: "https://api.linkdrip.com/v1/"
       # LINK_DRIP_SHORT_LINK_DOMAIN: "dripl.ink"
+
+      # === Feature Flags
+      DISABLE_BILLING: 'true'
+      DISABLE_MARKETPLACE: 'true'
+      # DISABLE_IMAGE_COMPRESSION: 'false'
+      # DISABLE_X_ANALYTICS: 'false'
+      # DISALLOW_PLUS: 'false'
+      # RESTRICT_UPLOAD_DOMAINS: ''
+      # RUN_CRON: 'false'
+
+      # Chave mestra para criptografia de credenciais (separada do JWT_SECRET)
+      # Gere com: openssl rand -base64 32
+      ENCRYPTION_KEY: ''
 
     volumes:
       - postiz-config:/config/
