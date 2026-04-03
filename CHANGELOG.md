@@ -7,8 +7,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-03
+
 ### Corrigido
 - Login/registro com Google via Generic OAuth falhava com redirect_uri_mismatch — middleware detectava provider incorreto devido a "googleapis.com" nos parametros de scope
+- Contagem de integracoes por perfil incluia canais deletados
 
 ### Adicionado
 - Link de convite Late — botao "Enviar link de convite" abre modal com selecao de perfil e plataforma, gerando link OAuth direto via Late platform-invites
@@ -80,6 +83,17 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - CI/CD detecta pre-releases e nao atualiza `:latest` para versoes RC/beta
 
 ### Upstream
+- Sincronizado com Postiz upstream ate commit f55cca51 (2026-04-03)
+- Security: validacao de URLs em webhooks (IsSafeWebhookUrl), protecao contra acesso interno via upload URL
+- Upgrade Next.js para versao 16.2.1 com Turbopack
+- Novo provider ReelFarm para geracao de video
+- Import de posts existentes
+- Pinterest: exibicao de mais boards
+- MCP com suporte a OAuth
+- Sentry metrics e health check para Temporal
+- Language switch no frontend com suporte a direcao RTL
+- Sistema de announcements (banners de aviso)
+- Componente SafeImage substituindo next/image direto
 - Sincronizado com Postiz upstream ate commit e20565fb (2026-03-13)
 - Novo provider MeWe para publicacao em grupos
 - Sistema OAuth Apps — apps de terceiros podem autenticar via Postiz OAuth
