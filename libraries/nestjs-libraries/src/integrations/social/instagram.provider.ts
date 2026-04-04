@@ -33,6 +33,7 @@ export class InstagramProvider
     'instagram_content_publish',
     'instagram_manage_comments',
     'instagram_manage_insights',
+    'instagram_manage_messages',
   ];
   override maxConcurrentJob = 400;
   editor = 'normal' as const;
@@ -924,5 +925,133 @@ export class InstagramProvider
       console.error('Error fetching Instagram post analytics:', err);
       return [];
     }
+  }
+
+  async sendDM(
+    accessToken: string,
+    igScopedUserId: string,
+    message: string,
+    type = 'graph.facebook.com'
+  ): Promise<{ recipientId: string; messageId: string }> {
+    const response = await this.fetch(
+      `https://${type}/v20.0/me/messages`,
+      {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          recipient: { id: igScopedUserId },
+          message: { text: message },
+        }),
+      }
+    );
+
+    const body = await response.json();
+    if (body.error) {
+      throw new Error(
+        `Instagram DM failed: ${body.error.message || JSON.stringify(body.error)}`
+      );
+    }
+
+    return {
+      recipientId: body.recipient_id,
+      messageId: body.message_id,
+    };
+  }
+
+  async subscribeToWebhooks(
+    pageId: string,
+    pageAccessToken: string,
+    type = 'graph.facebook.com'
+  ): Promise<boolean> {
+    const response = await this.fetch(
+      `https://${type}/v20.0/${pageId}/subscribed_apps?subscribed_fields=feed&access_token=${pageAccessToken}`,
+      { method: 'POST' }
+    );
+
+    const body = await response.json();
+    if (body.error) {
+      throw new Error(
+        `Webhook subscription failed: ${body.error.message || JSON.stringify(body.error)}`
+      );
+    }
+
+    return body.success === true;
+  }
+
+  async getPageIdForIgAccount(
+    pageAccessToken: string,
+    igAccountId: string,
+    type = 'graph.facebook.com'
+  ): Promise<string | null> {
+    try {
+      // The page access token is scoped to a specific page.
+      // We can get the page ID by calling /me with the page token.
+      const response = await this.fetch(
+        `https://${type}/v20.0/me?fields=id&access_token=${pageAccessToken}`
+      );
+      const body = await response.json();
+      if (body.id) {
+        return body.id;
+      }
+      return null;
+    } catch {
+      return null;
+    }
+  }
+
+  async ensureWebhookSubscription(
+    pageAccessToken: string,
+    igAccountId: string,
+    type = 'graph.facebook.com'
+  ): Promise<boolean> {
+    const pageId = await this.getPageIdForIgAccount(
+      pageAccessToken,
+      igAccountId,
+      type
+    );
+
+    if (!pageId) {
+      throw new Error(
+        'Could not determine Facebook Page ID for webhook subscription'
+      );
+    }
+
+    return this.subscribeToWebhooks(pageId, pageAccessToken, type);
+  }
+
+  async getRecentMedia(
+    igAccountId: string,
+    accessToken: string,
+    type = 'graph.facebook.com',
+    limit = 25
+  ): Promise<
+    Array<{
+      id: string;
+      caption?: string;
+      mediaType: string;
+      mediaUrl?: string;
+      thumbnailUrl?: string;
+      permalink?: string;
+      timestamp?: string;
+    }>
+  > {
+    const fields =
+      'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp';
+    const response = await fetch(
+      `https://${type}/v20.0/${igAccountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`
+    );
+    const body = await response.json();
+    if (!response.ok || !body.data) {
+      return [];
+    }
+    return body.data.map((m: any) => ({
+      id: m.id,
+      caption: m.caption,
+      mediaType: m.media_type,
+      mediaUrl: m.media_url,
+      thumbnailUrl: m.thumbnail_url,
+      permalink: m.permalink,
+      timestamp: m.timestamp,
+    }));
   }
 }

@@ -88,6 +88,70 @@ export class CredentialService {
     }));
   }
 
+  async configureInstagramWebhook(
+    organizationId: string,
+    callbackUrl: string,
+    profileId?: string
+  ): Promise<{ ok: boolean; error?: string }> {
+    const creds = await this.getRaw(organizationId, 'facebook', profileId);
+    if (!creds?.clientId || !creds?.clientSecret) {
+      return {
+        ok: false,
+        error:
+          'Configure Client ID e Client Secret do Facebook antes de configurar o webhook.',
+      };
+    }
+
+    const appId = creds.clientId;
+    const appAccessToken = `${appId}|${creds.clientSecret}`;
+    const verifyToken = creds.webhookVerifyToken || 'multipost';
+
+    try {
+      const params = new URLSearchParams({
+        object: 'instagram',
+        callback_url: callbackUrl,
+        verify_token: verifyToken,
+        fields: 'comments,messages',
+        include_values: 'true',
+        access_token: appAccessToken,
+      });
+      const res = await fetch(
+        `https://graph.facebook.com/v20.0/${appId}/subscriptions`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+          body: params.toString(),
+        }
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.error) {
+        return {
+          ok: false,
+          error:
+            body?.error?.message ||
+            `Meta retornou ${res.status}. Verifique o callback URL (deve ser HTTPS publico) e os produtos do app (Webhooks + Instagram).`,
+        };
+      }
+      return { ok: true };
+    } catch (e: any) {
+      return { ok: false, error: e?.message || 'Erro ao chamar API Meta.' };
+    }
+  }
+
+  async findAllDecrypted(provider: string) {
+    const records = await this._credentialRepository.findAllByProviderAcrossOrgs(
+      provider
+    );
+    return records.map((r) => ({
+      organizationId: r.organizationId,
+      profileId: r.profileId,
+      data: this._encryptionService.decryptJson(r.encryptedData) as Record<
+        string,
+        string
+      >,
+    }));
+  }
+
   async delete(organizationId: string, provider: string, profileId?: string) {
     return this._credentialRepository.delete(organizationId, provider, profileId);
   }

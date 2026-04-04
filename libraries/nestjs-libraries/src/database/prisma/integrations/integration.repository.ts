@@ -393,6 +393,16 @@ export class IntegrationRepository {
     });
   }
 
+  getIntegrationsByInternalId(internalId: string) {
+    return this._integration.model.integration.findMany({
+      where: {
+        internalId,
+        deletedAt: null,
+        disabled: false,
+      },
+    });
+  }
+
   async getIntegrationForOrder(
     id: string,
     order: string,

@@ -8,6 +8,27 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Automacoes de comentarios Instagram (estilo ManyChat) — flow builder visual com React Flow para responder comentarios automaticamente
+- 5 tipos de no no editor de automacoes: Gatilho (comentario), Condicao (palavra-chave), Responder Comentario, Enviar DM e Atraso
+- Nova secao "Automacoes" no menu lateral com listagem e editor visual de flows
+- Webhook de entrada para receber eventos de comentarios do Instagram via Meta Graph API
+- Execucao de flows via Temporal workflows com suporte a delay duravel e retries automaticos
+- Metodo sendDM() no Instagram provider para enviar mensagens diretas via Instagram Messaging API
+- Metodo subscribeToWebhooks() no Instagram provider para inscrever paginas em webhooks da Meta
+- Inscricao automatica de webhooks ao ativar uma automacao — nao precisa configurar webhook manualmente no Meta Developer Portal
+- Seletor de conta Instagram conectada ao criar automacao (substitui input manual de Integration ID)
+- Webhook Verify Token configuravel por perfil em Configuracoes > Credenciais (multi-tenancy: cada perfil pode ter seu proprio App Meta)
+- HMAC do webhook Instagram valida com App Secret da credencial do perfil (fallback para variavel de ambiente global)
+- Documentacao passo-a-passo de Automacoes Instagram em docs/automacoes-instagram.md (referenciada no README)
+- Verify Token padrao "multipost" aceito automaticamente no webhook Instagram (zero config — nao precisa cadastrar verify token nas credenciais)
+- Bloco copy-paste na tela de Automacoes com Callback URL e Verify Token prontos para colar no Meta Developer Portal
+- Botao "Configurar webhook Instagram na Meta" no card Facebook de Credenciais — configura callback URL e verify token automaticamente via API da Meta (1 clique, elimina passo manual no Meta Developer Portal)
+- Historico de execucoes por automacao com status em tempo real
+- Traducoes pt/en para todas as strings de automacoes
+- Seletor de posts do Instagram no no Gatilho — lista recentes (feed/reels/stories) com thumbnail para escolher quais posts disparam a automacao (estilo ManyChat)
+
+### Corrigido
+- No de Atraso tinha texto branco sobre fundo branco e borda invisivel no tema claro — agora usa tema laranja consistente com identidade visual
 - Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
 - Creditos de IA configuraveis por perfil no modo gerenciado (AI_CREDITS_MODE=managed)
 - API de gestao de creditos de IA por perfil (GET/PUT /settings/profiles/:id/ai-credits, GET /settings/ai-credits/summary)
