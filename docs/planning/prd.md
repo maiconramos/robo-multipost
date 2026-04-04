@@ -451,3 +451,6 @@ git push origin v1.2.1
 | Feature sem documentação | Regra de PR: document-first obrigatório antes de merge |
 | Contrato de API quebrado | Regra de PR: api-first obrigatório — mudanças de contrato versionadas |
 | Infraestrutura de IA existente acoplada ao OpenAI | Fase 3 substitui dependência fixa por configuração por workspace |
+
+
+

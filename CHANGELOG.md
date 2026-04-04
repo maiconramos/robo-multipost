@@ -7,6 +7,16 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado
+- Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
+- Creditos de IA configuraveis por perfil no modo gerenciado (AI_CREDITS_MODE=managed)
+- API de gestao de creditos de IA por perfil (GET/PUT /settings/profiles/:id/ai-credits, GET /settings/ai-credits/summary)
+- Validacao de API key (OPENAI_API_KEY) antes de consumir credito de IA — retorna 503 se nao configurada
+- Tela de gestao de creditos de IA no painel de configuracoes (visivel apenas para admins no modo managed)
+- Indicador visual de creditos restantes nos componentes de geracao de imagem e video
+- Botao de geracao desabilitado com tooltip quando creditos zerados
+- Traducoes pt/en para todas as strings de creditos de IA
+
 ## [0.3.0] - 2026-04-03
 
 ### Corrigido

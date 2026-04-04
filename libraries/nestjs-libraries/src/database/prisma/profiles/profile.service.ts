@@ -151,4 +151,27 @@ export class ProfileService {
   updateShortlinkPreference(profileId: string, shortlink: ShortLinkPreference) {
     return this._profileRepository.updateShortlinkPreference(profileId, shortlink);
   }
+
+  getAiCredits(orgId: string, profileId: string) {
+    return this._profileRepository.getAiCredits(orgId, profileId);
+  }
+
+  async updateAiCredits(
+    orgId: string,
+    profileId: string,
+    data: { aiImageCredits?: number | null; aiVideoCredits?: number | null }
+  ) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    if (profile.isDefault) {
+      throw new HttpException('Cannot set credit limits on the default profile', 400);
+    }
+    return this._profileRepository.updateAiCredits(orgId, profileId, data);
+  }
+
+  getAllProfilesWithCredits(orgId: string) {
+    return this._profileRepository.getAllProfilesWithCredits(orgId);
+  }
 }

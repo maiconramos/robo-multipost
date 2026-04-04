@@ -172,4 +172,42 @@ export class ProfileRepository {
       data: { shortlink },
     });
   }
+
+  getAiCredits(orgId: string, profileId: string) {
+    return this._profile.model.profile.findFirst({
+      where: { id: profileId, organizationId: orgId, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        isDefault: true,
+        aiImageCredits: true,
+        aiVideoCredits: true,
+      },
+    });
+  }
+
+  updateAiCredits(
+    orgId: string,
+    profileId: string,
+    data: { aiImageCredits?: number | null; aiVideoCredits?: number | null }
+  ) {
+    return this._profile.model.profile.update({
+      where: { id: profileId, organizationId: orgId },
+      data,
+    });
+  }
+
+  getAllProfilesWithCredits(orgId: string) {
+    return this._profile.model.profile.findMany({
+      where: { organizationId: orgId, deletedAt: null },
+      select: {
+        id: true,
+        name: true,
+        isDefault: true,
+        aiImageCredits: true,
+        aiVideoCredits: true,
+      },
+      orderBy: [{ isDefault: 'desc' }, { name: 'asc' }],
+    });
+  }
 }

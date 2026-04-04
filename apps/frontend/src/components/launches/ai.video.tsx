@@ -82,7 +82,9 @@ export const Modal: FC<{
                   <div className="flex-1">
                     <TopTitle title={t('video_type', 'Video Type')}>
                       <div className="mr-[25px]">
-                        {data?.credits || 0} {t('credits_left', 'credits left')}
+                        {data?.credits !== undefined && data.credits < 999999 && data.credits > 0
+                          ? `${data.credits} ${t('credits_left', 'credits left')}`
+                          : ''}
                       </div>
                     </TopTitle>
                   </div>
@@ -132,10 +134,19 @@ export const Modal: FC<{
                     <VideoWrapper identifier={type.identifier} />
                   </div>
                 </div>
-                <div className="flex">
-                  <Button type="submit" className="flex-1">
+                <div className="flex flex-col gap-[4px]">
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={data?.credits !== undefined && data.credits <= 0 && data.credits < 999999}
+                  >
                     {t('generate', 'Generate')}
                   </Button>
+                  {data?.credits !== undefined && data.credits <= 0 && data.credits < 999999 && (
+                    <div className="text-[11px] text-customColor19 text-center">
+                      {t('ai_credits_exhausted', "You've reached the generation limit this month. Contact your administrator.")}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -157,6 +168,14 @@ export const AiVideo: FC<{
   const [modal, setModal] = useState(false);
   const fetch = useFetch();
   const { isTrailing } = useUser();
+
+  const loadVideoCredits = useCallback(async () => {
+    return (await fetch('/copilot/credits?type=ai_videos', { method: 'GET' })).json();
+  }, []);
+  const { data: creditData } = useSWR('video-credits-outer', loadVideoCredits);
+
+  const isUnlimited = !creditData || creditData.credits >= 999999;
+  const hasCredits = isUnlimited || creditData.credits > 0;
 
   const loadVideoList = useCallback(async () => {
     return (await (await fetch('/media/video-options')).json()).filter(
@@ -201,16 +220,17 @@ export const AiVideo: FC<{
       )}
       <div className="relative group">
         <div
-          {...(value.length < 30
+          {...(value.length < 30 || !hasCredits
             ? {
                 'data-tooltip-id': 'tooltip',
-                'data-tooltip-content':
-                  t('ai_video_min_chars', 'Please add at least 30 characters to generate AI video'),
+                'data-tooltip-content': !hasCredits
+                  ? t('ai_credits_limit_reached', 'Limit reached')
+                  : t('ai_video_min_chars', 'Please add at least 30 characters to generate AI video'),
               }
             : {})}
           className={clsx(
             'cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-newColColor px-[8px]',
-            value.length < 30 && 'opacity-50'
+            (value.length < 30 || !hasCredits) && 'opacity-50 pointer-events-none'
           )}
         >
           {loading && (
@@ -251,7 +271,7 @@ export const AiVideo: FC<{
             <div className="text-[10px] font-[600] iconBreak:hidden block">{t('ai', 'AI')} Video</div>
           </div>
         </div>
-        {value.length >= 30 && !loading && (
+        {value.length >= 30 && !loading && hasCredits && (
           <div className="text-[12px] -mt-[10px] w-[200px] absolute bottom-[100%] z-[500] start-0 hidden group-hover:block">
             <ul className="cursor-pointer rounded-[4px] border border-dashed border-newBgLineColor bg-newColColor mt-[3px] p-[5px]">
               {data.map((p: any) => (
@@ -260,10 +280,20 @@ export const AiVideo: FC<{
                   key={p.identifier}
                   className="hover:bg-sixth"
                 >
-                  {p.title}
+                  {t(`video_provider_${p.identifier}`, p.title)}
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+        {!isUnlimited && creditData && creditData.credits > 0 && (
+          <div className="text-[10px] text-customColor18 mt-[2px] text-center">
+            {t('ai_credits_remaining', '{{count}} credits remaining this month').replace('{{count}}', String(creditData.credits))}
+          </div>
+        )}
+        {!hasCredits && (
+          <div className="text-[10px] text-customColor19 mt-[2px] text-center">
+            {t('ai_credits_limit_reached', 'Limit reached')}
           </div>
         )}
       </div>

@@ -285,10 +285,13 @@ model Credits {
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   type           String       @default("ai_images")
+  profileId      String?
   organization   Organization @relation(fields: [organizationId], references: [id])
+  profile        Profile?     @relation(fields: [profileId], references: [id])
 
   @@index([organizationId])
   @@index([createdAt])
+  @@index([profileId])
 }
 
 model Subscription {
@@ -1023,6 +1026,9 @@ model Profile {
   webhooks       Webhooks[]
   autoPosts      AutoPost[]
   sets           Sets[]
+  credits        Credits[]
+  aiImageCredits Int?
+  aiVideoCredits Int?
 
   @@unique([organizationId, slug, deletedAt])
   @@index([organizationId])

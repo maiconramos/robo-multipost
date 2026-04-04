@@ -229,13 +229,15 @@ export class SubscriptionRepository {
   async getCreditsFrom(
     organizationId: string,
     from: dayjs.Dayjs,
-    type = 'ai_images'
+    type = 'ai_images',
+    profileId?: string
   ) {
     const load = await this._credits.model.credits.groupBy({
       by: ['organizationId'],
       where: {
         organizationId,
         type,
+        ...(profileId ? { profileId } : {}),
         createdAt: {
           gte: from.toDate(),
         },
@@ -251,13 +253,15 @@ export class SubscriptionRepository {
   async useCredit<T>(
     org: Organization,
     type = 'ai_images',
-    func: () => Promise<T>
+    func: () => Promise<T>,
+    profileId?: string
   ) {
     const data = await this._credits.model.credits.create({
       data: {
         organizationId: org.id,
         credits: 1,
         type,
+        ...(profileId ? { profileId } : {}),
       },
     });
 

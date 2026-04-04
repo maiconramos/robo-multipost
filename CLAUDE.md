@@ -204,6 +204,62 @@ pnpm lint
 - **Storage:** local por padrão, Cloudflare R2 como opção avançada
 - **IA:** infraestrutura Mastra + MCP já existe — trabalho é configurar providers por workspace
 
+## Sistema de Creditos de IA
+
+O sistema de creditos controla quantas imagens e videos cada perfil pode gerar por mes.
+
+### Modos de operacao (`AI_CREDITS_MODE`)
+
+| Modo | Comportamento |
+|------|--------------|
+| `unlimited` (default) | Todos os perfis geram sem limite. Uso registrado para analytics |
+| `managed` | Creditos gerenciados por perfil. Perfil default (admin) sempre ilimitado |
+
+### Cadeia de precedencia (modo managed)
+
+```
+1. AI_CREDITS_MODE=unlimited → SEMPRE ilimitado, ignora tudo
+2. Perfil default (isDefault=true) → sempre ilimitado
+3. Config do perfil (aiImageCredits/aiVideoCredits) → se preenchido, usa
+4. Config default (AI_CREDITS_DEFAULT_IMAGES/AI_CREDITS_DEFAULT_VIDEOS) → se preenchido, usa
+5. Fallback → ilimitado (-1)
+```
+
+### Valores especiais nos campos de creditos
+
+| Valor | Significado |
+|-------|-------------|
+| `null` | Usar padrao da env var ou fallback ilimitado |
+| `-1` | Ilimitado para este perfil |
+| `0` | Bloqueado (sem creditos de IA) |
+| `N > 0` | N creditos por mes |
+
+### Env vars relacionadas
+
+```env
+AI_CREDITS_MODE="unlimited"        # "unlimited" ou "managed"
+# AI_CREDITS_DEFAULT_IMAGES=50     # default para novos perfis (modo managed)
+# AI_CREDITS_DEFAULT_VIDEOS=10     # default para novos perfis (modo managed)
+```
+
+### Endpoints REST
+
+```
+GET  /copilot/credits?type=ai_images|ai_videos  → { credits: number }
+GET  /settings/profiles/:id/ai-credits          → config + uso do perfil (ADMIN)
+PUT  /settings/profiles/:id/ai-credits          → atualiza config (ADMIN, nao edita default)
+GET  /settings/ai-credits/summary               → lista perfis com creditos e uso (ADMIN)
+```
+
+### Arquivos principais
+
+- **Service:** `libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.service.ts`
+- **Repository:** `libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.repository.ts`
+- **Schema:** `schema.prisma` → campos `aiImageCredits`/`aiVideoCredits` em Profile, `profileId` em Credits
+- **Frontend settings:** `apps/frontend/src/components/settings/ai-credits.settings.component.tsx`
+- **Frontend badges:** `apps/frontend/src/components/launches/ai.image.tsx`, `ai.video.tsx`
+- **Testes:** `__tests__/subscription.service.spec.ts`, `subscription.repository.spec.ts`
+
 ## Serviços Obrigatórios em Produção
 
 O produto requer 5 serviços rodando:

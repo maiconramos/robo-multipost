@@ -5,6 +5,7 @@ import { FetchWrapperComponent } from '@gitroom/helpers/utils/custom.fetch';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useReturnUrl } from '@gitroom/frontend/app/(app)/auth/return.url.component';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+import i18next from '@gitroom/react/translation/i18next';
 export default function LayoutContext(params: { children: ReactNode }) {
   if (params?.children) {
     // eslint-disable-next-line react/no-children-prop
@@ -97,10 +98,9 @@ function LayoutContextInner(params: { children: ReactNode }) {
       if (response.status === 406) {
         if (
           await deleteDialog(
-            'You are currently on trial, in order to use the feature you must finish the trial',
-            'Finish the trial, charge me now',
-            'Trial',
-
+            i18next.t('currently_on_trial', 'You are currently on trial, in order to use the feature you must finish the trial'),
+            i18next.t('finish_trial_charge_me', 'Finish the trial, charge me now'),
+            i18next.t('trial', 'Trial'),
           )
         ) {
           window.open('/billing?finishTrial=true', '_blank');
@@ -115,8 +115,8 @@ function LayoutContextInner(params: { children: ReactNode }) {
             (
               await response.json()
             ).message,
-            'Move to billing',
-            'Payment Required'
+            i18next.t('move_to_billing', 'Move to billing'),
+            i18next.t('payment_required', 'Payment Required')
           )
         ) {
           window.open('/billing', '_blank');

@@ -124,7 +124,7 @@ export const ContinueIntegration: FC<{
         navigateOrShow(
           `/launches?precondition=true`,
           returnURL,
-          'Precondition failed'
+          t('precondition_failed', 'Precondition failed')
         );
         return;
       }
@@ -225,18 +225,18 @@ export const ContinueIntegration: FC<{
         ) {
           const errorData = await response.json().catch(() => ({}));
           setErrorMessage(
-            errorData.message || 'Failed to save channel configuration'
+            errorData.message || t('failed_to_save_channel', 'Failed to save channel configuration')
           );
           setError(true);
           return;
         }
 
         navigateOrShow(
-          `/launches?added=${provider}&msg=Channel Added${
+          `/launches?added=${provider}&msg=${t('channel_added', 'Channel Added')}${
             twoStepState.onboarding ? '&onboarding=true' : ''
           }`,
           twoStepState.returnURL,
-          'Channel Added'
+          t('channel_added', 'Channel Added')
         );
       } finally {
         setIsSaving(false);
@@ -315,7 +315,7 @@ export const ContinueIntegration: FC<{
 
         {/* Content */}
         <div className="relative z-10 w-full max-w-[550px] mx-auto px-[20px]">
-          <div className="bg-[#1A1919] rounded-[16px] p-[32px] flex flex-col gap-[24px]">
+          <div className="bg-[#1A1919] rounded-[16px] p-[32px] flex flex-col gap-[24px] max-h-[80vh] overflow-hidden">
             <div className="flex flex-col gap-[8px] text-center">
               <h1 className="text-[24px] font-semibold">
                 {t('configure_your_channel', 'Configure Your Channel')}

@@ -175,6 +175,7 @@ services:
       # === Feature Flags
       DISABLE_BILLING: 'true'
       DISABLE_MARKETPLACE: 'true'
+      AI_CREDITS_MODE: 'unlimited'
       # DISABLE_IMAGE_COMPRESSION: 'false'
       # DISABLE_X_ANALYTICS: 'false'
       # DISALLOW_PLUS: 'false'

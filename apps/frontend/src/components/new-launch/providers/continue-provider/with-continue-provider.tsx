@@ -126,19 +126,21 @@ export function withContinueProvider<TItem, TSelection>(
     return (
       <div className="flex flex-col gap-[20px]">
         <div>{t(titleKey, titleDefault)}</div>
-        <div className="grid grid-cols-3 justify-items-center select-none cursor-pointer gap-[10px]">
-          {filteredData.map((item) => (
-            <div
-              key={getItemId(item)}
-              className={clsx(
-                'flex flex-col w-full text-center gap-[10px] border border-input p-[10px] hover:bg-seventh rounded-[8px]',
-                isSelected(item, selection) && 'bg-seventh border-primary'
-              )}
-              onClick={handleSelect(item)}
-            >
-              {renderItem(item, isSelected(item, selection))}
-            </div>
-          ))}
+        <div className="max-h-[50vh] overflow-y-auto">
+          <div className="grid grid-cols-3 justify-items-center select-none cursor-pointer gap-[10px]">
+            {filteredData.map((item) => (
+              <div
+                key={getItemId(item)}
+                className={clsx(
+                  'flex flex-col w-full text-center gap-[10px] border border-input p-[10px] hover:bg-seventh rounded-[8px]',
+                  isSelected(item, selection) && 'bg-seventh border-primary'
+                )}
+                onClick={handleSelect(item)}
+              >
+                {renderItem(item, isSelected(item, selection))}
+              </div>
+            ))}
+          </div>
         </div>
         <div>
           <Button disabled={!selection || isSaving} loading={isSaving} onClick={handleSave}>

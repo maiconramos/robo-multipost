@@ -35,6 +35,7 @@ import { LateSettingsSection } from '@gitroom/frontend/components/settings/late-
 import { CredentialsSettingsSection } from '@gitroom/frontend/components/settings/credentials-settings.component';
 import { ProfilesSettingsComponent } from '@gitroom/frontend/components/settings/profiles.component';
 import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-apps/approved-apps.component';
+import { AiCreditsSettingsSection } from '@gitroom/frontend/components/settings/ai-credits.settings.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -111,6 +112,9 @@ export const SettingsPopup: FC<{
     }
     if (user?.role !== 'USER') {
       arr.push({ tab: 'profiles', label: 'Perfis' });
+    }
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'AI Credits') });
     }
     arr.push({ tab: 'late', label: 'Late' });
     arr.push({ tab: 'credentials', label: 'Credenciais' });
@@ -211,6 +215,12 @@ export const SettingsPopup: FC<{
                     <PublicComponent />
                   </div>
                 )}
+
+              {tab === 'ai_credits' && user?.role !== 'USER' && (
+                <div>
+                  <AiCreditsSettingsSection />
+                </div>
+              )}
 
               {tab === 'late' && (
                 <div>

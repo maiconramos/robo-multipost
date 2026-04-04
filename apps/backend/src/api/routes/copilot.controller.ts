@@ -112,11 +112,18 @@ export class CopilotController {
   @Get('/credits')
   calculateCredits(
     @GetOrgFromRequest() organization: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Query('type') type: 'ai_images' | 'ai_videos'
   ) {
     return this._subscriptionService.checkCredits(
       organization,
-      type || 'ai_images'
+      type || 'ai_images',
+      profile ? {
+        id: profile.id,
+        isDefault: profile.isDefault,
+        aiImageCredits: (profile as any).aiImageCredits ?? null,
+        aiVideoCredits: (profile as any).aiVideoCredits ?? null,
+      } : undefined
     );
   }
 

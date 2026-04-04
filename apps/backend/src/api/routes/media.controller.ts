@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
   Param,
   Post,
   Query,
@@ -61,8 +62,12 @@ export class MediaController {
     @Body('prompt') prompt: string,
     isPicturePrompt = false
   ) {
+    if (!process.env.OPENAI_API_KEY) {
+      throw new HttpException('AI image generation is not configured on this server', 503);
+    }
+
     const total = await this._subscriptionService.checkCredits(org);
-    if (process.env.STRIPE_PUBLISHABLE_KEY && total.credits <= 0) {
+    if (total.credits <= 0) {
       return false;
     }
 

@@ -5,6 +5,7 @@ import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
+import useSWR from 'swr';
 const list = [
   'Realistic',
   'Cartoon',
@@ -30,6 +31,14 @@ export const AiImage: FC<{
   const [loading, setLoading] = useState(false);
   const setLocked = useLaunchStore((p) => p.setLocked);
   const fetch = useFetch();
+
+  const loadImageCredits = useCallback(async () => {
+    return (await fetch('/copilot/credits?type=ai_images', { method: 'GET' })).json();
+  }, []);
+  const { data: creditData, mutate: mutateCredits } = useSWR('image-credits', loadImageCredits);
+
+  const isUnlimited = !creditData || creditData.credits >= 999999;
+  const hasCredits = isUnlimited || creditData.credits > 0;
   const generateImage = useCallback(
     (type: string) => async () => {
       setLoading(true);
@@ -57,19 +66,25 @@ ${type}
     },
     [value, onChange]
   );
+  const isDisabled = value.length < 30 || !hasCredits;
+  const tooltipContent = !hasCredits
+    ? t('ai_credits_limit_reached', 'Limit reached')
+    : value.length < 30
+    ? t('ai_image_min_chars', 'Please add at least 30 characters to generate AI image')
+    : undefined;
+
   return (
     <div className="relative group">
       <div
-        {...(value.length < 30
+        {...(tooltipContent
           ? {
               'data-tooltip-id': 'tooltip',
-              'data-tooltip-content':
-                t('ai_image_min_chars', 'Please add at least 30 characters to generate AI image'),
+              'data-tooltip-content': tooltipContent,
             }
           : {})}
         className={clsx(
           'cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-newColColor px-[8px]',
-          value.length < 30 && 'opacity-50'
+          isDisabled && 'opacity-50 pointer-events-none'
         )}
       >
         {loading && (
@@ -110,7 +125,7 @@ ${type}
           <div className="text-[10px] font-[600] iconBreak:hidden block">{t('ai', 'AI')} Image</div>
         </div>
       </div>
-      {value.length >= 30 && !loading && (
+      {value.length >= 30 && !loading && hasCredits && (
         <div className="text-[12px] -mt-[10px] w-[200px] absolute bottom-[100%] z-[500] start-0 hidden group-hover:block">
           <ul className="cursor-pointer rounded-[4px] border border-dashed mt-[3px] p-[5px] border-newBgLineColor bg-newColColor">
             {list.map((p) => (
@@ -119,6 +134,16 @@ ${type}
               </li>
             ))}
           </ul>
+        </div>
+      )}
+      {!isUnlimited && creditData && creditData.credits > 0 && (
+        <div className="text-[10px] text-customColor18 mt-[2px] text-center">
+          {t('ai_credits_remaining', '{{count}} credits remaining this month').replace('{{count}}', String(creditData.credits))}
+        </div>
+      )}
+      {!hasCredits && (
+        <div className="text-[10px] text-customColor19 mt-[2px] text-center">
+          {t('ai_credits_limit_reached', 'Limit reached')}
         </div>
       )}
     </div>
