@@ -21,6 +21,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Tela "Persona de IA" nas configuracoes com presets de tom e estilo, CTAs como tags e ate 5 posts de exemplo
 - Persona injetada automaticamente no agente Mastra (chat), no Generator LangGraph e nas geracoes de imagem DALL-E
 - Traducoes pt/en completas para a tela de persona
+- Documentacao de arquitetura para Persona (docs/architecture/profile-ai-persona.md) e Knowledge Base RAG (docs/architecture/knowledge-base-rag.md)
 - Plano detalhado de implementacao para Persona de IA por perfil e Knowledge Base via RAG (docs/planning/profile-ai-persona-knowledge-base.md)
 - Imagem Docker do PostgreSQL atualizada para pgvector/pgvector:pg17 (necessario para Knowledge Base)
 - Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
