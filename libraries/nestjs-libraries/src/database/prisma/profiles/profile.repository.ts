@@ -2,11 +2,23 @@ import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/pris
 import { Injectable } from '@nestjs/common';
 import { ProfileRole, ShortLinkPreference } from '@prisma/client';
 
+export interface ProfilePersonaData {
+  brandDescription?: string | null;
+  toneOfVoice?: string | null;
+  writingInstructions?: string | null;
+  preferredCtas?: string[];
+  contentRestrictions?: string | null;
+  imageStyle?: string | null;
+  targetAudience?: string | null;
+  examplePosts?: string[];
+}
+
 @Injectable()
 export class ProfileRepository {
   constructor(
     private _profile: PrismaRepository<'profile'>,
-    private _profileMember: PrismaRepository<'profileMember'>
+    private _profileMember: PrismaRepository<'profileMember'>,
+    private _profilePersona: PrismaRepository<'profilePersona'>
   ) {}
 
   getProfilesByOrgId(orgId: string) {
@@ -194,6 +206,44 @@ export class ProfileRepository {
     return this._profile.model.profile.update({
       where: { id: profileId, organizationId: orgId },
       data,
+    });
+  }
+
+  getPersona(profileId: string) {
+    return this._profilePersona.model.profilePersona.findUnique({
+      where: { profileId },
+    });
+  }
+
+  upsertPersona(profileId: string, data: ProfilePersonaData) {
+    const cleanArrays = {
+      preferredCtas: (data.preferredCtas || [])
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter(Boolean),
+      examplePosts: (data.examplePosts || [])
+        .map((s) => (typeof s === 'string' ? s.trim() : ''))
+        .filter(Boolean)
+        .slice(0, 5),
+    };
+    const payload = {
+      brandDescription: data.brandDescription ?? null,
+      toneOfVoice: data.toneOfVoice ?? null,
+      writingInstructions: data.writingInstructions ?? null,
+      contentRestrictions: data.contentRestrictions ?? null,
+      imageStyle: data.imageStyle ?? null,
+      targetAudience: data.targetAudience ?? null,
+      ...cleanArrays,
+    };
+    return this._profilePersona.model.profilePersona.upsert({
+      where: { profileId },
+      create: { profileId, ...payload },
+      update: payload,
+    });
+  }
+
+  deletePersona(profileId: string) {
+    return this._profilePersona.model.profilePersona.deleteMany({
+      where: { profileId },
     });
   }
 

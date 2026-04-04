@@ -8,6 +8,7 @@ import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profil
 import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { ShortlinkPreferenceDto } from '@gitroom/nestjs-libraries/dtos/settings/shortlink-preference.dto';
 import { UpdateAiCreditsDto } from '@gitroom/nestjs-libraries/dtos/settings/update.ai-credits.dto';
+import { UpdateProfilePersonaDto } from '@gitroom/nestjs-libraries/dtos/settings/update.profile-persona.dto';
 import { ApiTags } from '@nestjs/swagger';
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
@@ -204,5 +205,36 @@ export class SettingsController {
       profiles: profilesWithUsage,
       mode: process.env.AI_CREDITS_MODE ?? 'unlimited',
     };
+  }
+
+  @Get('/profiles/:profileId/persona')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async getProfilePersona(
+    @GetOrgFromRequest() org: Organization,
+    @Param('profileId') profileId: string
+  ) {
+    const persona = await this._profileService.getPersona(org.id, profileId);
+    return { persona };
+  }
+
+  @Put('/profiles/:profileId/persona')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async updateProfilePersona(
+    @GetOrgFromRequest() org: Organization,
+    @Param('profileId') profileId: string,
+    @Body() body: UpdateProfilePersonaDto
+  ) {
+    const persona = await this._profileService.upsertPersona(org.id, profileId, body);
+    return { persona };
+  }
+
+  @Delete('/profiles/:profileId/persona')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async deleteProfilePersona(
+    @GetOrgFromRequest() org: Organization,
+    @Param('profileId') profileId: string
+  ) {
+    await this._profileService.deletePersona(org.id, profileId);
+    return { success: true };
   }
 }

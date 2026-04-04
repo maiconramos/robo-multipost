@@ -36,6 +36,7 @@ import { CredentialsSettingsSection } from '@gitroom/frontend/components/setting
 import { ProfilesSettingsComponent } from '@gitroom/frontend/components/settings/profiles.component';
 import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-apps/approved-apps.component';
 import { AiCreditsSettingsSection } from '@gitroom/frontend/components/settings/ai-credits.settings.component';
+import { ProfilePersonaSettingsSection } from '@gitroom/frontend/components/settings/profile-persona.settings.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -115,6 +116,9 @@ export const SettingsPopup: FC<{
     }
     if (user?.role !== 'USER') {
       arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'AI Credits') });
+    }
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'ai_persona', label: t('persona_tab', 'AI Persona') });
     }
     arr.push({ tab: 'late', label: 'Late' });
     arr.push({ tab: 'credentials', label: 'Credenciais' });
@@ -219,6 +223,12 @@ export const SettingsPopup: FC<{
               {tab === 'ai_credits' && user?.role !== 'USER' && (
                 <div>
                   <AiCreditsSettingsSection />
+                </div>
+              )}
+
+              {tab === 'ai_persona' && user?.role !== 'USER' && (
+                <div>
+                  <ProfilePersonaSettingsSection />
                 </div>
               )}
 

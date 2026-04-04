@@ -1029,10 +1029,30 @@ model Profile {
   credits        Credits[]
   aiImageCredits Int?
   aiVideoCredits Int?
+  persona        ProfilePersona?
 
   @@unique([organizationId, slug, deletedAt])
   @@index([organizationId])
   @@index([isDefault])
+}
+
+model ProfilePersona {
+  id                  String   @id @default(uuid())
+  profileId           String   @unique
+  brandDescription    String?
+  toneOfVoice         String?
+  writingInstructions String?
+  preferredCtas       String[] @default([])
+  contentRestrictions String?
+  imageStyle          String?
+  targetAudience      String?
+  examplePosts        String[] @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  profile             Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model ProfileMember {

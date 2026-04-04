@@ -6,6 +6,7 @@ import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
 import { array, object, string } from 'zod';
 import { ModuleRef } from '@nestjs/core';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
+import { renderPersonaPrompt } from '@gitroom/nestjs-libraries/chat/helpers/persona.prompt';
 import dayjs from 'dayjs';
 
 export const AgentState = object({
@@ -47,6 +48,16 @@ export class LoadToolsService {
       description: 'Agent that helps manage and schedule social media posts for users',
       instructions: ({ runtimeContext }) => {
         const ui: string = runtimeContext.get('ui' as never);
+        const personaRaw: string = runtimeContext.get('persona' as never);
+        let personaBlock = '';
+        if (personaRaw) {
+          try {
+            const parsed = JSON.parse(personaRaw);
+            personaBlock = renderPersonaPrompt(parsed);
+          } catch {
+            personaBlock = '';
+          }
+        }
         return `
       Global information:
         - Date (UTC): ${dayjs().format('YYYY-MM-DD HH:mm:ss')}
@@ -83,6 +94,8 @@ export class LoadToolsService {
         ],
         !!ui
       )}
+
+      ${personaBlock}
 `;
       },
       model: openai('gpt-5.2'),
