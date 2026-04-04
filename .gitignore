@@ -62,3 +62,4 @@ i18n.cache
 # Local uploads (user media — not code)
 /uploads/
 /apps/backend/undefined/
+node-compile-cache/

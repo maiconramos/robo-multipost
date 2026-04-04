@@ -88,6 +88,7 @@ export class LoadToolsService {
       - Between tools, we will reference things like: [output:name] and [input:name] to set the information right.
       - When outputting a date for the user, make sure it's human readable with time
       - The content of the post, HTML, Each line must be wrapped in <p> here is the possible tags: h1, h2, h3, u, strong, li, ul, p (you can\'t have u and strong together), don't use a "code" box
+      - Before writing any post that references specific products, prices, features or factual claims about the brand, ALWAYS call 'knowledgeBaseQuery' first to retrieve relevant facts from the uploaded documents. If it returns no results, proceed without citing specifics.
       ${renderArray(
         [
           'If the user confirm, ask if they would like to get a modal with populated content without scheduling the post yet or if they want to schedule it right away.',

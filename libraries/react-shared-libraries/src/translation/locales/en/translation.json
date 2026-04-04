@@ -981,5 +981,22 @@
   "persona_saved": "Persona saved",
   "persona_cleared": "Persona cleared",
   "persona_save_error": "Failed to save persona",
-  "persona_loading": "Loading..."
+  "persona_loading": "Loading...",
+  "kb_tab": "Knowledge Base",
+  "kb_title": "Knowledge Base",
+  "kb_description": "Upload briefings, catalogs, and other documents. The AI agent can cite facts from them when generating posts.",
+  "kb_upload": "Upload document",
+  "kb_upload_hint": "PDF, TXT or MD, max 10MB",
+  "kb_uploaded": "Upload started",
+  "kb_upload_error": "Upload failed",
+  "kb_delete": "Delete",
+  "kb_deleted": "Document deleted",
+  "kb_filename": "File",
+  "kb_size": "Size",
+  "kb_status": "Status",
+  "kb_ready": "Ready",
+  "kb_processing": "Processing...",
+  "kb_failed": "Failed",
+  "kb_empty": "No documents uploaded yet",
+  "kb_disabled_banner": "Knowledge Base is disabled. Requires pgvector extension and ENABLE_KNOWLEDGE_BASE=true."
 }

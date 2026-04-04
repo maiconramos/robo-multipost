@@ -8,6 +8,14 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Knowledge Base por perfil via RAG com pgvector — usuarios enviam PDFs, TXT ou MD e o agente pode citar fatos desses documentos ao gerar posts
+- Nova tool `knowledgeBaseQuery` no agente Mastra que consulta vetores por perfil antes de gerar conteudo com informacoes factuais
+- API de gestao de documentos (GET/POST upload/DELETE/reindex em /settings/profiles/:id/knowledge)
+- Schema ProfileKnowledgeDocument com status PROCESSING/READY/FAILED e cascade delete por perfil
+- Inicializacao automatica da extensao pgvector no startup (CREATE EXTENSION IF NOT EXISTS vector)
+- Feature flag ENABLE_KNOWLEDGE_BASE (default true) — permite desabilitar em setups sem pgvector
+- Tela de Knowledge Base nas configuracoes com upload, listagem com polling de status e exclusao
+- Traducoes pt/en para a tela de KB
 - Persona de IA por perfil — agencias podem configurar tom de voz, publico-alvo, CTAs preferidos, restricoes de conteudo e estilo de imagem por cliente
 - API de gestao de Persona por perfil (GET/PUT/DELETE /settings/profiles/:id/persona) restrita a ADMIN
 - Tela "Persona de IA" nas configuracoes com presets de tom e estilo, CTAs como tags e ate 5 posts de exemplo
