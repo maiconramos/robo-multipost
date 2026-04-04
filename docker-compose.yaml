@@ -201,7 +201,7 @@ services:
         condition: service_healthy
 
   postiz-postgres:
-    image: postgres:17-alpine
+    image: pgvector/pgvector:pg17
     container_name: postiz-postgres
     restart: always
     environment:

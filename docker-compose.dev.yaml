@@ -4,8 +4,8 @@
 
 services:
   postiz-postgres:
-    # ref: https://hub.docker.com/_/postgres
-    image: postgres:17-alpine # 17.0
+    # ref: https://hub.docker.com/r/pgvector/pgvector
+    image: pgvector/pgvector:pg17
     container_name: postiz-postgres
     restart: always
     environment:

@@ -8,6 +8,8 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Plano detalhado de implementacao para Persona de IA por perfil e Knowledge Base via RAG (docs/planning/profile-ai-persona-knowledge-base.md)
+- Imagem Docker do PostgreSQL atualizada para pgvector/pgvector:pg17 (necessario para Knowledge Base)
 - Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
 - Creditos de IA configuraveis por perfil no modo gerenciado (AI_CREDITS_MODE=managed)
 - API de gestao de creditos de IA por perfil (GET/PUT /settings/profiles/:id/ai-credits, GET /settings/ai-credits/summary)
