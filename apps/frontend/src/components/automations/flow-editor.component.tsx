@@ -24,6 +24,7 @@ import { ConditionNode } from '@gitroom/frontend/components/automations/nodes/co
 import { ReplyCommentNode } from '@gitroom/frontend/components/automations/nodes/reply-comment-node';
 import { SendDmNode } from '@gitroom/frontend/components/automations/nodes/send-dm-node';
 import { DelayNode } from '@gitroom/frontend/components/automations/nodes/delay-node';
+import { DeletableEdge } from '@gitroom/frontend/components/automations/nodes/deletable-edge';
 import { NodeConfigPanel } from '@gitroom/frontend/components/automations/node-config-panel';
 import { FlowExecutionsComponent } from '@gitroom/frontend/components/automations/flow-executions.component';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
@@ -36,6 +37,12 @@ const nodeTypes = {
   sendDm: SendDmNode,
   delay: DelayNode,
 };
+
+const edgeTypes = {
+  deletable: DeletableEdge,
+};
+
+const defaultEdgeOptions = { type: 'deletable' };
 
 const NODE_TYPE_MAP: Record<string, string> = {
   TRIGGER: 'trigger',
@@ -92,6 +99,7 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
       source: e.sourceNodeId,
       target: e.targetNodeId,
       sourceHandle: e.sourceHandle || undefined,
+      type: 'deletable',
     }));
   }, [flow?.edges]);
 
@@ -103,15 +111,6 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
     [setEdges]
   );
 
-  const onEdgeClick = useCallback(
-    (event: any, edge: Edge) => {
-      event.stopPropagation();
-      if (window.confirm(t('confirm_delete_edge', 'Remover esta conexao?'))) {
-        setEdges((eds) => eds.filter((e) => e.id !== edge.id));
-      }
-    },
-    [setEdges, t]
-  );
 
   const onNodeClick = useCallback((_: any, node: Node) => {
     setSelectedNode(node);
@@ -341,11 +340,12 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
-          onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           onDragOver={onDragOver}
           onDrop={onDrop}
           nodeTypes={nodeTypes}
+          edgeTypes={edgeTypes}
+          defaultEdgeOptions={defaultEdgeOptions}
           deleteKeyCode={['Backspace', 'Delete']}
           fitView
           style={{ background: 'var(--new-bgColor)' }}
