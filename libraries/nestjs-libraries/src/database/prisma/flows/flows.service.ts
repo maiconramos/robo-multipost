@@ -71,40 +71,80 @@ export class FlowsService {
       return { ok: false, error: 'Provider Instagram indisponivel' };
     }
 
-    const base =
-      'Webhook Instagram nao configurado na Meta para esta conta. ' +
-      'Abra Meta Developer Portal > seu app > Casos de uso > instagram_manage_comments > Configurar webhooks, ' +
-      'cole a Callback URL e o Verify Token mostrados na tela de Automacoes, ative os campos comments e messages, depois tente novamente.';
+    // In Meta's Instagram Use Cases model, the webhook is configured at the
+    // APP level (not per-user). We check app-level subscriptions using the
+    // app access token (app_id|app_secret) which exposes /{app_id}/subscriptions.
+    const appId = process.env.FACEBOOK_APP_ID;
+    const appSecret = process.env.FACEBOOK_APP_SECRET;
+    if (!appId || !appSecret) {
+      // Cannot verify — skip check (assume user knows what they're doing).
+      return { ok: true };
+    }
 
     try {
-      // Non-destructive read of the current subscription state.
-      const { subscribed, fields } = await provider.checkWebhookSubscription(
-        integration.internalId,
-        integration.token
-      );
-      if (!subscribed) {
-        return { ok: false, error: base };
+      const subs = await this.fetchAppSubscriptions(appId, appSecret);
+      const igSub = subs.find((s) => s.object === 'instagram');
+      if (!igSub) {
+        return {
+          ok: false,
+          error:
+            'Webhook Instagram nao configurado no app Meta. ' +
+            'Abra Meta Developer Portal > seu app > Casos de uso > instagram_manage_comments > Configurar webhooks, ' +
+            'cole a Callback URL e o Verify Token mostrados na tela de Automacoes.',
+        };
       }
+      if (!igSub.active) {
+        return {
+          ok: false,
+          error:
+            'Webhook Instagram esta inativo na Meta. Ative-o em Casos de uso > instagram_manage_comments.',
+        };
+      }
+      const fieldNames = (igSub.fields || []).map((f) => f.name);
       const missing: string[] = [];
-      if (!fields.includes('comments')) missing.push('comments');
-      if (!fields.includes('messages')) missing.push('messages');
+      if (!fieldNames.includes('comments')) missing.push('comments');
+      if (!fieldNames.includes('messages')) missing.push('messages');
       if (missing.length > 0) {
         return {
           ok: false,
           error:
-            `Webhook Instagram esta inscrito, mas faltam campos: ${missing.join(', ')}. ` +
-            'Abra Meta Developer Portal > Casos de uso > instagram_manage_comments > Configurar webhooks e ative "comments" e "messages" ' +
+            `Webhook Instagram configurado, mas faltam os campos: ${missing.join(', ')}. ` +
+            'Abra Casos de uso > instagram_manage_comments > Configurar webhooks e ative comments e messages ' +
             '(necessarios para responder comentarios e enviar DMs).',
         };
       }
-      return { ok: true, subscribed: true };
+      return { ok: true };
     } catch (err) {
       const msg = err instanceof Error ? err.message.trim() : '';
       return {
         ok: false,
-        error: msg ? `${base} Detalhe: ${msg}` : base,
+        error: msg
+          ? `Nao foi possivel verificar o webhook. Detalhe: ${msg}`
+          : 'Nao foi possivel verificar o webhook.',
       };
     }
+  }
+
+  private async fetchAppSubscriptions(
+    appId: string,
+    appSecret: string
+  ): Promise<
+    Array<{
+      object: string;
+      callback_url: string;
+      active: boolean;
+      fields: Array<{ name: string; version?: string }>;
+    }>
+  > {
+    const token = `${appId}|${appSecret}`;
+    const res = await fetch(
+      `https://graph.facebook.com/v20.0/${appId}/subscriptions?access_token=${token}`
+    );
+    const body = await res.json();
+    if (body.error) {
+      throw new Error(body.error.message || JSON.stringify(body.error));
+    }
+    return Array.isArray(body.data) ? body.data : [];
   }
 
   updateFlow(orgId: string, id: string, body: UpdateFlowDto, profileId?: string) {
