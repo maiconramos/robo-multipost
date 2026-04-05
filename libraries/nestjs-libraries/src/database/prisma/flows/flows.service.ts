@@ -85,13 +85,16 @@ export class FlowsService {
       if (!subscribed) {
         return { ok: false, error: base };
       }
-      const hasComments = fields.includes('comments');
-      if (!hasComments) {
+      const missing: string[] = [];
+      if (!fields.includes('comments')) missing.push('comments');
+      if (!fields.includes('messages')) missing.push('messages');
+      if (missing.length > 0) {
         return {
           ok: false,
           error:
-            'Webhook Instagram esta inscrito, mas o campo "comments" nao esta ativado. ' +
-            'Abra Meta Developer Portal > Casos de uso > instagram_manage_comments > Configurar webhooks e ative "comments".',
+            `Webhook Instagram esta inscrito, mas faltam campos: ${missing.join(', ')}. ` +
+            'Abra Meta Developer Portal > Casos de uso > instagram_manage_comments > Configurar webhooks e ative "comments" e "messages" ' +
+            '(necessarios para responder comentarios e enviar DMs).',
         };
       }
       return { ok: true, subscribed: true };
