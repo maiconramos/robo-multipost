@@ -42,6 +42,9 @@ import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.s
 import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { StartupMigrationService } from '@gitroom/nestjs-libraries/database/prisma/startup-migration.service';
+import { VectorInitService } from '@gitroom/nestjs-libraries/chat/vector/vector.init.service';
+import { KnowledgeRepository } from '@gitroom/nestjs-libraries/database/prisma/knowledge/knowledge.repository';
+import { KnowledgeService } from '@gitroom/nestjs-libraries/database/prisma/knowledge/knowledge.service';
 import { OAuthRepository } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.repository';
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { AnnouncementsRepository } from '@gitroom/nestjs-libraries/database/prisma/announcements/announcements.repository';
@@ -101,6 +104,9 @@ import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/fl
     ProfileRepository,
     ProfileService,
     StartupMigrationService,
+    VectorInitService,
+    KnowledgeRepository,
+    KnowledgeService,
     AnnouncementsRepository,
     AnnouncementsService,
     FlowsRepository,

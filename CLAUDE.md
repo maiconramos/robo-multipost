@@ -260,6 +260,20 @@ GET  /settings/ai-credits/summary               → lista perfis com creditos e 
 - **Frontend badges:** `apps/frontend/src/components/launches/ai.image.tsx`, `ai.video.tsx`
 - **Testes:** `__tests__/subscription.service.spec.ts`, `subscription.repository.spec.ts`
 
+## Persona de IA e Knowledge Base por Perfil
+
+Cada perfil pode ter:
+
+- **Persona** (texto): tom de voz, publico-alvo, CTAs preferidos, restricoes,
+  estilo de imagem. Injetada automaticamente no agente Mastra, no Generator
+  LangGraph e nos prompts DALL-E. Ver `docs/architecture/profile-ai-persona.md`.
+- **Knowledge Base** (RAG vetorial): upload de PDF/TXT/MD, chunking + embeddings,
+  consultado pela tool `knowledgeBaseQuery` antes do agente gerar fatos
+  especificos. Requer `pgvector/pgvector:pg17`. Ver
+  `docs/architecture/knowledge-base-rag.md`.
+
+Feature flag: `ENABLE_KNOWLEDGE_BASE` (default `true`).
+
 ## Serviços Obrigatórios em Produção
 
 O produto requer 5 serviços rodando:

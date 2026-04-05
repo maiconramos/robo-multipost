@@ -8,6 +8,22 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Knowledge Base por perfil via RAG com pgvector — usuarios enviam PDFs, TXT ou MD e o agente pode citar fatos desses documentos ao gerar posts
+- Nova tool `knowledgeBaseQuery` no agente Mastra que consulta vetores por perfil antes de gerar conteudo com informacoes factuais
+- API de gestao de documentos (GET/POST upload/DELETE em /settings/profiles/:id/knowledge)
+- Schema ProfileKnowledgeDocument com status PROCESSING/READY/FAILED e cascade delete por perfil
+- Inicializacao automatica da extensao pgvector no startup (CREATE EXTENSION IF NOT EXISTS vector)
+- Feature flag ENABLE_KNOWLEDGE_BASE (default true) — permite desabilitar em setups sem pgvector
+- Tela de Knowledge Base nas configuracoes com upload, listagem com polling de status e exclusao
+- Traducoes pt/en para a tela de KB
+- Persona de IA por perfil — agencias podem configurar tom de voz, publico-alvo, CTAs preferidos, restricoes de conteudo e estilo de imagem por cliente
+- API de gestao de Persona por perfil (GET/PUT/DELETE /settings/profiles/:id/persona) restrita a ADMIN
+- Tela "Persona de IA" nas configuracoes com presets de tom e estilo, CTAs como tags e ate 5 posts de exemplo
+- Persona injetada automaticamente no agente Mastra (chat), no Generator LangGraph e nas geracoes de imagem DALL-E
+- Traducoes pt/en completas para a tela de persona
+- Documentacao de arquitetura para Persona (docs/architecture/profile-ai-persona.md) e Knowledge Base RAG (docs/architecture/knowledge-base-rag.md)
+- Plano detalhado de implementacao para Persona de IA por perfil e Knowledge Base via RAG (docs/planning/profile-ai-persona-knowledge-base.md)
+- Imagem Docker do PostgreSQL atualizada para pgvector/pgvector:pg17 (necessario para Knowledge Base)
 - Automacoes de comentarios Instagram (estilo ManyChat) — flow builder visual com React Flow para responder comentarios automaticamente
 - 5 tipos de no no editor de automacoes: Gatilho (comentario), Condicao (palavra-chave), Responder Comentario, Enviar DM e Atraso
 - Nova secao "Automacoes" no menu lateral com listagem e editor visual de flows
@@ -26,6 +42,14 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Historico de execucoes por automacao com status em tempo real
 - Traducoes pt/en para todas as strings de automacoes
 - Seletor de posts do Instagram no no Gatilho — lista recentes (feed/reels/stories) com thumbnail para escolher quais posts disparam a automacao (estilo ManyChat)
+- Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
+- Creditos de IA configuraveis por perfil no modo gerenciado (AI_CREDITS_MODE=managed)
+- API de gestao de creditos de IA por perfil (GET/PUT /settings/profiles/:id/ai-credits, GET /settings/ai-credits/summary)
+- Validacao de API key (OPENAI_API_KEY) antes de consumir credito de IA — retorna 503 se nao configurada
+- Tela de gestao de creditos de IA no painel de configuracoes (visivel apenas para admins no modo managed)
+- Indicador visual de creditos restantes nos componentes de geracao de imagem e video
+- Botao de geracao desabilitado com tooltip quando creditos zerados
+- Traducoes pt/en para todas as strings de creditos de IA
 
 ### Corrigido
 - Validacao pre-criacao de automacao: botao Criar fica desabilitado ate o webhook Instagram estar configurado na Meta para a conta selecionada, com mensagem de ajuda inline no modal
@@ -45,14 +69,6 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Removido
 - Botao "Configurar webhook Instagram na Meta" em Credenciais — no modelo de Casos de Uso da Meta (2024) o webhook tem que ser configurado manualmente dentro de cada caso de uso, nao ha endpoint API publico que preencha esses campos
-- Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
-- Creditos de IA configuraveis por perfil no modo gerenciado (AI_CREDITS_MODE=managed)
-- API de gestao de creditos de IA por perfil (GET/PUT /settings/profiles/:id/ai-credits, GET /settings/ai-credits/summary)
-- Validacao de API key (OPENAI_API_KEY) antes de consumir credito de IA — retorna 503 se nao configurada
-- Tela de gestao de creditos de IA no painel de configuracoes (visivel apenas para admins no modo managed)
-- Indicador visual de creditos restantes nos componentes de geracao de imagem e video
-- Botao de geracao desabilitado com tooltip quando creditos zerados
-- Traducoes pt/en para todas as strings de creditos de IA
 
 ## [0.3.0] - 2026-04-03
 

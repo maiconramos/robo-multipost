@@ -18,6 +18,7 @@ import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.reque
 import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
 import { Organization, Profile } from '@prisma/client';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { MastraAgent } from '@ag-ui/mastra';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { Request, Response } from 'express';
@@ -29,6 +30,7 @@ export type ChannelsContext = {
   integrations: string;
   organization: string;
   profileId: string;
+  persona: string;
   ui: string;
 };
 
@@ -36,7 +38,8 @@ export type ChannelsContext = {
 export class CopilotController {
   constructor(
     private _subscriptionService: SubscriptionService,
-    private _mastraService: MastraService
+    private _mastraService: MastraService,
+    private _profileService: ProfileService
   ) {}
   @Post('/chat')
   chatAgent(@Req() req: Request, @Res() res: Response) {
@@ -84,6 +87,19 @@ export class CopilotController {
     runtimeContext.set('organization', JSON.stringify(organization));
     runtimeContext.set('profileId', profile?.id || '');
     runtimeContext.set('ui', 'true');
+
+    let personaPayload = '';
+    if (profile?.id) {
+      try {
+        const persona = await this._profileService.getPersonaForAgent(profile.id);
+        if (persona) {
+          personaPayload = JSON.stringify(persona);
+        }
+      } catch (err) {
+        Logger.warn(`Failed to load persona for profile ${profile.id}: ${(err as Error).message}`);
+      }
+    }
+    runtimeContext.set('persona', personaPayload);
 
     const resourceId = profile ? `${organization.id}:${profile.id}` : organization.id;
     const agents = MastraAgent.getLocalAgents({

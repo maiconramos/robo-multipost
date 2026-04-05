@@ -1031,11 +1031,56 @@ model Profile {
   credits        Credits[]
   aiImageCredits Int?
   aiVideoCredits Int?
+  persona        ProfilePersona?
+  knowledgeDocuments ProfileKnowledgeDocument[]
   flows          Flow[]
 
   @@unique([organizationId, slug, deletedAt])
   @@index([organizationId])
   @@index([isDefault])
+}
+
+enum KnowledgeDocumentStatus {
+  PROCESSING
+  READY
+  FAILED
+}
+
+model ProfileKnowledgeDocument {
+  id          String                  @id @default(uuid())
+  profileId   String
+  filename    String
+  mimeType    String
+  sizeBytes   Int
+  status      KnowledgeDocumentStatus @default(PROCESSING)
+  chunkCount  Int                     @default(0)
+  errorMessage String?
+  createdAt   DateTime                @default(now())
+  updatedAt   DateTime                @updatedAt
+
+  profile     Profile                 @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
+  @@index([status])
+}
+
+model ProfilePersona {
+  id                  String   @id @default(uuid())
+  profileId           String   @unique
+  brandDescription    String?
+  toneOfVoice         String?
+  writingInstructions String?
+  preferredCtas       String[] @default([])
+  contentRestrictions String?
+  imageStyle          String?
+  targetAudience      String?
+  examplePosts        String[] @default([])
+  createdAt           DateTime @default(now())
+  updatedAt           DateTime @updatedAt
+
+  profile             Profile  @relation(fields: [profileId], references: [id], onDelete: Cascade)
+
+  @@index([profileId])
 }
 
 model ProfileMember {

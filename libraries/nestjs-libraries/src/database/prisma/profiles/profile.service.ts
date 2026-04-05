@@ -1,5 +1,8 @@
 import { HttpException, Injectable } from '@nestjs/common';
-import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
+import {
+  ProfileRepository,
+  ProfilePersonaData,
+} from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
 import { ProfileRole, ShortLinkPreference } from '@prisma/client';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import Late from '@getlatedev/node';
@@ -173,5 +176,33 @@ export class ProfileService {
 
   getAllProfilesWithCredits(orgId: string) {
     return this._profileRepository.getAllProfilesWithCredits(orgId);
+  }
+
+  async getPersona(orgId: string, profileId: string) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    return this._profileRepository.getPersona(profileId);
+  }
+
+  getPersonaForAgent(profileId: string) {
+    return this._profileRepository.getPersona(profileId);
+  }
+
+  async upsertPersona(orgId: string, profileId: string, data: ProfilePersonaData) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    return this._profileRepository.upsertPersona(profileId, data);
+  }
+
+  async deletePersona(orgId: string, profileId: string) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    return this._profileRepository.deletePersona(profileId);
   }
 }
