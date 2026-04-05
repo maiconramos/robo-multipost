@@ -958,6 +958,69 @@ export class InstagramProvider
     };
   }
 
+  // Send a private reply (DM) to someone who commented on your post.
+  // This is the Meta "private_replies" API — the ONLY supported way to DM
+  // a commenter without them having messaged you first. Valid for 7 days
+  // after the comment was created.
+  // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies
+  async sendPrivateReply(
+    accessToken: string,
+    igAccountId: string,
+    commentId: string,
+    message: string,
+    type = 'graph.facebook.com'
+  ): Promise<{ recipientId: string; messageId: string }> {
+    const response = await this.fetch(
+      `https://${type}/v20.0/${igAccountId}/messages`,
+      {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Authorization: `Bearer ${accessToken}`,
+        },
+        body: JSON.stringify({
+          recipient: { comment_id: commentId },
+          message: { text: message },
+        }),
+      }
+    );
+
+    const body = await response.json();
+    if (body.error) {
+      throw new Error(
+        `Instagram private reply failed: ${body.error.message || JSON.stringify(body.error)}`
+      );
+    }
+
+    return {
+      recipientId: body.recipient_id,
+      messageId: body.message_id,
+    };
+  }
+
+  // Reply to an existing IG comment (threaded reply).
+  // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-comment/replies
+  async replyToComment(
+    accessToken: string,
+    commentId: string,
+    message: string,
+    type = 'graph.facebook.com'
+  ): Promise<{ id: string }> {
+    const response = await this.fetch(
+      `https://${type}/v20.0/${commentId}/replies?message=${encodeURIComponent(
+        message
+      )}&access_token=${accessToken}`,
+      { method: 'POST' }
+    );
+    const body = await response.json();
+    if (body.error) {
+      throw new Error(
+        `Instagram comment reply failed: ${body.error.message || JSON.stringify(body.error)}`
+      );
+    }
+    return { id: body.id };
+  }
+
   async subscribeToWebhooks(
     igAccountId: string,
     pageAccessToken: string,

@@ -161,7 +161,8 @@ async function traverseNode(
           integrationId,
           orgId,
           input.igCommenterId,
-          message
+          message,
+          input.igCommentId
         );
       }
       break;

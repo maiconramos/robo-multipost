@@ -41,29 +41,17 @@ export class FlowActivity {
       throw new Error('Instagram provider not found');
     }
 
-    await provider.comment(
-      integration.internalId,
-      mediaId,
-      undefined,
-      integration.token,
-      [
-        {
-          id: commentId,
-          message,
-          settings: {} as any,
-          media: [],
-        },
-      ],
-      integration
-    );
+    // Threaded reply to the specific comment (not a new top-level comment on the media).
+    await provider.replyToComment(integration.token, commentId, message);
   }
 
   @ActivityMethod()
   async sendDirectMessage(
     integrationId: string,
     orgId: string,
-    igUserId: string,
-    message: string
+    _igUserId: string,
+    message: string,
+    commentId?: string
   ) {
     const integration = await this._integrationService.getIntegrationById(
       orgId,
@@ -78,7 +66,18 @@ export class FlowActivity {
       throw new Error('Instagram provider not found');
     }
 
-    await provider.sendDM(integration.token, igUserId, message);
+    if (commentId) {
+      // Private reply: DM triggered by a comment — supported for 7 days.
+      await provider.sendPrivateReply(
+        integration.token,
+        integration.internalId,
+        commentId,
+        message
+      );
+    } else {
+      // Fallback: direct DM (only works within 24h messaging window).
+      await provider.sendDM(integration.token, _igUserId, message);
+    }
   }
 
   @ActivityMethod()

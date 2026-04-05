@@ -57,6 +57,8 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Webhook Instagram descartava todos os eventos silenciosamente por filtrar value.item === "comment" (campo so existe em Facebook Page feed, nao em Instagram)
 - Validacao HMAC do webhook comparava assinatura com JSON re-serializado (JSON.stringify) em vez do raw body — toda requisicao era rejeitada com 403 quando FACEBOOK_APP_SECRET estava configurado
 - Logs detalhados adicionados no webhook handler para facilitar debug de eventos recebidos
+- Acao "Responder comentario" postava novo comentario top-level no post em vez de resposta threaded — agora usa POST /{comment_id}/replies conforme docs da Meta
+- Acao "Enviar DM" usava /me/messages com recipient.id (so funciona dentro da janela de 24h de mensagem ativa) — trocado para private_replies API (POST /{ig_id}/messages com recipient.comment_id) que eh a unica forma oficial de DM um comentador (janela de 7 dias)
 - Toaster cortava mensagens longas (altura fixa 56px) — agora cresce verticalmente com quebra de linha automatica e tempo de exibicao proporcional ao tamanho
 - Mensagem de webhook nao configurado mostrava "Detalhe:" vazio quando Meta retornava success=false sem erro
 - No de Atraso tinha texto branco sobre fundo branco e borda invisivel no tema claro — agora usa tema laranja consistente com identidade visual
