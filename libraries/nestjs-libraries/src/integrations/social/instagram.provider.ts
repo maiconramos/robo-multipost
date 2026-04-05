@@ -959,12 +959,14 @@ export class InstagramProvider
   }
 
   async subscribeToWebhooks(
-    pageId: string,
+    igAccountId: string,
     pageAccessToken: string,
     type = 'graph.facebook.com'
   ): Promise<boolean> {
+    // For Instagram webhooks (comments, messages), subscribe the IG Business
+    // account directly with instagram-specific fields.
     const response = await this.fetch(
-      `https://${type}/v20.0/${pageId}/subscribed_apps?subscribed_fields=feed&access_token=${pageAccessToken}`,
+      `https://${type}/v20.0/${igAccountId}/subscribed_apps?subscribed_fields=comments,messages&access_token=${pageAccessToken}`,
       { method: 'POST' }
     );
 
@@ -1004,19 +1006,8 @@ export class InstagramProvider
     igAccountId: string,
     type = 'graph.facebook.com'
   ): Promise<boolean> {
-    const pageId = await this.getPageIdForIgAccount(
-      pageAccessToken,
-      igAccountId,
-      type
-    );
-
-    if (!pageId) {
-      throw new Error(
-        'Could not determine Facebook Page ID for webhook subscription'
-      );
-    }
-
-    return this.subscribeToWebhooks(pageId, pageAccessToken, type);
+    // Instagram webhooks are subscribed directly on the IG account, not the Page.
+    return this.subscribeToWebhooks(igAccountId, pageAccessToken, type);
   }
 
   async getRecentMedia(

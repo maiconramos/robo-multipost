@@ -25,6 +25,7 @@ import { ReplyCommentNode } from '@gitroom/frontend/components/automations/nodes
 import { SendDmNode } from '@gitroom/frontend/components/automations/nodes/send-dm-node';
 import { DelayNode } from '@gitroom/frontend/components/automations/nodes/delay-node';
 import { NodeConfigPanel } from '@gitroom/frontend/components/automations/node-config-panel';
+import { FlowExecutionsComponent } from '@gitroom/frontend/components/automations/flow-executions.component';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 
@@ -72,6 +73,7 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
   const { data: flow, isLoading, mutate } = useFlow(id);
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [saving, setSaving] = useState(false);
+  const [showHistory, setShowHistory] = useState(false);
 
   const initialNodes = useMemo(() => {
     if (!flow?.nodes) return [];
@@ -99,6 +101,16 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
     [setEdges]
+  );
+
+  const onEdgeClick = useCallback(
+    (event: any, edge: Edge) => {
+      event.stopPropagation();
+      if (window.confirm(t('confirm_delete_edge', 'Remover esta conexao?'))) {
+        setEdges((eds) => eds.filter((e) => e.id !== edge.id));
+      }
+    },
+    [setEdges, t]
   );
 
   const onNodeClick = useCallback((_: any, node: Node) => {
@@ -268,6 +280,14 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
         </div>
 
         <div className="flex items-center gap-[8px]">
+          <button
+            onClick={() => setShowHistory((v) => !v)}
+            className="rounded-[4px] bg-btnSimple border border-fifth px-[12px] py-[6px] text-[12px] text-textColor hover:bg-boxHover"
+          >
+            {showHistory
+              ? t('hide_history', 'Ocultar historico')
+              : t('show_history', 'Historico')}
+          </button>
           {flow.status === 'ACTIVE' ? (
             <button
               onClick={() => handleStatusChange('PAUSED')}
@@ -321,10 +341,12 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
           onNodeClick={onNodeClick}
+          onEdgeClick={onEdgeClick}
           onPaneClick={onPaneClick}
           onDragOver={onDragOver}
           onDrop={onDrop}
           nodeTypes={nodeTypes}
+          deleteKeyCode={['Backspace', 'Delete']}
           fitView
           style={{ background: 'var(--new-bgColor)' }}
         >
@@ -349,6 +371,23 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
             }}
           />
         </ReactFlow>
+
+        {showHistory && (
+          <div className="absolute inset-0 z-20 bg-newBgColorInner overflow-y-auto">
+            <div className="flex items-center justify-between p-[12px] border-b border-fifth">
+              <h3 className="text-[14px] font-semibold text-textColor">
+                {t('flow_executions', 'Historico de Execucoes')}
+              </h3>
+              <button
+                onClick={() => setShowHistory(false)}
+                className="text-customColor18 hover:text-textColor text-[20px]"
+              >
+                &times;
+              </button>
+            </div>
+            <FlowExecutionsComponent flowId={id} />
+          </div>
+        )}
 
         {selectedNode && (
           <NodeConfigPanel

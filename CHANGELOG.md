@@ -29,6 +29,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Corrigido
 - No de Atraso tinha texto branco sobre fundo branco e borda invisivel no tema claro — agora usa tema laranja consistente com identidade visual
+- Inscricao de webhook Instagram usava subscribed_fields=feed (Facebook Page) em vez de comments,messages na conta IG — causava zero eventos chegando mesmo com automacao ativa
+- Arestas (conexoes) do flow builder nao podiam ser removidas — agora clique na aresta pede confirmacao para remover; tecla Backspace/Delete tambem remove
+- Botao Historico no editor de automacao para visualizar execucoes sem sair da tela
 - Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
 - Creditos de IA configuraveis por perfil no modo gerenciado (AI_CREDITS_MODE=managed)
 - API de gestao de creditos de IA por perfil (GET/PUT /settings/profiles/:id/ai-credits, GET /settings/ai-credits/summary)
