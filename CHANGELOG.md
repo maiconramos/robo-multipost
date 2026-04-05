@@ -33,6 +33,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Arestas (conexoes) do flow builder nao podiam ser removidas — agora clique na aresta pede confirmacao para remover; tecla Backspace/Delete tambem remove
 - Botao Historico no editor de automacao para visualizar execucoes sem sair da tela
 - UX de remocao de arestas estilo n8n — lixeira aparece no hover sobre a conexao
+- No de Condicao mostra "Verdadeiro"/"Falso" em vez de "Match"/"Sem match" (mais claro)
+- Ao arrastar novo no para o canvas, ele conecta automaticamente ao ultimo no (fluxo linear)
+
+### Removido
+- Botao "Configurar webhook Instagram na Meta" em Credenciais — no modelo de Casos de Uso da Meta (2024) o webhook tem que ser configurado manualmente dentro de cada caso de uso, nao ha endpoint API publico que preencha esses campos
 - Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
 - Creditos de IA configuraveis por perfil no modo gerenciado (AI_CREDITS_MODE=managed)
 - API de gestao de creditos de IA por perfil (GET/PUT /settings/profiles/:id/ai-credits, GET /settings/ai-credits/summary)

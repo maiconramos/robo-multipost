@@ -3,56 +3,7 @@
 import React, { useCallback, useState } from 'react';
 import { useCredentialsList } from '@gitroom/frontend/hooks/use-credentials.hook';
 import { ProviderCredentialForm } from '@gitroom/frontend/components/settings/provider-credential-form.component';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { useToaster } from '@gitroom/react/toaster/toaster';
-import { Button } from '@gitroom/react/form/button';
 import clsx from 'clsx';
-
-const InstagramWebhookConfigurator: React.FC = () => {
-  const fetchApi = useFetch();
-  const toaster = useToaster();
-  const [loading, setLoading] = useState(false);
-
-  const handleConfigure = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await fetchApi(
-        '/credentials/facebook/configure-instagram-webhook',
-        { method: 'POST' }
-      );
-      const body = await res.json().catch(() => ({}));
-      if (body.ok) {
-        toaster.show(
-          'Webhook Instagram configurado com sucesso na Meta',
-          'success'
-        );
-      } else {
-        toaster.show(
-          body.error || 'Falha ao configurar webhook na Meta',
-          'warning'
-        );
-      }
-    } catch {
-      toaster.show('Erro ao chamar API', 'warning');
-    } finally {
-      setLoading(false);
-    }
-  }, [fetchApi, toaster]);
-
-  return (
-    <div className="mt-[12px] flex flex-col gap-[8px]">
-      <div className="text-[13px] text-customColor18">
-        Configura automaticamente a callback URL e o Verify Token do webhook
-        Instagram na Meta. Elimina o passo manual no Meta Developer Portal.
-      </div>
-      <div>
-        <Button onClick={handleConfigure} loading={loading}>
-          Configurar webhook Instagram na Meta
-        </Button>
-      </div>
-    </div>
-  );
-};
 
 interface ProviderConfig {
   provider: string;
@@ -286,11 +237,6 @@ const ProviderCard: React.FC<{
             docsUrl={config.docsUrl}
             onSaved={onMutate}
             onDeleted={onMutate}
-            extraActions={
-              config.provider === 'facebook' && configured ? (
-                <InstagramWebhookConfigurator />
-              ) : null
-            }
           />
         </div>
       )}

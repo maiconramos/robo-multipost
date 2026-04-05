@@ -136,16 +136,32 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
         y: event.clientY - 100,
       };
 
+      const newNodeId = `temp-${Date.now()}`;
       const newNode: Node = {
-        id: `temp-${Date.now()}`,
+        id: newNodeId,
         type,
         position,
         data: { label: type, config: '{}' },
       };
 
-      setNodes((nds) => [...nds, newNode]);
+      setNodes((nds) => {
+        // Find last added node (highest Y, or last in array) to auto-connect
+        const lastNode = nds.length > 0 ? nds[nds.length - 1] : null;
+        if (lastNode && type !== 'trigger') {
+          setEdges((eds) => [
+            ...eds,
+            {
+              id: `e-${lastNode.id}-${newNodeId}`,
+              source: lastNode.id,
+              target: newNodeId,
+              type: 'deletable',
+            },
+          ]);
+        }
+        return [...nds, newNode];
+      });
     },
-    [setNodes]
+    [setNodes, setEdges]
   );
 
   const onDragStart = useCallback(
