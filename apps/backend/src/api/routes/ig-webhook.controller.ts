@@ -180,11 +180,12 @@ export class IgWebhookController {
   ) {
     const signature = req.headers['x-hub-signature-256'] as string;
     const hasRawBody = !!req.rawBody;
-    const rawBody = req.rawBody
-      ? req.rawBody.toString('utf8')
-      : typeof req.body === 'string'
-      ? req.body
-      : JSON.stringify(req.body);
+
+    // Use raw Buffer directly for HMAC (avoid encoding issues with .toString)
+    const rawBodyBuf: Buffer | null = req.rawBody || null;
+    const rawBodyStr =
+      rawBodyBuf?.toString('utf8') ??
+      (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
 
     // Collect candidate app secrets with source labels for debugging.
     // Order: env var FIRST (matches the app that actually hosts the webhook),
@@ -206,15 +207,23 @@ export class IgWebhookController {
       }
     }
 
+    // Debug: log raw body details for HMAC troubleshooting
+    const rawBodyHash = crypto
+      .createHash('sha256')
+      .update(rawBodyBuf || rawBodyStr)
+      .digest('hex')
+      .slice(0, 16);
     this._logger.log(
-      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBody.length} candidates=${candidates.length} sources=[${candidates
-        .map((c) => `${c.source}(${c.secret.slice(0, 4)}...)`)
+      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBodyStr.length} rawBodyHash=${rawBodyHash} rawBodyStart=${rawBodyStr.slice(0, 80)} candidates=${candidates.length} sources=[${candidates
+        .map((c) => `${c.source}(len=${c.secret.length},${c.secret.slice(0, 6)}...)`)
         .join(', ')}]`
     );
 
     if (candidates.length === 0) {
       // No secret configured anywhere — skip validation (dev mode)
-      this._logger.warn('IG webhook: no app secret configured, skipping HMAC validation');
+      this._logger.warn(
+        'IG webhook: no app secret configured, skipping HMAC validation'
+      );
       return;
     }
 
@@ -226,9 +235,13 @@ export class IgWebhookController {
     const sigBuf = Buffer.from(signature);
     const computed: string[] = [];
     for (const { source, secret } of candidates) {
+      // Compute HMAC from raw Buffer when available (exact bytes Meta signed)
       const expected =
         'sha256=' +
-        crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+        crypto
+          .createHmac('sha256', secret)
+          .update(rawBodyBuf || rawBodyStr)
+          .digest('hex');
       computed.push(`${source}=${expected.slice(0, 20)}...`);
       const expBuf = Buffer.from(expected);
       if (
