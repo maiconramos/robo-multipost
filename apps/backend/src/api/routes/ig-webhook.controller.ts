@@ -179,6 +179,7 @@ export class IgWebhookController {
     parsedBody: any
   ) {
     const signature = req.headers['x-hub-signature-256'] as string;
+    const hasRawBody = !!req.rawBody;
     const rawBody = req.rawBody
       ? req.rawBody.toString('utf8')
       : typeof req.body === 'string'
@@ -195,29 +196,41 @@ export class IgWebhookController {
       candidates.push(process.env.FACEBOOK_APP_SECRET);
     }
 
+    this._logger.log(
+      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBody.length} candidates=${candidates.length}`
+    );
+
     if (candidates.length === 0) {
       // No secret configured anywhere — skip validation (dev mode)
+      this._logger.warn('IG webhook: no app secret configured, skipping HMAC validation');
       return;
     }
 
     if (!signature) {
+      this._logger.warn('IG webhook: missing x-hub-signature-256 header');
       throw new ForbiddenException('Missing signature');
     }
 
     const sigBuf = Buffer.from(signature);
+    const computed: string[] = [];
     for (const secret of candidates) {
       const expected =
         'sha256=' +
         crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
+      computed.push(expected.slice(0, 20) + '...');
       const expBuf = Buffer.from(expected);
       if (
         sigBuf.length === expBuf.length &&
         crypto.timingSafeEqual(sigBuf, expBuf)
       ) {
-        return; // valid
+        this._logger.log('IG webhook: signature valid');
+        return;
       }
     }
 
+    this._logger.warn(
+      `IG webhook: signature mismatch. Received: ${signature.slice(0, 20)}... Computed: ${computed.join(' | ')}`
+    );
     throw new ForbiddenException('Invalid signature');
   }
 }
