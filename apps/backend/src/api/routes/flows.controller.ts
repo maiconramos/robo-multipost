@@ -27,14 +27,16 @@ export class FlowsController {
 
   @Get('/webhook-config')
   getWebhookConfig() {
-    const baseUrl = (
+    const rawBase = (
       process.env.WEBHOOK_BASE_URL ||
       process.env.FRONTEND_URL ||
       process.env.BACKEND_URL ||
       ''
     ).replace(/\/$/, '');
+    const needsApiPrefix = !process.env.WEBHOOK_BASE_URL;
+    const callbackPath = `${needsApiPrefix ? '/api' : ''}/public/ig-webhook`;
     return {
-      callbackUrl: baseUrl ? `${baseUrl}/public/ig-webhook` : '/public/ig-webhook',
+      callbackUrl: rawBase ? `${rawBase}${callbackPath}` : callbackPath,
       verifyToken: 'multipost',
       subscribedFields: ['comments', 'messages'],
       object: 'instagram',

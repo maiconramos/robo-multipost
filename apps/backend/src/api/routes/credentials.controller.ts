@@ -100,20 +100,24 @@ export class CredentialsController {
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile | null
   ) {
-    const baseUrl = (
+    const rawBase = (
       process.env.WEBHOOK_BASE_URL ||
       process.env.FRONTEND_URL ||
       process.env.BACKEND_URL ||
       ''
     ).replace(/\/$/, '');
-    if (!baseUrl || baseUrl.startsWith('http://localhost') || baseUrl.startsWith('http://127.')) {
+    if (!rawBase || rawBase.startsWith('http://localhost') || rawBase.startsWith('http://127.')) {
       return {
         ok: false,
         error:
           'A Meta exige callback URL publica com HTTPS. Em dev, rode "ngrok http 3000" e defina WEBHOOK_BASE_URL=https://xxx.ngrok.io no .env',
       };
     }
-    const callbackUrl = `${baseUrl}/public/ig-webhook`;
+    // Em producao, o nginx roteia /api/* para o backend.
+    // Se WEBHOOK_BASE_URL nao foi definido, assume que estamos atras do nginx
+    // e prepend /api ao path do webhook.
+    const needsApiPrefix = !process.env.WEBHOOK_BASE_URL;
+    const callbackUrl = `${rawBase}${needsApiPrefix ? '/api' : ''}/public/ig-webhook`;
     return this._credentialService.configureInstagramWebhook(
       org.id,
       callbackUrl,
