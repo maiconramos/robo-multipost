@@ -20,11 +20,45 @@ export const FlowListComponent: FC = () => {
   const [newFlowName, setNewFlowName] = useState('');
   const [newFlowIntegrationId, setNewFlowIntegrationId] = useState('');
   const [creating, setCreating] = useState(false);
+  const [webhookCheck, setWebhookCheck] = useState<{
+    loading: boolean;
+    ok?: boolean;
+    error?: string;
+  }>({ loading: false });
   const [webhookConfig, setWebhookConfig] = useState<{
     callbackUrl: string;
     verifyToken: string;
   } | null>(null);
   const [showWebhookHelp, setShowWebhookHelp] = useState(false);
+
+  useEffect(() => {
+    if (!newFlowIntegrationId) {
+      setWebhookCheck({ loading: false });
+      return;
+    }
+    setWebhookCheck({ loading: true });
+    fetchApi(
+      `/flows/integrations/${newFlowIntegrationId}/webhook-status`
+    )
+      .then((r) => r.json())
+      .then((data) => {
+        setWebhookCheck({
+          loading: false,
+          ok: data.ok,
+          error: data.error,
+        });
+      })
+      .catch(() => {
+        setWebhookCheck({
+          loading: false,
+          ok: false,
+          error: t(
+            'webhook_check_failed',
+            'Nao foi possivel verificar o webhook'
+          ),
+        });
+      });
+  }, [newFlowIntegrationId, fetchApi, t]);
 
   useEffect(() => {
     fetchApi('/flows/webhook-config')
@@ -251,10 +285,34 @@ export const FlowListComponent: FC = () => {
                 </div>
               )}
             </div>
+            {newFlowIntegrationId && (
+              <div className="flex flex-col gap-[4px]">
+                {webhookCheck.loading ? (
+                  <p className="text-[12px] text-customColor18">
+                    {t('checking_webhook', 'Verificando webhook...')}
+                  </p>
+                ) : webhookCheck.ok ? (
+                  <p className="text-[12px] text-customColor42">
+                    {t('webhook_ok', 'Webhook configurado corretamente')}
+                  </p>
+                ) : webhookCheck.error ? (
+                  <div className="rounded-[4px] border border-customColor13/40 bg-customColor13/10 p-[12px]">
+                    <p className="text-[12px] text-customColor13 whitespace-pre-wrap leading-[1.5]">
+                      {webhookCheck.error}
+                    </p>
+                  </div>
+                ) : null}
+              </div>
+            )}
             <div className="flex gap-[8px]">
               <button
                 onClick={handleCreate}
-                disabled={creating || !newFlowName.trim() || !newFlowIntegrationId}
+                disabled={
+                  creating ||
+                  !newFlowName.trim() ||
+                  !newFlowIntegrationId ||
+                  !webhookCheck.ok
+                }
                 className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80 disabled:opacity-50"
               >
                 {creating

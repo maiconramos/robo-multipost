@@ -38,8 +38,68 @@ export class FlowsService {
     return this._flowsRepository.getFlowById(id);
   }
 
-  createFlow(orgId: string, body: CreateFlowDto, profileId?: string) {
+  async createFlow(orgId: string, body: CreateFlowDto, profileId?: string) {
+    const check = await this.checkIntegrationWebhook(orgId, body.integrationId);
+    if (!check.ok) {
+      throw new BadRequestException(check.error);
+    }
     return this._flowsRepository.createFlow(orgId, body, profileId);
+  }
+
+  async checkIntegrationWebhook(
+    orgId: string,
+    integrationId: string
+  ): Promise<{ ok: boolean; error?: string; subscribed?: boolean }> {
+    const integration = await this._integrationService.getIntegrationById(
+      orgId,
+      integrationId
+    );
+    if (!integration) {
+      return { ok: false, error: 'Integracao nao encontrada' };
+    }
+    if (integration.providerIdentifier !== 'instagram') {
+      return {
+        ok: false,
+        error: 'Apenas contas do Instagram suportam automacoes no momento',
+      };
+    }
+
+    const provider = this._integrationManager.getSocialIntegration(
+      'instagram'
+    ) as unknown as InstagramProvider;
+    if (!provider) {
+      return { ok: false, error: 'Provider Instagram indisponivel' };
+    }
+
+    try {
+      // Attempt to subscribe — if the Meta app has no callback URL configured
+      // in the Use Case dashboard, Meta returns an error like
+      // "Callback URL not configured" / error 100.
+      const ok = await provider.subscribeToWebhooks(
+        integration.internalId,
+        integration.token
+      );
+      if (!ok) {
+        return {
+          ok: false,
+          error:
+            'Webhook Instagram nao configurado na Meta para esta conta. ' +
+            'Abra Meta Developer Portal > seu app > Casos de uso > instagram_manage_comments > Configurar webhooks, ' +
+            'cole a Callback URL e o Verify Token mostrados na tela de Automacoes, depois tente novamente.',
+        };
+      }
+      return { ok: true, subscribed: true };
+    } catch (err) {
+      const msg = err instanceof Error ? err.message.trim() : '';
+      const base =
+        'Webhook Instagram nao configurado na Meta para esta conta. ' +
+        'Abra Meta Developer Portal > seu app > Casos de uso > instagram_manage_comments > Configurar webhooks, ' +
+        'cole a Callback URL e o Verify Token mostrados na tela de Automacoes, depois tente novamente.';
+      return {
+        ok: false,
+        error: msg ? `${base} Detalhe: ${msg}` : base,
+      };
+    }
   }
 
   updateFlow(orgId: string, id: string, body: UpdateFlowDto, profileId?: string) {

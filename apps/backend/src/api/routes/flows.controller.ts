@@ -113,6 +113,14 @@ export class FlowsController {
     );
   }
 
+  @Get('/integrations/:integrationId/webhook-status')
+  async checkIntegrationWebhook(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integrationId') integrationId: string
+  ) {
+    return this._flowsService.checkIntegrationWebhook(org.id, integrationId);
+  }
+
   @Get('/:id/posts')
   async getInstagramPosts(
     @GetOrgFromRequest() org: Organization,
