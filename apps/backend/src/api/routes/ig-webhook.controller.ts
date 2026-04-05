@@ -227,6 +227,15 @@ export class IgWebhookController {
       return;
     }
 
+    // Allow skipping HMAC validation via env var (useful when Nginx/proxy
+    // re-serializes the body, breaking the signature).
+    if (process.env.SKIP_IG_WEBHOOK_HMAC === 'true') {
+      this._logger.warn(
+        'IG webhook: HMAC validation skipped (SKIP_IG_WEBHOOK_HMAC=true)'
+      );
+      return;
+    }
+
     if (!signature) {
       this._logger.warn('IG webhook: missing x-hub-signature-256 header');
       throw new ForbiddenException('Missing signature');
