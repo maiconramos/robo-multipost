@@ -186,18 +186,30 @@ export class IgWebhookController {
       ? req.body
       : JSON.stringify(req.body);
 
-    // Collect candidate app secrets: per-workspace credentials first, then env var
-    const candidates: string[] = [];
+    // Collect candidate app secrets with source labels for debugging.
+    // Order: env var FIRST (matches the app that actually hosts the webhook),
+    // then per-workspace credentials.
+    const candidates: Array<{ source: string; secret: string }> = [];
+    if (process.env.FACEBOOK_APP_SECRET) {
+      candidates.push({
+        source: 'env:FACEBOOK_APP_SECRET',
+        secret: process.env.FACEBOOK_APP_SECRET,
+      });
+    }
     const all = await this._credentialService.findAllDecrypted('facebook');
     for (const c of all) {
-      if (c.data?.clientSecret) candidates.push(c.data.clientSecret);
-    }
-    if (process.env.FACEBOOK_APP_SECRET) {
-      candidates.push(process.env.FACEBOOK_APP_SECRET);
+      if (c.data?.clientSecret) {
+        candidates.push({
+          source: `credential:${c.profileId || 'org'}`,
+          secret: c.data.clientSecret,
+        });
+      }
     }
 
     this._logger.log(
-      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBody.length} candidates=${candidates.length}`
+      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBody.length} candidates=${candidates.length} sources=[${candidates
+        .map((c) => `${c.source}(${c.secret.slice(0, 4)}...)`)
+        .join(', ')}]`
     );
 
     if (candidates.length === 0) {
@@ -213,17 +225,17 @@ export class IgWebhookController {
 
     const sigBuf = Buffer.from(signature);
     const computed: string[] = [];
-    for (const secret of candidates) {
+    for (const { source, secret } of candidates) {
       const expected =
         'sha256=' +
         crypto.createHmac('sha256', secret).update(rawBody).digest('hex');
-      computed.push(expected.slice(0, 20) + '...');
+      computed.push(`${source}=${expected.slice(0, 20)}...`);
       const expBuf = Buffer.from(expected);
       if (
         sigBuf.length === expBuf.length &&
         crypto.timingSafeEqual(sigBuf, expBuf)
       ) {
-        this._logger.log('IG webhook: signature valid');
+        this._logger.log(`IG webhook: signature valid (source=${source})`);
         return;
       }
     }
