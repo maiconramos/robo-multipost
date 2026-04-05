@@ -30,6 +30,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ### Corrigido
 - Validacao pre-criacao de automacao: botao Criar fica desabilitado ate o webhook Instagram estar configurado na Meta para a conta selecionada, com mensagem de ajuda inline no modal
 - Verificacao de webhook usa endpoint app-level /{app_id}/subscriptions da Meta Graph API (com app_id|app_secret) — unica forma confiavel de ler o estado do webhook Instagram no modelo de Casos de uso. Tentativa anterior via /subscribed_apps falhava porque token de Business Login nao tem capability para esse endpoint
+- Webhook Instagram descartava todos os eventos silenciosamente por filtrar value.item === "comment" (campo so existe em Facebook Page feed, nao em Instagram)
+- Validacao HMAC do webhook comparava assinatura com JSON re-serializado (JSON.stringify) em vez do raw body — toda requisicao era rejeitada com 403 quando FACEBOOK_APP_SECRET estava configurado
+- Logs detalhados adicionados no webhook handler para facilitar debug de eventos recebidos
 - Toaster cortava mensagens longas (altura fixa 56px) — agora cresce verticalmente com quebra de linha automatica e tempo de exibicao proporcional ao tamanho
 - Mensagem de webhook nao configurado mostrava "Detalhe:" vazio quando Meta retornava success=false sem erro
 - No de Atraso tinha texto branco sobre fundo branco e borda invisivel no tema claro — agora usa tema laranja consistente com identidade visual

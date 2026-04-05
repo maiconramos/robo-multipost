@@ -8,6 +8,8 @@ import {
   HttpCode,
   HttpStatus,
   ForbiddenException,
+  Logger,
+  RawBodyRequest,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Request, Response } from 'express';
@@ -21,6 +23,8 @@ const DEFAULT_IG_WEBHOOK_VERIFY_TOKEN = 'multipost';
 @ApiTags('Instagram Webhook')
 @Controller('/public/ig-webhook')
 export class IgWebhookController {
+  private readonly _logger = new Logger(IgWebhookController.name);
+
   constructor(
     private _flowsService: FlowsService,
     private _integrationService: IntegrationService,
@@ -61,37 +65,63 @@ export class IgWebhookController {
 
   @Post('/')
   @HttpCode(HttpStatus.OK)
-  async handleWebhook(@Req() req: Request) {
+  async handleWebhook(@Req() req: RawBodyRequest<Request>) {
     const body = req.body;
+    this._logger.log(
+      `IG webhook received: object=${body?.object} entries=${
+        body?.entry?.length ?? 0
+      }`
+    );
     if (!body || !body.entry) {
+      this._logger.warn('IG webhook: no entries in body');
       return { status: 'ignored' };
     }
 
-    // Resolve app secret per-entry (via integration lookup) to verify HMAC
-    // We verify signature using any app secret that successfully matches —
-    // since pageId can be inferred from the body after parsing.
     await this.verifySignature(req, body);
 
     for (const entry of body.entry) {
-      if (!entry.changes) continue;
+      if (!entry.changes) {
+        this._logger.warn(`IG webhook entry ${entry.id}: no changes`);
+        continue;
+      }
 
       for (const change of entry.changes) {
-        if (change.field !== 'comments' && change.field !== 'feed') continue;
+        this._logger.log(
+          `IG webhook change: field=${change.field} entry.id=${entry.id}`
+        );
+        // Instagram uses field='comments'; Facebook Page uses 'feed' with
+        // value.item='comment'. Support both but only filter Facebook Page
+        // events by item — Instagram comment payloads don't have `item`.
+        if (change.field === 'feed') {
+          if (!change.value || change.value.item !== 'comment') continue;
+        } else if (change.field !== 'comments') {
+          continue;
+        }
 
         const value = change.value;
-        if (!value || value.item !== 'comment') continue;
+        if (!value) continue;
 
-        const igCommentId = value.comment_id || value.id;
+        const igCommentId = value.id || value.comment_id;
         const igCommenterId = value.from?.id;
         const igCommenterName = value.from?.username;
         const igMediaId = value.media?.id || value.post_id;
-        const commentText = value.message || value.text || '';
+        const commentText = value.text || value.message || '';
 
-        if (!igCommentId || !igCommenterId || !igMediaId) continue;
+        if (!igCommentId || !igCommenterId || !igMediaId) {
+          this._logger.warn(
+            `IG webhook: missing fields commentId=${igCommentId} commenter=${igCommenterId} media=${igMediaId} payload=${JSON.stringify(
+              value
+            )}`
+          );
+          continue;
+        }
 
-        const pageId = entry.id;
+        const igAccountId = entry.id;
+        this._logger.log(
+          `IG webhook dispatching comment ${igCommentId} on media ${igMediaId} by ${igCommenterId}`
+        );
         await this.processComment({
-          pageId,
+          igAccountId,
           igCommentId,
           igCommenterId,
           igCommenterName,
@@ -105,7 +135,7 @@ export class IgWebhookController {
   }
 
   private async processComment(data: {
-    pageId: string;
+    igAccountId: string;
     igCommentId: string;
     igCommenterId: string;
     igCommenterName?: string;
@@ -113,7 +143,12 @@ export class IgWebhookController {
     commentText: string;
   }) {
     const integrations =
-      await this._integrationService.getIntegrationsByInternalId(data.pageId);
+      await this._integrationService.getIntegrationsByInternalId(
+        data.igAccountId
+      );
+    this._logger.log(
+      `IG webhook: found ${integrations.length} integration(s) for IG account ${data.igAccountId}`
+    );
 
     for (const integration of integrations) {
       if (
@@ -121,6 +156,9 @@ export class IgWebhookController {
         integration.disabled ||
         integration.deletedAt
       ) {
+        this._logger.log(
+          `IG webhook: skipping integration ${integration.id} (provider=${integration.providerIdentifier} disabled=${integration.disabled} deleted=${!!integration.deletedAt})`
+        );
         continue;
       }
 
@@ -136,10 +174,16 @@ export class IgWebhookController {
     }
   }
 
-  private async verifySignature(req: Request, parsedBody: any) {
+  private async verifySignature(
+    req: RawBodyRequest<Request>,
+    parsedBody: any
+  ) {
     const signature = req.headers['x-hub-signature-256'] as string;
-    const rawBody =
-      typeof req.body === 'string' ? req.body : JSON.stringify(req.body);
+    const rawBody = req.rawBody
+      ? req.rawBody.toString('utf8')
+      : typeof req.body === 'string'
+      ? req.body
+      : JSON.stringify(req.body);
 
     // Collect candidate app secrets: per-workspace credentials first, then env var
     const candidates: string[] = [];
