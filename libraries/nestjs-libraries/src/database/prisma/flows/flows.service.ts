@@ -71,30 +71,32 @@ export class FlowsService {
       return { ok: false, error: 'Provider Instagram indisponivel' };
     }
 
+    const base =
+      'Webhook Instagram nao configurado na Meta para esta conta. ' +
+      'Abra Meta Developer Portal > seu app > Casos de uso > instagram_manage_comments > Configurar webhooks, ' +
+      'cole a Callback URL e o Verify Token mostrados na tela de Automacoes, ative os campos comments e messages, depois tente novamente.';
+
     try {
-      // Attempt to subscribe — if the Meta app has no callback URL configured
-      // in the Use Case dashboard, Meta returns an error like
-      // "Callback URL not configured" / error 100.
-      const ok = await provider.subscribeToWebhooks(
+      // Non-destructive read of the current subscription state.
+      const { subscribed, fields } = await provider.checkWebhookSubscription(
         integration.internalId,
         integration.token
       );
-      if (!ok) {
+      if (!subscribed) {
+        return { ok: false, error: base };
+      }
+      const hasComments = fields.includes('comments');
+      if (!hasComments) {
         return {
           ok: false,
           error:
-            'Webhook Instagram nao configurado na Meta para esta conta. ' +
-            'Abra Meta Developer Portal > seu app > Casos de uso > instagram_manage_comments > Configurar webhooks, ' +
-            'cole a Callback URL e o Verify Token mostrados na tela de Automacoes, depois tente novamente.',
+            'Webhook Instagram esta inscrito, mas o campo "comments" nao esta ativado. ' +
+            'Abra Meta Developer Portal > Casos de uso > instagram_manage_comments > Configurar webhooks e ative "comments".',
         };
       }
       return { ok: true, subscribed: true };
     } catch (err) {
       const msg = err instanceof Error ? err.message.trim() : '';
-      const base =
-        'Webhook Instagram nao configurado na Meta para esta conta. ' +
-        'Abra Meta Developer Portal > seu app > Casos de uso > instagram_manage_comments > Configurar webhooks, ' +
-        'cole a Callback URL e o Verify Token mostrados na tela de Automacoes, depois tente novamente.';
       return {
         ok: false,
         error: msg ? `${base} Detalhe: ${msg}` : base,

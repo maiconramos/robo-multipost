@@ -980,6 +980,33 @@ export class InstagramProvider
     return body.success === true;
   }
 
+  async checkWebhookSubscription(
+    igAccountId: string,
+    pageAccessToken: string,
+    type = 'graph.facebook.com'
+  ): Promise<{ subscribed: boolean; fields: string[] }> {
+    // Non-destructive check: reads the current subscription state for this
+    // IG account and returns the subscribed fields. In the Meta Use Cases
+    // model the subscription is configured in the Dashboard — this endpoint
+    // reflects that state.
+    const response = await this.fetch(
+      `https://${type}/v20.0/${igAccountId}/subscribed_apps?access_token=${pageAccessToken}`
+    );
+    const body = await response.json();
+    if (body.error) {
+      throw new Error(
+        `Webhook check failed: ${body.error.message || JSON.stringify(body.error)}`
+      );
+    }
+    const apps: Array<{ subscribed_fields?: string[] }> = Array.isArray(
+      body.data
+    )
+      ? body.data
+      : [];
+    const fields = apps.flatMap((app) => app.subscribed_fields || []);
+    return { subscribed: apps.length > 0, fields };
+  }
+
   async getPageIdForIgAccount(
     pageAccessToken: string,
     igAccountId: string,
