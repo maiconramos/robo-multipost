@@ -280,7 +280,7 @@ export const AiVideo: FC<{
                   key={p.identifier}
                   className="hover:bg-sixth"
                 >
-                  {t(`video_provider_${p.identifier}`, p.title)}
+                  {String(t(`video_provider_${p.identifier}`, p.title))}
                 </li>
               ))}
             </ul>
