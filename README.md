@@ -121,6 +121,12 @@ O Robo MultiPost suporta multi-tenancy em 3 niveis: **Usuario > Organizacao > Pe
 
 Para o guia completo com exemplos de casos de uso, consulte a [documentacao de Multi-Tenancy](docs/multi-tenancy.md).
 
+## Automacoes Instagram (estilo ManyChat)
+
+Crie fluxos visuais para responder automaticamente a comentarios em postagens do Instagram: enviar respostas, DMs, aplicar condicoes por palavra-chave e delays duraveis via Temporal.
+
+Para o guia completo de configuracao (App Meta, webhook, credenciais por perfil) consulte a [documentacao de Automacoes Instagram](docs/automacoes-instagram.md).
+
 ## Integração com n8n
 
 O Robô MultiPost possui API pública disponível em `/api/`. Você pode usar essa API para integrar com o n8n e automatizar seus fluxos de publicação.

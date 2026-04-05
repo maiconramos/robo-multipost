@@ -280,12 +280,19 @@ const OpenModal: FC<{
   const { properties } = useContext(PropertiesContext);
   const startModal = useCallback(async () => {
     for (const integration of args.list) {
+      const foundIntegration = properties.find(
+        (p) => p.id === integration.integrationId
+      );
+      if (!foundIntegration) {
+        continue;
+      }
       await new Promise((res) => {
         const group = makeId(10);
         modals.openModal({
           id: 'add-edit-modal',
           closeOnClickOutside: false,
           removeLayout: true,
+          fullScreen: true,
           closeOnEscape: false,
           withCloseButton: false,
           askClose: true,
@@ -299,9 +306,7 @@ const OpenModal: FC<{
               value={{
                 group,
                 integration: integration.integrationId,
-                integrationPicture:
-                  properties.find((p) => p.id === integration.integrationId)
-                    .picture || '',
+                integrationPicture: foundIntegration.picture || '',
                 settings: integration.settings || {},
                 posts: integration.posts.map((p) => ({
                   approvedSubmitForOrder: 'NO',
@@ -312,9 +317,7 @@ const OpenModal: FC<{
                   settings: JSON.stringify(integration.settings || {}),
                   group,
                   integrationId: integration.integrationId,
-                  integration: properties.find(
-                    (p) => p.id === integration.integrationId
-                  ),
+                  integration: foundIntegration,
                   publishDate: dayjs.utc(integration.date).toISOString(),
                   image: p.attachments.map((a) => ({
                     id: a.id,
@@ -326,9 +329,7 @@ const OpenModal: FC<{
               <AddEditModal
                 date={dayjs.utc(integration.date)}
                 allIntegrations={properties}
-                integrations={properties.filter(
-                  (p) => p.id === integration.integrationId
-                )}
+                integrations={[foundIntegration]}
                 onlyValues={integration.posts.map((p) => ({
                   content: p.content,
                   id: makeId(10),

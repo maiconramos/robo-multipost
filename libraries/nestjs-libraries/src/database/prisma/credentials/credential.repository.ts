@@ -48,6 +48,12 @@ export class CredentialRepository {
     });
   }
 
+  findAllByProviderAcrossOrgs(provider: string) {
+    return this._credential.model.providerCredential.findMany({
+      where: { provider },
+    });
+  }
+
   delete(organizationId: string, provider: string, profileId?: string) {
     return this._credential.model.providerCredential.deleteMany({
       where: {

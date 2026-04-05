@@ -47,6 +47,7 @@ model Organization {
   providerCredentials     ProviderCredential[]
   oauthApp                OAuthApp[]
   oauthAuthorizations     OAuthAuthorization[]
+  flows                   Flow[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -358,6 +359,7 @@ model Integration {
   orderItems            OrderItems[]
   plugs                 Plugs[]
   posts                 Post[]
+  flows                 Flow[]
 
   @@unique([organizationId, internalId])
   @@index([rootInternalId])
@@ -1031,6 +1033,7 @@ model Profile {
   aiVideoCredits Int?
   persona        ProfilePersona?
   knowledgeDocuments ProfileKnowledgeDocument[]
+  flows          Flow[]
 
   @@unique([organizationId, slug, deletedAt])
   @@index([organizationId])
@@ -1107,4 +1110,119 @@ model Announcement {
   description String
   color       AnnouncementColor @default(INFO)
   createdAt   DateTime          @default(now())
+}
+
+// ─── Automations (Instagram Comment Flows) ───────────────────────────
+
+enum FlowStatus {
+  DRAFT
+  ACTIVE
+  PAUSED
+  ARCHIVED
+}
+
+enum FlowNodeType {
+  TRIGGER
+  CONDITION
+  REPLY_COMMENT
+  SEND_DM
+  DELAY
+}
+
+enum FlowExecutionStatus {
+  RUNNING
+  COMPLETED
+  FAILED
+  CANCELLED
+}
+
+model Flow {
+  id             String     @id @default(uuid())
+  organizationId String
+  profileId      String?
+  integrationId  String
+  name           String
+  description    String?
+  status         FlowStatus @default(DRAFT)
+  triggerPostIds String?
+  createdAt      DateTime   @default(now())
+  updatedAt      DateTime   @updatedAt
+  deletedAt      DateTime?
+
+  organization Organization    @relation(fields: [organizationId], references: [id])
+  profile      Profile?        @relation(fields: [profileId], references: [id])
+  integration  Integration     @relation(fields: [integrationId], references: [id])
+  nodes        FlowNode[]
+  edges        FlowEdge[]
+  executions   FlowExecution[]
+
+  @@index([organizationId])
+  @@index([profileId])
+  @@index([integrationId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model FlowNode {
+  id        String       @id @default(uuid())
+  flowId    String
+  type      FlowNodeType
+  label     String?
+  data      String       @default("{}")
+  positionX Float        @default(0)
+  positionY Float        @default(0)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  flow        Flow       @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  sourceEdges FlowEdge[] @relation("sourceNode")
+  targetEdges FlowEdge[] @relation("targetNode")
+
+  @@index([flowId])
+  @@index([type])
+}
+
+model FlowEdge {
+  id           String   @id @default(uuid())
+  flowId       String
+  sourceNodeId String
+  targetNodeId String
+  sourceHandle String?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  flow       Flow     @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  sourceNode FlowNode @relation("sourceNode", fields: [sourceNodeId], references: [id], onDelete: Cascade)
+  targetNode FlowNode @relation("targetNode", fields: [targetNodeId], references: [id], onDelete: Cascade)
+
+  @@unique([flowId, sourceNodeId, targetNodeId, sourceHandle])
+  @@index([flowId])
+  @@index([sourceNodeId])
+  @@index([targetNodeId])
+}
+
+model FlowExecution {
+  id                 String              @id @default(uuid())
+  flowId             String
+  temporalWorkflowId String?
+  igCommentId        String
+  igCommenterId      String
+  igCommenterName    String?
+  igMediaId          String
+  commentText        String
+  status             FlowExecutionStatus @default(RUNNING)
+  currentNodeId      String?
+  error              String?
+  startedAt          DateTime            @default(now())
+  completedAt        DateTime?
+  createdAt          DateTime            @default(now())
+  updatedAt          DateTime            @updatedAt
+
+  flow Flow @relation(fields: [flowId], references: [id])
+
+  @@index([flowId])
+  @@index([status])
+  @@index([igCommenterId])
+  @@index([igMediaId])
+  @@index([createdAt])
 }

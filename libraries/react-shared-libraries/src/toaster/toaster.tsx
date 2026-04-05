@@ -18,9 +18,10 @@ export const Toaster = () => {
         setToasterText(text);
         setToasterType(type || 'success');
         setShowToaster(true);
+        const duration = Math.max(4200, Math.min(15000, text.length * 80));
         setTimeout(() => {
           setShowToaster(false);
-        }, 4200);
+        }, duration);
       }
     );
     return () => {
@@ -33,7 +34,7 @@ export const Toaster = () => {
   return (
     <div
       className={clsx(
-        'animate-fadeDown rounded-[8px] gap-[18px] flex items-center overflow-hidden bg-customColor8 p-[16px] min-w-[319px] fixed start-[50%] text-white z-[900] top-[32px] -translate-x-[50%] h-[56px]',
+        'animate-fadeDown rounded-[8px] gap-[18px] flex items-start overflow-hidden bg-customColor8 p-[16px] min-w-[319px] max-w-[560px] fixed start-[50%] text-white z-[900] top-[32px] -translate-x-[50%] min-h-[56px]',
         toasterType === 'success' ? 'shadow-greenToast' : 'shadow-yellowToast'
       )}
     >
@@ -66,7 +67,7 @@ export const Toaster = () => {
           </svg>
         )}
       </div>
-      <div className="flex-1 text-textColor">{toasterText}</div>
+      <div className="flex-1 text-textColor whitespace-pre-wrap break-words leading-[1.4]">{toasterText}</div>
       <svg
         xmlns="http://www.w3.org/2000/svg"
         width="60"

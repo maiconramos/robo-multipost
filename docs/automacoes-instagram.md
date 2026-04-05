@@ -1,0 +1,253 @@
+# Automacoes Instagram (estilo ManyChat)
+
+Guia completo para configurar e usar automacoes de comentarios do Instagram no Robo MultiPost.
+
+## O que e
+
+Permite criar fluxos visuais que respondem automaticamente a comentarios em postagens do Instagram. Por exemplo:
+
+- Alguem comenta "PROMO" em um post -> responde no comentario + envia DM com cupom
+- Alguem comenta uma pergunta -> responde no comentario pedindo para olhar a DM -> envia resposta detalhada na DM
+
+A arquitetura suporta **multi-tenancy**: cada perfil/workspace pode ter seu proprio App Meta e suas proprias credenciais.
+
+---
+
+## Pre-requisitos
+
+- Conta Instagram Business conectada a uma Pagina do Facebook
+- App criado em [developers.facebook.com](https://developers.facebook.com)
+- Dominio publico (ou ngrok/cloudflared em desenvolvimento) para receber os webhooks
+- Instagram ja conectado na tela **Canais** do Robo MultiPost
+
+---
+
+## Passo 1 — Criar/Configurar o App Meta
+
+1. Acesse [developers.facebook.com/apps](https://developers.facebook.com/apps) e crie um app do tipo **Business**
+2. No painel do app, adicione os produtos:
+   - **Instagram Graph API**
+   - **Webhooks**
+   - **Facebook Login**
+3. Em **App Review > Permissions and Features**, solicite:
+   - `instagram_basic`
+   - `instagram_manage_comments`
+   - `instagram_manage_messages`
+   - `pages_manage_metadata`
+   - `pages_show_list`
+   - `pages_read_engagement`
+
+> **Modo Development**: para testar sem App Review, adicione as contas Instagram como **Roles > Testers** no painel do app.
+
+---
+
+## Passo 2 — Cadastrar credenciais do App no Robo MultiPost
+
+Cada perfil pode ter seu proprio App Meta. Configure as credenciais em **Configuracoes > Credenciais de Apps**.
+
+1. Faca login no Robo MultiPost com um perfil de **Admin**
+2. Acesse **Configuracoes > Credenciais de Apps**
+3. Expanda o card **Facebook / Instagram / Threads** e preencha:
+   | Campo | Valor |
+   |---|---|
+   | **Client ID** | App ID do painel Meta |
+   | **Client Secret** | App Secret do painel Meta (usado para HMAC do webhook) |
+   | **Webhook Verify Token** | *(opcional)* deixe vazio para usar o padrao `multipost` |
+4. Clique em **Salvar credenciais**
+5. Clique em **Testar conexao** para validar Client ID + Secret
+
+> O **Verify Token** e apenas um handshake publico de setup. A seguranca real do webhook vem do HMAC SHA-256 com o **App Secret**. Por isso o Robo MultiPost aceita o valor padrao `multipost` — zero config para voce. Se quiser personalizar, preencha o campo.
+
+---
+
+## Passo 3 — Configurar Webhook (1 clique)
+
+Apos salvar Client ID + Client Secret no Passo 2, ainda no card **Facebook / Instagram / Threads** aparecera o botao:
+
+**Configurar webhook Instagram na Meta**
+
+Clicando nele, o Robo MultiPost:
+1. Gera um App Access Token (`{client_id}|{client_secret}`)
+2. Chama `POST https://graph.facebook.com/v20.0/{app_id}/subscriptions` com:
+   - `object=instagram`
+   - `callback_url=https://SEU-DOMINIO/public/ig-webhook`
+   - `verify_token=multipost`
+   - `fields=comments,messages`
+3. A Meta faz o handshake GET no endpoint e, se validar, o webhook fica ativo
+
+**Nao precisa abrir o Meta Developer Portal** para configurar webhook.
+
+> **Desenvolvimento local**: a Meta exige callback URL publica com HTTPS. Use [ngrok](https://ngrok.com) (`ngrok http 3000`) e configure `FRONTEND_URL=https://xxx.ngrok.io` no `.env` antes de clicar no botao.
+
+### Fallback manual (se preferir)
+
+Se quiser configurar na mao, va em **Meta Developer Portal > Products > Webhooks > Instagram**:
+
+| Campo | Valor |
+|---|---|
+| **Callback URL** | `https://SEU-DOMINIO/public/ig-webhook` |
+| **Verify Token** | `multipost` |
+| **Subscribed Fields** | `comments`, `messages` |
+
+A tela **Automacoes** do Robo MultiPost mostra esses valores prontos para copiar.
+
+---
+
+## Passo 4 — Conectar (ou reconectar) Instagram
+
+O scope `instagram_manage_messages` foi adicionado recentemente. Contas conectadas antes dessa versao precisam ser **reconectadas** para o Robo MultiPost ter permissao de enviar DMs.
+
+1. Acesse **Canais**
+2. Remova o canal Instagram atual (se existir)
+3. Clique em **Adicionar canal** e selecione **Instagram**
+4. Complete o fluxo OAuth — o Meta pedira as novas permissoes
+
+---
+
+## Passo 5 — Criar sua primeira automacao
+
+1. Acesse **Automacoes** no menu lateral
+2. Clique em **Nova Automacao**
+3. Preencha:
+   - **Nome**: ex: "Responder PROMO"
+   - **Conta Instagram**: selecione a conta conectada no Passo 4
+4. Clique em **Criar**
+
+Voce sera redirecionado para o editor visual.
+
+### Montando o fluxo
+
+Arraste nos do sidebar para o canvas e conecte-os:
+
+| No | Funcao |
+|---|---|
+| **Inicio** (Trigger) | Disparado quando alguem comenta em um post monitorado |
+| **Condicao** | Verifica palavras-chave no comentario (suporta `qualquer`/`todas`/`contem`) |
+| **Responder Comentario** | Responde no comentario original (use `{{nome}}` para citar o usuario) |
+| **Enviar DM** | Envia mensagem direta ao comentarista |
+| **Atraso** | Aguarda X segundos/minutos antes do proximo no |
+
+**Exemplo basico:**
+
+```
+Inicio -> Condicao (palavra="PROMO") -> Responder Comentario -> Atraso (5s) -> Enviar DM
+                                    -> (nao combina) -> (sem acao)
+```
+
+### Variaveis disponiveis
+
+- `{{nome}}` — nome de usuario do comentarista
+- `{{comentario}}` — texto original do comentario
+
+### Salvar e ativar
+
+1. Clique em **Salvar** para persistir o canvas
+2. Clique em **Ativar** — o sistema ira:
+   - Validar que o fluxo tem pelo menos 1 Inicio e 1 acao
+   - Inscrever automaticamente a Pagina do Facebook no webhook da Meta
+   - Mudar o status para **Ativo**
+
+---
+
+## Passo 6 — Testar
+
+1. Acesse o Instagram (conta DIFERENTE da que esta conectada) e comente em um post da conta monitorada
+2. Em alguns segundos:
+   - O comentario recebe a resposta automatica
+   - O comentarista recebe a DM
+3. Volte ao Robo MultiPost > Automacoes > sua automacao > **Historico**
+4. Voce vera a execucao com status **COMPLETED** e log de cada no executado
+
+---
+
+## Como funciona por dentro
+
+### Multi-tenancy do webhook
+
+O Meta envia eventos para **uma unica URL** (`/public/ig-webhook`). Como saber a qual perfil/workspace pertence cada evento?
+
+1. O payload do webhook contem `entry[].id` = ID da Pagina do Facebook
+2. Na tabela `Integration` temos esse ID em `internalId` ou derivado de `rootInternalId`
+3. O Robo MultiPost busca a integracao correspondente -> descobre org + perfil
+4. Carrega a credencial `facebook` desse org/perfil
+5. Valida o HMAC SHA-256 do payload com o `Client Secret` dessa credencial
+6. Se bater, dispara o workflow Temporal
+
+Se a credencial nao existir, o sistema cai no **fallback** das variaveis de ambiente globais:
+- `FACEBOOK_APP_SECRET`
+- `INSTAGRAM_WEBHOOK_VERIFY_TOKEN`
+
+### Inscricao automatica no webhook
+
+Ao **ativar** um flow, o `FlowsService` chama `InstagramProvider.ensureWebhookSubscription()`:
+
+1. Usa o **Page Access Token** (armazenado em `Integration.token`) para chamar `GET /me?fields=id` -> obtem Page ID
+2. Chama `POST /{pageId}/subscribed_apps?subscribed_fields=feed` com o mesmo token
+3. Se falhar (ex: scope ausente), o flow ainda e ativado — o aviso vai para o log
+
+### Execucao durable via Temporal
+
+Cada comentario dispara um workflow Temporal (`flowExecutionWorkflow`):
+
+- **taskQueue**: `main`
+- **retry**: 3 tentativas com backoff
+- **timeout**: 5 minutos
+- **idempotencia**: garantida pelo `workflowId = flow-exec-{flowId}-{commentId}` (Temporal rejeita duplicatas)
+
+Os nos `Atraso` usam `sleep()` nativo do Temporal — durable, sobrevive a restart do worker.
+
+---
+
+## Variaveis de ambiente (fallback opcional)
+
+Se voce **nao** quiser configurar credenciais por perfil, defina globalmente no `.env`:
+
+```env
+FACEBOOK_APP_SECRET="seu-app-secret"
+INSTAGRAM_WEBHOOK_VERIFY_TOKEN="seu-verify-token"
+```
+
+Essas vars so sao usadas como fallback quando nao ha credencial cadastrada na UI. A recomendacao e usar a tela de credenciais — mais flexivel e suporta multi-tenancy.
+
+---
+
+## Debug
+
+### Webhook nao chega
+- Painel Meta > Webhooks > **Recent Deliveries**: ve os POSTs enviados e as respostas
+- Confira se o `Verify Token` no Meta e identico ao salvo em **Credenciais** (case-sensitive)
+
+### Recebo 403 "Invalid signature"
+- O `Client Secret` cadastrado em **Credenciais** nao bate com o App Secret do app Meta
+- Regere o App Secret no painel Meta e atualize em **Credenciais**
+
+### Flow nao ativa
+- Verifique o log do backend — a validacao exige ao menos 1 no `Inicio` e 1 no de acao (`Responder` ou `DM`)
+
+### Reply/DM falha
+- Token expirado: reconecte o Instagram em **Canais**
+- Scope `instagram_manage_messages` ausente: reconecte o Instagram
+
+### Execucao fica em RUNNING eternamente
+- Worker Temporal nao esta rodando — verifique se `pnpm dev` subiu o `apps/orchestrator`
+- Acesse Temporal UI em `http://localhost:8233` para ver detalhes do workflow
+
+### Logs uteis
+```bash
+# Backend
+pnpm dev-backend
+
+# Procure por:
+# - "Webhook subscription ensured for integration <id>"
+# - "handleIncomingComment" disparado
+# - Erros de HMAC em "Invalid signature"
+```
+
+---
+
+## Limitacoes conhecidas
+
+- O Instagram so permite DM para **usuarios que ja interagiram com a conta** nas ultimas 24h (comentar conta como interacao)
+- Permissoes `instagram_manage_messages` requerem **App Review** para uso em producao com contas que nao sao testers
+- Meta tem rate limit de ~200 chamadas/hora por usuario — o Temporal cobre falhas transientes com retry
+- Delays muito longos (dias/semanas) funcionam, mas aumentam o ciclo de vida do workflow no Temporal

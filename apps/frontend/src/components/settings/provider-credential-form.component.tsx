@@ -23,6 +23,7 @@ interface ProviderCredentialFormProps {
   docsUrl: string;
   onSaved?: () => void;
   onDeleted?: () => void;
+  extraActions?: React.ReactNode;
 }
 
 export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
@@ -32,6 +33,7 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
   docsUrl,
   onSaved,
   onDeleted,
+  extraActions,
 }) => {
   const fetch = useFetch();
   const toaster = useToaster();
@@ -182,6 +184,8 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
             Remover
           </Button>
         </div>
+
+        {extraActions && <div>{extraActions}</div>}
 
         <a
           href={docsUrl}

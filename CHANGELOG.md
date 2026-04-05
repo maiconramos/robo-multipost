@@ -24,6 +24,24 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Documentacao de arquitetura para Persona (docs/architecture/profile-ai-persona.md) e Knowledge Base RAG (docs/architecture/knowledge-base-rag.md)
 - Plano detalhado de implementacao para Persona de IA por perfil e Knowledge Base via RAG (docs/planning/profile-ai-persona-knowledge-base.md)
 - Imagem Docker do PostgreSQL atualizada para pgvector/pgvector:pg17 (necessario para Knowledge Base)
+- Automacoes de comentarios Instagram (estilo ManyChat) — flow builder visual com React Flow para responder comentarios automaticamente
+- 5 tipos de no no editor de automacoes: Gatilho (comentario), Condicao (palavra-chave), Responder Comentario, Enviar DM e Atraso
+- Nova secao "Automacoes" no menu lateral com listagem e editor visual de flows
+- Webhook de entrada para receber eventos de comentarios do Instagram via Meta Graph API
+- Execucao de flows via Temporal workflows com suporte a delay duravel e retries automaticos
+- Metodo sendDM() no Instagram provider para enviar mensagens diretas via Instagram Messaging API
+- Metodo subscribeToWebhooks() no Instagram provider para inscrever paginas em webhooks da Meta
+- Inscricao automatica de webhooks ao ativar uma automacao — nao precisa configurar webhook manualmente no Meta Developer Portal
+- Seletor de conta Instagram conectada ao criar automacao (substitui input manual de Integration ID)
+- Webhook Verify Token configuravel por perfil em Configuracoes > Credenciais (multi-tenancy: cada perfil pode ter seu proprio App Meta)
+- HMAC do webhook Instagram valida com App Secret da credencial do perfil (fallback para variavel de ambiente global)
+- Documentacao passo-a-passo de Automacoes Instagram em docs/automacoes-instagram.md (referenciada no README)
+- Verify Token padrao "multipost" aceito automaticamente no webhook Instagram (zero config — nao precisa cadastrar verify token nas credenciais)
+- Bloco copy-paste na tela de Automacoes com Callback URL e Verify Token prontos para colar no Meta Developer Portal
+- Botao "Configurar webhook Instagram na Meta" no card Facebook de Credenciais — configura callback URL e verify token automaticamente via API da Meta (1 clique, elimina passo manual no Meta Developer Portal)
+- Historico de execucoes por automacao com status em tempo real
+- Traducoes pt/en para todas as strings de automacoes
+- Seletor de posts do Instagram no no Gatilho — lista recentes (feed/reels/stories) com thumbnail para escolher quais posts disparam a automacao (estilo ManyChat)
 - Modo ilimitado para creditos de IA via variavel AI_CREDITS_MODE (default: unlimited para self-hosted)
 - Creditos de IA configuraveis por perfil no modo gerenciado (AI_CREDITS_MODE=managed)
 - API de gestao de creditos de IA por perfil (GET/PUT /settings/profiles/:id/ai-credits, GET /settings/ai-credits/summary)
@@ -32,6 +50,22 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Indicador visual de creditos restantes nos componentes de geracao de imagem e video
 - Botao de geracao desabilitado com tooltip quando creditos zerados
 - Traducoes pt/en para todas as strings de creditos de IA
+
+### Corrigido
+- Validacao pre-criacao de automacao: botao Criar fica desabilitado ate o webhook Instagram estar configurado na Meta para a conta selecionada, com mensagem de ajuda inline no modal
+- Verificacao de webhook trocada de POST (tenta inscrever) para GET (apenas le estado) — nao falsifica erro quando webhook ja foi configurado manualmente na Meta via Casos de uso
+- Toaster cortava mensagens longas (altura fixa 56px) — agora cresce verticalmente com quebra de linha automatica e tempo de exibicao proporcional ao tamanho
+- Mensagem de webhook nao configurado mostrava "Detalhe:" vazio quando Meta retornava success=false sem erro
+- No de Atraso tinha texto branco sobre fundo branco e borda invisivel no tema claro — agora usa tema laranja consistente com identidade visual
+- Inscricao de webhook Instagram usava subscribed_fields=feed (Facebook Page) em vez de comments,messages na conta IG — causava zero eventos chegando mesmo com automacao ativa
+- Arestas (conexoes) do flow builder nao podiam ser removidas — agora clique na aresta pede confirmacao para remover; tecla Backspace/Delete tambem remove
+- Botao Historico no editor de automacao para visualizar execucoes sem sair da tela
+- UX de remocao de arestas estilo n8n — lixeira aparece no hover sobre a conexao
+- No de Condicao mostra "Verdadeiro"/"Falso" em vez de "Match"/"Sem match" (mais claro)
+- Ao arrastar novo no para o canvas, ele conecta automaticamente ao ultimo no (fluxo linear)
+
+### Removido
+- Botao "Configurar webhook Instagram na Meta" em Credenciais — no modelo de Casos de Uso da Meta (2024) o webhook tem que ser configurado manualmente dentro de cada caso de uso, nao ha endpoint API publico que preencha esses campos
 
 ## [0.3.0] - 2026-04-03
 
