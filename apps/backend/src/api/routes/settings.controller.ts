@@ -280,14 +280,4 @@ export class SettingsController {
   ) {
     return this._knowledgeService.delete(org.id, profileId, documentId);
   }
-
-  @Post('/profiles/:profileId/knowledge/:documentId/reindex')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
-  async reindexKnowledge(
-    @GetOrgFromRequest() org: Organization,
-    @Param('profileId') profileId: string,
-    @Param('documentId') documentId: string
-  ) {
-    return this._knowledgeService.reindex(org.id, profileId, documentId);
-  }
 }

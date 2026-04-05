@@ -107,19 +107,6 @@ export class KnowledgeService {
     return { success: true };
   }
 
-  async reindex(orgId: string, profileId: string, documentId: string) {
-    this.assertEnabled();
-    await this.assertOwnership(orgId, profileId);
-    const doc = await this._knowledgeRepository.getById(documentId);
-    if (!doc || doc.profileId !== profileId) {
-      throw new HttpException('Document not found', 404);
-    }
-    await this._knowledgeRepository.updateStatus(documentId, 'PROCESSING', {
-      errorMessage: null,
-    });
-    return { success: true };
-  }
-
   private async extractText(file: {
     mimetype: string;
     buffer: Buffer;

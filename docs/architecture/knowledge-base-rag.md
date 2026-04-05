@@ -71,7 +71,6 @@ Retorna top-K chunks mais similares ao query, filtrados pelo
 GET    /settings/profiles/:id/knowledge                       → lista docs + flag enabled
 POST   /settings/profiles/:id/knowledge/upload (multipart)    → envia arquivo (10MB max)
 DELETE /settings/profiles/:id/knowledge/:documentId           → remove doc + chunks
-POST   /settings/profiles/:id/knowledge/:documentId/reindex   → forca re-indexacao
 ```
 
 Todos ADMIN only. 403 se KB desabilitada, 404 se perfil/doc nao pertence a org,

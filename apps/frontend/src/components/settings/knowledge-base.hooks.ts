@@ -28,6 +28,9 @@ export const useKnowledgeDocuments = (profileId: string | null) => {
     const res = await fetch(`/settings/profiles/${profileId}/knowledge`, {
       method: 'GET',
     });
+    if (!res.ok) {
+      return { documents: [], enabled: false };
+    }
     return res.json();
   }, [fetch, profileId]);
   return useSWR<KnowledgeListResponse>(

@@ -67,10 +67,13 @@ interface WorkflowChannelsState {
   persona?: PersonaData | null;
 }
 
+const escapeTemplateBraces = (s: string) =>
+  s.replace(/\{/g, '{{').replace(/\}/g, '}}');
+
 const renderPersonaForPrompt = (persona: PersonaData | null | undefined): string => {
   if (!persona) return '';
   const lines: string[] = [];
-  const esc = (s: string) => s.replace(/\{/g, '{{').replace(/\}/g, '}}');
+  const esc = escapeTemplateBraces;
   if (persona.brandDescription) lines.push(`- Brand: ${esc(persona.brandDescription)}`);
   if (persona.targetAudience) lines.push(`- Target audience: ${esc(persona.targetAudience)}`);
   if (persona.writingInstructions) lines.push(`- Writing instructions: ${esc(persona.writingInstructions)}`);
@@ -248,7 +251,7 @@ export class AgentGraphService {
   async generateHook(state: WorkflowChannelsState) {
     const structuredOutput = model.withStructuredOutput(hook);
     const personaTone = state.persona?.toneOfVoice
-      ? `${state.tone} — ${state.persona.toneOfVoice}`
+      ? `${state.tone} — ${escapeTemplateBraces(state.persona.toneOfVoice)}`
       : state.tone;
     const personaBlock = renderPersonaForPrompt(state.persona);
     const { hook: outputHook } = await ChatPromptTemplate.fromTemplate(
@@ -297,7 +300,7 @@ export class AgentGraphService {
       contentZod(!!state.isPicture, state.format)
     );
     const personaTone = state.persona?.toneOfVoice
-      ? `${state.tone} — ${state.persona.toneOfVoice}`
+      ? `${state.tone} — ${escapeTemplateBraces(state.persona.toneOfVoice)}`
       : state.tone;
     const personaBlock = renderPersonaForPrompt(state.persona);
     const { content: outputContent } = await ChatPromptTemplate.fromTemplate(
