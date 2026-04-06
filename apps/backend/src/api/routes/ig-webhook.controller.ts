@@ -117,6 +117,15 @@ export class IgWebhookController {
         }
 
         const igAccountId = entry.id;
+
+        // Skip self-comments (bot's own replies) to prevent infinite loops
+        if (igCommenterId === igAccountId) {
+          this._logger.log(
+            `IG webhook: skipping self-comment ${igCommentId} (bot's own reply)`
+          );
+          continue;
+        }
+
         this._logger.log(
           `IG webhook dispatching comment ${igCommentId} on media ${igMediaId} by ${igCommenterId}`
         );

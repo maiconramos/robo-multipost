@@ -355,6 +355,7 @@ export class FlowsService {
                 flowId: flow.id,
                 igCommentId: payload.igCommentId,
                 igCommenterId: payload.igCommenterId,
+                igCommenterName: payload.igCommenterName,
                 igMediaId: payload.igMediaId,
                 commentText: payload.commentText,
                 integrationId: payload.integrationId,

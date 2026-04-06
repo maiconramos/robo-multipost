@@ -970,25 +970,24 @@ export class InstagramProvider
     message: string,
     type = 'graph.facebook.com'
   ): Promise<{ recipientId: string; messageId: string }> {
-    const response = await this.fetch(
-      `https://${type}/v20.0/${igAccountId}/messages`,
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${accessToken}`,
-        },
-        body: JSON.stringify({
-          recipient: { comment_id: commentId },
-          message: { text: message },
-        }),
-      }
-    );
+    // Use native fetch (not this.fetch) to get the actual error from Meta
+    // instead of a generic BadBody from the abstract wrapper.
+    const url = `https://${type}/v20.0/${igAccountId}/messages?access_token=${accessToken}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: { comment_id: commentId },
+        message: { text: message },
+      }),
+    });
 
     const body = await response.json();
-    if (body.error) {
+    if (!response.ok || body.error) {
+      const errMsg =
+        body?.error?.message || JSON.stringify(body?.error || body);
       throw new Error(
-        `Instagram private reply failed: ${body.error.message || JSON.stringify(body.error)}`
+        `Instagram private reply failed (${response.status}): ${errMsg}`
       );
     }
 

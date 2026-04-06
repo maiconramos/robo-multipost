@@ -22,6 +22,7 @@ export interface FlowExecutionInput {
   flowId: string;
   igCommentId: string;
   igCommenterId: string;
+  igCommenterName?: string;
   igMediaId: string;
   commentText: string;
   integrationId: string;
@@ -215,7 +216,7 @@ function interpolateVariables(
   input: FlowExecutionInput
 ): string {
   return template
-    .replace(/\{commenter_name\}/g, input.igCommenterId)
+    .replace(/\{commenter_name\}/g, input.igCommenterName || input.igCommenterId)
     .replace(/\{commenter_id\}/g, input.igCommenterId)
     .replace(/\{comment_text\}/g, input.commentText)
     .replace(/\{media_id\}/g, input.igMediaId);
