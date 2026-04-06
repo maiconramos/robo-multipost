@@ -1038,6 +1038,8 @@
   "dm_template_placeholder": "Hey {commenter_name}!\n\nHere is the link you requested...\n\nSee you soon!",
   "dm_multiline_hint": "Use line breaks to separate paragraphs. Meta only allows 1 direct message per comment.",
   "dm_single_limit": "Meta only allows 1 direct message per comment. Use line breaks in the message field to send multiple lines.",
+  "click_to_rename": "Click to rename",
+  "failed_to_rename_flow": "Failed to rename automation",
   "delay_duration": "Delay Duration",
   "seconds": "Seconds",
   "minutes": "Minutes",

@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useCallback, useMemo, useState, DragEvent } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState, DragEvent } from 'react';
 import {
   ReactFlow,
   Background,
@@ -81,6 +81,8 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
   const [selectedNode, setSelectedNode] = useState<Node | null>(null);
   const [saving, setSaving] = useState(false);
   const [showHistory, setShowHistory] = useState(false);
+  const [editingName, setEditingName] = useState(false);
+  const [flowName, setFlowName] = useState('');
 
   const initialNodes = useMemo(() => {
     if (!flow?.nodes) return [];
@@ -263,6 +265,33 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
     }
   }, [nodes, edges, id, fetchApi, mutate, t, toaster]);
 
+  // Sync flow name from API data
+  useEffect(() => {
+    if (flow?.name) setFlowName(flow.name);
+  }, [flow?.name]);
+
+  const handleNameSave = useCallback(async () => {
+    setEditingName(false);
+    const trimmed = flowName.trim();
+    if (!trimmed || trimmed === flow?.name) {
+      setFlowName(flow?.name || '');
+      return;
+    }
+    try {
+      await fetchApi(`/flows/${id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: trimmed }),
+      });
+      await mutate();
+    } catch {
+      setFlowName(flow?.name || '');
+      toaster.show(
+        t('failed_to_rename_flow', 'Falha ao renomear automacao'),
+        'warning'
+      );
+    }
+  }, [flowName, flow?.name, id, fetchApi, mutate, toaster, t]);
+
   const handleStatusChange = useCallback(
     async (status: string) => {
       try {
@@ -310,7 +339,30 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
           >
             &larr;
           </button>
-          <h2 className="text-[14px] font-semibold text-textColor">{flow.name}</h2>
+          {editingName ? (
+            <input
+              autoFocus
+              className="text-[14px] font-semibold text-textColor bg-transparent border-b border-textColor outline-none px-[2px]"
+              value={flowName}
+              onChange={(e) => setFlowName(e.target.value)}
+              onBlur={handleNameSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleNameSave();
+                if (e.key === 'Escape') {
+                  setFlowName(flow.name);
+                  setEditingName(false);
+                }
+              }}
+            />
+          ) : (
+            <h2
+              className="text-[14px] font-semibold text-textColor cursor-pointer hover:opacity-70"
+              onClick={() => setEditingName(true)}
+              title={t('click_to_rename', 'Clique para renomear')}
+            >
+              {flow.name}
+            </h2>
+          )}
           <span
             className={`rounded-[4px] px-[8px] py-[2px] text-[12px] ${
               flow.status === 'ACTIVE'
