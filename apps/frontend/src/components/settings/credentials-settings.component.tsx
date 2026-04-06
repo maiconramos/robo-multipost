@@ -1,8 +1,11 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useEffect, useState } from 'react';
 import { useCredentialsList } from '@gitroom/frontend/hooks/use-credentials.hook';
 import { ProviderCredentialForm } from '@gitroom/frontend/components/settings/provider-credential-form.component';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { useToaster } from '@gitroom/react/toaster/toaster';
 import clsx from 'clsx';
 
 interface ProviderConfig {
@@ -178,6 +181,100 @@ const PROVIDERS: ProviderConfig[] = [
   },
 ];
 
+const WebhookConfigSection: React.FC = () => {
+  const t = useT();
+  const fetchApi = useFetch();
+  const toaster = useToaster();
+  const [webhookConfig, setWebhookConfig] = useState<{
+    callbackUrl: string;
+    verifyToken: string;
+  } | null>(null);
+
+  useEffect(() => {
+    fetchApi('/flows/webhook-config')
+      .then((r) => r.json())
+      .then((data) => {
+        const origin =
+          typeof window !== 'undefined' ? window.location.origin : '';
+        const url = data.callbackUrl.startsWith('http')
+          ? data.callbackUrl
+          : `${origin}${data.callbackUrl}`;
+        setWebhookConfig({ callbackUrl: url, verifyToken: data.verifyToken });
+      })
+      .catch(() => {
+        // non-critical
+      });
+  }, [fetchApi]);
+
+  const copyToClipboard = useCallback(
+    (text: string) => {
+      navigator.clipboard.writeText(text).then(() => {
+        toaster.show(
+          t('copied_to_clipboard', 'Copiado para a area de transferencia'),
+          'success'
+        );
+      });
+    },
+    [toaster, t]
+  );
+
+  if (!webhookConfig) return null;
+
+  return (
+    <div className="mt-[16px] border-t border-fifth pt-[16px] flex flex-col gap-[12px]">
+      <div className="text-[13px] font-semibold text-textColor">
+        {t('webhook_config_title', 'Configuracao do webhook Instagram')}
+      </div>
+      <p className="text-[12px] text-customColor18">
+        {t(
+          'webhook_config_instructions',
+          'Cole estes valores no Meta Developer Portal > Produtos > Webhooks > Instagram:'
+        )}
+      </p>
+      <div className="flex flex-col gap-[8px]">
+        <div className="flex flex-col gap-[4px]">
+          <span className="text-[11px] text-customColor18">
+            {t('callback_url', 'Callback URL')}
+          </span>
+          <div className="flex items-center gap-[8px] bg-newBgColorInner border border-newTableBorder rounded-[4px] px-[12px] py-[8px]">
+            <code className="text-[12px] text-textColor flex-1 truncate">
+              {webhookConfig.callbackUrl}
+            </code>
+            <button
+              onClick={() => copyToClipboard(webhookConfig.callbackUrl)}
+              className="text-[11px] text-btnPrimary hover:opacity-80"
+            >
+              {t('copy', 'Copiar')}
+            </button>
+          </div>
+        </div>
+        <div className="flex flex-col gap-[4px]">
+          <span className="text-[11px] text-customColor18">
+            {t('verify_token', 'Verify Token')}
+          </span>
+          <div className="flex items-center gap-[8px] bg-newBgColorInner border border-newTableBorder rounded-[4px] px-[12px] py-[8px]">
+            <code className="text-[12px] text-textColor flex-1">
+              {webhookConfig.verifyToken}
+            </code>
+            <button
+              onClick={() => copyToClipboard(webhookConfig.verifyToken)}
+              className="text-[11px] text-btnPrimary hover:opacity-80"
+            >
+              {t('copy', 'Copiar')}
+            </button>
+          </div>
+        </div>
+      </div>
+      <p className="text-[11px] text-customColor18">
+        {t(
+          'webhook_subscribed_fields',
+          'Campos assinados: comments, messages'
+        )}
+      </p>
+    </div>
+  );
+};
+
 const ProviderCard: React.FC<{
   config: ProviderConfig;
   configured: boolean;
@@ -238,6 +335,7 @@ const ProviderCard: React.FC<{
             onSaved={onMutate}
             onDeleted={onMutate}
           />
+          {config.provider === 'facebook' && <WebhookConfigSection />}
         </div>
       )}
     </div>

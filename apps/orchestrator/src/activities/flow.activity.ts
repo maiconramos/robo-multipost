@@ -49,10 +49,10 @@ export class FlowActivity {
   async sendDirectMessage(
     integrationId: string,
     orgId: string,
-    _igUserId: string,
+    igUserId: string,
     message: string,
     commentId?: string
-  ) {
+  ): Promise<{ recipientId: string }> {
     const integration = await this._integrationService.getIntegrationById(
       orgId,
       integrationId
@@ -68,15 +68,18 @@ export class FlowActivity {
 
     if (commentId) {
       // Private reply: DM triggered by a comment — supported for 7 days.
-      await provider.sendPrivateReply(
+      // Only ONE private reply per comment is allowed by Meta.
+      const result = await provider.sendPrivateReply(
         integration.token,
         integration.internalId,
         commentId,
         message
       );
+      return { recipientId: result.recipientId };
     } else {
-      // Fallback: direct DM (only works within 24h messaging window).
-      await provider.sendDM(integration.token, _igUserId, message);
+      // Follow-up DM using the IG-scoped user ID (from a previous private reply).
+      const result = await provider.sendDM(integration.token, igUserId, message);
+      return { recipientId: result.recipientId };
     }
   }
 

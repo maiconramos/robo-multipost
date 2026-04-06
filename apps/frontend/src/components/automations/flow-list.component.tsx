@@ -25,12 +25,6 @@ export const FlowListComponent: FC = () => {
     ok?: boolean;
     error?: string;
   }>({ loading: false });
-  const [webhookConfig, setWebhookConfig] = useState<{
-    callbackUrl: string;
-    verifyToken: string;
-  } | null>(null);
-  const [showWebhookHelp, setShowWebhookHelp] = useState(false);
-
   useEffect(() => {
     if (!newFlowIntegrationId) {
       setWebhookCheck({ loading: false });
@@ -59,31 +53,6 @@ export const FlowListComponent: FC = () => {
         });
       });
   }, [newFlowIntegrationId, fetchApi, t]);
-
-  useEffect(() => {
-    fetchApi('/flows/webhook-config')
-      .then((r) => r.json())
-      .then((data) => {
-        const origin =
-          typeof window !== 'undefined' ? window.location.origin : '';
-        const url = data.callbackUrl.startsWith('http')
-          ? data.callbackUrl
-          : `${origin}${data.callbackUrl}`;
-        setWebhookConfig({ callbackUrl: url, verifyToken: data.verifyToken });
-      })
-      .catch(() => {
-        // non-critical
-      });
-  }, [fetchApi]);
-
-  const copyToClipboard = useCallback(
-    (text: string) => {
-      navigator.clipboard.writeText(text).then(() => {
-        toaster.show(t('copied_to_clipboard', 'Copiado para a area de transferencia'), 'success');
-      });
-    },
-    [toaster, t]
-  );
 
   const instagramIntegrations = useMemo(() => {
     if (!Array.isArray(integrations)) return [];
@@ -164,75 +133,6 @@ export const FlowListComponent: FC = () => {
           'Create automations to automatically respond to Instagram comments'
         )}
       </p>
-
-      {/* Webhook config helper */}
-      {webhookConfig && (
-        <div className="rounded-[4px] border border-fifth bg-sixth">
-          <button
-            onClick={() => setShowWebhookHelp((p) => !p)}
-            className="w-full flex items-center justify-between px-[16px] py-[12px] text-left"
-          >
-            <span className="text-[13px] text-textColor font-semibold">
-              {t('webhook_config_title', 'Configuracao do webhook Instagram')}
-            </span>
-            <span className="text-[12px] text-customColor18">
-              {showWebhookHelp
-                ? t('hide', 'Esconder')
-                : t('show', 'Mostrar')}
-            </span>
-          </button>
-          {showWebhookHelp && (
-            <div className="border-t border-fifth px-[16px] py-[12px] flex flex-col gap-[12px]">
-              <p className="text-[12px] text-customColor18">
-                {t(
-                  'webhook_config_instructions',
-                  'Cole estes valores no Meta Developer Portal > Produtos > Webhooks > Instagram:'
-                )}
-              </p>
-              <div className="flex flex-col gap-[8px]">
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[11px] text-customColor18">
-                    {t('callback_url', 'Callback URL')}
-                  </span>
-                  <div className="flex items-center gap-[8px] bg-newBgColorInner border border-newTableBorder rounded-[4px] px-[12px] py-[8px]">
-                    <code className="text-[12px] text-textColor flex-1 truncate">
-                      {webhookConfig.callbackUrl}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(webhookConfig.callbackUrl)}
-                      className="text-[11px] text-btnPrimary hover:opacity-80"
-                    >
-                      {t('copy', 'Copiar')}
-                    </button>
-                  </div>
-                </div>
-                <div className="flex flex-col gap-[4px]">
-                  <span className="text-[11px] text-customColor18">
-                    {t('verify_token', 'Verify Token')}
-                  </span>
-                  <div className="flex items-center gap-[8px] bg-newBgColorInner border border-newTableBorder rounded-[4px] px-[12px] py-[8px]">
-                    <code className="text-[12px] text-textColor flex-1">
-                      {webhookConfig.verifyToken}
-                    </code>
-                    <button
-                      onClick={() => copyToClipboard(webhookConfig.verifyToken)}
-                      className="text-[11px] text-btnPrimary hover:opacity-80"
-                    >
-                      {t('copy', 'Copiar')}
-                    </button>
-                  </div>
-                </div>
-              </div>
-              <p className="text-[11px] text-customColor18">
-                {t(
-                  'webhook_subscribed_fields',
-                  'Campos assinados: comments, messages'
-                )}
-              </p>
-            </div>
-          )}
-        </div>
-      )}
 
       {/* Create modal */}
       {showCreate && (

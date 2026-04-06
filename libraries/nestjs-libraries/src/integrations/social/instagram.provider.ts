@@ -930,26 +930,35 @@ export class InstagramProvider
   async sendDM(
     accessToken: string,
     igScopedUserId: string,
-    message: string,
-    type = 'graph.facebook.com'
+    message: string
   ): Promise<{ recipientId: string; messageId: string }> {
-    const response = await this.fetch(
-      `https://${type}/v25.0/me/messages`,
-      {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({
-          recipient: { id: igScopedUserId },
-          message: { text: message },
-        }),
-      }
+    // Resolve Page ID from the token (same approach as sendPrivateReply)
+    const meRes = await fetch(
+      `https://graph.facebook.com/v25.0/me?access_token=${accessToken}`
     );
+    const meBody = await meRes.json();
+    if (!meRes.ok || meBody.error) {
+      throw new Error(
+        `Failed to resolve Facebook Page ID: ${meBody?.error?.message || JSON.stringify(meBody)}`
+      );
+    }
+    const pageId = meBody.id;
+
+    const url = `https://graph.facebook.com/v25.0/${pageId}/messages?access_token=${accessToken}`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        recipient: { id: igScopedUserId },
+        message: { text: message },
+      }),
+    });
 
     const body = await response.json();
-    if (body.error) {
-      throw new Error(
-        `Instagram DM failed: ${body.error.message || JSON.stringify(body.error)}`
-      );
+    if (!response.ok || body.error) {
+      const errMsg =
+        body?.error?.message || JSON.stringify(body?.error || body);
+      throw new Error(`Instagram DM failed (${response.status}): ${errMsg}`);
     }
 
     return {

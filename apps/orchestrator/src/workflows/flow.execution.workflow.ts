@@ -28,6 +28,14 @@ export interface FlowExecutionInput {
   integrationId: string;
 }
 
+/** Mutable context passed through the graph traversal. */
+interface TraversalContext {
+  /** IG-scoped user ID resolved after the first private reply DM. */
+  dmRecipientId?: string;
+  /** Whether a private reply (comment_id-based DM) has already been sent. */
+  privateReplySent: boolean;
+}
+
 export async function flowExecutionWorkflow(input: FlowExecutionInput) {
   try {
     const flow = await getFlowWithNodes(input.flowId);
@@ -51,6 +59,8 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
       return;
     }
 
+    const ctx: TraversalContext = { privateReplySent: false };
+
     // Traverse the graph starting from the trigger node
     await traverseNode(
       triggerNode.id,
@@ -59,7 +69,8 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
       input,
       flow.integrationId || input.integrationId,
       flow.organizationId,
-      0
+      0,
+      ctx
     );
 
     await updateExecution(input.executionId, {
@@ -83,7 +94,8 @@ async function traverseNode(
   input: FlowExecutionInput,
   integrationId: string,
   orgId: string,
-  depth: number
+  depth: number,
+  ctx: TraversalContext
 ): Promise<void> {
   if (depth > 50) {
     throw new Error('Max traversal depth exceeded');
@@ -130,7 +142,8 @@ async function traverseNode(
           input,
           integrationId,
           orgId,
-          depth + 1
+          depth + 1,
+          ctx
         );
       }
       return; // Don't fall through to default edge traversal
@@ -161,13 +174,30 @@ async function traverseNode(
         input
       );
       if (message) {
-        await sendDirectMessage(
-          integrationId,
-          orgId,
-          input.igCommenterId,
-          message,
-          input.igCommentId
-        );
+        if (!ctx.privateReplySent) {
+          // First DM: use private reply (comment_id) — Meta only allows one per comment.
+          const result = await sendDirectMessage(
+            integrationId,
+            orgId,
+            input.igCommenterId,
+            message,
+            input.igCommentId
+          );
+          ctx.privateReplySent = true;
+          if (result?.recipientId) {
+            ctx.dmRecipientId = result.recipientId;
+          }
+        } else {
+          // Subsequent DMs: use the IG-scoped user ID from the first private reply.
+          const recipientId = ctx.dmRecipientId || input.igCommenterId;
+          await sendDirectMessage(
+            integrationId,
+            orgId,
+            recipientId,
+            message
+            // No commentId — forces direct DM via recipient.id
+          );
+        }
       }
       break;
     }
@@ -198,7 +228,8 @@ async function traverseNode(
       input,
       integrationId,
       orgId,
-      depth + 1
+      depth + 1,
+      ctx
     );
   }
 }
