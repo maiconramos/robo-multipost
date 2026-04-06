@@ -107,14 +107,17 @@ async function traverseNode(
         input.commentText
       );
 
-      // Find the correct outgoing edge based on match result
-      const matchEdge = edges.find(
-        (e: any) =>
-          e.sourceNodeId === nodeId && e.sourceHandle === 'match'
+      // Find the correct outgoing edge based on match result.
+      // Edges without sourceHandle (e.g. from auto-connect) are treated
+      // as "match" edges so the flow still works.
+      const allOutgoing = edges.filter(
+        (e: any) => e.sourceNodeId === nodeId
       );
-      const noMatchEdge = edges.find(
-        (e: any) =>
-          e.sourceNodeId === nodeId && e.sourceHandle === 'no_match'
+      const matchEdge =
+        allOutgoing.find((e: any) => e.sourceHandle === 'match') ||
+        allOutgoing.find((e: any) => !e.sourceHandle);
+      const noMatchEdge = allOutgoing.find(
+        (e: any) => e.sourceHandle === 'no_match'
       );
 
       const nextEdge = matches ? matchEdge : noMatchEdge;

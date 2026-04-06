@@ -52,6 +52,8 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Traducoes pt/en para todas as strings de creditos de IA
 
 ### Corrigido
+- Automacao completava sem executar acoes (responder comentario, enviar DM) — edge auto-conectada de no de Condicao nao tinha sourceHandle, workflow nao encontrava caminho "match" e pulava todas as acoes
+- Env var SKIP_IG_WEBHOOK_HMAC=true para pular validacao HMAC do webhook Instagram quando proxy reverso re-serializa o body
 - Validacao pre-criacao de automacao: botao Criar fica desabilitado ate o webhook Instagram estar configurado na Meta para a conta selecionada, com mensagem de ajuda inline no modal
 - Verificacao de webhook usa endpoint app-level /{app_id}/subscriptions da Meta Graph API (com app_id|app_secret) — unica forma confiavel de ler o estado do webhook Instagram no modelo de Casos de uso. Tentativa anterior via /subscribed_apps falhava porque token de Business Login nao tem capability para esse endpoint
 - Webhook Instagram descartava todos os eventos silenciosamente por filtrar value.item === "comment" (campo so existe em Facebook Page feed, nao em Instagram)

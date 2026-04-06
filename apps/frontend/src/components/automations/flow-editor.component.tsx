@@ -148,15 +148,17 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
         // Find last added node (highest Y, or last in array) to auto-connect
         const lastNode = nds.length > 0 ? nds[nds.length - 1] : null;
         if (lastNode && type !== 'trigger') {
-          setEdges((eds) => [
-            ...eds,
-            {
-              id: `e-${lastNode.id}-${newNodeId}`,
-              source: lastNode.id,
-              target: newNodeId,
-              type: 'deletable',
-            },
-          ]);
+          const edgeData: Edge = {
+            id: `e-${lastNode.id}-${newNodeId}`,
+            source: lastNode.id,
+            target: newNodeId,
+            type: 'deletable',
+          };
+          // Condition nodes need sourceHandle to identify match/no_match path
+          if (lastNode.type === 'condition') {
+            edgeData.sourceHandle = 'match';
+          }
+          setEdges((eds) => [...eds, edgeData]);
         }
         return [...nds, newNode];
       });
