@@ -231,11 +231,11 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
             </label>
             <div className={inputWrapperClass}>
               <textarea
-                className={`${inputClass} min-h-[100px] resize-y`}
-                rows={4}
+                className={`${inputClass} min-h-[120px] resize-y`}
+                rows={6}
                 placeholder={t(
                   'dm_template_placeholder',
-                  'Hey {commenter_name}! Here is the link you requested...'
+                  'Hey {commenter_name}!\n\nHere is the link you requested...\n\nSee you soon!'
                 )}
                 value={config.message || ''}
                 onChange={(e) =>
@@ -247,6 +247,12 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
               {t(
                 'variables_hint',
                 'Variables: {commenter_name}, {comment_text}, {media_id}'
+              )}
+            </p>
+            <p className="text-[11px] text-customColor18 mt-[4px]">
+              {t(
+                'dm_multiline_hint',
+                'Use quebras de linha para separar paragrafos. A Meta permite apenas 1 mensagem direta por comentario.'
               )}
             </p>
           </>

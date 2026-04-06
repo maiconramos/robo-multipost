@@ -197,6 +197,22 @@ export class FlowsService {
         );
       }
 
+      // Check for DM → DM direct connections (Meta only allows 1 private reply per comment)
+      const dmNodeIds = new Set(
+        flow.nodes
+          .filter((n) => n.type === FlowNodeType.SEND_DM)
+          .map((n) => n.id)
+      );
+      const hasDmToDm = flow.edges.some(
+        (e) => dmNodeIds.has(e.sourceNodeId) && dmNodeIds.has(e.targetNodeId)
+      );
+      if (hasDmToDm) {
+        throw new BadRequestException(
+          'A Meta permite apenas 1 mensagem direta por comentario. ' +
+            'Remova nos de DM consecutivos e use quebras de linha no campo de mensagem.'
+        );
+      }
+
       // Auto-subscribe to Instagram webhooks when activating
       await this.ensureWebhookSubscription(orgId, flow.integrationId);
     }

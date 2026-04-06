@@ -107,8 +107,23 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
   const onConnect = useCallback(
-    (params: Connection) => setEdges((eds) => addEdge(params, eds)),
-    [setEdges]
+    (params: Connection) => {
+      // Block DM → DM direct connection (Meta only allows 1 private reply per comment)
+      const sourceNode = nodes.find((n) => n.id === params.source);
+      const targetNode = nodes.find((n) => n.id === params.target);
+      if (sourceNode?.type === 'sendDm' && targetNode?.type === 'sendDm') {
+        toaster.show(
+          t(
+            'dm_single_limit',
+            'A Meta permite apenas 1 mensagem direta por comentario. Use quebras de linha no campo de mensagem para enviar multiplas linhas.'
+          ),
+          'warning'
+        );
+        return;
+      }
+      setEdges((eds) => addEdge(params, eds));
+    },
+    [setEdges, nodes, toaster, t]
   );
 
 
@@ -147,7 +162,13 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
       setNodes((nds) => {
         // Find last added node (highest Y, or last in array) to auto-connect
         const lastNode = nds.length > 0 ? nds[nds.length - 1] : null;
-        if (lastNode && type !== 'trigger') {
+        const shouldAutoConnect =
+          lastNode &&
+          type !== 'trigger' &&
+          // Block DM → DM auto-connect (Meta 1 private reply limit)
+          !(lastNode.type === 'sendDm' && type === 'sendDm');
+
+        if (shouldAutoConnect) {
           const edgeData: Edge = {
             id: `e-${lastNode.id}-${newNodeId}`,
             source: lastNode.id,
@@ -160,6 +181,17 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
           }
           setEdges((eds) => [...eds, edgeData]);
         }
+
+        if (lastNode?.type === 'sendDm' && type === 'sendDm') {
+          toaster.show(
+            t(
+              'dm_single_limit',
+              'A Meta permite apenas 1 mensagem direta por comentario. Use quebras de linha no campo de mensagem para enviar multiplas linhas.'
+            ),
+            'warning'
+          );
+        }
+
         return [...nds, newNode];
       });
     },
