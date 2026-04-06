@@ -965,14 +965,26 @@ export class InstagramProvider
   // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies
   async sendPrivateReply(
     accessToken: string,
-    igAccountId: string,
+    _igAccountId: string,
     commentId: string,
-    message: string,
-    type = 'graph.facebook.com'
+    message: string
   ): Promise<{ recipientId: string; messageId: string }> {
-    // Use native fetch (not this.fetch) to get the actual error from Meta
-    // instead of a generic BadBody from the abstract wrapper.
-    const url = `https://${type}/v20.0/${igAccountId}/messages?access_token=${accessToken}`;
+    // The private reply API uses the Facebook Page ID (not IG account ID).
+    // Since integration.token is a Page Access Token, GET /me returns the Page.
+    const meRes = await fetch(
+      `https://graph.facebook.com/v22.0/me?access_token=${accessToken}`
+    );
+    const meBody = await meRes.json();
+    if (!meRes.ok || meBody.error) {
+      throw new Error(
+        `Failed to resolve Facebook Page ID: ${meBody?.error?.message || JSON.stringify(meBody)}`
+      );
+    }
+    const pageId = meBody.id;
+
+    // POST /{page_id}/messages with recipient.comment_id (private reply)
+    // Matches working n8n implementation.
+    const url = `https://graph.facebook.com/v22.0/${pageId}/messages?access_token=${accessToken}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1002,19 +1014,25 @@ export class InstagramProvider
   async replyToComment(
     accessToken: string,
     commentId: string,
-    message: string,
-    type = 'graph.facebook.com'
+    message: string
   ): Promise<{ id: string }> {
-    const response = await this.fetch(
-      `https://${type}/v20.0/${commentId}/replies?message=${encodeURIComponent(
-        message
-      )}&access_token=${accessToken}`,
-      { method: 'POST' }
-    );
+    // Use graph.instagram.com with Bearer auth and message as form body
+    // (matches working n8n implementation).
+    const url = `https://graph.instagram.com/v22.0/${commentId}/replies`;
+    const response = await fetch(url, {
+      method: 'POST',
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: `message=${encodeURIComponent(message)}`,
+    });
     const body = await response.json();
-    if (body.error) {
+    if (!response.ok || body.error) {
+      const errMsg =
+        body?.error?.message || JSON.stringify(body?.error || body);
       throw new Error(
-        `Instagram comment reply failed: ${body.error.message || JSON.stringify(body.error)}`
+        `Instagram comment reply failed (${response.status}): ${errMsg}`
       );
     }
     return { id: body.id };
