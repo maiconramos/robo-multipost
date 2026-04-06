@@ -49,10 +49,10 @@ export class FlowActivity {
   async sendDirectMessage(
     integrationId: string,
     orgId: string,
-    igUserId: string,
+    _igUserId: string,
     message: string,
-    commentId?: string
-  ): Promise<{ recipientId: string }> {
+    commentId: string
+  ) {
     const integration = await this._integrationService.getIntegrationById(
       orgId,
       integrationId
@@ -66,21 +66,16 @@ export class FlowActivity {
       throw new Error('Instagram provider not found');
     }
 
-    if (commentId) {
-      // Private reply: DM triggered by a comment — supported for 7 days.
-      // Only ONE private reply per comment is allowed by Meta.
-      const result = await provider.sendPrivateReply(
-        integration.token,
-        integration.internalId,
-        commentId,
-        message
-      );
-      return { recipientId: result.recipientId };
-    } else {
-      // Follow-up DM using the IG-scoped user ID (from a previous private reply).
-      const result = await provider.sendDM(integration.token, igUserId, message);
-      return { recipientId: result.recipientId };
-    }
+    // Always use private reply (recipient: { comment_id }).
+    // This is the ONLY way to DM a commenter without advanced access
+    // to instagram_manage_messages. Limited to ONE per comment, so the
+    // workflow collects all DM messages and sends them combined here.
+    await provider.sendPrivateReply(
+      integration.token,
+      integration.internalId,
+      commentId,
+      message
+    );
   }
 
   @ActivityMethod()

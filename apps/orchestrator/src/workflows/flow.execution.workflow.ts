@@ -30,10 +30,13 @@ export interface FlowExecutionInput {
 
 /** Mutable context passed through the graph traversal. */
 interface TraversalContext {
-  /** IG-scoped user ID resolved after the first private reply DM. */
-  dmRecipientId?: string;
-  /** Whether a private reply (comment_id-based DM) has already been sent. */
-  privateReplySent: boolean;
+  /**
+   * Collected DM messages. Meta only allows ONE private reply per comment
+   * and `recipient: { id }` requires advanced access to instagram_manage_messages.
+   * So we collect all DM texts during traversal and send them as a single
+   * combined private reply at the end.
+   */
+  dmMessages: string[];
 }
 
 export async function flowExecutionWorkflow(input: FlowExecutionInput) {
@@ -59,7 +62,7 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
       return;
     }
 
-    const ctx: TraversalContext = { privateReplySent: false };
+    const ctx: TraversalContext = { dmMessages: [] };
 
     // Traverse the graph starting from the trigger node
     await traverseNode(
@@ -72,6 +75,20 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
       0,
       ctx
     );
+
+    // Send all collected DM messages as a single private reply.
+    // Meta only allows ONE private reply per comment, and recipient:{id}
+    // requires advanced access (instagram_manage_messages App Review).
+    if (ctx.dmMessages.length > 0) {
+      const combinedMessage = ctx.dmMessages.join('\n\n');
+      await sendDirectMessage(
+        flow.integrationId || input.integrationId,
+        flow.organizationId,
+        input.igCommenterId,
+        combinedMessage,
+        input.igCommentId
+      );
+    }
 
     await updateExecution(input.executionId, {
       status: 'COMPLETED' as any,
@@ -174,30 +191,8 @@ async function traverseNode(
         input
       );
       if (message) {
-        if (!ctx.privateReplySent) {
-          // First DM: use private reply (comment_id) — Meta only allows one per comment.
-          const result = await sendDirectMessage(
-            integrationId,
-            orgId,
-            input.igCommenterId,
-            message,
-            input.igCommentId
-          );
-          ctx.privateReplySent = true;
-          if (result?.recipientId) {
-            ctx.dmRecipientId = result.recipientId;
-          }
-        } else {
-          // Subsequent DMs: use the IG-scoped user ID from the first private reply.
-          const recipientId = ctx.dmRecipientId || input.igCommenterId;
-          await sendDirectMessage(
-            integrationId,
-            orgId,
-            recipientId,
-            message
-            // No commentId — forces direct DM via recipient.id
-          );
-        }
+        // Collect message — all DMs are sent as a single private reply at the end.
+        ctx.dmMessages.push(message);
       }
       break;
     }
