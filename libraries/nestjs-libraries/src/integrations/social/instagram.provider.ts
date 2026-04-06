@@ -965,20 +965,29 @@ export class InstagramProvider
   // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies
   async sendPrivateReply(
     accessToken: string,
-    igAccountId: string,
+    _igAccountId: string,
     commentId: string,
     message: string
   ): Promise<{ recipientId: string; messageId: string }> {
-    // Official Meta docs: POST /{APP_USERS_IG_ID}/messages with Bearer auth.
+    // Private reply requires Facebook Page ID + Page Access Token on graph.facebook.com.
+    // integration.token IS a Page Access Token, so GET /me returns the Page.
     // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies
     // Must be sent within 7 days of the comment.
-    const url = `https://graph.instagram.com/v25.0/${igAccountId}/messages`;
+    const meRes = await fetch(
+      `https://graph.facebook.com/v25.0/me?access_token=${accessToken}`
+    );
+    const meBody = await meRes.json();
+    if (!meRes.ok || meBody.error) {
+      throw new Error(
+        `Failed to resolve Facebook Page ID: ${meBody?.error?.message || JSON.stringify(meBody)}`
+      );
+    }
+    const pageId = meBody.id;
+
+    const url = `https://graph.facebook.com/v25.0/${pageId}/messages?access_token=${accessToken}`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${accessToken}`,
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         recipient: { comment_id: commentId },
         message: { text: message },
@@ -1007,16 +1016,12 @@ export class InstagramProvider
     commentId: string,
     message: string
   ): Promise<{ id: string }> {
-    // Official Meta docs: POST /{comment_id}/replies with JSON body.
-    // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-comment/replies
-    // Works on both graph.facebook.com and graph.instagram.com.
-    const url = `https://graph.instagram.com/v25.0/${commentId}/replies`;
+    // Page Access Token works on graph.facebook.com (not graph.instagram.com
+    // which requires an Instagram User Token from Instagram Login).
+    const url = `https://graph.facebook.com/v25.0/${commentId}/replies?access_token=${accessToken}`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: {
-        Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/json',
-      },
+      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ message }),
     });
     const body = await response.json();
