@@ -965,29 +965,20 @@ export class InstagramProvider
   // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies
   async sendPrivateReply(
     accessToken: string,
-    _igAccountId: string,
+    igAccountId: string,
     commentId: string,
     message: string
   ): Promise<{ recipientId: string; messageId: string }> {
-    // The private reply API uses the Facebook Page ID (not IG account ID).
-    // Since integration.token is a Page Access Token, GET /me returns the Page.
-    const meRes = await fetch(
-      `https://graph.facebook.com/v25.0/me?access_token=${accessToken}`
-    );
-    const meBody = await meRes.json();
-    if (!meRes.ok || meBody.error) {
-      throw new Error(
-        `Failed to resolve Facebook Page ID: ${meBody?.error?.message || JSON.stringify(meBody)}`
-      );
-    }
-    const pageId = meBody.id;
-
-    // POST /{page_id}/messages with recipient.comment_id (private reply)
-    // Matches working n8n implementation.
-    const url = `https://graph.facebook.com/v25.0/${pageId}/messages?access_token=${accessToken}`;
+    // Official Meta docs: POST /{APP_USERS_IG_ID}/messages with Bearer auth.
+    // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies
+    // Must be sent within 7 days of the comment.
+    const url = `https://graph.instagram.com/v25.0/${igAccountId}/messages`;
     const response = await fetch(url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        Authorization: `Bearer ${accessToken}`,
+      },
       body: JSON.stringify({
         recipient: { comment_id: commentId },
         message: { text: message },
@@ -1016,16 +1007,17 @@ export class InstagramProvider
     commentId: string,
     message: string
   ): Promise<{ id: string }> {
-    // Use graph.instagram.com with Bearer auth and message as form body
-    // (matches working n8n implementation).
+    // Official Meta docs: POST /{comment_id}/replies with JSON body.
+    // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-graph-api/reference/ig-comment/replies
+    // Works on both graph.facebook.com and graph.instagram.com.
     const url = `https://graph.instagram.com/v25.0/${commentId}/replies`;
     const response = await fetch(url, {
       method: 'POST',
       headers: {
         Authorization: `Bearer ${accessToken}`,
-        'Content-Type': 'application/x-www-form-urlencoded',
+        'Content-Type': 'application/json',
       },
-      body: `message=${encodeURIComponent(message)}`,
+      body: JSON.stringify({ message }),
     });
     const body = await response.json();
     if (!response.ok || body.error) {
