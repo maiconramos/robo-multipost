@@ -10,6 +10,7 @@ export const TriggerNode: FC<NodeProps> = memo(({ data, selected }) => {
     ? (() => { try { return JSON.parse(data.config as string); } catch { return {}; } })()
     : (data?.config || {});
   const postCount = Array.isArray(config.postIds) ? config.postIds.length : 0;
+  const keywords: string[] = Array.isArray(config.keywords) ? config.keywords : [];
 
   return (
     <div
@@ -44,6 +45,11 @@ export const TriggerNode: FC<NodeProps> = memo(({ data, selected }) => {
             )
           : t('trigger_posts_all', 'All posts')}
       </p>
+      {keywords.length > 0 && (
+        <p className="text-[11px] mt-[2px] truncate max-w-[180px]" style={{ color: '#86efac' }}>
+          {t('trigger_keywords_label', 'Keywords')}: {keywords.join(', ')}
+        </p>
+      )}
       <Handle type="source" position={Position.Bottom} className="!bg-green-400" />
     </div>
   );

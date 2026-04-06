@@ -27,6 +27,7 @@ import { DelayNode } from '@gitroom/frontend/components/automations/nodes/delay-
 import { DeletableEdge } from '@gitroom/frontend/components/automations/nodes/deletable-edge';
 import { NodeConfigPanel } from '@gitroom/frontend/components/automations/node-config-panel';
 import { FlowExecutionsComponent } from '@gitroom/frontend/components/automations/flow-executions.component';
+import { FlowSummaryComponent } from '@gitroom/frontend/components/automations/flow-summary.component';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 
@@ -60,12 +61,12 @@ const REVERSE_NODE_TYPE_MAP: Record<string, string> = {
   delay: 'DELAY',
 };
 
-const nodeToolbar = [
-  { type: 'trigger', label: 'Trigger' },
-  { type: 'condition', label: 'Condition' },
-  { type: 'replyComment', label: 'Reply Comment' },
-  { type: 'sendDm', label: 'Send DM' },
-  { type: 'delay', label: 'Delay' },
+const NODE_TOOLBAR_CONFIG = [
+  { type: 'trigger', color: '#22c55e', labelKey: 'node_trigger', label: 'Trigger', descKey: 'node_trigger_desc', desc: 'Instagram comment' },
+  { type: 'condition', color: '#eab308', labelKey: 'node_condition', label: 'Condition', descKey: 'node_condition_desc', desc: 'Filter by keywords' },
+  { type: 'replyComment', color: '#3b82f6', labelKey: 'node_reply', label: 'Reply Comment', descKey: 'node_reply_desc', desc: 'Public reply' },
+  { type: 'sendDm', color: '#a855f7', labelKey: 'node_dm', label: 'Send DM', descKey: 'node_dm_desc', desc: 'Private message' },
+  { type: 'delay', color: '#f97316', labelKey: 'node_delay', label: 'Delay', descKey: 'node_delay_desc', desc: 'Wait before next' },
 ];
 
 interface FlowEditorProps {
@@ -83,6 +84,7 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
   const [showHistory, setShowHistory] = useState(false);
   const [editingName, setEditingName] = useState(false);
   const [flowName, setFlowName] = useState('');
+  const [viewMode, setViewMode] = useState<'summary' | 'advanced' | null>(null);
 
   const initialNodes = useMemo(() => {
     if (!flow?.nodes) return [];
@@ -208,6 +210,56 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
     []
   );
 
+  const handleAddNode = useCallback(
+    (type: string) => {
+      setNodes((nds) => {
+        const lastNode = nds.length > 0 ? nds[nds.length - 1] : null;
+        const position = lastNode
+          ? { x: lastNode.position.x, y: lastNode.position.y + 150 }
+          : { x: 250, y: 50 };
+
+        const newNodeId = `temp-${Date.now()}`;
+        const newNode: Node = {
+          id: newNodeId,
+          type,
+          position,
+          data: { label: type, config: '{}' },
+        };
+
+        const shouldAutoConnect =
+          lastNode &&
+          type !== 'trigger' &&
+          !(lastNode.type === 'sendDm' && type === 'sendDm');
+
+        if (shouldAutoConnect) {
+          const edgeData: Edge = {
+            id: `e-${lastNode.id}-${newNodeId}`,
+            source: lastNode.id,
+            target: newNodeId,
+            type: 'deletable',
+          };
+          if (lastNode.type === 'condition') {
+            edgeData.sourceHandle = 'match';
+          }
+          setEdges((eds) => [...eds, edgeData]);
+        }
+
+        if (lastNode?.type === 'sendDm' && type === 'sendDm') {
+          toaster.show(
+            t(
+              'dm_single_limit',
+              'A Meta permite apenas 1 mensagem direta por comentario. Use quebras de linha no campo de mensagem para enviar multiplas linhas.'
+            ),
+            'warning'
+          );
+        }
+
+        return [...nds, newNode];
+      });
+    },
+    [setNodes, setEdges, toaster, t]
+  );
+
   const handleNodeUpdate = useCallback(
     (nodeId: string, config: Record<string, any>) => {
       setNodes((nds) =>
@@ -270,6 +322,15 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
     if (flow?.name) setFlowName(flow.name);
   }, [flow?.name]);
 
+  // Auto-detect view mode: simple flows (linear, no condition) → summary
+  useEffect(() => {
+    if (viewMode !== null || !flow?.nodes) return;
+    const hasCondition = flow.nodes.some((n: any) => n.type === 'CONDITION');
+    const nodeCount = flow.nodes.length;
+    const isSimple = !hasCondition && nodeCount <= 4;
+    setViewMode(isSimple ? 'summary' : 'advanced');
+  }, [flow?.nodes, viewMode]);
+
   const handleNameSave = useCallback(async () => {
     setEditingName(false);
     const trimmed = flowName.trim();
@@ -328,6 +389,28 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
   if (isLoading) return <LoadingComponent />;
   if (!flow) return <div className="p-[24px] text-textColor">{t('flow_not_found', 'Flow not found')}</div>;
 
+  if (viewMode === 'summary') {
+    return (
+      <div className="flex flex-col h-full flex-1">
+        <div className="flex items-center gap-[12px] border-b border-fifth bg-newBgColorInner px-[16px] py-[8px]">
+          <button
+            onClick={() => router.push('/automacoes')}
+            className="text-customColor18 hover:text-textColor"
+          >
+            &larr;
+          </button>
+        </div>
+        <div className="flex-1 overflow-y-auto">
+          <FlowSummaryComponent
+            flow={flow}
+            onSwitchToAdvanced={() => setViewMode('advanced')}
+            onMutate={() => mutate()}
+          />
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col h-full flex-1">
       {/* Toolbar */}
@@ -382,6 +465,12 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
 
         <div className="flex items-center gap-[8px]">
           <button
+            onClick={() => setViewMode('summary')}
+            className="rounded-[4px] bg-btnSimple border border-fifth px-[12px] py-[6px] text-[12px] text-textColor hover:bg-boxHover"
+          >
+            {t('view_summary', 'Summary')}
+          </button>
+          <button
             onClick={() => setShowHistory((v) => !v)}
             className="rounded-[4px] bg-btnSimple border border-fifth px-[12px] py-[6px] text-[12px] text-textColor hover:bg-boxHover"
           >
@@ -417,18 +506,25 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
       </div>
 
       {/* Node palette */}
-      <div className="flex items-center gap-[8px] border-b border-fifth bg-newBgColorInner px-[16px] py-[8px]">
-        <span className="text-[12px] text-customColor18 mr-[8px]">
-          {t('drag_to_add', 'Drag to add:')}
-        </span>
-        {nodeToolbar.map((item) => (
+      <div className="flex items-center gap-[8px] border-b border-fifth bg-newBgColorInner px-[16px] py-[8px] overflow-x-auto">
+        {NODE_TOOLBAR_CONFIG.map((item) => (
           <div
             key={item.type}
             draggable
             onDragStart={(e) => onDragStart(e, item.type)}
-            className="cursor-grab rounded-[4px] px-[12px] py-[4px] text-[12px] text-textColor bg-btnSimple border border-fifth hover:bg-boxHover"
+            onClick={() => handleAddNode(item.type)}
+            className="cursor-grab flex items-center gap-[8px] rounded-[6px] px-[10px] py-[6px] text-textColor bg-btnSimple border border-fifth hover:bg-boxHover min-w-fit"
+            style={{ borderLeftWidth: 3, borderLeftColor: item.color }}
+            title={t('click_or_drag_to_add', 'Click or drag to add')}
           >
-            {t(`node_${item.type}`, item.label)}
+            <div>
+              <div className="text-[12px] font-medium leading-tight">
+                {t(item.labelKey, item.label)}
+              </div>
+              <div className="text-[10px] text-customColor18 leading-tight">
+                {t(item.descKey, item.desc)}
+              </div>
+            </div>
           </div>
         ))}
       </div>

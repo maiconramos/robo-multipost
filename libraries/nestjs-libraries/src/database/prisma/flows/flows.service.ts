@@ -5,6 +5,7 @@ import {
   CreateFlowDto,
   UpdateFlowDto,
   SaveCanvasDto,
+  QuickCreateFlowDto,
 } from '@gitroom/nestjs-libraries/dtos/flows/flow.dto';
 import { TemporalService } from 'nestjs-temporal-core';
 import {
@@ -294,6 +295,130 @@ export class FlowsService {
       );
       return [];
     }
+  }
+
+  async quickCreateFlow(orgId: string, body: QuickCreateFlowDto, profileId?: string) {
+    const check = await this.checkIntegrationWebhook(orgId, body.integrationId);
+    if (!check.ok) {
+      throw new BadRequestException(check.error);
+    }
+
+    const flow = await this._flowsRepository.createFlow(
+      orgId,
+      {
+        name: body.name,
+        integrationId: body.integrationId,
+        triggerPostIds: body.postIds,
+      },
+      profileId
+    );
+
+    const nodes: Array<{ type: string; positionX: number; positionY: number; data: string }> = [];
+    const edges: Array<{ sourceIndex: number; targetIndex: number }> = [];
+
+    // Trigger node
+    const triggerConfig: Record<string, any> = {};
+    if (body.postIds?.length) triggerConfig.postIds = body.postIds;
+    if (body.keywords?.length) triggerConfig.keywords = body.keywords;
+    if (body.matchMode) triggerConfig.matchMode = body.matchMode;
+
+    nodes.push({
+      type: 'TRIGGER',
+      positionX: 250,
+      positionY: 50,
+      data: JSON.stringify(triggerConfig),
+    });
+
+    let lastIndex = 0;
+
+    // Reply Comment node
+    if (body.replyMessage) {
+      nodes.push({
+        type: 'REPLY_COMMENT',
+        positionX: 250,
+        positionY: 50 + nodes.length * 150,
+        data: JSON.stringify({ message: body.replyMessage }),
+      });
+      edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
+      lastIndex = nodes.length - 1;
+    }
+
+    // Send DM node
+    if (body.dmMessage) {
+      nodes.push({
+        type: 'SEND_DM',
+        positionX: 250,
+        positionY: 50 + nodes.length * 150,
+        data: JSON.stringify({ message: body.dmMessage }),
+      });
+      edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
+    }
+
+    // Save canvas with generated nodes/edges
+    const flowNodes = nodes.map((n, i) => ({
+      id: `temp-${i}`,
+      type: n.type as any,
+      positionX: n.positionX,
+      positionY: n.positionY,
+      data: n.data,
+    }));
+    const flowEdges = edges.map((e, i) => ({
+      id: `temp-edge-${i}`,
+      sourceNodeId: `temp-${e.sourceIndex}`,
+      targetNodeId: `temp-${e.targetIndex}`,
+    }));
+
+    await this._flowsRepository.saveCanvas(
+      orgId,
+      flow.id,
+      flowNodes,
+      flowEdges,
+      profileId
+    );
+
+    return this._flowsRepository.getFlow(orgId, flow.id, profileId);
+  }
+
+  async getInstagramPostsByIntegration(orgId: string, integrationId: string) {
+    const integration = await this._integrationService.getIntegrationById(
+      orgId,
+      integrationId
+    );
+    if (!integration || integration.providerIdentifier !== 'instagram') {
+      return [];
+    }
+
+    const provider = this._integrationManager.getSocialIntegration(
+      'instagram'
+    ) as unknown as InstagramProvider;
+    if (!provider) {
+      return [];
+    }
+
+    try {
+      return await provider.getRecentMedia(
+        integration.internalId,
+        integration.token
+      );
+    } catch (err) {
+      this._logger.warn(
+        `Failed to fetch Instagram posts: ${
+          err instanceof Error ? err.message : 'Unknown error'
+        }`
+      );
+      return [];
+    }
+  }
+
+  getExecution(id: string) {
+    return this._flowsRepository.getExecution(id);
+  }
+
+  appendExecutionLog(
+    id: string,
+    entry: { nodeId: string; nodeType: string; status: string; timestamp: string; error?: string }
+  ) {
+    return this._flowsRepository.appendExecutionLog(id, entry);
   }
 
   getExecutions(flowId: string, page?: number, limit?: number) {

@@ -1213,6 +1213,7 @@ model FlowExecution {
   status             FlowExecutionStatus @default(RUNNING)
   currentNodeId      String?
   error              String?
+  executionLog       String?
   startedAt          DateTime            @default(now())
   completedAt        DateTime?
   createdAt          DateTime            @default(now())

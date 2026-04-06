@@ -7,6 +7,7 @@ const {
   sendDirectMessage,
   evaluateCondition,
   updateExecution,
+  appendExecutionLog,
 } = proxyActivities<FlowActivity>({
   startToCloseTimeout: '5 minute',
   taskQueue: 'main',
@@ -125,11 +126,37 @@ async function traverseNode(
     currentNodeId: nodeId,
   });
 
+  await appendExecutionLog(input.executionId, {
+    nodeId,
+    nodeType: node.type,
+    status: 'entered',
+    timestamp: new Date().toISOString(),
+  });
+
   // Execute node based on type
+  try {
   switch (node.type) {
-    case 'TRIGGER':
-      // Trigger is the entry point — nothing to execute, just proceed
+    case 'TRIGGER': {
+      // If trigger has keywords, evaluate them — skip flow if no match
+      const triggerConfig = safeParseJson(node.data);
+      if (triggerConfig.keywords?.length) {
+        const matches = await evaluateCondition(
+          node.data || '{}',
+          input.commentText
+        );
+        if (!matches) {
+          await appendExecutionLog(input.executionId, {
+            nodeId,
+            nodeType: node.type,
+            status: 'skipped',
+            timestamp: new Date().toISOString(),
+            error: 'keywords_not_matched',
+          });
+          return;
+        }
+      }
       break;
+    }
 
     case 'CONDITION': {
       const matches = await evaluateCondition(
@@ -149,6 +176,14 @@ async function traverseNode(
       const noMatchEdge = allOutgoing.find(
         (e: any) => e.sourceHandle === 'no_match'
       );
+
+      await appendExecutionLog(input.executionId, {
+        nodeId,
+        nodeType: node.type,
+        status: 'completed',
+        timestamp: new Date().toISOString(),
+        error: matches ? 'branch:match' : 'branch:no_match',
+      });
 
       const nextEdge = matches ? matchEdge : noMatchEdge;
       if (nextEdge) {
@@ -208,6 +243,23 @@ async function traverseNode(
       }
       break;
     }
+  }
+
+  await appendExecutionLog(input.executionId, {
+    nodeId,
+    nodeType: node.type,
+    status: 'completed',
+    timestamp: new Date().toISOString(),
+  });
+  } catch (nodeErr: any) {
+    await appendExecutionLog(input.executionId, {
+      nodeId,
+      nodeType: node.type,
+      status: 'error',
+      timestamp: new Date().toISOString(),
+      error: nodeErr?.message || 'Unknown error',
+    });
+    throw nodeErr;
   }
 
   // Follow all outgoing edges (for non-CONDITION nodes)

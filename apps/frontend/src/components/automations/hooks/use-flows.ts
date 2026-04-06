@@ -39,3 +39,33 @@ export const useFlowExecutions = (id: string) => {
 
   return useSWR(`/flows/${id}/executions`, load);
 };
+
+export const useFlowExecution = (flowId: string, executionId: string | null) => {
+  const fetch = useFetch();
+  const load = useCallback(
+    async (path: string) => {
+      return await (await fetch(path)).json();
+    },
+    [fetch]
+  );
+
+  return useSWR(
+    executionId ? `/flows/${flowId}/executions/${executionId}` : null,
+    load
+  );
+};
+
+export const useIntegrationPosts = (integrationId: string | null) => {
+  const fetch = useFetch();
+  const load = useCallback(
+    async (path: string) => {
+      return await (await fetch(path)).json();
+    },
+    [fetch]
+  );
+
+  return useSWR(
+    integrationId ? `/flows/integrations/${integrationId}/posts` : null,
+    load
+  );
+};

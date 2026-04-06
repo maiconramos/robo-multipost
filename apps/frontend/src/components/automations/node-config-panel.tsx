@@ -146,6 +146,52 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
                 })}
               </div>
             )}
+
+            <label className="block text-[14px] text-textColor mb-[6px] mt-[16px]">
+              {t('trigger_keywords', 'Keywords')}
+            </label>
+            <p className="text-[12px] text-customColor18 mb-[6px]">
+              {t(
+                'trigger_keywords_hint',
+                'Enter keywords to filter comments. Leave empty to trigger on any comment.'
+              )}
+            </p>
+            <div className={inputWrapperClass}>
+              <textarea
+                className={`${inputClass} min-h-[80px] resize-y`}
+                rows={3}
+                placeholder={t(
+                  'trigger_keywords_placeholder',
+                  'Enter keywords, one per line'
+                )}
+                value={(config.keywords || []).join('\n')}
+                onChange={(e) =>
+                  setConfig({
+                    ...config,
+                    keywords: e.target.value
+                      .split('\n')
+                      .map((k: string) => k.trim())
+                      .filter(Boolean),
+                  })
+                }
+              />
+            </div>
+            <label className="block text-[14px] text-textColor mb-[6px] mt-[12px]">
+              {t('trigger_match_mode', 'Match Mode')}
+            </label>
+            <div className={inputWrapperClass}>
+              <select
+                className={inputClass}
+                value={config.matchMode || 'any'}
+                onChange={(e) =>
+                  setConfig({ ...config, matchMode: e.target.value })
+                }
+              >
+                <option value="any">{t('match_any', 'Any keyword')}</option>
+                <option value="all">{t('match_all', 'All keywords')}</option>
+                <option value="exact">{t('match_exact', 'Exact match')}</option>
+              </select>
+            </div>
           </>
         );
 

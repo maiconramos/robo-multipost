@@ -12,6 +12,16 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Configuracao de webhook Instagram movida da pagina de Automacoes para dentro da credencial Facebook em Configuracoes > Credenciais
 
 ### Adicionado
+- Wizard "Nova Automacao Rapida" — formulario guiado com preview em tempo real (celular mockup) para criar automacoes simples sem precisar do editor de nodes
+- Endpoint POST /flows/quick-create que gera nodes/edges automaticamente a partir do wizard
+- Endpoint GET /flows/integrations/:integrationId/posts para buscar posts Instagram sem precisar de um flow existente
+- Palavras-chave (keywords) no node Trigger — elimina necessidade do node Condition para 99% dos casos de uso
+- Toolbar de nodes melhorada com cards coloridos, descricao curta e clique para adicionar alem de arrastar
+- Modo Summary vs Advanced no editor de flows — flows simples abrem em visualizacao resumo, complexos abrem no editor React Flow
+- Historico de execucoes detalhado — timeline vertical com status de cada node visitado (log de execucao)
+- Campo executionLog no schema FlowExecution para armazenar trace de nodes visitados em cada execucao
+- Endpoint GET /flows/:id/executions/:executionId para detalhe de uma unica execucao
+- Botao "Nova Automacao" (wizard) como acao primaria na lista de automacoes, "Comecar do zero" como secundario
 - Knowledge Base por perfil via RAG com pgvector — usuarios enviam PDFs, TXT ou MD e o agente pode citar fatos desses documentos ao gerar posts
 - Nova tool `knowledgeBaseQuery` no agente Mastra que consulta vetores por perfil antes de gerar conteudo com informacoes factuais
 - API de gestao de documentos (GET/POST upload/DELETE em /settings/profiles/:id/knowledge)

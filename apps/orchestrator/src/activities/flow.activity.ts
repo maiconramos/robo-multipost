@@ -125,4 +125,12 @@ export class FlowActivity {
   ) {
     return this._flowsService.updateExecution(executionId, data);
   }
+
+  @ActivityMethod()
+  async appendExecutionLog(
+    executionId: string,
+    entry: { nodeId: string; nodeType: string; status: string; timestamp: string; error?: string }
+  ) {
+    return this._flowsService.appendExecutionLog(executionId, entry);
+  }
 }

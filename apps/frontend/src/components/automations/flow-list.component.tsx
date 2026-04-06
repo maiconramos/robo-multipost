@@ -116,23 +116,32 @@ export const FlowListComponent: FC = () => {
   return (
     <div className="flex flex-col gap-[16px] p-[24px] flex-1">
       <div className="flex items-center justify-between">
-        <h1 className="text-[20px] font-semibold text-textColor">
-          {t('automacoes', 'Automations')}
-        </h1>
-        <button
-          onClick={() => setShowCreate(true)}
-          className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80"
-        >
-          {t('create_new_flow', 'Create New Automation')}
-        </button>
+        <div>
+          <h1 className="text-[20px] font-semibold text-textColor">
+            {t('automacoes', 'Automations')}
+          </h1>
+          <p className="text-[14px] text-customColor18 mt-[4px]">
+            {t(
+              'automacoes_description',
+              'Create automations to automatically respond to Instagram comments'
+            )}
+          </p>
+        </div>
+        <div className="flex items-center gap-[8px]">
+          <button
+            onClick={() => router.push('/automacoes/nova')}
+            className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80"
+          >
+            {t('new_automation', 'New Automation')}
+          </button>
+          <button
+            onClick={() => setShowCreate(true)}
+            className="rounded-[4px] border border-fifth bg-btnSimple px-[16px] py-[8px] text-[14px] text-textColor hover:bg-boxHover"
+          >
+            {t('start_from_scratch', 'Start from scratch')}
+          </button>
+        </div>
       </div>
-
-      <p className="text-[14px] text-customColor18">
-        {t(
-          'automacoes_description',
-          'Create automations to automatically respond to Instagram comments'
-        )}
-      </p>
 
       {/* Create modal */}
       {showCreate && (

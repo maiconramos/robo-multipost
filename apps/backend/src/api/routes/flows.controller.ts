@@ -18,6 +18,7 @@ import {
   UpdateFlowDto,
   UpdateFlowStatusDto,
   SaveCanvasDto,
+  QuickCreateFlowDto,
 } from '@gitroom/nestjs-libraries/dtos/flows/flow.dto';
 
 @ApiTags('Flows')
@@ -58,6 +59,26 @@ export class FlowsController {
     @Body() body: CreateFlowDto
   ) {
     return this._flowsService.createFlow(org.id, body, profile?.id);
+  }
+
+  @Post('/quick-create')
+  async quickCreateFlow(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Body() body: QuickCreateFlowDto
+  ) {
+    return this._flowsService.quickCreateFlow(org.id, body, profile?.id);
+  }
+
+  @Get('/integrations/:integrationId/posts')
+  async getIntegrationPosts(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integrationId') integrationId: string
+  ) {
+    return this._flowsService.getInstagramPostsByIntegration(
+      org.id,
+      integrationId
+    );
   }
 
   @Get('/:id')
@@ -141,5 +162,10 @@ export class FlowsController {
       page ? parseInt(page, 10) : undefined,
       limit ? parseInt(limit, 10) : undefined
     );
+  }
+
+  @Get('/:id/executions/:executionId')
+  async getExecution(@Param('executionId') executionId: string) {
+    return this._flowsService.getExecution(executionId);
   }
 }

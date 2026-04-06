@@ -264,12 +264,36 @@ export class FlowsRepository {
     });
   }
 
+  getExecution(id: string) {
+    return this._flowExecution.model.flowExecution.findFirst({
+      where: { id },
+    });
+  }
+
   getExecutions(flowId: string, page = 1, limit = 20) {
     return this._flowExecution.model.flowExecution.findMany({
       where: { flowId },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
+    });
+  }
+
+  async appendExecutionLog(
+    id: string,
+    entry: { nodeId: string; nodeType: string; status: string; timestamp: string; error?: string }
+  ) {
+    const execution = await this._flowExecution.model.flowExecution.findFirst({
+      where: { id },
+      select: { executionLog: true },
+    });
+    const log = execution?.executionLog
+      ? JSON.parse(execution.executionLog)
+      : [];
+    log.push(entry);
+    return this._flowExecution.model.flowExecution.update({
+      where: { id },
+      data: { executionLog: JSON.stringify(log) },
     });
   }
 

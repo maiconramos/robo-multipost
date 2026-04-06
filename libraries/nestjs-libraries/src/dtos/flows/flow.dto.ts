@@ -85,6 +85,36 @@ export class FlowEdgeDto {
   sourceHandle?: string;
 }
 
+export class QuickCreateFlowDto {
+  @IsString()
+  name: string;
+
+  @IsString()
+  integrationId: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  postIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  keywords?: string[];
+
+  @IsOptional()
+  @IsString()
+  matchMode?: string;
+
+  @IsOptional()
+  @IsString()
+  replyMessage?: string;
+
+  @IsOptional()
+  @IsString()
+  dmMessage?: string;
+}
+
 export class SaveCanvasDto {
   @IsArray()
   @ValidateNested({ each: true })
