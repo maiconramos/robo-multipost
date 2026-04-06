@@ -35,9 +35,7 @@ import { LateSettingsSection } from '@gitroom/frontend/components/settings/late-
 import { CredentialsSettingsSection } from '@gitroom/frontend/components/settings/credentials-settings.component';
 import { ProfilesSettingsComponent } from '@gitroom/frontend/components/settings/profiles.component';
 import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-apps/approved-apps.component';
-import { AiCreditsSettingsSection } from '@gitroom/frontend/components/settings/ai-credits.settings.component';
-import { ProfilePersonaSettingsSection } from '@gitroom/frontend/components/settings/profile-persona.settings.component';
-import { KnowledgeBaseSettingsSection } from '@gitroom/frontend/components/settings/knowledge-base.settings.component';
+import { AiAgentSettingsSection } from '@gitroom/frontend/components/settings/ai-agent.settings.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -116,13 +114,7 @@ export const SettingsPopup: FC<{
       arr.push({ tab: 'profiles', label: 'Perfis' });
     }
     if (user?.role !== 'USER') {
-      arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'AI Credits') });
-    }
-    if (user?.role !== 'USER') {
-      arr.push({ tab: 'ai_persona', label: t('persona_tab', 'AI Persona') });
-    }
-    if (user?.role !== 'USER') {
-      arr.push({ tab: 'knowledge_base', label: t('kb_tab', 'Knowledge Base') });
+      arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'AI Agent') });
     }
     arr.push({ tab: 'late', label: 'Late' });
     arr.push({ tab: 'credentials', label: 'Credenciais' });
@@ -224,21 +216,9 @@ export const SettingsPopup: FC<{
                   </div>
                 )}
 
-              {tab === 'ai_credits' && user?.role !== 'USER' && (
+              {tab === 'ai_agent' && user?.role !== 'USER' && (
                 <div>
-                  <AiCreditsSettingsSection />
-                </div>
-              )}
-
-              {tab === 'ai_persona' && user?.role !== 'USER' && (
-                <div>
-                  <ProfilePersonaSettingsSection />
-                </div>
-              )}
-
-              {tab === 'knowledge_base' && user?.role !== 'USER' && (
-                <div>
-                  <KnowledgeBaseSettingsSection />
+                  <AiAgentSettingsSection />
                 </div>
               )}
 

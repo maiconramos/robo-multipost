@@ -281,18 +281,21 @@ const MultiTextarea: React.FC<MultiTextareaProps> = ({
   );
 };
 
-export const ProfilePersonaSettingsSection: React.FC = () => {
+export const ProfilePersonaSettingsSection: React.FC<{ profileId?: string | null }> = ({ profileId: profileIdProp }) => {
   const t = useT();
   const toaster = useToaster();
   const fetchRaw = useFetch();
   const { data: profiles } = useProfilesList();
-  const [selectedProfileId, setSelectedProfileId] = useState<string | null>(null);
+
+  // Internal selector only when no profileId prop
+  const [internalProfileId, setInternalProfileId] = useState<string | null>(null);
+  const selectedProfileId = profileIdProp !== undefined ? profileIdProp : internalProfileId;
 
   useEffect(() => {
-    if (!selectedProfileId && profiles && profiles.length > 0) {
-      setSelectedProfileId(profiles[0].id);
+    if (profileIdProp === undefined && !internalProfileId && profiles && profiles.length > 0) {
+      setInternalProfileId(profiles[0].id);
     }
-  }, [profiles, selectedProfileId]);
+  }, [profiles, internalProfileId, profileIdProp]);
 
   const { data, mutate, isLoading } = useProfilePersona(selectedProfileId);
   const [form, setForm] = useState<ProfilePersona>(emptyPersona);
@@ -375,33 +378,41 @@ export const ProfilePersonaSettingsSection: React.FC = () => {
     [profiles]
   );
 
+  const showStandalone = profileIdProp === undefined;
+
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">{t('persona_title', 'AI Persona')}</h3>
-      <div className="text-customColor18 mt-[4px] text-[13px]">
-        {t(
-          'persona_description',
-          'Define how the AI agent writes for each profile (tone, CTAs, image style, restrictions).'
-        )}
-      </div>
+      {showStandalone && (
+        <>
+          <h3 className="text-[20px]">{t('persona_title', 'AI Persona')}</h3>
+          <div className="text-customColor18 mt-[4px] text-[13px]">
+            {t(
+              'persona_description',
+              'Define how the AI agent writes for each profile (tone, CTAs, image style, restrictions).'
+            )}
+          </div>
+        </>
+      )}
 
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[20px] flex flex-col gap-[14px]">
-        <div className="flex flex-col gap-[6px]">
-          <label className="text-[13px] text-textColor">
-            {t('persona_select_profile', 'Profile')}
-          </label>
-          <select
-            className="h-[36px] bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[13px] text-textColor px-[8px] outline-none max-w-[380px]"
-            value={selectedProfileId ?? ''}
-            onChange={(e) => setSelectedProfileId(e.target.value || null)}
-          >
-            {profileOptions.map((p) => (
-              <option key={p.id} value={p.id}>
-                {p.name}
-              </option>
-            ))}
-          </select>
-        </div>
+      <div className={showStandalone ? 'my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[20px] flex flex-col gap-[14px]' : 'flex flex-col gap-[14px]'}>
+        {showStandalone && (
+          <div className="flex flex-col gap-[6px]">
+            <label className="text-[13px] text-textColor">
+              {t('persona_select_profile', 'Profile')}
+            </label>
+            <select
+              className="h-[36px] bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[13px] text-textColor px-[8px] outline-none max-w-[380px]"
+              value={selectedProfileId ?? ''}
+              onChange={(e) => setInternalProfileId(e.target.value || null)}
+            >
+              {profileOptions.map((p) => (
+                <option key={p.id} value={p.id}>
+                  {p.name}
+                </option>
+              ))}
+            </select>
+          </div>
+        )}
 
         {isLoading ? (
           <div className="text-customColor18 text-[13px]">

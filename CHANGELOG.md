@@ -8,6 +8,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Adicionado
+- Tab unificada "Agente de IA" nas configuracoes — consolida Persona, Base de Conhecimento e Creditos em uma unica view com secoes colapsiveis e seletor de perfil compartilhado
 - Knowledge Base por perfil via RAG com pgvector — usuarios enviam PDFs, TXT ou MD e o agente pode citar fatos desses documentos ao gerar posts
 - Nova tool `knowledgeBaseQuery` no agente Mastra que consulta vetores por perfil antes de gerar conteudo com informacoes factuais
 - API de gestao de documentos (GET/POST upload/DELETE em /settings/profiles/:id/knowledge)
