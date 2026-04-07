@@ -159,7 +159,7 @@ export const Plugs = () => {
               onClick={() => {
                 if (integration.refreshNeeded) {
                   toaster.show(
-                    'Please refresh the integration from the calendar',
+                    t('please_refresh_integration', 'Please refresh the integration from the calendar'),
                     'warning'
                   );
                   return;
