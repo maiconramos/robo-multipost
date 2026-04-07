@@ -46,10 +46,27 @@ O projeto segue SemVer com uma convencao clara para tags e imagens:
 | package.json | Sem prefixo | `0.2.0` ou `0.3.0-rc.1` |
 | version.txt | Sem prefixo | `0.2.0` ou `0.3.0-rc.1` |
 | Imagem Docker (estavel) | Sem prefixo + `:latest` | `ghcr.io/maiconramos/robo-multipost:0.2.0` |
-| Imagem Docker (RC) | Sem prefixo, SEM `:latest` | `ghcr.io/maiconramos/robo-multipost:0.3.0-rc.1` |
+| Imagem Docker (RC) | Sem prefixo + `:prerelease` | `ghcr.io/maiconramos/robo-multipost:0.3.0-rc.1` |
 
 O workflow de CI/CD strip o `v` automaticamente: tag `v0.2.0` gera imagem `:0.2.0`.
-Pre-releases (versoes com `-` como `rc.1`, `beta.1`) **nao atualizam `:latest`**.
+Pre-releases (versoes com `-` como `rc.1`, `beta.1`) **nao atualizam `:latest`**, mas sempre atualizam `:prerelease`.
+
+### Tags flutuantes
+
+| Tag | Aponta para |
+|-----|-------------|
+| `:latest` | Ultima release estavel |
+| `:prerelease` | Ultima pre-release (RC) publicada |
+
+Para usar sempre a versao mais recente de cada canal no Docker Compose:
+
+```yaml
+# Canal estavel
+image: ghcr.io/maiconramos/robo-multipost:latest
+
+# Canal pre-release (RC)
+image: ghcr.io/maiconramos/robo-multipost:prerelease
+```
 
 ### Regras de incremento
 

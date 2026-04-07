@@ -114,6 +114,19 @@ jobs:
 
           docker manifest push ghcr.io/maiconramos/robo-multipost:latest
 
+      - name: Create Prerelease Manifest
+        if: needs.build-containers-common.outputs.is_prerelease == 'true'
+        env:
+          CONTAINERVER: ${{ needs.build-containers-common.outputs.containerver }}
+        run: |
+          docker manifest rm ghcr.io/maiconramos/robo-multipost:prerelease || true
+
+          docker manifest create ghcr.io/maiconramos/robo-multipost:prerelease \
+            --amend ghcr.io/maiconramos/robo-multipost:${{ env.CONTAINERVER }}-amd64 \
+            --amend ghcr.io/maiconramos/robo-multipost:${{ env.CONTAINERVER }}-arm64
+
+          docker manifest push ghcr.io/maiconramos/robo-multipost:prerelease
+
       - name: Verify Manifests
         env:
           CONTAINERVER: ${{ needs.build-containers-common.outputs.containerver }}
@@ -125,5 +138,6 @@ jobs:
             echo "Latest manifest:"
             docker manifest inspect ghcr.io/maiconramos/robo-multipost:latest
           else
-            echo "Pre-release: skipping :latest verification"
+            echo "Prerelease manifest:"
+            docker manifest inspect ghcr.io/maiconramos/robo-multipost:prerelease
           fi
