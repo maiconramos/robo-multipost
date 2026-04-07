@@ -110,6 +110,28 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
 
+  // Sync nodes/edges when flow data first arrives (initialNodes/initialEdges are empty on first render)
+  useEffect(() => {
+    if (!flow?.id) return;
+    setNodes(
+      (flow.nodes ?? []).map((n: any) => ({
+        id: n.id,
+        type: NODE_TYPE_MAP[n.type] || 'trigger',
+        position: { x: n.positionX, y: n.positionY },
+        data: { label: n.label, config: n.data },
+      }))
+    );
+    setEdges(
+      (flow.edges ?? []).map((e: any) => ({
+        id: e.id,
+        source: e.sourceNodeId,
+        target: e.targetNodeId,
+        sourceHandle: e.sourceHandle || undefined,
+        type: 'deletable',
+      }))
+    );
+  }, [flow?.id, setNodes, setEdges]);
+
   const onConnect = useCallback(
     (params: Connection) => {
       // Block DM → DM direct connection (Meta only allows 1 private reply per comment)
