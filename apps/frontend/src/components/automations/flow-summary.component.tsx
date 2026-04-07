@@ -1,6 +1,6 @@
 'use client';
 
-import { FC, useCallback } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
@@ -13,6 +13,20 @@ interface FlowSummaryProps {
   onMutate: () => void;
 }
 
+const FlowSwitch: FC<{ active: boolean; onChange: (next: boolean) => void }> = ({ active, onChange }) => (
+  <button
+    type="button"
+    role="switch"
+    aria-checked={active}
+    onClick={() => onChange(!active)}
+    className={`relative inline-flex h-[24px] w-[44px] flex-shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 focus:outline-none ${active ? 'bg-customColor42' : 'bg-fifth'}`}
+  >
+    <span
+      className={`inline-block h-[18px] w-[18px] rounded-full bg-white shadow-sm transition-transform duration-200 mt-[1px] ${active ? 'translate-x-[22px]' : 'translate-x-[1px]'}`}
+    />
+  </button>
+);
+
 export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
   flow,
   onSwitchToAdvanced,
@@ -22,6 +36,8 @@ export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
   const fetchApi = useFetch();
   const toaster = useToaster();
   const router = useRouter();
+  const [editingName, setEditingName] = useState(false);
+  const [flowName, setFlowName] = useState(flow.name || '');
 
   const triggerNode = flow.nodes?.find((n: any) => n.type === 'TRIGGER');
   const replyNode = flow.nodes?.find((n: any) => n.type === 'REPLY_COMMENT');
@@ -30,6 +46,25 @@ export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
   const triggerConfig = safeParseJson(triggerNode?.data);
   const replyConfig = safeParseJson(replyNode?.data);
   const dmConfig = safeParseJson(dmNode?.data);
+
+  const handleNameSave = useCallback(async () => {
+    setEditingName(false);
+    const trimmed = flowName.trim();
+    if (!trimmed || trimmed === flow.name) {
+      setFlowName(flow.name || '');
+      return;
+    }
+    try {
+      await fetchApi(`/flows/${flow.id}`, {
+        method: 'PUT',
+        body: JSON.stringify({ name: trimmed }),
+      });
+      onMutate();
+    } catch {
+      setFlowName(flow.name || '');
+      toaster.show(t('failed_to_rename_flow', 'Falha ao renomear automacao'), 'warning');
+    }
+  }, [flowName, flow.id, flow.name, fetchApi, onMutate, toaster, t]);
 
   const handleStatusChange = useCallback(
     async (status: string) => {
@@ -66,42 +101,48 @@ export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
   return (
     <div className="flex flex-col gap-[16px] p-[24px] max-w-[800px] mx-auto">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex items-center justify-between gap-[12px] flex-wrap">
         <div className="flex items-center gap-[12px]">
-          <h2 className="text-[18px] font-semibold text-textColor">{flow.name}</h2>
-          <span
-            className={`rounded-[4px] px-[8px] py-[2px] text-[12px] ${
-              flow.status === 'ACTIVE'
-                ? 'bg-customColor42/20 text-customColor42'
+          {editingName ? (
+            <input
+              autoFocus
+              className="text-[18px] font-semibold text-textColor bg-transparent border-b border-textColor outline-none px-[2px]"
+              value={flowName}
+              onChange={(e) => setFlowName(e.target.value)}
+              onBlur={handleNameSave}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') handleNameSave();
+                if (e.key === 'Escape') {
+                  setFlowName(flow.name);
+                  setEditingName(false);
+                }
+              }}
+            />
+          ) : (
+            <h2
+              className="text-[18px] font-semibold text-textColor cursor-pointer hover:opacity-70"
+              onClick={() => setEditingName(true)}
+              title={t('click_to_rename', 'Clique para renomear')}
+            >
+              {flowName || flow.name}
+            </h2>
+          )}
+          <div className="flex items-center gap-[8px]">
+            <FlowSwitch
+              active={flow.status === 'ACTIVE'}
+              onChange={(active) => handleStatusChange(active ? 'ACTIVE' : 'PAUSED')}
+            />
+            <span className={`text-[12px] ${flow.status === 'ACTIVE' ? 'text-customColor42' : 'text-customColor18'}`}>
+              {flow.status === 'ACTIVE'
+                ? t('flow_status_active', 'Active')
                 : flow.status === 'PAUSED'
-                ? 'bg-customColor13/20 text-customColor13'
-                : 'bg-btnSimple text-customColor18'
-            }`}
-          >
-            {flow.status === 'ACTIVE'
-              ? t('flow_status_active', 'Active')
-              : flow.status === 'PAUSED'
-              ? t('flow_status_paused', 'Paused')
-              : t('flow_status_draft', 'Draft')}
-          </span>
+                ? t('flow_status_paused', 'Paused')
+                : t('flow_status_draft', 'Draft')}
+            </span>
+          </div>
         </div>
 
         <div className="flex items-center gap-[8px]">
-          {flow.status === 'ACTIVE' ? (
-            <button
-              onClick={() => handleStatusChange('PAUSED')}
-              className="rounded-[4px] bg-customColor13/20 text-customColor13 px-[12px] py-[6px] text-[12px] hover:opacity-80"
-            >
-              {t('pause_flow', 'Pause')}
-            </button>
-          ) : (
-            <button
-              onClick={() => handleStatusChange('ACTIVE')}
-              className="rounded-[4px] bg-customColor42/20 text-customColor42 px-[12px] py-[6px] text-[12px] hover:opacity-80"
-            >
-              {t('activate_flow', 'Activate')}
-            </button>
-          )}
           <button
             onClick={() => router.push(`/automacoes/${flow.id}/wizard`)}
             className="rounded-[4px] border border-btnPrimary bg-btnPrimary/10 px-[12px] py-[6px] text-[12px] text-textColor hover:opacity-80"

@@ -411,6 +411,9 @@ export class FlowsService {
       profileId
     );
 
+    // Auto-activate new flows created via wizard
+    await this._flowsRepository.updateFlowStatus(orgId, flow.id, FlowStatus.ACTIVE, profileId);
+
     return this._flowsRepository.getFlow(orgId, flow.id, profileId);
   }
 
