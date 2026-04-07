@@ -22,7 +22,7 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
     return (
       <button onClick={onClick} className={className}>
         <div className="custom:hidden">{icon}</div>
-        <div className="text-[10px]">{label}</div>
+        <div className="text-[10px] w-full text-center leading-tight">{label}</div>
       </button>
     );
   }
@@ -35,7 +35,7 @@ export const MenuItem: FC<{ label: string; icon: ReactNode; path: string; onClic
       className={className}
     >
       <div className="custom:hidden">{icon}</div>
-      <div className="text-[10px]">{label}</div>
+      <div className="text-[10px] w-full text-center leading-tight">{label}</div>
     </Link>
   );
 };

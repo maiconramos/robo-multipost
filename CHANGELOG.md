@@ -8,10 +8,18 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Corrigido
+- Contraste dos textos no node Trigger — contagem de posts e palavras-chave agora usam cor legivel em ambos temas claro e escuro
+- Acentuacao faltante nas traducoes em portugues do wizard de automacoes
 - Multiplas DMs em sequencia no flow de automacao — apenas a primeira usava private reply (limitacao da Meta), as seguintes agora usam DM direta via IG-scoped user ID
 - Configuracao de webhook Instagram movida da pagina de Automacoes para dentro da credencial Facebook em Configuracoes > Credenciais
 
 ### Adicionado
+- Selecao de posts no wizard com grid de 4 thumbs + modal "Mostrar Todos" com scroll infinito
+- Secao "E esse comentario possui" estilo ManyChat — radio cards, input com virgulas, chips de exemplo, toggle para interagir com comentarios
+- Respostas de comentario multiplas com randomizacao — orchestrator escolhe aleatoriamente entre as variacoes configuradas
+- Preview do celular dinamico — aba ativa muda automaticamente conforme o usuario edita (post ao selecionar, comentarios ao digitar palavra-chave, DM ao escrever mensagem)
+- Edicao de automacoes simples via Wizard — botao "Editar no Assistente" na tela de resumo abre o wizard preenchido com os dados existentes (POST /flows/:id/quick-update)
+- Avatar e nome da conta Instagram refletem no preview do celular ao selecionar a conta no wizard
 - Wizard "Nova Automacao Rapida" — formulario guiado com preview em tempo real (celular mockup) para criar automacoes simples sem precisar do editor de nodes
 - Endpoint POST /flows/quick-create que gera nodes/edges automaticamente a partir do wizard
 - Endpoint GET /flows/integrations/:integrationId/posts para buscar posts Instagram sem precisar de um flow existente

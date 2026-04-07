@@ -9,6 +9,10 @@ interface PhonePreviewProps {
   replyMessage?: string;
   dmMessage?: string;
   commenterName?: string;
+  integrationPicture?: string;
+  integrationName?: string;
+  activeTab?: 'post' | 'comments' | 'dm';
+  onTabChange?: (tab: 'post' | 'comments' | 'dm') => void;
 }
 
 type Tab = 'post' | 'comments' | 'dm';
@@ -19,9 +23,18 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
   replyMessage,
   dmMessage,
   commenterName = 'usuario',
+  integrationPicture,
+  integrationName,
+  activeTab,
+  onTabChange,
 }) => {
   const t = useT();
-  const [tab, setTab] = useState<Tab>('comments');
+  const [internalTab, setInternalTab] = useState<Tab>('comments');
+  const tab = activeTab ?? internalTab;
+  const setTab = (next: Tab) => {
+    setInternalTab(next);
+    onTabChange?.(next);
+  };
 
   const tabs: { key: Tab; label: string }[] = [
     { key: 'post', label: t('preview_tab_post', 'Publicar') },
@@ -90,11 +103,15 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
               {/* Instagram post header */}
               <div className="flex items-center justify-between px-[12px] py-[8px]">
                 <div className="flex items-center gap-[8px]">
-                  <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)' }}>
-                    <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#222', margin: 0, transform: 'scale(0.85)' }} />
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', padding: 2 }}>
+                    {integrationPicture ? (
+                      <img src={integrationPicture} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#222' }} />
+                    )}
                   </div>
                   <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>
-                    {commenterName}
+                    {integrationName || commenterName}
                   </span>
                 </div>
                 <span style={{ color: '#fff', fontSize: 18, lineHeight: 1 }}>···</span>
@@ -127,7 +144,7 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
 
               {/* Caption */}
               <div className="px-[12px] pb-[12px]">
-                <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>{commenterName} </span>
+                <span style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>{integrationName || commenterName} </span>
                 <span style={{ fontSize: 11, color: '#ccc' }}>
                   {postCaption || t('preview_no_caption', 'Nenhuma legenda')}
                 </span>
@@ -178,12 +195,16 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
                       {/* Auto reply */}
                       {replyMessage && (
                         <div className="flex gap-[6px] mt-[8px]">
-                          <div style={{ width: 24, height: 24, borderRadius: '50%', background: '#6366f1', flexShrink: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-                            <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" /></svg>
+                          <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: integrationPicture ? 'transparent' : '#6366f1', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+                            {integrationPicture ? (
+                              <img src={integrationPicture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+                            ) : (
+                              <svg width="10" height="10" viewBox="0 0 24 24" fill="white"><path d="M13 2L3 14H12L11 22L21 10H12L13 2Z" /></svg>
+                            )}
                           </div>
                           <div>
                             <div style={{ fontSize: 10, color: '#aaa' }}>
-                              {t('preview_your_page', 'Sua Pagina')} · {t('preview_comment_now', 'Agora')}
+                              {integrationName || t('preview_your_page', 'Sua Página')} · {t('preview_comment_now', 'Agora')}
                             </div>
                             <div style={{ fontSize: 11, color: '#fff', marginTop: 2, whiteSpace: 'pre-wrap' }}>
                               {interpolatePreview(replyMessage, commenterName)}
@@ -221,9 +242,11 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
               {/* DM header */}
               <div className="flex items-center gap-[8px] px-[12px] py-[10px] flex-shrink-0" style={{ borderBottom: '1px solid #1a1a1a' }}>
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="2"><path d="M15 18l-6-6 6-6" /></svg>
-                <div style={{ width: 32, height: 32, borderRadius: '50%', background: 'linear-gradient(45deg,#6366f1,#8b5cf6)', flexShrink: 0 }} />
+                <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: integrationPicture ? 'transparent' : 'linear-gradient(45deg,#6366f1,#8b5cf6)' }}>
+                  {integrationPicture && <img src={integrationPicture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                </div>
                 <div>
-                  <div style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>{commenterName}</div>
+                  <div style={{ fontSize: 11, fontWeight: 600, color: '#fff' }}>{integrationName || commenterName}</div>
                 </div>
                 <div className="ml-auto flex items-center gap-[12px]">
                   <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="1.5"><path d="M22 16.92v3a2 2 0 01-2.18 2 19.79 19.79 0 01-8.63-3.07 19.5 19.5 0 01-6-6 19.79 19.79 0 01-3.07-8.67A2 2 0 014.11 2h3a2 2 0 012 1.72c.127.96.361 1.903.7 2.81a2 2 0 01-.45 2.11L8.09 9.91a16 16 0 006 6l1.27-1.27a2 2 0 012.11-.45c.907.339 1.85.573 2.81.7A2 2 0 0122 16.92z" /></svg>
@@ -237,7 +260,9 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
                   <>
                     {/* Page message (left, dark bubble) */}
                     <div className="flex items-end gap-[6px]">
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(45deg,#6366f1,#8b5cf6)', flexShrink: 0 }} />
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: integrationPicture ? 'transparent' : 'linear-gradient(45deg,#6366f1,#8b5cf6)' }}>
+                        {integrationPicture && <img src={integrationPicture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                      </div>
                       <div style={{ background: '#262626', borderRadius: '18px 18px 18px 4px', padding: '8px 12px', maxWidth: '72%' }}>
                         <p style={{ fontSize: 11, color: '#fff', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
                           {interpolatePreview(dmMessage, commenterName)}
@@ -256,7 +281,9 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
 
                     {/* Follow-up from page */}
                     <div className="flex items-end gap-[6px]">
-                      <div style={{ width: 24, height: 24, borderRadius: '50%', background: 'linear-gradient(45deg,#6366f1,#8b5cf6)', flexShrink: 0 }} />
+                      <div style={{ width: 24, height: 24, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: integrationPicture ? 'transparent' : 'linear-gradient(45deg,#6366f1,#8b5cf6)' }}>
+                        {integrationPicture && <img src={integrationPicture} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />}
+                      </div>
                       <div style={{ background: '#262626', borderRadius: '18px 18px 18px 4px', padding: '8px 12px', maxWidth: '72%' }}>
                         <p style={{ fontSize: 11, color: '#fff' }}>
                           {t('preview_follow_up', 'Escreva uma mensagem')}

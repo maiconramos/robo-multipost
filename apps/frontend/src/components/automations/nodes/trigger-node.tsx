@@ -37,7 +37,7 @@ export const TriggerNode: FC<NodeProps> = memo(({ data, selected }) => {
       <p className="text-[12px] text-customColor18">
         {t('trigger_node_description', 'When someone comments on a post')}
       </p>
-      <p className="text-[11px] mt-[4px]" style={{ color: '#4ade80' }}>
+      <p className="text-[11px] mt-[4px] text-textColor opacity-80">
         {postCount > 0
           ? t('trigger_posts_selected', '{count} post(s) selected').replace(
               '{count}',
@@ -46,7 +46,7 @@ export const TriggerNode: FC<NodeProps> = memo(({ data, selected }) => {
           : t('trigger_posts_all', 'All posts')}
       </p>
       {keywords.length > 0 && (
-        <p className="text-[11px] mt-[2px] truncate max-w-[180px]" style={{ color: '#86efac' }}>
+        <p className="text-[11px] mt-[2px] truncate max-w-[180px] text-textColor opacity-70">
           {t('trigger_keywords_label', 'Keywords')}: {keywords.join(', ')}
         </p>
       )}

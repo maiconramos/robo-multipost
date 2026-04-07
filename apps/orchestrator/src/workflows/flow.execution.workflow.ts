@@ -203,10 +203,13 @@ async function traverseNode(
 
     case 'REPLY_COMMENT': {
       const config = safeParseJson(node.data);
-      const message = interpolateVariables(
-        config.message || config.template || '',
-        input
-      );
+      const messages = Array.isArray(config.messages) && config.messages.length > 0
+        ? config.messages as string[]
+        : null;
+      const rawMessage = messages
+        ? messages[Math.floor(Math.random() * messages.length)]
+        : (config.message || config.template || '');
+      const message = interpolateVariables(rawMessage, input);
       if (message) {
         await replyToComment(
           integrationId,

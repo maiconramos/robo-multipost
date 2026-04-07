@@ -77,7 +77,9 @@ export const AddEditModalInner: FC<AddEditModalProps> = (props) => {
           const integration = integrations.find(
             (i) => i.id === post.integration.id
           );
-          addOrRemoveSelectedIntegration(integration, post.settings);
+          if (integration) {
+            addOrRemoveSelectedIntegration(integration, post.settings);
+          }
         }
       }
     }
@@ -86,7 +88,9 @@ export const AddEditModalInner: FC<AddEditModalProps> = (props) => {
       const integration = integrations.find(
         (i) => i.id === existingData.integration
       );
-      addOrRemoveSelectedIntegration(integration, existingData.settings);
+      if (integration) {
+        addOrRemoveSelectedIntegration(integration, existingData.settings);
+      }
     }
 
     if (props?.selectedChannels?.length) {

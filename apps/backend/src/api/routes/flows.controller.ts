@@ -61,6 +61,16 @@ export class FlowsController {
     return this._flowsService.createFlow(org.id, body, profile?.id);
   }
 
+  @Put('/:id/quick-update')
+  async quickUpdateFlow(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string,
+    @Body() body: QuickCreateFlowDto
+  ) {
+    return this._flowsService.quickUpdateFlow(org.id, id, body, profile?.id);
+  }
+
   @Post('/quick-create')
   async quickCreateFlow(
     @GetOrgFromRequest() org: Organization,

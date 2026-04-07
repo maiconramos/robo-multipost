@@ -111,6 +111,11 @@ export class QuickCreateFlowDto {
   replyMessage?: string;
 
   @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
+  replyMessages?: string[];
+
+  @IsOptional()
   @IsString()
   dmMessage?: string;
 }

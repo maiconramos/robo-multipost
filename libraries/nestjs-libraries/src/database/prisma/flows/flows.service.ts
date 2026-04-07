@@ -297,6 +297,39 @@ export class FlowsService {
     }
   }
 
+  async quickUpdateFlow(orgId: string, id: string, body: QuickCreateFlowDto, profileId?: string) {
+    await this._flowsRepository.updateFlow(orgId, id, { name: body.name }, profileId);
+
+    const nodes: Array<{ type: string; positionX: number; positionY: number; data: string }> = [];
+    const edges: Array<{ sourceIndex: number; targetIndex: number }> = [];
+
+    const triggerConfig: Record<string, any> = {};
+    if (body.postIds?.length) triggerConfig.postIds = body.postIds;
+    if (body.keywords?.length) triggerConfig.keywords = body.keywords;
+    if (body.matchMode) triggerConfig.matchMode = body.matchMode;
+
+    nodes.push({ type: 'TRIGGER', positionX: 250, positionY: 50, data: JSON.stringify(triggerConfig) });
+    let lastIndex = 0;
+
+    const replyMsgs = body.replyMessages?.filter(Boolean) ?? (body.replyMessage ? [body.replyMessage] : []);
+    if (replyMsgs.length) {
+      nodes.push({ type: 'REPLY_COMMENT', positionX: 250, positionY: 50 + nodes.length * 150, data: JSON.stringify({ message: replyMsgs[0], messages: replyMsgs }) });
+      edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
+      lastIndex = nodes.length - 1;
+    }
+
+    if (body.dmMessage) {
+      nodes.push({ type: 'SEND_DM', positionX: 250, positionY: 50 + nodes.length * 150, data: JSON.stringify({ message: body.dmMessage }) });
+      edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
+    }
+
+    const flowNodes = nodes.map((n, i) => ({ id: `temp-${i}`, type: n.type as any, positionX: n.positionX, positionY: n.positionY, data: n.data }));
+    const flowEdges = edges.map((e, i) => ({ id: `temp-edge-${i}`, sourceNodeId: `temp-${e.sourceIndex}`, targetNodeId: `temp-${e.targetIndex}` }));
+
+    await this._flowsRepository.saveCanvas(orgId, id, flowNodes, flowEdges, profileId);
+    return this._flowsRepository.getFlow(orgId, id, profileId);
+  }
+
   async quickCreateFlow(orgId: string, body: QuickCreateFlowDto, profileId?: string) {
     const check = await this.checkIntegrationWebhook(orgId, body.integrationId);
     if (!check.ok) {
@@ -332,12 +365,13 @@ export class FlowsService {
     let lastIndex = 0;
 
     // Reply Comment node
-    if (body.replyMessage) {
+    const replyMsgs = body.replyMessages?.filter(Boolean) ?? (body.replyMessage ? [body.replyMessage] : []);
+    if (replyMsgs.length) {
       nodes.push({
         type: 'REPLY_COMMENT',
         positionX: 250,
         positionY: 50 + nodes.length * 150,
-        data: JSON.stringify({ message: body.replyMessage }),
+        data: JSON.stringify({ message: replyMsgs[0], messages: replyMsgs }),
       });
       edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
       lastIndex = nodes.length - 1;

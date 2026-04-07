@@ -4,6 +4,7 @@ import { FC, useCallback } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { useRouter } from 'next/navigation';
 import { FlowExecutionsComponent } from '@gitroom/frontend/components/automations/flow-executions.component';
 
 interface FlowSummaryProps {
@@ -20,6 +21,7 @@ export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
   const t = useT();
   const fetchApi = useFetch();
   const toaster = useToaster();
+  const router = useRouter();
 
   const triggerNode = flow.nodes?.find((n: any) => n.type === 'TRIGGER');
   const replyNode = flow.nodes?.find((n: any) => n.type === 'REPLY_COMMENT');
@@ -100,6 +102,12 @@ export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
               {t('activate_flow', 'Activate')}
             </button>
           )}
+          <button
+            onClick={() => router.push(`/automacoes/${flow.id}/wizard`)}
+            className="rounded-[4px] border border-btnPrimary bg-btnPrimary/10 px-[12px] py-[6px] text-[12px] text-textColor hover:opacity-80"
+          >
+            {t('edit_in_wizard', 'Edit in Wizard')}
+          </button>
           <button
             onClick={onSwitchToAdvanced}
             className="rounded-[4px] border border-fifth bg-btnSimple px-[12px] py-[6px] text-[12px] text-textColor hover:bg-boxHover"
