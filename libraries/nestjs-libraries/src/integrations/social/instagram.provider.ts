@@ -1127,9 +1127,10 @@ export class InstagramProvider
     igAccountId: string,
     accessToken: string,
     type = 'graph.facebook.com',
-    limit = 25
-  ): Promise<
-    Array<{
+    limit = 25,
+    after?: string
+  ): Promise<{
+    posts: Array<{
       id: string;
       caption?: string;
       mediaType: string;
@@ -1137,25 +1138,30 @@ export class InstagramProvider
       thumbnailUrl?: string;
       permalink?: string;
       timestamp?: string;
-    }>
-  > {
+    }>;
+    nextCursor: string | null;
+  }> {
     const fields =
       'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp';
+    const cursor = after ? `&after=${after}` : '';
     const response = await fetch(
-      `https://${type}/v25.0/${igAccountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}`
+      `https://${type}/v25.0/${igAccountId}/media?fields=${fields}&limit=${limit}&access_token=${accessToken}${cursor}`
     );
     const body = await response.json();
     if (!response.ok || !body.data) {
-      return [];
+      return { posts: [], nextCursor: null };
     }
-    return body.data.map((m: any) => ({
-      id: m.id,
-      caption: m.caption,
-      mediaType: m.media_type,
-      mediaUrl: m.media_url,
-      thumbnailUrl: m.thumbnail_url,
-      permalink: m.permalink,
-      timestamp: m.timestamp,
-    }));
+    return {
+      posts: body.data.map((m: any) => ({
+        id: m.id,
+        caption: m.caption,
+        mediaType: m.media_type,
+        mediaUrl: m.media_url,
+        thumbnailUrl: m.thumbnail_url,
+        permalink: m.permalink,
+        timestamp: m.timestamp,
+      })),
+      nextCursor: body.paging?.cursors?.after ?? null,
+    };
   }
 }

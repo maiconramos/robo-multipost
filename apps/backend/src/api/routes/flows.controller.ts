@@ -83,11 +83,15 @@ export class FlowsController {
   @Get('/integrations/:integrationId/posts')
   async getIntegrationPosts(
     @GetOrgFromRequest() org: Organization,
-    @Param('integrationId') integrationId: string
+    @Param('integrationId') integrationId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string
   ) {
     return this._flowsService.getInstagramPostsByIntegration(
       org.id,
-      integrationId
+      integrationId,
+      cursor,
+      limit ? parseInt(limit, 10) : 25
     );
   }
 

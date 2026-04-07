@@ -59,7 +59,9 @@ export const useIntegrationPosts = (integrationId: string | null) => {
   const fetch = useFetch();
   const load = useCallback(
     async (path: string) => {
-      return await (await fetch(path)).json();
+      const data = await (await fetch(path)).json();
+      // API returns { posts, nextCursor } — unwrap posts for grid usage
+      return Array.isArray(data) ? data : (data?.posts ?? []);
     },
     [fetch]
   );

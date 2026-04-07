@@ -33,6 +33,75 @@ const useFlowPosts = (flowId: string, enabled: boolean) => {
   );
 };
 
+const EXAMPLE_CHIPS = ['Preço', 'Link', 'Comprar'];
+
+const KeywordsField: FC<{
+  t: (key: string, fallback: string) => string;
+  keywords: string[];
+  matchMode: string;
+  onKeywordsChange: (kws: string[]) => void;
+  onMatchModeChange: (m: string) => void;
+  inputClass: string;
+  inputWrapperClass: string;
+}> = ({ t, keywords, matchMode, onKeywordsChange, onMatchModeChange, inputClass, inputWrapperClass }) => (
+  <div>
+    <label className="block text-[13px] font-semibold text-textColor mb-[8px]">
+      {t('trigger_keywords', 'Palavras-chave')}
+    </label>
+    {/* Comma-separated input */}
+    <div className={inputWrapperClass}>
+      <input
+        type="text"
+        className={inputClass + ' h-[42px]'}
+        placeholder={t('wizard_keywords_input_placeholder', 'Digite uma ou mais palavras')}
+        value={keywords.join(', ')}
+        onChange={(e) =>
+          onKeywordsChange(
+            e.target.value.split(',').map((k) => k.trim()).filter(Boolean)
+          )
+        }
+      />
+    </div>
+    <p className="text-[11px] text-customColor18 mt-[4px] mb-[8px]">
+      {t('wizard_keywords_comma_hint', 'Use vírgulas para separar as palavras')}
+    </p>
+    {/* Example chips */}
+    <div className="flex flex-wrap gap-[6px] mb-[10px]">
+      <span className="text-[11px] text-customColor18">{t('wizard_example', 'Por exemplo:')}</span>
+      {EXAMPLE_CHIPS.map((chip) => (
+        <button
+          key={chip}
+          type="button"
+          onClick={() => {
+            if (!keywords.includes(chip)) onKeywordsChange([...keywords, chip]);
+          }}
+          className={`text-[11px] px-[8px] py-[2px] rounded-[12px] border ${
+            keywords.includes(chip)
+              ? 'border-btnPrimary text-btnPrimary bg-btnPrimary/10'
+              : 'border-fifth text-customColor18 hover:border-btnPrimary'
+          }`}
+        >
+          {chip}
+        </button>
+      ))}
+    </div>
+    {/* Match mode — only shown when keywords exist */}
+    {keywords.length > 0 && (
+      <div className={inputWrapperClass}>
+        <select
+          className={inputClass}
+          value={matchMode}
+          onChange={(e) => onMatchModeChange(e.target.value)}
+        >
+          <option value="any">{t('match_any', 'Qualquer palavra-chave')}</option>
+          <option value="all">{t('match_all', 'Todas as palavras-chave')}</option>
+          <option value="exact">{t('match_exact', 'Correspondência exata')}</option>
+        </select>
+      </div>
+    )}
+  </div>
+);
+
 export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
   node,
   flowId,
@@ -147,50 +216,16 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
               </div>
             )}
 
-            <label className="block text-[14px] text-textColor mb-[6px] mt-[16px]">
-              {t('trigger_keywords', 'Keywords')}
-            </label>
-            <p className="text-[12px] text-customColor18 mb-[6px]">
-              {t(
-                'trigger_keywords_hint',
-                'Enter keywords to filter comments. Leave empty to trigger on any comment.'
-              )}
-            </p>
-            <div className={inputWrapperClass}>
-              <textarea
-                className={`${inputClass} min-h-[80px] resize-y`}
-                rows={3}
-                placeholder={t(
-                  'trigger_keywords_placeholder',
-                  'Enter keywords, one per line'
-                )}
-                value={(config.keywords || []).join('\n')}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    keywords: e.target.value
-                      .split('\n')
-                      .map((k: string) => k.trim())
-                      .filter(Boolean),
-                  })
-                }
+            <div className="mt-[16px]">
+              <KeywordsField
+                t={t}
+                keywords={config.keywords || []}
+                matchMode={config.matchMode || 'any'}
+                onKeywordsChange={(kws) => setConfig({ ...config, keywords: kws })}
+                onMatchModeChange={(m) => setConfig({ ...config, matchMode: m })}
+                inputClass={inputClass}
+                inputWrapperClass={inputWrapperClass}
               />
-            </div>
-            <label className="block text-[14px] text-textColor mb-[6px] mt-[12px]">
-              {t('trigger_match_mode', 'Match Mode')}
-            </label>
-            <div className={inputWrapperClass}>
-              <select
-                className={inputClass}
-                value={config.matchMode || 'any'}
-                onChange={(e) =>
-                  setConfig({ ...config, matchMode: e.target.value })
-                }
-              >
-                <option value="any">{t('match_any', 'Any keyword')}</option>
-                <option value="all">{t('match_all', 'All keywords')}</option>
-                <option value="exact">{t('match_exact', 'Exact match')}</option>
-              </select>
             </div>
           </>
         );
@@ -198,45 +233,15 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
       case 'condition':
         return (
           <>
-            <label className="block text-[14px] text-textColor mb-[6px]">
-              {t('keywords', 'Keywords')}
-            </label>
-            <div className={inputWrapperClass}>
-              <textarea
-                className={`${inputClass} min-h-[80px] resize-y`}
-                rows={3}
-                placeholder={t(
-                  'keywords_placeholder',
-                  'Enter keywords, one per line'
-                )}
-                value={(config.keywords || []).join('\n')}
-                onChange={(e) =>
-                  setConfig({
-                    ...config,
-                    keywords: e.target.value
-                      .split('\n')
-                      .map((k) => k.trim())
-                      .filter(Boolean),
-                  })
-                }
-              />
-            </div>
-            <label className="block text-[14px] text-textColor mb-[6px] mt-[16px]">
-              {t('match_mode', 'Match Mode')}
-            </label>
-            <div className={inputWrapperClass}>
-              <select
-                className={inputClass}
-                value={config.matchMode || 'any'}
-                onChange={(e) =>
-                  setConfig({ ...config, matchMode: e.target.value })
-                }
-              >
-                <option value="any">{t('match_any', 'Any keyword')}</option>
-                <option value="all">{t('match_all', 'All keywords')}</option>
-                <option value="exact">{t('match_exact', 'Exact match')}</option>
-              </select>
-            </div>
+            <KeywordsField
+              t={t}
+              keywords={config.keywords || []}
+              matchMode={config.matchMode || 'any'}
+              onKeywordsChange={(kws) => setConfig({ ...config, keywords: kws })}
+              onMatchModeChange={(m) => setConfig({ ...config, matchMode: m })}
+              inputClass={inputClass}
+              inputWrapperClass={inputWrapperClass}
+            />
           </>
         );
 

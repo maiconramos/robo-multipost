@@ -63,3 +63,4 @@ i18n.cache
 /uploads/
 /apps/backend/undefined/
 node-compile-cache/
+.playwright-mcp/

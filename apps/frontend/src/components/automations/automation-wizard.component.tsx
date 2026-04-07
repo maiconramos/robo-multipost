@@ -61,6 +61,9 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
   const [saving, setSaving] = useState(false);
   const [showAllPostsModal, setShowAllPostsModal] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<'post' | 'comments' | 'dm'>('post');
+  const [modalPosts, setModalPosts] = useState<any[]>([]);
+  const [modalNextCursor, setModalNextCursor] = useState<string | null>(null);
+  const [modalLoadingMore, setModalLoadingMore] = useState(false);
 
   // Pre-fill form when editing
   useEffect(() => {
@@ -128,6 +131,41 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
         : [...prev, postId]
     );
   };
+
+  // Initialize modal posts from SWR data when modal opens
+  useEffect(() => {
+    if (showAllPostsModal && Array.isArray(posts) && posts.length > 0 && modalPosts.length === 0) {
+      setModalPosts(posts as any[]);
+      // Fetch first page with cursor info
+      fetchApi(`/flows/integrations/${integrationId}/posts?limit=25`)
+        .then(r => r.json())
+        .then(data => {
+          setModalPosts(data.posts ?? data ?? []);
+          setModalNextCursor(data.nextCursor ?? null);
+        })
+        .catch(() => setModalPosts(posts as any[]));
+    }
+    if (!showAllPostsModal) {
+      setModalPosts([]);
+      setModalNextCursor(null);
+    }
+  }, [showAllPostsModal]);
+
+  const loadMoreModalPosts = useCallback(async () => {
+    if (!modalNextCursor || modalLoadingMore) return;
+    setModalLoadingMore(true);
+    try {
+      const data = await fetchApi(
+        `/flows/integrations/${integrationId}/posts?limit=25&cursor=${modalNextCursor}`
+      ).then(r => r.json());
+      setModalPosts(prev => [...prev, ...(data.posts ?? [])]);
+      setModalNextCursor(data.nextCursor ?? null);
+    } catch {
+      // ignore
+    } finally {
+      setModalLoadingMore(false);
+    }
+  }, [modalNextCursor, modalLoadingMore, integrationId, fetchApi]);
 
   const selectedPost = useMemo(() => {
     if (!Array.isArray(posts) || selectedPostIds.length === 0) return null;
@@ -530,45 +568,68 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
             </div>
             {/* Posts grid */}
             <div className="flex-1 overflow-y-auto p-[16px]">
-              {Array.isArray(posts) && (
-                <div className="grid grid-cols-3 gap-[10px]">
-                  {(posts as any[]).map((post: any) => {
-                    const isSelected = selectedPostIds.includes(post.id);
-                    const thumb = post.thumbnailUrl || post.mediaUrl;
-                    return (
-                      <div
-                        key={post.id}
-                        onClick={() => { togglePost(post.id); setActivePreviewTab('post'); }}
-                        className={`relative rounded-[8px] overflow-hidden cursor-pointer border-2 ${isSelected ? 'border-btnPrimary' : 'border-transparent hover:border-btnPrimary/50'}`}
-                      >
-                        {thumb ? (
-                          <img src={thumb} alt="" className="w-full aspect-square object-cover" />
-                        ) : (
-                          <div className="w-full aspect-square bg-sixth" />
-                        )}
-                        {/* Reel icon */}
-                        {post.mediaType === 'VIDEO' && (
-                          <div className="absolute top-[6px] right-[6px]">
-                            <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><rect x="2" y="2" width="20" height="20" rx="3"/><polygon points="10,8 16,12 10,16" fill="#000"/></svg>
-                          </div>
-                        )}
-                        {/* Caption + date */}
-                        <div className="p-[8px] bg-sixth">
-                          <p className="text-[11px] text-textColor truncate">{post.caption || '—'}</p>
-                          {post.createdAt && (
-                            <p className="text-[10px] text-customColor18 mt-[2px]">
-                              {formatRelative(post.createdAt)}
-                            </p>
-                          )}
+              <div className="grid grid-cols-3 gap-[10px]">
+                {modalPosts.map((post: any) => {
+                  const isSelected = selectedPostIds.includes(post.id);
+                  const thumb = post.thumbnailUrl || post.mediaUrl;
+                  return (
+                    <div
+                      key={post.id}
+                      onClick={() => { togglePost(post.id); setActivePreviewTab('post'); }}
+                      className={`relative rounded-[8px] overflow-hidden cursor-pointer border-2 ${isSelected ? 'border-btnPrimary' : 'border-transparent hover:border-btnPrimary/50'}`}
+                    >
+                      {thumb ? (
+                        <img src={thumb} alt="" className="w-full aspect-square object-cover" />
+                      ) : (
+                        <div className="w-full aspect-square bg-sixth" />
+                      )}
+                      {/* Reel icon */}
+                      {post.mediaType === 'VIDEO' && (
+                        <div className="absolute top-[6px] right-[6px]">
+                          <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><rect x="2" y="2" width="20" height="20" rx="3"/><polygon points="10,8 16,12 10,16" fill="#000"/></svg>
                         </div>
-                        {isSelected && (
-                          <div className="absolute top-0 left-0 right-0 bg-btnPrimary/20 flex items-center justify-center" style={{height: 'calc(100% - 56px)'}}>
-                            <p className="text-[11px] text-white font-semibold bg-btnPrimary px-[8px] py-[2px] rounded-full">{t('wizard_view_instagram', 'Ver no Instagram')}</p>
-                          </div>
+                      )}
+                      {/* Caption + date */}
+                      <div className="p-[8px] bg-sixth">
+                        <p className="text-[11px] text-textColor truncate">{post.caption || '—'}</p>
+                        {post.timestamp && (
+                          <p className="text-[10px] text-customColor18 mt-[2px]">
+                            {formatRelative(post.timestamp)}
+                          </p>
                         )}
                       </div>
-                    );
-                  })}
+                      {/* Selected overlay — link only, not full box */}
+                      {isSelected && (
+                        <div className="absolute top-0 left-0 right-0 pointer-events-none bg-btnPrimary/20 flex items-center justify-center" style={{height: 'calc(100% - 52px)'}}>
+                          {post.permalink && (
+                            <a
+                              href={post.permalink}
+                              target="_blank"
+                              rel="noopener noreferrer"
+                              onClick={(e) => e.stopPropagation()}
+                              className="pointer-events-auto text-[11px] text-white font-semibold bg-btnPrimary px-[8px] py-[2px] rounded-full hover:opacity-80"
+                            >
+                              {t('wizard_view_instagram', 'Ver no Instagram')}
+                            </a>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              {/* Load more */}
+              {modalNextCursor && (
+                <div className="mt-[16px] flex justify-center">
+                  <button
+                    onClick={loadMoreModalPosts}
+                    disabled={modalLoadingMore}
+                    className="rounded-[6px] border border-fifth bg-btnSimple px-[20px] py-[8px] text-[13px] text-textColor hover:bg-boxHover disabled:opacity-50"
+                  >
+                    {modalLoadingMore
+                      ? t('loading_posts', 'Carregando...')
+                      : t('wizard_load_more', 'Carregar mais')}
+                  </button>
                 </div>
               )}
             </div>

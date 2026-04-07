@@ -283,10 +283,11 @@ export class FlowsService {
     }
 
     try {
-      return await provider.getRecentMedia(
+      const result = await provider.getRecentMedia(
         integration.internalId,
         integration.token
       );
+      return result.posts;
     } catch (err) {
       this._logger.warn(
         `Failed to fetch Instagram posts: ${
@@ -413,26 +414,34 @@ export class FlowsService {
     return this._flowsRepository.getFlow(orgId, flow.id, profileId);
   }
 
-  async getInstagramPostsByIntegration(orgId: string, integrationId: string) {
+  async getInstagramPostsByIntegration(
+    orgId: string,
+    integrationId: string,
+    cursor?: string,
+    limit = 25
+  ) {
     const integration = await this._integrationService.getIntegrationById(
       orgId,
       integrationId
     );
     if (!integration || integration.providerIdentifier !== 'instagram') {
-      return [];
+      return { posts: [], nextCursor: null };
     }
 
     const provider = this._integrationManager.getSocialIntegration(
       'instagram'
     ) as unknown as InstagramProvider;
     if (!provider) {
-      return [];
+      return { posts: [], nextCursor: null };
     }
 
     try {
       return await provider.getRecentMedia(
         integration.internalId,
-        integration.token
+        integration.token,
+        'graph.facebook.com',
+        limit,
+        cursor
       );
     } catch (err) {
       this._logger.warn(
@@ -440,7 +449,7 @@ export class FlowsService {
           err instanceof Error ? err.message : 'Unknown error'
         }`
       );
-      return [];
+      return { posts: [], nextCursor: null };
     }
   }
 

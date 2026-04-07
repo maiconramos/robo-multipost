@@ -101,7 +101,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                   <AnnouncementBanner />
                   <div className="flex-1 flex gap-[8px]">
                     <Support />
-                    <div className="flex flex-col bg-newBgColorInner w-[80px] rounded-[12px]">
+                    <div className="flex flex-col bg-newBgColorInner w-[96px] rounded-[12px]">
                       <div
                         id="left-menu"
                         className={clsx(
