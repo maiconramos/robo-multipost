@@ -53,8 +53,10 @@ const AnalyticsCard: FC<{
   total: string | number;
   index: number;
 }> = ({ item, total, index }) => {
+  const t = useT();
   const colorVariants = ['purple', 'green', 'blue'] as const;
   const color = colorVariants[index % colorVariants.length];
+  const labelKey = `analytics_label_${item.label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
 
   const hasMultipleDataPoints = item.data.length > 1;
 
@@ -83,7 +85,7 @@ const AnalyticsCard: FC<{
               `}
             />
             <span className="text-[15px] font-medium text-newTableText">
-              {item.label}
+              {t(labelKey, item.label)}
             </span>
           </div>
           {item.percentageChange !== undefined && (
