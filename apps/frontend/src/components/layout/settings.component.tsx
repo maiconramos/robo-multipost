@@ -93,9 +93,18 @@ export const SettingsPopup: FC<{
   const list = useMemo(() => {
     const arr = [];
     arr.push({ tab: 'global_settings', label: t('global_settings', 'Global Settings') });
-    // Populate tabs based on user permissions
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'profiles', label: t('profiles_tab', 'Perfis') });
+    }
     if (user?.tier?.team_members && isGeneral) {
       arr.push({ tab: 'teams', label: t('teams', 'Teams') });
+    }
+    arr.push({ tab: 'credentials', label: t('credentials_tab', 'Credenciais') });
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Agente de IA') });
+    }
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'AI Credits') });
     }
     if (user?.tier?.webhooks) {
       arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });
@@ -112,20 +121,6 @@ export const SettingsPopup: FC<{
     if (user?.tier?.public_api && isGeneral && showLogout) {
       arr.push({ tab: 'api', label: t('developers', 'Developers') });
     }
-    if (user?.role !== 'USER') {
-      arr.push({ tab: 'profiles', label: 'Perfis' });
-    }
-    if (user?.role !== 'USER') {
-      arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'AI Credits') });
-    }
-    if (user?.role !== 'USER') {
-      arr.push({ tab: 'ai_persona', label: t('persona_tab', 'AI Persona') });
-    }
-    if (user?.role !== 'USER') {
-      arr.push({ tab: 'knowledge_base', label: t('kb_tab', 'Knowledge Base') });
-    }
-    arr.push({ tab: 'late', label: 'Late' });
-    arr.push({ tab: 'credentials', label: 'Credenciais' });
     arr.push({ tab: 'approved_apps', label: t('approved_apps', 'Approved Apps') });
 
     return arr;
@@ -230,21 +225,11 @@ export const SettingsPopup: FC<{
                 </div>
               )}
 
-              {tab === 'ai_persona' && user?.role !== 'USER' && (
-                <div>
+              {tab === 'ai_agent' && user?.role !== 'USER' && (
+                <div className="flex flex-col gap-[0px]">
                   <ProfilePersonaSettingsSection />
-                </div>
-              )}
-
-              {tab === 'knowledge_base' && user?.role !== 'USER' && (
-                <div>
+                  <hr className="border-newTableBorder my-[24px]" />
                   <KnowledgeBaseSettingsSection />
-                </div>
-              )}
-
-              {tab === 'late' && (
-                <div>
-                  <LateSettingsSection />
                 </div>
               )}
 
@@ -255,8 +240,10 @@ export const SettingsPopup: FC<{
               )}
 
               {tab === 'credentials' && (
-                <div>
+                <div className="flex flex-col">
                   <CredentialsSettingsSection />
+                  <hr className="border-newTableBorder my-[24px]" />
+                  <LateSettingsSection />
                 </div>
               )}
 
