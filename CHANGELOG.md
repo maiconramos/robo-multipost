@@ -7,6 +7,18 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Upstream
+- Sincronizado com Postiz upstream ate commit `e3b3b82f` (2026-04-10, 24 commits)
+- Instagram: melhor tratamento de erros, fix de refresh token e recuperacao de sessao invalidada
+- YouTube: preserva refresh token existente para evitar re-auth diario
+- Reddit: correcao de postagem em subreddits via API
+- Facebook/Instagram: melhorias no fluxo de refresh de integracao
+- Backend: endpoint de download de faturas (`/download-invoices`)
+- Backend: correcoes de seguranca (security fixes)
+- Backend: nova versao de post workflow (`postWorkflowV102`)
+- Deps: axios upgrade, gitignore limpo, ajustes no workflow de PR quality
+- **NAO sincronizado** (major upgrade deixado para sync dedicado): langchain 0.3 -> 1.x, mastra 0.x -> 1.x, @mastra/mcp upgrade, @mastra/rag removido upstream. Mantidos em 0.x porque nossa feature Knowledge Base RAG depende de `@mastra/rag@2.1.3` e a migracao para mastra 1.x requer reescrita das tools de chat (copilot.controller, load.tools, generate.image.tool) — deixar para um sync focado separado
+
 ### Corrigido
 - Traducao dos textos restantes no painel de configuracoes de publicacao (X e LinkedIn): placeholder de comunidade, toggles "Feito com IA" e "Parceria paga", finalizador de thread, plug "Adicionar repostadores", label e opcoes de atraso (Imediatamente, 1 hora, ...) e mensagem "Nenhuma conta disponivel"
 - Verificacao de credenciais do X (Twitter) falhava com "Unable to verify your credentials" mesmo com chaves validas — endpoint e fluxo corrigidos usando `twitter-api-v2.appLogin()`
