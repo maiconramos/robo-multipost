@@ -8,6 +8,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Corrigido
+- Correcoes na tela publica de compartilhamento de post (`/p/:id?share=true`): logo renderizava quebrado, textos e data permaneciam em ingles com idioma pt-BR, botao de login/cadastro ficava comprimido com texto longo e aparecia warning de key do React nas imagens
 - Contraste dos textos no node Trigger — contagem de posts e palavras-chave agora usam cor legivel em ambos temas claro e escuro
 - Acentuacao faltante nas traducoes em portugues do wizard de automacoes
 - Multiplas DMs em sequencia no flow de automacao — apenas a primeira usava private reply (limitacao da Meta), as seguintes agora usam DM direta via IG-scoped user ID

@@ -55,7 +55,7 @@ export const RenderComponents: FC<{
               required: true,
             })}
             className="flex w-full px-3 py-2 h-[98px] text-sm ring-offset-background placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] resize-none text-white bg-third border border-tableBorder placeholder-gray-500 focus:ring-0"
-            placeholder="Add a comment..."
+            placeholder={t('add_a_comment_dot', 'Add a comment...')}
             defaultValue={''}
           />
           <div className="flex justify-end">
@@ -116,7 +116,11 @@ export const CommentsComponents: FC<{
   }, []);
   if (!user?.id) {
     return (
-      <Button onClick={goToComments}>
+      <Button
+        onClick={goToComments}
+        className="!h-auto min-h-[40px] py-[10px] text-center"
+        innerClassName="whitespace-normal text-center leading-snug"
+      >
         {t(
           'login_register_to_add_comments',
           'Login / Register to add comments'
