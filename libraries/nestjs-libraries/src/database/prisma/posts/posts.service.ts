@@ -65,6 +65,10 @@ export class PostsService {
     return this._postRepository.updatePost(id, postId, releaseURL);
   }
 
+  getPostById(id: string) {
+    return this._postRepository.getPostById(id);
+  }
+
   async getMissingContent(
     orgId: string,
     postId: string,

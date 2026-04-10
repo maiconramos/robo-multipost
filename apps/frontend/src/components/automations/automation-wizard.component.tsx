@@ -49,7 +49,7 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
   // Form state
   const [name, setName] = useState('');
   const [integrationId, setIntegrationId] = useState('');
-  const [postMode, setPostMode] = useState<'all' | 'specific'>('specific');
+  const [postMode, setPostMode] = useState<'all' | 'specific' | 'next_publication'>('specific');
   const [selectedPostIds, setSelectedPostIds] = useState<string[]>([]);
   const [keywordMode, setKeywordMode] = useState<'any_word' | 'specific'>('any_word');
   const [keywords, setKeywords] = useState<string[]>([]);
@@ -76,9 +76,13 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
     const triggerCfg = safeJson(triggerNode?.data);
     const replyCfg = safeJson(replyNode?.data);
     const dmCfg = safeJson(dmNode?.data);
-    if (triggerCfg.postIds?.length) {
+    if (triggerCfg.mode === 'next_publication' && !triggerCfg.postIds?.length) {
+      setPostMode('next_publication');
+    } else if (triggerCfg.postIds?.length) {
       setPostMode('specific');
       setSelectedPostIds(triggerCfg.postIds);
+    } else if (triggerCfg.mode === 'all') {
+      setPostMode('all');
     }
     if (triggerCfg.keywords?.length) {
       setKeywordMode('specific');
@@ -184,6 +188,7 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
       const body: Record<string, any> = {
         name: name.trim(),
         integrationId,
+        postMode,
       };
       if (postMode === 'specific' && selectedPostIds.length > 0) {
         body.postIds = selectedPostIds;
@@ -380,13 +385,27 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
 
               {/* Radio card: any post */}
               <div
-                className={`rounded-[8px] border p-[12px] cursor-pointer ${postMode === 'all' ? 'border-btnPrimary bg-btnPrimary/5' : 'border-fifth hover:border-btnPrimary'}`}
+                className={`rounded-[8px] border p-[12px] cursor-pointer mb-[8px] ${postMode === 'all' ? 'border-btnPrimary bg-btnPrimary/5' : 'border-fifth hover:border-btnPrimary'}`}
                 onClick={() => { setPostMode('all'); setSelectedPostIds([]); }}
               >
                 <div className="flex items-center gap-[8px]">
                   <RadioDot active={postMode === 'all'} />
                   <span className="text-[13px] text-textColor">{t('wizard_all_posts', 'qualquer publicação ou Reel')}</span>
                 </div>
+              </div>
+
+              {/* Radio card: next publication */}
+              <div
+                className={`rounded-[8px] border p-[12px] cursor-pointer ${postMode === 'next_publication' ? 'border-btnPrimary bg-btnPrimary/5' : 'border-fifth hover:border-btnPrimary'}`}
+                onClick={() => { setPostMode('next_publication'); setSelectedPostIds([]); }}
+              >
+                <div className="flex items-center gap-[8px]">
+                  <RadioDot active={postMode === 'next_publication'} />
+                  <span className="text-[13px] text-textColor">{t('wizard_next_publication', 'A próxima publicação que eu fizer')}</span>
+                </div>
+                <p className="text-[11px] text-customColor18 mt-[6px] ml-[24px]">
+                  {t('wizard_next_publication_hint', 'A automação será vinculada automaticamente ao próximo feed ou reel publicado nesta conta. Stories não são suportados.')}
+                </p>
               </div>
             </div>
 
