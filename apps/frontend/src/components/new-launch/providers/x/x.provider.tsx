@@ -14,23 +14,28 @@ import { Checkbox } from '@gitroom/react/form/checkbox';
 
 const whoCanReply = [
   {
-    label: 'Everyone',
+    labelKey: 'who_can_reply_everyone',
+    labelFallback: 'Everyone',
     value: 'everyone',
   },
   {
-    label: 'Accounts you follow',
+    labelKey: 'who_can_reply_following',
+    labelFallback: 'Accounts you follow',
     value: 'following',
   },
   {
-    label: 'Mentioned accounts',
+    labelKey: 'who_can_reply_mentioned_users',
+    labelFallback: 'Mentioned accounts',
     value: 'mentionedUsers',
   },
   {
-    label: 'Subscribers',
+    labelKey: 'who_can_reply_subscribers',
+    labelFallback: 'Subscribers',
     value: 'subscribers',
   },
   {
-    label: 'Verified accounts',
+    labelKey: 'who_can_reply_verified',
+    labelFallback: 'Verified accounts',
     value: 'verified',
   },
 ];
@@ -54,15 +59,16 @@ const SettingsComponent = () => {
       >
         {whoCanReply.map((item) => (
           <option key={item.value} value={item.value}>
-            {item.label}
+            {t(item.labelKey, item.labelFallback)}
           </option>
         ))}
       </Select>
 
       <Input
-        label={
+        label={t(
+          'post_to_community_url_placeholder',
           'Post to a community, URL (Ex: https://x.com/i/communities/1493446837214187523)'
-        }
+        )}
         {...register('community')}
       />
 
