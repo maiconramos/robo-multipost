@@ -95,7 +95,7 @@ export class InstagramProvider
     if (body.toLowerCase().indexOf('session has been invalidated') > -1) {
       return {
         type: 'refresh-token' as const,
-        value: 'Please re-authenticate your Instagram account',
+        value: 'You session has been invalidated, this can usually happen from frequent posting, please re-authenticate, and wait 1-2 days before posting again',
       };
     }
 
@@ -313,14 +313,6 @@ export class InstagramProvider
       return {
         type: 'bad-body' as const,
         value: 'Collaborators are not allowed for carousel',
-      };
-    }
-
-    if (status === 401) {
-      return {
-        type: 'bad-body' as const,
-        value:
-          'An unknown error occurred, please try again later or contact support',
       };
     }
 
