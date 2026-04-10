@@ -109,9 +109,16 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
       const res = await fetch(`/credentials/${provider}/test`, {
         method: 'POST',
       });
-      const result = await res.json();
+      const result = await res.json().catch((parseErr) => {
+        console.error('[credentials] test: resposta nao-JSON', parseErr);
+        return { ok: false, error: `HTTP ${res.status}` };
+      });
+      if (!result.ok) {
+        console.error('[credentials] test falhou:', result);
+      }
       setTestResult(result);
-    } catch {
+    } catch (err) {
+      console.error('[credentials] test exception:', err);
       setTestResult({ ok: false, error: 'Erro ao testar conexão' });
     } finally {
       setTesting(false);

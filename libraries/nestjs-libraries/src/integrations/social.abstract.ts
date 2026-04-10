@@ -79,6 +79,15 @@ export abstract class SocialAbstract {
     try {
       value = await func();
     } catch (err) {
+      // Log cru do erro antes de passar por handleErrors — caso contrario
+      // o wrapper do runInConcurrent joga fora o stack e a mensagem original
+      // do provider (ex.: resposta da API do X/Twitter), dificultando
+      // diagnosticar falhas no worker do Temporal.
+      console.error(
+        '[runInConcurrent] provider error:',
+        (err as any)?.data || (err as any)?.message || err,
+        (err as any)?.stack || ''
+      );
       const handle = this.handleErrors(safeStringify(err));
       value = { err: true, value: 'Unknown Error', ...(handle || {}) };
     }

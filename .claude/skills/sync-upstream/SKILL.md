@@ -161,6 +161,104 @@ Proximos passos:
 - NAO faca push de main ainda se quiser testar mais
 ```
 
+## Customizacoes Divergentes do Upstream (nao sobrescrever!)
+
+Esta secao lista correcoes e customizacoes aplicadas no fork que NAO existem
+no upstream Postiz. Ao resolver conflitos ou ao aceitar mudancas do upstream
+em qualquer um dos arquivos abaixo, **leia esta secao antes**, e confirme com
+o usuario que nao estamos regredindo uma correcao ja feita.
+
+Formato: **arquivo** — descricao + data em que verificamos que o upstream
+continuava bugado. Se o upstream eventualmente corrigir, remova o item desta
+lista durante o proprio sync e registre no CHANGELOG.
+
+### Bugs de upload de midia / erros engolidos no X provider (2026-04-10)
+
+- **`libraries/nestjs-libraries/src/integrations/social/x.provider.ts`** —
+  metodo `uploadMedia` (proximo linha 350-395 no nosso fork).
+  - **Bug upstream (duplo):**
+    1. Usa `client.v2.uploadMedia` da lib `twitter-api-v2`, que bate no
+       endpoint NOVO X API v2 `/2/media/upload/initialize` (chunked). Esse
+       endpoint requer tier pago ou OAuth 2.0 com escopo `media.write` e
+       **nao funciona em contas do tier Free**, que so tem acesso ao endpoint
+       legado v1.1 `/1.1/media/upload.json`. No tier Free a chamada falha
+       com "Unknown Error" no wrapper do `runInConcurrent`.
+    2. Convertia TODA imagem nao-mp4 para GIF via
+       `sharp(...).resize({width:1000}).gif().toBuffer()`, mas passava
+       `media_type: (lookup(m.path) || '')` (MIME do arquivo original, ex.
+       `image/png`). Buffer GIF com MIME PNG e rejeitado pelo X.
+  - **Nosso fix:**
+    1. Migrado para `client.v1.uploadMedia(buffer, { mimeType })` — endpoint
+       v1.1 que funciona em todos os tiers. Media IDs do v1.1 sao aceitos
+       pelo `client.v2.tweet` (media IDs sao globalmente validos no X).
+    2. Buffer e `mimeType` agora sao coerentes por formato:
+       - video/mp4 -> buffer cru + `video/mp4`
+       - image/gif animado -> `sharp({animated:true}).gif()` + `image/gif`
+       - image/png -> `sharp().png()` + `image/png`
+       - image/webp -> `sharp().webp()` + `image/webp`
+       - outros -> `sharp().jpeg()` + `image/jpeg`
+  - **Ao sincronizar:** verificar o upstream atual com
+    `git show upstream/main:libraries/nestjs-libraries/src/integrations/social/x.provider.ts | grep -A 5 "uploadMedia"`.
+    - Se ainda usar `client.v2.uploadMedia`: **NAO** aceite a versao upstream.
+      Mantenha o nosso `client.v1.uploadMedia`.
+    - Se ainda usar `.gif()` hardcoded: mantenha o nosso fluxo por formato.
+    - Se o upstream tiver corrigido os dois pontos, adote a versao upstream e
+      remova este item da lista.
+
+- **`libraries/nestjs-libraries/src/integrations/social/x.provider.ts`** —
+  metodos `getClient`, `post`, `comment`, `autoRepostPost`, `repostPostUsers`,
+  `autoPlugPost`, `analytics`, `postAnalytics`, `mention` e helper privado
+  `resolveAppKeys`.
+  - **Bug upstream:** hardcodam `process.env.X_API_KEY!` e
+    `process.env.X_API_SECRET!` em todos os pontos, impossibilitando uso de
+    Consumer Keys por perfil (feature do fork — cada Profile tem suas
+    proprias credenciais OAuth via `ProviderCredential`).
+  - **Nosso fix:** helper `resolveAppKeys(integration?)` decripta
+    `integration.customInstanceDetails` (armazenado pelo controller via
+    `AuthService.fixedEncryption`) e cai para env var como ultimo recurso.
+    Todos os metodos acima aceitam `integration?: Integration` para encadear
+    as credenciais corretas ate o `TwitterApi`.
+  - **Assinaturas alteradas:** `post` ganhou 4o parametro `integration?`,
+    `analytics/postAnalytics` ganharam ultimo parametro `integration?`, e a
+    interface `SocialProvider` em `social.integrations.interface.ts` foi
+    atualizada para refletir isso.
+  - **Ao sincronizar:** conflitos em `x.provider.ts`, `instagram.provider.ts`
+    (analytics/postAnalytics), `instagram.standalone.provider.ts`,
+    `social.integrations.interface.ts`, `integration.service.ts` (caller de
+    `analytics`) e `posts.service.ts` (caller de `postAnalytics`) devem
+    preservar as assinaturas estendidas com `integration?: Integration`.
+
+- **`libraries/nestjs-libraries/src/integrations/social.abstract.ts`** —
+  metodo `runInConcurrent` (aprox. linhas 74-99).
+  - **Bug upstream:** o `catch` envolve qualquer exception em
+    `BadBody('Unknown Error')` SEM logar o erro original. Resultado: falhas
+    reais de APIs de provider (X, Facebook, etc) aparecem no Temporal como
+    "Unknown Error" sem stack trace nem mensagem do provider.
+  - **Nosso fix:** adicionado `console.error('[runInConcurrent] provider error:', ...)`
+    logando `err.data`, `err.message` e `err.stack` antes do `handleErrors`,
+    para que o worker do orchestrator mostre a causa real no terminal / docker
+    logs.
+  - **Ao sincronizar:** se o upstream tambem nao estiver logando, preserve
+    nosso `console.error`. Se o upstream introduziu log proprio, aceitar a
+    versao upstream desde que o erro original seja visivel nos logs.
+
+### Credenciais OAuth por perfil (feature do fork, nao upstream)
+
+- **`libraries/nestjs-libraries/src/database/prisma/credentials/credential.service.ts`** —
+  metodo `validateCredential` case `twitter`.
+  - **Contexto:** o fork suporta credenciais OAuth por perfil via UI de
+    Configuracoes. O teste de credenciais do X usa
+    `new TwitterApi({appKey, appSecret}).appLogin()` da lib `twitter-api-v2`
+    (que resolve o endpoint correto v1.1 `/oauth2/token`). O upstream Postiz
+    nao tem esse fluxo de teste; se ele introduzir algo parecido, verifique
+    que continua usando o helper da lib em vez de `fetch` direto contra URL
+    hardcoded (veja historia: versao anterior do nosso codigo batia em
+    `https://api.x.com/oauth2/token`, endpoint inexistente).
+  - **Arquivos correlatos nao-upstream:**
+    `apps/frontend/src/components/settings/provider-credential-form.component.tsx`,
+    endpoints `/credentials/:provider/test` em
+    `apps/backend/src/api/routes/credentials.controller.ts`.
+
 ## Regras Importantes
 
 - NUNCA executar `git push --force` em nenhuma branch
@@ -168,3 +266,5 @@ Proximos passos:
 - Sempre pedir confirmacao antes de resolver conflitos
 - Se algo parecer errado, parar e perguntar ao usuario
 - O build e opcional mas fortemente recomendado
+- **Sempre reler a secao "Customizacoes Divergentes do Upstream" antes de
+  aceitar qualquer resolucao de conflito nos arquivos listados.**

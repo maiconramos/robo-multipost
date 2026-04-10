@@ -409,7 +409,8 @@ export class IntegrationService {
         const loadAnalytics = await integrationProvider.analytics(
           getIntegration.internalId,
           getIntegration.token,
-          +date
+          +date,
+          getIntegration
         );
         await ioRedis.set(
           `integration:${org.id}:${integration}:${date}`,

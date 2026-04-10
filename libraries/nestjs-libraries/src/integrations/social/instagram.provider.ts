@@ -801,6 +801,7 @@ export class InstagramProvider
     id: string,
     accessToken: string,
     date: number,
+    integration?: Integration,
     type = 'graph.facebook.com'
   ): Promise<AnalyticsData[]> {
     const until = dayjs().endOf('day').unix();
@@ -863,6 +864,7 @@ export class InstagramProvider
     accessToken: string,
     postId: string,
     date: number,
+    integration?: Integration,
     type = 'graph.facebook.com'
   ): Promise<AnalyticsData[]> {
     const today = dayjs().format('YYYY-MM-DD');

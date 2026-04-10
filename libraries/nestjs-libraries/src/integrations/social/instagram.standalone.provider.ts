@@ -185,11 +185,17 @@ export class InstagramStandaloneProvider
     );
   }
 
-  async analytics(id: string, accessToken: string, date: number) {
+  async analytics(
+    id: string,
+    accessToken: string,
+    date: number,
+    integration?: Integration
+  ) {
     return instagramProvider.analytics(
       id,
       accessToken,
       date,
+      integration,
       'graph.instagram.com'
     );
   }
@@ -198,13 +204,15 @@ export class InstagramStandaloneProvider
     integrationId: string,
     accessToken: string,
     postId: string,
-    date: number
+    date: number,
+    integration?: Integration
   ) {
     return instagramProvider.postAnalytics(
       integrationId,
       accessToken,
       postId,
       date,
+      integration,
       'graph.instagram.com'
     );
   }

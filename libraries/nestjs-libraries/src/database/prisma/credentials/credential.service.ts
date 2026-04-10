@@ -173,8 +173,16 @@ export class CredentialService {
 
     try {
       const result = await this.validateCredential(provider, raw);
+      if (!result.ok) {
+        console.error(
+          '[credentials.test] provider=%s resultou em erro: %s',
+          provider,
+          result.error
+        );
+      }
       return result;
     } catch (e: any) {
+      console.error('[credentials.test] provider=%s exception=%o', provider, e);
       return { ok: false, error: e.message || 'Erro ao testar credencial.' };
     }
   }
@@ -195,21 +203,26 @@ export class CredentialService {
         return { ok: true };
       }
       case 'twitter': {
-        const encoded = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
-        const res = await fetch('https://api.x.com/oauth2/token', {
-          method: 'POST',
-          headers: {
-            'Authorization': `Basic ${encoded}`,
-            'Content-Type': 'application/x-www-form-urlencoded',
-          },
-          body: 'grant_type=client_credentials',
-        });
-        if (!res.ok) {
-          const body = await res.json().catch(() => ({}));
-          const msg = body?.errors?.[0]?.message || `Twitter retornou ${res.status}`;
+        try {
+          const { TwitterApi } = await import('twitter-api-v2');
+          const consumerClient = new TwitterApi({
+            appKey: creds.clientId,
+            appSecret: creds.clientSecret,
+          });
+          // appLogin faz o bearer token request v1.1 com o host e encoding corretos.
+          // Lança se as Consumer Keys forem invalidas ou o app nao estiver em um Project.
+          await consumerClient.appLogin();
+          return { ok: true };
+        } catch (e: any) {
+          const details = e?.data || e?.message || String(e);
+          console.error('[credentials.test.twitter] falhou:', details);
+          const msg =
+            e?.data?.errors?.[0]?.message ||
+            e?.data?.error_description ||
+            e?.message ||
+            'Credenciais invalidas no X.';
           return { ok: false, error: msg };
         }
-        return { ok: true };
       }
       case 'reddit': {
         const encoded = Buffer.from(`${creds.clientId}:${creds.clientSecret}`).toString('base64');
