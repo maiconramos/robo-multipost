@@ -52,7 +52,8 @@ export abstract class SocialAbstract {
   hiddenFromList = false;
 
   public handleErrors(
-    body: string
+    body: string,
+    status: number,
   ):
     | { type: 'refresh-token' | 'bad-body' | 'retry'; value: string }
     | undefined {
@@ -82,13 +83,14 @@ export abstract class SocialAbstract {
       // Log cru do erro antes de passar por handleErrors — caso contrario
       // o wrapper do runInConcurrent joga fora o stack e a mensagem original
       // do provider (ex.: resposta da API do X/Twitter), dificultando
-      // diagnosticar falhas no worker do Temporal.
+      // diagnosticar falhas no worker do Temporal. Divergencia documentada
+      // em .claude/skills/sync-upstream/SKILL.md.
       console.error(
         '[runInConcurrent] provider error:',
         (err as any)?.data || (err as any)?.message || err,
         (err as any)?.stack || ''
       );
-      const handle = this.handleErrors(safeStringify(err));
+      const handle = this.handleErrors(safeStringify(err), 200);
       value = { err: true, value: 'Unknown Error', ...(handle || {}) };
     }
 
@@ -131,7 +133,7 @@ export abstract class SocialAbstract {
       json = '{}';
     }
 
-    const handleError = this.handleErrors(json || '{}');
+    const handleError = this.handleErrors(json || '{}', request.status);
 
     if (
       request.status === 429 ||
