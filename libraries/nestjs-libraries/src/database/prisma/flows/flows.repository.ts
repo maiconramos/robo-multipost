@@ -316,4 +316,57 @@ export class FlowsRepository {
       },
     });
   }
+
+  findPendingNextPublicationFlows(integrationId: string) {
+    // Returns active flows for the integration that have not been bound to a
+    // specific mediaId yet (triggerPostIds IS NULL). Caller must still filter
+    // in-memory by inspecting the TRIGGER node data for `mode === 'next_publication'`
+    // — a flow with `mode === 'all'` also has triggerPostIds null and must not
+    // be treated as pending.
+    return this._flow.model.flow.findMany({
+      where: {
+        integrationId,
+        status: FlowStatus.ACTIVE,
+        deletedAt: null,
+        triggerPostIds: null,
+      },
+      include: {
+        nodes: true,
+      },
+    });
+  }
+
+  async bindFlowTriggerToMedia(
+    flowId: string,
+    triggerNodeId: string,
+    newNodeData: Record<string, any>,
+    mediaId: string
+  ): Promise<boolean> {
+    // Idempotent bind: the updateMany with `triggerPostIds: null` in WHERE
+    // guarantees that only still-pending flows get updated. A concurrent
+    // caller that already bound this flow will see 0 rows affected.
+    const result = await this._flow.model.flow.updateMany({
+      where: {
+        id: flowId,
+        triggerPostIds: null,
+        deletedAt: null,
+      },
+      data: {
+        triggerPostIds: JSON.stringify([mediaId]),
+      },
+    });
+
+    if (result.count === 0) {
+      return false;
+    }
+
+    await this._flowNode.model.flowNode.update({
+      where: { id: triggerNodeId },
+      data: {
+        data: JSON.stringify(newNodeData),
+      },
+    });
+
+    return true;
+  }
 }

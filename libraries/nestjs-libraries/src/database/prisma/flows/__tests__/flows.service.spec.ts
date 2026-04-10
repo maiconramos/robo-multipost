@@ -22,6 +22,8 @@ const mockRepository = {
   updateExecution: jest.fn(),
   findExistingExecution: jest.fn(),
   getActiveFlowsForIntegration: jest.fn(),
+  findPendingNextPublicationFlows: jest.fn(),
+  bindFlowTriggerToMedia: jest.fn(),
 } as unknown as jest.Mocked<FlowsRepository>;
 
 const mockWorkflowStart = jest.fn().mockResolvedValue({ workflowId: 'wf-1' });
@@ -350,6 +352,147 @@ describe('FlowsService', () => {
         completedAt: expect.any(Date),
       });
       expect(results).toHaveLength(1);
+    });
+
+    it('lazy binds pending next_publication flows before matching', async () => {
+      const pendingFlow = makeFlow({
+        id: 'flow-pending',
+        triggerPostIds: null,
+        nodes: [
+          {
+            id: 'trig-1',
+            type: FlowNodeType.TRIGGER,
+            data: JSON.stringify({ mode: 'next_publication' }),
+          },
+        ],
+      });
+      const boundFlow = {
+        ...pendingFlow,
+        triggerPostIds: JSON.stringify(['media-1']),
+        nodes: [
+          {
+            id: 'trig-1',
+            type: FlowNodeType.TRIGGER,
+            data: JSON.stringify({ mode: 'specific', postIds: ['media-1'] }),
+          },
+        ],
+      };
+
+      mockRepository.getActiveFlowsForIntegration
+        .mockResolvedValueOnce([pendingFlow])
+        .mockResolvedValueOnce([boundFlow]);
+      mockRepository.findPendingNextPublicationFlows.mockResolvedValue([pendingFlow]);
+      mockRepository.bindFlowTriggerToMedia.mockResolvedValue(true);
+      mockRepository.findExistingExecution.mockResolvedValue(null);
+      mockRepository.createExecution.mockResolvedValue({ id: 'exec-1' });
+
+      const results = await service.handleIncomingComment(commentPayload);
+
+      expect(mockRepository.findPendingNextPublicationFlows).toHaveBeenCalledWith('int-1');
+      expect(mockRepository.bindFlowTriggerToMedia).toHaveBeenCalledWith(
+        'flow-pending',
+        'trig-1',
+        expect.objectContaining({ mode: 'specific', postIds: ['media-1'] }),
+        'media-1'
+      );
+      expect(mockRepository.createExecution).toHaveBeenCalledWith(
+        expect.objectContaining({ flowId: 'flow-pending' })
+      );
+      expect(results).toHaveLength(1);
+    });
+
+    it('does not fire a still-pending next_publication flow if bind failed', async () => {
+      const pendingFlow = makeFlow({
+        id: 'flow-pending',
+        triggerPostIds: null,
+        nodes: [
+          {
+            id: 'trig-1',
+            type: FlowNodeType.TRIGGER,
+            data: JSON.stringify({ mode: 'next_publication' }),
+          },
+        ],
+      });
+      // Both calls return the pending flow — bind didn't take.
+      mockRepository.getActiveFlowsForIntegration.mockResolvedValue([pendingFlow]);
+      mockRepository.findPendingNextPublicationFlows.mockResolvedValue([pendingFlow]);
+      mockRepository.bindFlowTriggerToMedia.mockResolvedValue(false);
+      mockRepository.findExistingExecution.mockResolvedValue(null);
+
+      const results = await service.handleIncomingComment(commentPayload);
+
+      expect(mockRepository.createExecution).not.toHaveBeenCalled();
+      expect(results).toHaveLength(0);
+    });
+  });
+
+  // --- bindPendingFlowsToPost ---
+
+  describe('bindPendingFlowsToPost', () => {
+    it('binds only flows whose trigger mode is next_publication', async () => {
+      const pending = makeFlow({
+        id: 'flow-p',
+        triggerPostIds: null,
+        nodes: [
+          {
+            id: 'trig-p',
+            type: FlowNodeType.TRIGGER,
+            data: JSON.stringify({ mode: 'next_publication', keywords: ['preço'] }),
+          },
+        ],
+      });
+      const allMode = makeFlow({
+        id: 'flow-all',
+        triggerPostIds: null,
+        nodes: [
+          {
+            id: 'trig-all',
+            type: FlowNodeType.TRIGGER,
+            data: JSON.stringify({ mode: 'all' }),
+          },
+        ],
+      });
+      mockRepository.findPendingNextPublicationFlows.mockResolvedValue([
+        pending,
+        allMode,
+      ]);
+      mockRepository.bindFlowTriggerToMedia.mockResolvedValue(true);
+
+      const count = await service.bindPendingFlowsToPost('int-1', 'media-xyz');
+
+      expect(count).toBe(1);
+      expect(mockRepository.bindFlowTriggerToMedia).toHaveBeenCalledTimes(1);
+      expect(mockRepository.bindFlowTriggerToMedia).toHaveBeenCalledWith(
+        'flow-p',
+        'trig-p',
+        expect.objectContaining({
+          mode: 'specific',
+          postIds: ['media-xyz'],
+          keywords: ['preço'],
+        }),
+        'media-xyz'
+      );
+    });
+
+    it('is idempotent when no pending flows remain', async () => {
+      mockRepository.findPendingNextPublicationFlows.mockResolvedValue([]);
+      const count = await service.bindPendingFlowsToPost('int-1', 'media-xyz');
+      expect(count).toBe(0);
+      expect(mockRepository.bindFlowTriggerToMedia).not.toHaveBeenCalled();
+    });
+
+    it('returns 0 and does not throw on repository errors', async () => {
+      mockRepository.findPendingNextPublicationFlows.mockRejectedValue(
+        new Error('db down')
+      );
+      const count = await service.bindPendingFlowsToPost('int-1', 'media-xyz');
+      expect(count).toBe(0);
+    });
+
+    it('no-ops when integrationId or mediaId is empty', async () => {
+      expect(await service.bindPendingFlowsToPost('', 'm')).toBe(0);
+      expect(await service.bindPendingFlowsToPost('i', '')).toBe(0);
+      expect(mockRepository.findPendingNextPublicationFlows).not.toHaveBeenCalled();
     });
   });
 });

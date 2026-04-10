@@ -23,6 +23,7 @@ import {
   postId as postIdSearchParam,
 } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
+import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
 
 @Injectable()
 @Activity()
@@ -35,7 +36,8 @@ export class PostActivity {
     private _refreshIntegrationService: RefreshIntegrationService,
     private _webhookService: WebhooksService,
     private _temporalService: TemporalService,
-    private _subscriptionService: SubscriptionService
+    private _subscriptionService: SubscriptionService,
+    private _flowsService: FlowsService
   ) {}
 
   @ActivityMethod()
@@ -82,7 +84,32 @@ export class PostActivity {
 
   @ActivityMethod()
   async updatePost(id: string, postId: string, releaseURL: string) {
-    return this._postService.updatePost(id, postId, releaseURL);
+    const result = await this._postService.updatePost(id, postId, releaseURL);
+
+    // Bind any pending "next_publication" flows to this freshly published
+    // media. Stories are excluded. Failures must never break the publish.
+    try {
+      if (!postId) return result;
+      const post = await this._postService.getPostById(id);
+      if (!post || post.integration?.providerIdentifier !== 'instagram') {
+        return result;
+      }
+      let settings: any = {};
+      try {
+        settings = JSON.parse(post.settings || '{}');
+      } catch {
+        settings = {};
+      }
+      if (settings?.post_type === 'story') return result;
+      await this._flowsService.bindPendingFlowsToPost(
+        post.integrationId,
+        postId
+      );
+    } catch {
+      // ignore — bind errors must not fail the post publish
+    }
+
+    return result;
   }
 
   @ActivityMethod()

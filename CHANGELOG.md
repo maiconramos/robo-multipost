@@ -34,6 +34,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Configuracao de webhook Instagram movida da pagina de Automacoes para dentro da credencial Facebook em Configuracoes > Credenciais
 
 ### Adicionado
+- Modo "Proxima Publicacao" em automacoes do Instagram: permite criar a automacao antes do post existir e vincula-a automaticamente ao proximo feed ou reel publicado, seja pelo Robo MultiPost ou direto no Instagram (stories excluidos)
 - Tag Docker `:prerelease` que aponta sempre para a ultima RC publicada, permitindo atualizacao automatica sem especificar numero de versao
 - Selecao de posts no wizard com grid de 4 thumbs + modal "Mostrar Todos" com scroll infinito
 - Secao "E esse comentario possui" estilo ManyChat — radio cards, input com virgulas, chips de exemplo, toggle para interagir com comentarios

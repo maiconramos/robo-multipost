@@ -5,6 +5,7 @@ import {
   IsArray,
   ValidateNested,
   IsNumber,
+  IsIn,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { FlowStatus, FlowNodeType } from '@prisma/client';
@@ -91,6 +92,10 @@ export class QuickCreateFlowDto {
 
   @IsString()
   integrationId: string;
+
+  @IsOptional()
+  @IsIn(['all', 'specific', 'next_publication'])
+  postMode?: 'all' | 'specific' | 'next_publication';
 
   @IsOptional()
   @IsArray()

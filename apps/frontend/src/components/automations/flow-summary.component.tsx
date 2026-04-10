@@ -176,7 +176,9 @@ export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
             {t('summary_trigger', 'Trigger')}
           </h3>
           <p className="text-[12px] text-customColor18">
-            {triggerConfig.postIds?.length
+            {triggerConfig.mode === 'next_publication' && !triggerConfig.postIds?.length
+              ? t('summary_next_publication', 'Aguardando próxima publicação')
+              : triggerConfig.postIds?.length
               ? t('summary_specific_posts', '{count} specific post(s)').replace('{count}', String(triggerConfig.postIds.length))
               : t('summary_all_posts', 'All posts')}
           </p>

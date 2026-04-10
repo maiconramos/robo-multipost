@@ -134,6 +134,18 @@ Inicio -> Condicao (palavra="PROMO") -> Responder Comentario -> Atraso (5s) -> E
                                     -> (nao combina) -> (sem acao)
 ```
 
+### Escopo do gatilho (modos de acionamento)
+
+No wizard "Nova Automacao Rapida" voce escolhe em qual post a automacao vai rodar:
+
+| Modo | Comportamento |
+|---|---|
+| **Uma publicacao ou reel especifico** | Seleciona um ou mais posts ja existentes no feed e a flow so dispara neles |
+| **Qualquer publicacao ou reel** | Dispara em todos os posts atuais e futuros da conta |
+| **A proxima publicacao que eu fizer** | A flow fica pendente ate o proximo feed ou reel da conta ser publicado. Nesse momento ela se vincula *apenas* aquele post e converte para o modo "especifico". Stories nao sao suportados — se o proximo post for um story ele sera ignorado e a flow continua pendente ate chegar um feed/reel. **One-shot**: para cobrir o proximo post depois desse, crie outra flow. Funciona tanto para posts publicados pelo Robo MultiPost quanto direto no app do Instagram, Creator Studio ou Meta Business Suite |
+
+> Se voce criar multiplas flows em modo "Proxima publicacao" para a mesma conta, todas serao vinculadas simultaneamente ao mesmo proximo post — cada uma com suas proprias palavras-chave e mensagens.
+
 ### Variaveis disponiveis
 
 - `{{nome}}` — nome de usuario do comentarista

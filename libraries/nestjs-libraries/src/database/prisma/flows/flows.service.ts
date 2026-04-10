@@ -304,10 +304,7 @@ export class FlowsService {
     const nodes: Array<{ type: string; positionX: number; positionY: number; data: string }> = [];
     const edges: Array<{ sourceIndex: number; targetIndex: number }> = [];
 
-    const triggerConfig: Record<string, any> = {};
-    if (body.postIds?.length) triggerConfig.postIds = body.postIds;
-    if (body.keywords?.length) triggerConfig.keywords = body.keywords;
-    if (body.matchMode) triggerConfig.matchMode = body.matchMode;
+    const triggerConfig = this.buildTriggerConfig(body);
 
     nodes.push({ type: 'TRIGGER', positionX: 250, positionY: 50, data: JSON.stringify(triggerConfig) });
     let lastIndex = 0;
@@ -342,7 +339,8 @@ export class FlowsService {
       {
         name: body.name,
         integrationId: body.integrationId,
-        triggerPostIds: body.postIds,
+        triggerPostIds:
+          body.postMode === 'next_publication' ? undefined : body.postIds,
       },
       profileId
     );
@@ -351,10 +349,7 @@ export class FlowsService {
     const edges: Array<{ sourceIndex: number; targetIndex: number }> = [];
 
     // Trigger node
-    const triggerConfig: Record<string, any> = {};
-    if (body.postIds?.length) triggerConfig.postIds = body.postIds;
-    if (body.keywords?.length) triggerConfig.keywords = body.keywords;
-    if (body.matchMode) triggerConfig.matchMode = body.matchMode;
+    const triggerConfig = this.buildTriggerConfig(body);
 
     nodes.push({
       type: 'TRIGGER',
@@ -415,6 +410,95 @@ export class FlowsService {
     await this._flowsRepository.updateFlowStatus(orgId, flow.id, FlowStatus.ACTIVE, profileId);
 
     return this._flowsRepository.getFlow(orgId, flow.id, profileId);
+  }
+
+  private buildTriggerConfig(body: QuickCreateFlowDto): Record<string, any> {
+    const triggerConfig: Record<string, any> = {};
+
+    if (body.postMode === 'next_publication') {
+      triggerConfig.mode = 'next_publication';
+    } else if (body.postIds?.length) {
+      triggerConfig.mode = 'specific';
+      triggerConfig.postIds = body.postIds;
+    } else if (body.postMode === 'all') {
+      triggerConfig.mode = 'all';
+    }
+
+    if (body.keywords?.length) triggerConfig.keywords = body.keywords;
+    if (body.matchMode) triggerConfig.matchMode = body.matchMode;
+
+    return triggerConfig;
+  }
+
+  private isPendingNextPublication(flow: {
+    triggerPostIds?: string | null;
+    nodes?: Array<{ type: string; data: string | null }>;
+  }): boolean {
+    if (flow.triggerPostIds) return false;
+    const trigger = flow.nodes?.find((n) => n.type === 'TRIGGER');
+    if (!trigger?.data) return false;
+    try {
+      return JSON.parse(trigger.data)?.mode === 'next_publication';
+    } catch {
+      return false;
+    }
+  }
+
+  async bindPendingFlowsToPost(
+    integrationId: string,
+    mediaId: string
+  ): Promise<number> {
+    if (!integrationId || !mediaId) return 0;
+
+    try {
+      const pending =
+        await this._flowsRepository.findPendingNextPublicationFlows(
+          integrationId
+        );
+
+      let bound = 0;
+      for (const flow of pending) {
+        if (!this.isPendingNextPublication(flow)) continue;
+
+        const triggerNode = flow.nodes?.find((n) => n.type === 'TRIGGER');
+        if (!triggerNode) continue;
+
+        let currentData: Record<string, any> = {};
+        try {
+          currentData = triggerNode.data ? JSON.parse(triggerNode.data) : {};
+        } catch {
+          currentData = {};
+        }
+
+        const newData = {
+          ...currentData,
+          mode: 'specific',
+          postIds: [mediaId],
+        };
+
+        const ok = await this._flowsRepository.bindFlowTriggerToMedia(
+          flow.id,
+          triggerNode.id,
+          newData,
+          mediaId
+        );
+        if (ok) bound++;
+      }
+
+      if (bound > 0) {
+        this._logger.log(
+          `Bound ${bound} pending next_publication flow(s) to media ${mediaId} on integration ${integrationId}`
+        );
+      }
+      return bound;
+    } catch (err) {
+      this._logger.warn(
+        `bindPendingFlowsToPost failed for integration ${integrationId} media ${mediaId}: ${
+          err instanceof Error ? err.message : 'Unknown error'
+        }`
+      );
+      return 0;
+    }
   }
 
   async getInstagramPostsByIntegration(
@@ -492,14 +576,33 @@ export class FlowsService {
     commentText: string;
     organizationId: string;
   }) {
-    const activeFlows =
+    let activeFlows =
       await this._flowsRepository.getActiveFlowsForIntegration(
         payload.integrationId,
         payload.igMediaId
       );
 
+    // Lazy bind: if any active flow is still pending in next_publication mode,
+    // bind it to this mediaId before matching. Comments only arrive on feed/reel
+    // (stories use messages/story_insights), so it's safe to treat this as the
+    // "next publication" signal without fetching media_type.
+    const hasPending = activeFlows.some((f) => this.isPendingNextPublication(f));
+    if (hasPending) {
+      await this.bindPendingFlowsToPost(
+        payload.integrationId,
+        payload.igMediaId
+      );
+      activeFlows = await this._flowsRepository.getActiveFlowsForIntegration(
+        payload.integrationId,
+        payload.igMediaId
+      );
+    }
+
     // Filter flows that monitor this specific media (or all posts)
     const matchingFlows = activeFlows.filter((flow) => {
+      // Defense-in-depth: a flow still pending in next_publication must NOT
+      // fire as "all posts" — skip it entirely if the bind didn't take.
+      if (this.isPendingNextPublication(flow)) return false;
       if (!flow.triggerPostIds) return true;
       try {
         const postIds: string[] = JSON.parse(flow.triggerPostIds);
