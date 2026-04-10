@@ -62,6 +62,7 @@
     "@mantine/hooks": "^5.10.5",
     "@mantine/modals": "^5.10.5",
     "@mastra/core": "^0.20.2",
+    "@mastra/mcp": "^0.13.5",
     "@mastra/memory": "^0.15.6",
     "@mastra/pg": "^0.17.2",
     "@mastra/rag": "^2.1.3",
