@@ -8,6 +8,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ## [Unreleased]
 
 ### Corrigido
+- Traducao dos textos restantes no painel de configuracoes de publicacao (X e LinkedIn): placeholder de comunidade, toggles "Feito com IA" e "Parceria paga", finalizador de thread, plug "Adicionar repostadores", label e opcoes de atraso (Imediatamente, 1 hora, ...) e mensagem "Nenhuma conta disponivel"
+- Verificacao de credenciais do X (Twitter) falhava com "Unable to verify your credentials" mesmo com chaves validas — endpoint e fluxo corrigidos usando `twitter-api-v2.appLogin()`
+- Isolamento de credenciais OAuth do X por perfil — cada perfil do workspace agora usa suas proprias Consumer Keys em todo o fluxo OAuth 1.0a, incluindo publicacao, comentarios, analytics e plugs de repost, sem vazar credenciais entre perfis e sem depender de X_API_KEY/X_API_SECRET globais
+- Logs de diagnostico adicionados ao teste de credenciais (backend e frontend) para facilitar troubleshooting
+- Crash no preview do TikTok ao abrir o modal de canais sem midia anexada (`Cannot read properties of undefined (reading 'map')`)
 - Correcoes na tela publica de compartilhamento de post (`/p/:id?share=true`): logo renderizava quebrado, textos e data permaneciam em ingles com idioma pt-BR, botao de login/cadastro ficava comprimido com texto longo e aparecia warning de key do React nas imagens
 - Contraste dos textos no node Trigger — contagem de posts e palavras-chave agora usam cor legivel em ambos temas claro e escuro
 - Acentuacao faltante nas traducoes em portugues do wizard de automacoes
@@ -94,6 +99,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - UX de remocao de arestas estilo n8n — lixeira aparece no hover sobre a conexao
 - No de Condicao mostra "Verdadeiro"/"Falso" em vez de "Match"/"Sem match" (mais claro)
 - Ao arrastar novo no para o canvas, ele conecta automaticamente ao ultimo no (fluxo linear)
+
+### Alterado
+- Renomeacao na interface de automacoes: "Wizard/Assistente" passa a se chamar "Automacao Rapida" (PT) e "Quick Automation" (EN); modo "Avancado/Comecar do zero" passa a se chamar "Flow Builder" (mesmo termo em pt e en) — alinhado com a nomenclatura ManyChat que os usuarios brasileiros ja reconhecem
 
 ### Removido
 - Botao "Configurar webhook Instagram na Meta" em Credenciais — no modelo de Casos de Uso da Meta (2024) o webhook tem que ser configurado manualmente dentro de cada caso de uso, nao ha endpoint API publico que preencha esses campos

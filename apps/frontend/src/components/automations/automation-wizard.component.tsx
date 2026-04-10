@@ -248,7 +248,7 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
           </button>
           <h1 className="text-[20px] font-semibold text-textColor">
             {isEditing
-              ? t('wizard_editing_title', 'Edit Automation')
+              ? t('wizard_editing_title', 'Edit Quick Automation')
               : t('wizard_title', 'New Quick Automation')}
           </h1>
         </div>

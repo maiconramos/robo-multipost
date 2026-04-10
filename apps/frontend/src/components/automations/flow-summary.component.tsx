@@ -147,13 +147,13 @@ export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
             onClick={() => router.push(`/automacoes/${flow.id}/wizard`)}
             className="rounded-[4px] border border-btnPrimary bg-btnPrimary/10 px-[12px] py-[6px] text-[12px] text-textColor hover:opacity-80"
           >
-            {t('edit_in_wizard', 'Edit in Wizard')}
+            {t('edit_in_wizard', 'Edit in Quick mode')}
           </button>
           <button
             onClick={onSwitchToAdvanced}
             className="rounded-[4px] border border-fifth bg-btnSimple px-[12px] py-[6px] text-[12px] text-textColor hover:bg-boxHover"
           >
-            {t('edit_advanced', 'Edit advanced')}
+            {t('edit_advanced', 'Open in Flow Builder')}
           </button>
         </div>
       </div>

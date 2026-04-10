@@ -138,7 +138,7 @@ export const FlowListComponent: FC = () => {
             onClick={() => setShowCreate(true)}
             className="rounded-[4px] border border-fifth bg-btnSimple px-[16px] py-[8px] text-[14px] text-textColor hover:bg-boxHover"
           >
-            {t('start_from_scratch', 'Start from scratch')}
+            {t('start_from_scratch', 'Flow Builder')}
           </button>
         </div>
       </div>
