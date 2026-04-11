@@ -31,6 +31,7 @@ import 'dayjs/locale/tr';
 import 'dayjs/locale/vi';
 import localizedFormat from 'dayjs/plugin/localizedFormat';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
+import { ReviewLinksModal } from '@gitroom/frontend/components/launches/review-links.modal';
 import clsx from 'clsx';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { ExistingDataContextProvider } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
@@ -1000,9 +1001,27 @@ const CalendarItem: FC<{
     missingRelease,
   } = props;
   const { disableXAnalytics } = useVariables();
+  const modals = useModals();
   const preview = useCallback(() => {
     window.open(`/p/` + post.id + '?share=true', '_blank');
   }, [post]);
+  const openReviewLinks = useCallback(() => {
+    modals.openModal({
+      id: `review-links-${post.id}`,
+      title: '',
+      withCloseButton: false,
+      size: 'auto',
+      classNames: {
+        modal: 'bg-newBgColorInner text-textColor',
+      },
+      children: (
+        <ReviewLinksModal
+          postId={post.id}
+          close={() => modals.closeById(`review-links-${post.id}`)}
+        />
+      ),
+    });
+  }, [post.id, modals]);
   const [{ opacity }, dragRef] = useDrag(
     () => ({
       type: 'post',
@@ -1083,6 +1102,15 @@ const CalendarItem: FC<{
           onClick={preview}
         >
           <Preview />
+        </div>{' '}
+        <div
+          className={clsx(
+            'hidden group-hover:block hover:underline cursor-pointer',
+            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+          )}
+          onClick={openReviewLinks}
+        >
+          <ReviewShare />
         </div>{' '}
         {((post.integration.providerIdentifier === 'x' && disableXAnalytics) || !post.releaseId) ? (
           <></>
@@ -1194,6 +1222,28 @@ const Duplicate = () => {
         d="M27 5H9C8.46957 5 7.96086 5.21071 7.58579 5.58579C7.21071 5.96086 7 6.46957 7 7V9H5C4.46957 9 3.96086 9.21071 3.58579 9.58579C3.21071 9.96086 3 10.4696 3 11V25C3 25.5304 3.21071 26.0391 3.58579 26.4142C3.96086 26.7893 4.46957 27 5 27H23C23.5304 27 24.0391 26.7893 24.4142 26.4142C24.7893 26.0391 25 25.5304 25 25V23H27C27.5304 23 28.0391 22.7893 28.4142 22.4142C28.7893 22.0391 29 21.5304 29 21V7C29 6.46957 28.7893 5.96086 28.4142 5.58579C28.0391 5.21071 27.5304 5 27 5ZM23 11V13H5V11H23ZM23 25H5V15H23V25ZM27 21H25V11C25 10.4696 24.7893 9.96086 24.4142 9.58579C24.0391 9.21071 23.5304 9 23 9H9V7H27V21Z"
         fill="currentColor"
       />
+    </svg>
+  );
+};
+const ReviewShare = () => {
+  const t = useT();
+  return (
+    <svg
+      xmlns="http://www.w3.org/2000/svg"
+      width="15"
+      height="15"
+      viewBox="0 0 24 24"
+      fill="none"
+      stroke="currentColor"
+      strokeWidth="2"
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      data-tooltip-id="tooltip"
+      data-tooltip-content={t('share_for_review', 'Share for review')}
+    >
+      <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
+      <polyline points="16 6 12 2 8 6" />
+      <line x1="12" y1="2" x2="12" y2="15" />
     </svg>
   );
 };

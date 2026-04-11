@@ -34,6 +34,8 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Configuracao de webhook Instagram movida da pagina de Automacoes para dentro da credencial Facebook em Configuracoes > Credenciais
 
 ### Adicionado
+- Link de aprovacao por cliente: cada post pode gerar tokens de revisao compartilhaveis por URL (`/p/:id?token=...`) que permitem ao cliente comentar e aprovar ou pedir alteracoes sem login. Tokens sao aleatorios de 256 bits armazenados apenas como hash SHA-256, com expiracao padrao de 30 dias, revogacao manual, rate limit por IP (10 requisicoes / 5 min), sanitizacao de conteudo e trilha de auditoria (IP e user-agent). UI do dono no calendario para gerar, listar e revogar links
+- Migracao automatica do schema Prisma no start do container Docker — o entrypoint agora executa `prisma db push` antes de iniciar a aplicacao, garantindo que quem atualiza a imagem em producao recebe as novas colunas/tabelas sem precisar rodar comando manual
 - Modo "Proxima Publicacao" em automacoes do Instagram: permite criar a automacao antes do post existir e vincula-a automaticamente ao proximo feed ou reel publicado, seja pelo Robo MultiPost ou direto no Instagram (stories excluidos)
 - Tag Docker `:prerelease` que aponta sempre para a ultima RC publicada, permitindo atualizacao automatica sem especificar numero de versao
 - Selecao de posts no wizard com grid de 4 thumbs + modal "Mostrar Todos" com scroll infinito

@@ -25,6 +25,7 @@ import { Response } from 'express';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { ShortLinkService } from '@gitroom/nestjs-libraries/short-linking/short.link.service';
 import { CreateTagDto } from '@gitroom/nestjs-libraries/dtos/posts/create.tag.dto';
+import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
 import {
   AuthorizationActions,
   Sections,
@@ -36,7 +37,8 @@ export class PostsController {
   constructor(
     private _postsService: PostsService,
     private _agentGraphService: AgentGraphService,
-    private _shortLinkService: ShortLinkService
+    private _shortLinkService: ShortLinkService,
+    private _reviewLinksService: ReviewLinksService
   ) {}
 
   @Get('/:id/statistics')
@@ -77,6 +79,46 @@ export class PostsController {
     @Body() body: { comment: string }
   ) {
     return this._postsService.createComment(org.id, user.id, id, body.comment);
+  }
+
+  @Post('/:id/review-links')
+  async createReviewLink(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      expiresInDays?: number;
+      allowComment?: boolean;
+      allowApprove?: boolean;
+    }
+  ) {
+    return this._reviewLinksService.createForPost({
+      postId: id,
+      orgId: org.id,
+      userId: user.id,
+      expiresInDays: body?.expiresInDays,
+      allowComment: body?.allowComment,
+      allowApprove: body?.allowApprove,
+    });
+  }
+
+  @Get('/:id/review-links')
+  async listReviewLinks(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return {
+      reviewLinks: await this._reviewLinksService.listForPost(id, org.id),
+    };
+  }
+
+  @Delete('/:id/review-links/:linkId')
+  async revokeReviewLink(
+    @GetOrgFromRequest() org: Organization,
+    @Param('linkId') linkId: string
+  ) {
+    return this._reviewLinksService.revoke(linkId, org.id);
   }
 
   @Get('/tags')

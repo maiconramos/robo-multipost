@@ -51,6 +51,8 @@ import { AnnouncementsRepository } from '@gitroom/nestjs-libraries/database/pris
 import { AnnouncementsService } from '@gitroom/nestjs-libraries/database/prisma/announcements/announcements.service';
 import { FlowsRepository } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.repository';
 import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
+import { ReviewLinksRepository } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.repository';
+import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
 
 @Global()
 @Module({
@@ -111,6 +113,8 @@ import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/fl
     AnnouncementsService,
     FlowsRepository,
     FlowsService,
+    ReviewLinksRepository,
+    ReviewLinksService,
   ],
   get exports() {
     return this.providers;

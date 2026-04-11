@@ -48,6 +48,7 @@ model Organization {
   oauthApp                OAuthApp[]
   oauthAuthorizations     OAuthAuthorization[]
   flows                   Flow[]
+  reviewLinks             ReviewLink[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -122,6 +123,7 @@ model User {
   sendFailureEmails     Boolean              @default(true)
   sendStreakEmails      Boolean              @default(true)
   oauthAuthorizations   OAuthAuthorization[]
+  reviewLinksCreated    ReviewLink[]         @relation("reviewLinkCreatedBy")
 
   @@unique([email, providerName])
   @@index([lastReadNotifications])
@@ -398,19 +400,58 @@ model Comments {
   content        String
   organizationId String
   postId         String
-  userId         String
+  userId         String?
+  reviewLinkId   String?
+  guestName      String?
+  guestEmail     String?
+  guestIp        String?
+  guestUserAgent String?
+  kind           CommentKind  @default(COMMENT)
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
   deletedAt      DateTime?
   organization   Organization @relation(fields: [organizationId], references: [id])
   post           Post         @relation(fields: [postId], references: [id])
-  user           User         @relation(fields: [userId], references: [id])
+  user           User?        @relation(fields: [userId], references: [id])
+  reviewLink     ReviewLink?  @relation(fields: [reviewLinkId], references: [id])
 
   @@index([createdAt])
   @@index([organizationId])
   @@index([userId])
   @@index([postId])
+  @@index([reviewLinkId])
+  @@index([kind])
   @@index([deletedAt])
+}
+
+enum CommentKind {
+  COMMENT
+  APPROVAL
+  CHANGE_REQUEST
+}
+
+model ReviewLink {
+  id             String       @id @default(uuid())
+  postId         String
+  organizationId String
+  tokenHash      String       @unique
+  allowComment   Boolean      @default(true)
+  allowApprove   Boolean      @default(true)
+  expiresAt      DateTime?
+  revokedAt      DateTime?
+  createdById    String
+  lastUsedAt     DateTime?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  post           Post         @relation(fields: [postId], references: [id])
+  organization   Organization @relation(fields: [organizationId], references: [id])
+  createdBy      User         @relation("reviewLinkCreatedBy", fields: [createdById], references: [id])
+  comments       Comments[]
+
+  @@index([postId])
+  @@index([organizationId])
+  @@index([revokedAt])
+  @@index([expiresAt])
 }
 
 model Post {
@@ -451,6 +492,7 @@ model Post {
   submittedForOrder          Orders?                   @relation(fields: [submittedForOrderId], references: [id])
   submittedForOrganization   Organization?             @relation("submittedForOrg", fields: [submittedForOrganizationId], references: [id])
   tags                       TagsPosts[]
+  reviewLinks                ReviewLink[]
 
   @@index([group])
   @@index([deletedAt])

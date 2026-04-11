@@ -27,6 +27,8 @@ import { Readable, pipeline } from 'stream';
 import { promisify } from 'util';
 import { OnlyURL } from '@gitroom/nestjs-libraries/dtos/webhooks/webhooks.dto';
 import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
+import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
+import { CommentKind } from '@prisma/client';
 
 const pump = promisify(pipeline);
 
@@ -38,7 +40,8 @@ export class PublicController {
     private _agentGraphInsertService: AgentGraphInsertService,
     private _postsService: PostsService,
     private _nowpayments: Nowpayments,
-    private _subscriptionService: SubscriptionService
+    private _subscriptionService: SubscriptionService,
+    private _reviewLinksService: ReviewLinksService
   ) {}
   @Post('/agent')
   async createAgent(@Body() body: { text: string; apiKey: string }) {
@@ -75,6 +78,79 @@ export class PublicController {
   @Get(`/posts/:id/comments`)
   async getComments(@Param('id') postId: string) {
     return { comments: await this._postsService.getComments(postId) };
+  }
+
+  @Get(`/posts/:id/review`)
+  async getReviewLinkInfo(
+    @Param('id') postId: string,
+    @Query('token') token?: string
+  ) {
+    const link = await this._reviewLinksService.resolveToken(postId, token);
+    if (!link) {
+      // Do not leak token validity differences
+      return { valid: false };
+    }
+    return {
+      valid: true,
+      allowComment: link.allowComment,
+      allowApprove: link.allowApprove,
+      expiresAt: link.expiresAt,
+    };
+  }
+
+  @Post(`/posts/:id/review/comment`)
+  async guestReviewComment(
+    @Param('id') postId: string,
+    @RealIP() ip: string,
+    @UserAgent() userAgent: string,
+    @Body()
+    body: {
+      token?: string;
+      guestName?: string;
+      guestEmail?: string;
+      content?: string;
+    }
+  ) {
+    return this._reviewLinksService.submitGuestAction({
+      postId,
+      rawToken: body?.token,
+      ip: ip || null,
+      userAgent: userAgent || null,
+      guestName: body?.guestName,
+      guestEmail: body?.guestEmail,
+      content: body?.content,
+      kind: CommentKind.COMMENT,
+    });
+  }
+
+  @Post(`/posts/:id/review/approve`)
+  async guestReviewApprove(
+    @Param('id') postId: string,
+    @RealIP() ip: string,
+    @UserAgent() userAgent: string,
+    @Body()
+    body: {
+      token?: string;
+      guestName?: string;
+      guestEmail?: string;
+      decision?: 'APPROVED' | 'CHANGE_REQUESTED';
+      note?: string;
+    }
+  ) {
+    const kind =
+      body?.decision === 'CHANGE_REQUESTED'
+        ? CommentKind.CHANGE_REQUEST
+        : CommentKind.APPROVAL;
+    return this._reviewLinksService.submitGuestAction({
+      postId,
+      rawToken: body?.token,
+      ip: ip || null,
+      userAgent: userAgent || null,
+      guestName: body?.guestName,
+      guestEmail: body?.guestEmail,
+      content: body?.note,
+      kind,
+    });
   }
 
   @Post('/t')

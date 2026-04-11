@@ -772,9 +772,18 @@ export class PostsRepository {
     return this._comments.model.comments.findMany({
       where: {
         postId,
+        deletedAt: null,
       },
       orderBy: {
         createdAt: 'asc',
+      },
+      select: {
+        id: true,
+        content: true,
+        userId: true,
+        guestName: true,
+        kind: true,
+        createdAt: true,
       },
     });
   }

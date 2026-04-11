@@ -24,14 +24,23 @@ export default async function Auth(props: {
   }>;
   searchParams?: Promise<{
     share?: string;
+    token?: string;
   }>;
 }) {
   const searchParams = await props.searchParams;
   const params = await props.params;
 
   const { id } = params;
+  const token = searchParams?.token;
 
   const post = await (await internalFetch(`/public/posts/${id}`)).json();
+  const reviewInfo = token
+    ? await (
+        await internalFetch(
+          `/public/posts/${id}/review?token=${encodeURIComponent(token)}`
+        )
+      ).json()
+    : { valid: false };
   const t = await getT();
   if (!post.length) {
     return (
@@ -138,7 +147,11 @@ export default async function Auth(props: {
         </div>
         <div className="w-full lg:w-96 lg:flex-shrink-0">
           <div className="p-4 pt-0">
-            <CommentsComponents postId={id} />
+            <CommentsComponents
+            postId={id}
+            token={token}
+            reviewInfo={reviewInfo}
+          />
           </div>
         </div>
       </div>
