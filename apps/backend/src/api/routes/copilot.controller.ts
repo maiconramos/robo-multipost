@@ -15,22 +15,18 @@ import {
   copilotRuntimeNextJSAppRouterEndpoint,
 } from '@copilotkit/runtime';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
-import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
-import { Organization, Profile } from '@prisma/client';
+import { Organization } from '@prisma/client';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
-import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { MastraAgent } from '@ag-ui/mastra';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { Request, Response } from 'express';
-import { RuntimeContext } from '@mastra/core/di';
+import { RequestContext } from '@mastra/core/di';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 
 export type ChannelsContext = {
   integrations: string;
   organization: string;
-  profileId: string;
-  persona: string;
   ui: string;
 };
 
@@ -38,8 +34,7 @@ export type ChannelsContext = {
 export class CopilotController {
   constructor(
     private _subscriptionService: SubscriptionService,
-    private _mastraService: MastraService,
-    private _profileService: ProfileService
+    private _mastraService: MastraService
   ) {}
   @Post('/chat')
   chatAgent(@Req() req: Request, @Res() res: Response) {
@@ -67,8 +62,7 @@ export class CopilotController {
   async agent(
     @Req() req: Request,
     @Res() res: Response,
-    @GetOrgFromRequest() organization: Organization,
-    @GetProfileFromRequest() profile: Profile | null
+    @GetOrgFromRequest() organization: Organization
   ) {
     if (
       process.env.OPENAI_API_KEY === undefined ||
@@ -78,35 +72,19 @@ export class CopilotController {
       return;
     }
     const mastra = await this._mastraService.mastra();
-    const runtimeContext = new RuntimeContext<ChannelsContext>();
-    runtimeContext.set(
+    const requestContext = new RequestContext<ChannelsContext>();
+    requestContext.set(
       'integrations',
       req?.body?.variables?.properties?.integrations || []
     );
 
-    runtimeContext.set('organization', JSON.stringify(organization));
-    runtimeContext.set('profileId', profile?.id || '');
-    runtimeContext.set('ui', 'true');
+    requestContext.set('organization', JSON.stringify(organization));
+    requestContext.set('ui', 'true');
 
-    let personaPayload = '';
-    if (profile?.id) {
-      try {
-        const persona = await this._profileService.getPersonaForAgent(profile.id);
-        if (persona) {
-          personaPayload = JSON.stringify(persona);
-        }
-      } catch (err) {
-        Logger.warn(`Failed to load persona for profile ${profile.id}: ${(err as Error).message}`);
-      }
-    }
-    runtimeContext.set('persona', personaPayload);
-
-    const resourceId = profile ? `${organization.id}:${profile.id}` : organization.id;
     const agents = MastraAgent.getLocalAgents({
-      resourceId,
+      resourceId: organization.id,
       mastra,
-      // @ts-ignore
-      runtimeContext,
+      requestContext: requestContext as any,
     });
 
     const runtime = new CopilotRuntime({
@@ -128,18 +106,11 @@ export class CopilotController {
   @Get('/credits')
   calculateCredits(
     @GetOrgFromRequest() organization: Organization,
-    @GetProfileFromRequest() profile: Profile | null,
     @Query('type') type: 'ai_images' | 'ai_videos'
   ) {
     return this._subscriptionService.checkCredits(
       organization,
-      type || 'ai_images',
-      profile ? {
-        id: profile.id,
-        isDefault: profile.isDefault,
-        aiImageCredits: (profile as any).aiImageCredits ?? null,
-        aiVideoCredits: (profile as any).aiVideoCredits ?? null,
-      } : undefined
+      type || 'ai_images'
     );
   }
 
@@ -147,15 +118,13 @@ export class CopilotController {
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async getMessagesList(
     @GetOrgFromRequest() organization: Organization,
-    @GetProfileFromRequest() profile: Profile | null,
     @Param('thread') threadId: string
   ): Promise<any> {
     const mastra = await this._mastraService.mastra();
     const memory = await mastra.getAgent('postiz').getMemory();
-    const resourceId = profile ? `${organization.id}:${profile.id}` : organization.id;
     try {
-      return await memory.query({
-        resourceId,
+      return await memory.recall({
+        resourceId: organization.id,
         threadId,
       });
     } catch (err) {
@@ -165,20 +134,14 @@ export class CopilotController {
 
   @Get('/list')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
-  async getList(
-    @GetOrgFromRequest() organization: Organization,
-    @GetProfileFromRequest() profile: Profile | null
-  ) {
+  async getList(@GetOrgFromRequest() organization: Organization) {
     const mastra = await this._mastraService.mastra();
-    // @ts-ignore
     const memory = await mastra.getAgent('postiz').getMemory();
-    const resourceId = profile ? `${organization.id}:${profile.id}` : organization.id;
-    const list = await memory.getThreadsByResourceIdPaginated({
-      resourceId,
+    const list = await memory.listThreads({
+      filter: { resourceId: organization.id },
       perPage: 100000,
       page: 0,
-      orderBy: 'createdAt',
-      sortDirection: 'DESC',
+      orderBy: { field: 'createdAt', direction: 'DESC' },
     });
 
     return {

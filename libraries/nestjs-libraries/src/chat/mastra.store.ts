@@ -1,7 +1,8 @@
 import { PostgresStore, PgVector } from '@mastra/pg';
 
 export const pStore = new PostgresStore({
-  connectionString: process.env.DATABASE_URL,
+  id: 'postiz-store',
+  connectionString: process.env.DATABASE_URL!,
 });
 
 const knowledgeBaseEnabled = (): boolean => {
@@ -13,5 +14,8 @@ const knowledgeBaseEnabled = (): boolean => {
 export const isKnowledgeBaseEnabled = knowledgeBaseEnabled();
 
 export const pgVector: PgVector | null = isKnowledgeBaseEnabled
-  ? new PgVector({ connectionString: process.env.DATABASE_URL! })
+  ? new PgVector({
+      id: 'postiz-vector',
+      connectionString: process.env.DATABASE_URL!,
+    })
   : null;

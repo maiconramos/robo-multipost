@@ -44,11 +44,12 @@ export class LoadToolsService {
   async agent() {
     const tools = await this.loadTools();
     return new Agent({
+      id: 'postiz',
       name: 'postiz',
       description: 'Agent that helps manage and schedule social media posts for users',
-      instructions: ({ runtimeContext }) => {
-        const ui: string = runtimeContext.get('ui' as never);
-        const personaRaw: string = runtimeContext.get('persona' as never);
+      instructions: ({ requestContext }) => {
+        const ui: string = requestContext.get('ui' as never);
+        const personaRaw: string = requestContext.get('persona' as never);
         let personaBlock = '';
         if (personaRaw) {
           try {
@@ -69,7 +70,7 @@ export class LoadToolsService {
         - Generate text for posts
         - Show global analytics about socials
         - List integrations (channels)
-      
+
       - We schedule posts to different integration like facebook, instagram, etc. but to the user we don't say integrations we say channels as integration is the technical name
       - When scheduling a post, you must follow the social media rules and best practices.
       - When scheduling a post, you can pass an array for list of posts for a social media platform, But it has different behavior depending on the platform.
@@ -78,7 +79,7 @@ export class LoadToolsService {
         - If the social media platform has the concept of "threads", we need to ask the user if they want to create a thread or one long post.
         - For X, if you don't have Premium, don't suggest a long post because it won't work.
         - Platform format will also be passed can be "normal", "markdown", "html", make sure you use the correct format for each platform.
-      
+
       - Sometimes 'integrationSchema' will return rules, make sure you follow them (these rules are set in stone, even if the user asks to ignore them)
       - Each socials media platform has different settings and rules, you can get them by using the integrationSchema tool.
       - Always make sure you use this tool before you schedule any post.
@@ -104,9 +105,7 @@ export class LoadToolsService {
       memory: new Memory({
         storage: pStore,
         options: {
-          threads: {
-            generateTitle: true,
-          },
+          generateTitle: true,
           workingMemory: {
             enabled: true,
             schema: AgentState,
