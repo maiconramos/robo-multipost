@@ -1,11 +1,18 @@
 'use client';
 
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Button } from '@gitroom/react/form/button';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import dayjs from 'dayjs';
+import 'dayjs/locale/pt-br';
+
+type LatestAction = {
+  kind: 'APPROVAL' | 'CHANGE_REQUEST';
+  createdAt: string;
+  guestName: string | null;
+};
 
 type ReviewLinkRow = {
   id: string;
@@ -17,28 +24,28 @@ type ReviewLinkRow = {
   createdAt: string;
   createdBy: { id: string; name: string | null; email: string };
   _count: { comments: number };
+  comments: LatestAction[];
 };
+
+const BR_DATE = 'DD/MM/YYYY HH:mm';
 
 function buildShareUrl(postId: string, token: string) {
   if (typeof window === 'undefined') return '';
   return `${window.location.origin}/p/${postId}?token=${token}`;
 }
 
-export const ReviewLinksModal: FC<{ postId: string; close?: () => void }> = ({
-  postId,
-  close,
-}) => {
+export const ReviewLinksModal: FC<{ postId: string }> = ({ postId }) => {
   const fetch = useFetch();
   const t = useT();
   const [creating, setCreating] = useState(false);
   const [expiresInDays, setExpiresInDays] = useState<number>(30);
   const [allowComment, setAllowComment] = useState(true);
   const [allowApprove, setAllowApprove] = useState(true);
-  const [justCreated, setJustCreated] = useState<{
-    id: string;
-    url: string;
-  } | null>(null);
-  const [copied, setCopied] = useState(false);
+  // Raw tokens kept only in memory while the modal is open, keyed by link id.
+  const [sessionTokens, setSessionTokens] = useState<Record<string, string>>(
+    {}
+  );
+  const [copiedId, setCopiedId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   const loader = useCallback(async () => {
@@ -46,8 +53,18 @@ export const ReviewLinksModal: FC<{ postId: string; close?: () => void }> = ({
   }, [postId]);
   const { data, mutate, isLoading } = useSWR(
     `review-links-${postId}`,
-    loader
+    loader,
+    {
+      revalidateOnMount: true,
+      revalidateOnFocus: true,
+      dedupingInterval: 0,
+    }
   );
+
+  // Force fresh data every time the modal opens
+  useEffect(() => {
+    mutate();
+  }, []);
 
   const links: ReviewLinkRow[] = useMemo(
     () => data?.reviewLinks || [],
@@ -67,39 +84,41 @@ export const ReviewLinksModal: FC<{ postId: string; close?: () => void }> = ({
         }),
       });
       if (!res.ok) {
-        setError(t('request_failed', 'Request failed. Try again.'));
+        setError(t('request_failed', 'Falha na requisição. Tente novamente.'));
         return;
       }
       const payload = await res.json();
-      setJustCreated({
-        id: payload.id,
-        url: buildShareUrl(postId, payload.token),
-      });
+      setSessionTokens((prev) => ({ ...prev, [payload.id]: payload.token }));
       mutate();
     } catch {
-      setError(t('request_failed', 'Request failed. Try again.'));
+      setError(t('request_failed', 'Falha na requisição. Tente novamente.'));
     } finally {
       setCreating(false);
     }
   }, [postId, expiresInDays, allowComment, allowApprove, mutate, t]);
 
-  const copy = useCallback(async () => {
-    if (!justCreated) return;
-    try {
-      await navigator.clipboard.writeText(justCreated.url);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 1500);
-    } catch {
-      // ignore
-    }
-  }, [justCreated]);
+  const copyUrl = useCallback(
+    async (linkId: string) => {
+      const token = sessionTokens[linkId];
+      if (!token) return;
+      const url = buildShareUrl(postId, token);
+      try {
+        await navigator.clipboard.writeText(url);
+        setCopiedId(linkId);
+        window.setTimeout(() => setCopiedId(null), 1500);
+      } catch {
+        // ignore
+      }
+    },
+    [postId, sessionTokens]
+  );
 
   const revoke = useCallback(
     async (linkId: string) => {
       const confirmed = window.confirm(
         t(
           'confirm_revoke_review_link',
-          'Revoke this review link? This cannot be undone.'
+          'Revogar este link de revisão? Esta ação não pode ser desfeita.'
         )
       );
       if (!confirmed) return;
@@ -107,67 +126,64 @@ export const ReviewLinksModal: FC<{ postId: string; close?: () => void }> = ({
         `/posts/${postId}/review-links/${linkId}`,
         { method: 'DELETE' }
       );
-      if (res.ok) mutate();
+      if (res.ok) {
+        setSessionTokens((prev) => {
+          const next = { ...prev };
+          delete next[linkId];
+          return next;
+        });
+        mutate();
+      }
     },
     [postId, mutate, t]
   );
 
   return (
-    <div className="p-5 text-white bg-newBgColorInner w-[600px] max-w-full space-y-4">
-      <div className="flex items-center justify-between">
-        <h2 className="text-lg font-semibold">
-          {t('client_review_links', 'Client review links')}
-        </h2>
-        {close && (
-          <button
-            type="button"
-            className="text-gray-400 hover:text-white text-sm"
-            onClick={close}
-          >
-            {t('close', 'Close')}
-          </button>
-        )}
-      </div>
-      <p className="text-xs text-gray-400">
+    <div className="w-full space-y-5">
+      <p className="text-[13px] text-newTableText">
         {t(
           'client_review_links_help',
-          'Generate a link to share this post with a client. They can comment or approve without signing in.'
+          'Gere um link para compartilhar este post com um cliente. Ele pode comentar ou aprovar sem precisar fazer login.'
         )}
       </p>
 
-      <div className="border border-tableBorder rounded p-3 space-y-3 bg-third">
+      <div className="border border-tableBorder rounded-[12px] p-4 space-y-3 bg-newColColor">
         <h3 className="text-sm font-semibold">
-          {t('generate_new_link', 'Generate new link')}
+          {t('generate_new_link', 'Gerar novo link')}
         </h3>
-        <div className="flex flex-wrap gap-3 items-center text-sm">
+        <div className="flex flex-wrap gap-4 items-center text-sm">
           <label className="flex items-center gap-2">
-            {t('expires_in_days', 'Expires in (days)')}
+            <span className="text-newTableText">
+              {t('expires_in_days', 'Expira em (dias)')}
+            </span>
             <input
               type="number"
               min={1}
               max={365}
               value={expiresInDays}
               onChange={(e) =>
-                setExpiresInDays(Math.max(1, Math.min(365, Number(e.target.value) || 30)))
+                setExpiresInDays(
+                  Math.max(1, Math.min(365, Number(e.target.value) || 30))
+                )
               }
-              className="w-20 px-2 py-1 bg-black border border-tableBorder"
+              className="w-[70px] h-[34px] px-2 bg-input border border-fifth rounded text-inputText"
             />
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={allowComment}
               onChange={(e) => setAllowComment(e.target.checked)}
             />
-            {t('allow_comments', 'Allow comments')}
+            <span>{t('allow_comments', 'Permitir comentários')}</span>
           </label>
-          <label className="flex items-center gap-2">
+          <label className="flex items-center gap-2 cursor-pointer">
             <input
               type="checkbox"
               checked={allowApprove}
               onChange={(e) => setAllowApprove(e.target.checked)}
             />
-            {t('allow_approve', 'Allow approve')}
+            <span>{t('allow_approve', 'Permitir aprovação')}</span>
           </label>
         </div>
         {error && <p className="text-xs text-red-400">{error}</p>}
@@ -178,101 +194,130 @@ export const ReviewLinksModal: FC<{ postId: string; close?: () => void }> = ({
             loading={creating}
             disabled={!allowComment && !allowApprove}
           >
-            {t('generate_link', 'Generate link')}
+            {t('generate_link', 'Gerar link')}
           </Button>
         </div>
-        {justCreated && (
-          <div className="border border-green-700 bg-green-900/20 rounded p-2 space-y-2">
-            <p className="text-xs text-green-200">
-              {t(
-                'review_link_generated_once',
-                'Save this URL now — the token is shown only once.'
-              )}
-            </p>
-            <div className="flex gap-2 items-center">
-              <input
-                type="text"
-                readOnly
-                value={justCreated.url}
-                onFocus={(e) => e.currentTarget.select()}
-                className="flex-1 text-xs px-2 py-1 bg-black border border-tableBorder"
-              />
-              <Button type="button" onClick={copy}>
-                {copied ? t('copied', 'Copied') : t('copy', 'Copy')}
-              </Button>
-            </div>
-          </div>
-        )}
       </div>
 
       <div className="space-y-2">
         <h3 className="text-sm font-semibold">
-          {t('active_links', 'Active links')}
+          {t('active_links', 'Links ativos')}
         </h3>
         {isLoading && (
-          <p className="text-xs text-gray-400">{t('loading', 'Loading...')}</p>
+          <p className="text-xs text-newTableText">
+            {t('loading', 'Carregando...')}
+          </p>
         )}
         {!isLoading && !links.length && (
-          <p className="text-xs text-gray-400">
-            {t('no_review_links', 'No review links yet.')}
+          <p className="text-xs text-newTableText">
+            {t('no_review_links', 'Nenhum link de revisão ainda.')}
           </p>
         )}
         {links.map((link) => {
           const isRevoked = !!link.revokedAt;
           const isExpired =
             !!link.expiresAt && dayjs(link.expiresAt).isBefore(dayjs());
-          const statusLabel = isRevoked
-            ? t('revoked', 'Revoked')
-            : isExpired
-            ? t('expired', 'Expired')
-            : t('active', 'Active');
+          const latest = link.comments?.[0];
+          const sessionToken = sessionTokens[link.id];
+
+          let statusLabel: string;
+          let statusClass: string;
+          if (isRevoked) {
+            statusLabel = t('revoked', 'Revogado');
+            statusClass = 'bg-red-700 text-white';
+          } else if (isExpired) {
+            statusLabel = t('expired', 'Expirado');
+            statusClass = 'bg-gray-500 text-white';
+          } else if (latest?.kind === 'APPROVAL') {
+            statusLabel = t('approved_by_client', 'Aprovado pelo cliente');
+            statusClass = 'bg-green-600 text-white';
+          } else if (latest?.kind === 'CHANGE_REQUEST') {
+            statusLabel = t(
+              'changes_requested_by_client',
+              'Alterações solicitadas'
+            );
+            statusClass = 'bg-amber-600 text-white';
+          } else {
+            statusLabel = t('awaiting_review', 'Aguardando revisão');
+            statusClass = 'bg-blue-600 text-white';
+          }
+
           return (
             <div
               key={link.id}
-              className="border border-tableBorder rounded p-2 text-xs flex flex-wrap items-center gap-3 bg-third"
+              className="border border-tableBorder rounded-[12px] p-3 bg-newColColor space-y-2"
             >
-              <span
-                className={`uppercase px-1 rounded ${
-                  isRevoked || isExpired
-                    ? 'bg-gray-700 text-gray-300'
-                    : 'bg-green-900 text-green-200'
-                }`}
-              >
-                {statusLabel}
-              </span>
-              <span className="text-gray-400">
-                {t('created', 'Created')}:{' '}
-                {dayjs(link.createdAt).format('YYYY-MM-DD HH:mm')}
-              </span>
-              {link.expiresAt && (
-                <span className="text-gray-400">
-                  {t('expires', 'Expires')}:{' '}
-                  {dayjs(link.expiresAt).format('YYYY-MM-DD HH:mm')}
-                </span>
-              )}
-              <span className="text-gray-400">
-                {t('interactions', 'Interactions')}: {link._count.comments}
-              </span>
-              <span className="text-gray-400 flex gap-1">
-                {link.allowComment && (
-                  <span className="px-1 border border-tableBorder rounded">
-                    {t('comments', 'Comments')}
-                  </span>
-                )}
-                {link.allowApprove && (
-                  <span className="px-1 border border-tableBorder rounded">
-                    {t('approve', 'Approve')}
-                  </span>
-                )}
-              </span>
-              {!isRevoked && !isExpired && (
-                <button
-                  type="button"
-                  onClick={() => revoke(link.id)}
-                  className="ml-auto text-red-400 hover:text-red-300"
+              <div className="flex items-center justify-between gap-2 flex-wrap">
+                <span
+                  className={`text-[11px] font-semibold uppercase px-2 py-[2px] rounded ${statusClass}`}
                 >
-                  {t('revoke', 'Revoke')}
-                </button>
+                  {statusLabel}
+                </span>
+                {!isRevoked && !isExpired && (
+                  <button
+                    type="button"
+                    onClick={() => revoke(link.id)}
+                    className="text-[11px] text-red-400 hover:text-red-300"
+                  >
+                    {t('revoke', 'Revogar')}
+                  </button>
+                )}
+              </div>
+
+              {latest && (
+                <div className="text-[11px] text-newTableText">
+                  {latest.guestName || t('guest', 'Convidado')} —{' '}
+                  {dayjs(latest.createdAt).locale('pt-br').format(BR_DATE)}
+                </div>
+              )}
+
+              <div className="flex flex-wrap gap-x-4 gap-y-1 text-[11px] text-newTableText">
+                <span>
+                  {t('created', 'Criado')}:{' '}
+                  {dayjs(link.createdAt).locale('pt-br').format(BR_DATE)}
+                </span>
+                {link.expiresAt && (
+                  <span>
+                    {t('expires', 'Expira')}:{' '}
+                    {dayjs(link.expiresAt).locale('pt-br').format(BR_DATE)}
+                  </span>
+                )}
+                <span>
+                  {t('interactions', 'Interações')}: {link._count.comments}
+                </span>
+              </div>
+
+              {sessionToken ? (
+                <div className="space-y-2 pt-1">
+                  <input
+                    type="text"
+                    readOnly
+                    value={buildShareUrl(postId, sessionToken)}
+                    onFocus={(e) => e.currentTarget.select()}
+                    className="w-full text-[11px] h-[32px] px-2 bg-input border border-fifth rounded font-mono text-inputText"
+                  />
+                  <div className="flex justify-end">
+                    <button
+                      type="button"
+                      onClick={() => copyUrl(link.id)}
+                      className="text-[11px] px-3 py-1 rounded bg-forth text-white hover:opacity-90"
+                    >
+                      {copiedId === link.id
+                        ? t('copied', 'Copiado')
+                        : t('copy_link', 'Copiar link')}
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                !isRevoked &&
+                !isExpired && (
+                  <p className="text-[10px] text-newTableText italic pt-1">
+                    {t(
+                      'token_shown_once_help',
+                      'Por segurança, o token só é exibido no momento da criação. Para compartilhar novamente, gere um novo link.'
+                    )}
+                  </p>
+                )
               )}
             </div>
           );

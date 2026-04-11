@@ -67,6 +67,19 @@ export class ReviewLinksRepository {
         createdAt: true,
         createdBy: { select: { id: true, name: true, email: true } },
         _count: { select: { comments: true } },
+        comments: {
+          where: {
+            kind: { in: ['APPROVAL', 'CHANGE_REQUEST'] },
+            deletedAt: null,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: {
+            kind: true,
+            createdAt: true,
+            guestName: true,
+          },
+        },
       },
     });
   }

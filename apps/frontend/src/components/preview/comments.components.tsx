@@ -2,7 +2,7 @@
 
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { Button } from '@gitroom/react/form/button';
-import { FC, useCallback, useMemo, useState } from 'react';
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { FieldValues, SubmitHandler, useForm } from 'react-hook-form';
@@ -94,9 +94,20 @@ const CommentsList: FC<{
                   </span>
                 )}
               </div>
-              <p className="text-sm text-gray-300 whitespace-pre-wrap">
-                {comment.content}
-              </p>
+              {(() => {
+                const isLegacyDefault =
+                  comment.kind !== 'COMMENT' &&
+                  (comment.content === 'Approved' ||
+                    comment.content === 'Changes requested');
+                const body =
+                  !comment.content || isLegacyDefault ? '' : comment.content;
+                if (!body) return null;
+                return (
+                  <p className="text-sm text-gray-300 whitespace-pre-wrap">
+                    {body}
+                  </p>
+                );
+              })()}
             </div>
           </div>
         );
@@ -192,6 +203,33 @@ const GuestRenderComponents: FC<{
   const [submitting, setSubmitting] = useState<
     null | 'comment' | 'approve' | 'changes'
   >(null);
+  const [linkInvalid, setLinkInvalid] = useState(false);
+
+  // Client-side re-validation on mount: server-rendered reviewInfo can be stale
+  // if the owner revokes the link after the page was rendered.
+  useEffect(() => {
+    let cancelled = false;
+    (async () => {
+      try {
+        const res = await fetch(
+          `/public/posts/${postId}/review?token=${encodeURIComponent(token)}`
+        );
+        if (!res.ok) {
+          if (!cancelled) setLinkInvalid(true);
+          return;
+        }
+        const body = await res.json();
+        if (!cancelled && body?.valid !== true) {
+          setLinkInvalid(true);
+        }
+      } catch {
+        // Keep form available; any subsequent POST will also enforce
+      }
+    })();
+    return () => {
+      cancelled = true;
+    };
+  }, [postId, token, fetch]);
 
   const anonymousUserMap = useMemo(() => {
     return ((data?.comments || []) as CommentItem[]).reduce(
@@ -249,13 +287,18 @@ const GuestRenderComponents: FC<{
         });
         if (!res.ok) {
           if (res.status === 429) {
-            setError(t('too_many_requests', 'Too many requests. Try again later.'));
-          } else if (res.status === 404) {
             setError(
-              t('review_link_invalid', 'Review link is invalid or expired.')
+              t(
+                'too_many_requests',
+                'Muitas requisições. Tente novamente em instantes.'
+              )
             );
+          } else if (res.status === 404) {
+            setLinkInvalid(true);
           } else {
-            setError(t('request_failed', 'Request failed. Try again.'));
+            setError(
+              t('request_failed', 'Falha na requisição. Tente novamente.')
+            );
           }
           return;
         }
@@ -299,6 +342,22 @@ const GuestRenderComponents: FC<{
 
   if (isLoading) return <></>;
 
+  if (linkInvalid) {
+    return (
+      <div className="mb-6 p-4 border border-red-800 bg-red-950/40 rounded text-center space-y-2">
+        <p className="text-sm font-semibold text-red-300">
+          {t('review_link_invalid_title', 'Link de revisão indisponível')}
+        </p>
+        <p className="text-xs text-red-200">
+          {t(
+            'review_link_invalid_body',
+            'Este link foi revogado ou expirou. Solicite um novo link ao responsável do post.'
+          )}
+        </p>
+      </div>
+    );
+  }
+
   return (
     <>
       <div className="mb-6 space-y-3 border border-tableBorder rounded p-3 bg-third">
@@ -309,7 +368,7 @@ const GuestRenderComponents: FC<{
           <input
             type="text"
             placeholder={t('your_name', 'Your name')}
-            className="w-full px-3 py-2 text-sm text-white bg-black border border-tableBorder outline-none"
+            className="w-full h-[40px] px-3 text-sm bg-input border border-fifth rounded text-inputText placeholder-inputText outline-none"
             value={guestName}
             onChange={(e) => setGuestName(e.target.value)}
             maxLength={80}
@@ -317,7 +376,7 @@ const GuestRenderComponents: FC<{
           <input
             type="email"
             placeholder={t('your_email', 'Your email')}
-            className="w-full px-3 py-2 text-sm text-white bg-black border border-tableBorder outline-none"
+            className="w-full h-[40px] px-3 text-sm bg-input border border-fifth rounded text-inputText placeholder-inputText outline-none"
             value={guestEmail}
             onChange={(e) => setGuestEmail(e.target.value)}
             maxLength={254}
@@ -326,9 +385,9 @@ const GuestRenderComponents: FC<{
         <textarea
           placeholder={t(
             'guest_note_placeholder',
-            'Comment or optional note for approval/changes...'
+            'Comentário ou observação opcional para aprovação/alterações...'
           )}
-          className="w-full px-3 py-2 text-sm text-white bg-black border border-tableBorder outline-none min-h-[80px] resize-none"
+          className="w-full px-3 py-2 text-sm bg-input border border-fifth rounded text-inputText placeholder-inputText outline-none min-h-[80px] resize-none"
           value={content}
           onChange={(e) => setContent(e.target.value)}
           maxLength={2000}
@@ -340,8 +399,10 @@ const GuestRenderComponents: FC<{
               type="button"
               onClick={onComment}
               loading={submitting === 'comment'}
+              secondary={true}
+              className="!bg-newColColor !text-white border border-tableBorder"
             >
-              {t('send_comment', 'Send comment')}
+              {t('send_comment', 'Enviar comentário')}
             </Button>
           )}
           {allowApprove && (
@@ -350,16 +411,17 @@ const GuestRenderComponents: FC<{
                 type="button"
                 onClick={onRequestChanges}
                 loading={submitting === 'changes'}
-                secondary={true as any}
+                className="!bg-amber-600 hover:!bg-amber-700 !text-white"
               >
-                {t('request_changes', 'Request changes')}
+                {t('request_changes', 'Pedir alterações')}
               </Button>
               <Button
                 type="button"
                 onClick={onApprove}
                 loading={submitting === 'approve'}
+                className="!bg-green-600 hover:!bg-green-700 !text-white"
               >
-                {t('approve', 'Approve')}
+                {t('approve', 'Aprovar')}
               </Button>
             </>
           )}

@@ -1008,20 +1008,11 @@ const CalendarItem: FC<{
   const openReviewLinks = useCallback(() => {
     modals.openModal({
       id: `review-links-${post.id}`,
-      title: '',
-      withCloseButton: false,
-      size: 'auto',
-      classNames: {
-        modal: 'bg-newBgColorInner text-textColor',
-      },
-      children: (
-        <ReviewLinksModal
-          postId={post.id}
-          close={() => modals.closeById(`review-links-${post.id}`)}
-        />
-      ),
+      title: t('client_review_links', 'Links de revisão do cliente'),
+      size: 640,
+      children: <ReviewLinksModal postId={post.id} />,
     });
-  }, [post.id, modals]);
+  }, [post.id, modals, t]);
   const [{ opacity }, dragRef] = useDrag(
     () => ({
       type: 'post',

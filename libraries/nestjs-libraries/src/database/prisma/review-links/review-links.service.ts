@@ -194,10 +194,7 @@ export class ReviewLinksService {
       organizationId: link.organizationId,
       postId: link.postId,
       reviewLinkId: link.id,
-      content:
-        params.kind === CommentKind.COMMENT
-          ? content
-          : content || this.defaultNoteFor(params.kind),
+      content,
       guestName,
       guestEmail,
       guestIp: params.ip ? params.ip.slice(0, 64) : null,
@@ -217,9 +214,4 @@ export class ReviewLinksService {
     };
   }
 
-  private defaultNoteFor(kind: CommentKind) {
-    if (kind === CommentKind.APPROVAL) return 'Approved';
-    if (kind === CommentKind.CHANGE_REQUEST) return 'Changes requested';
-    return '';
-  }
 }
