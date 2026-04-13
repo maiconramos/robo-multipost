@@ -263,3 +263,63 @@ pnpm dev-backend
 - Permissoes `instagram_manage_messages` requerem **App Review** para uso em producao com contas que nao sao testers
 - Meta tem rate limit de ~200 chamadas/hora por usuario — o Temporal cobre falhas transientes com retry
 - Delays muito longos (dias/semanas) funcionam, mas aumentam o ciclo de vida do workflow no Temporal
+
+---
+
+## Gatilho: Resposta ao story
+
+A partir desta versao, alem do gatilho classico "comentario em publicacao" (feed/reels), o sistema suporta um gatilho paralelo para **respostas e reacoes a stories**.
+
+### Diferencas para o gatilho de comentario
+
+| Aspecto | Comentario em publicacao | Resposta ao story |
+|---|---|---|
+| Canal do gatilho | Webhook `comments` / `feed` | Webhook `messages` com `reply_to.story` |
+| Resposta publica | REPLY_COMMENT (threaded reply) + DM (private reply) | **Somente DM** — stories nao tem area de comentario publico |
+| DM usada | `recipient: { comment_id }` (private reply, limite 1 por comentario) | `recipient: { id: <igScopedUserId> }` (DM direta na janela de 24h) |
+| Reacoes emoji | Nao aplicavel | Disparam a automacao se `matchReactions=true` |
+| "Proxima publicacao" | Vincula ao proximo feed/reel | Vincula ao proximo story |
+
+### Como criar
+
+Na listagem de automacoes, clique **+ Nova Automacao**. O popup mostra uma sidebar com dois gatilhos:
+
+1. **Comentario em publicacao** — wizard classico, ja existente.
+2. **Resposta ao story** — novo wizard com preview vertical (9:16), tabs `Story | DM` e os campos especificos abaixo.
+
+Campos do wizard de story:
+
+- **Quando alguem responder**: `qualquer story` | `story especifico` (ID visivel no Meta Business Suite) | `proximo story` (bind lazy ao primeiro story publicado apos a criacao da flow).
+- **E essa resposta contem**: `qualquer palavra-chave ou reacao` | `palavras ou reacoes especificas`.
+- **A DM com o link sera enviada**: textarea livre + botao opcional via modal **Adicionar um link** (texto + URL).
+- **Outros recursos**:
+  - `Responder reacoes nos stories` (default ON) — emoji reactions contam como gatilho.
+  - `Pedir para seguir antes de enviar` (default OFF) — flag persistida; a verificacao de follow sera implementada em uma feature futura.
+
+### Fluxo tecnico
+
+```
+[Usuario responde ao story no app do Instagram]
+  ↓ Meta envia webhook messages → entry.messaging[] (ou changes[field=messages])
+[ig-webhook.controller] detecta `reply_to.story.id` (ou `story_mention` attachment, ou `reaction.story_id`)
+  ↓ despacha flowsService.handleIncomingStoryReply
+[FlowsService]
+  ↓ filtra flows com TRIGGER.label='story_reply'
+  ↓ lazy-bind de flows em `next_publication` para o storyId atual
+  ↓ matching: storyIds vs igStoryId + keyword/reaction
+  ↓ cria FlowExecution com triggerType='story_reply' e igMessageId
+  ↓ dispara Temporal flowExecutionWorkflow
+[flow.execution.workflow] percorre grafo e acumula mensagens em ctx.dmMessages
+  ↓ ao final, chama sendStoryDirectMessage (instagramProvider.sendDM → recipient:{id})
+```
+
+### Idempotencia
+
+A execucao de flow para story usa `igMessageId` como chave de idempotencia (em vez de `igCommentId`). Retries do webhook nao disparam a automacao duas vezes.
+
+### Limitacoes (stories)
+
+- **One-shot** do modo "proximo story": igual ao comment, ao vincular ao primeiro story publicado, a flow passa para `specific` com aquele ID. Se quiser cobrir o proximo proximo, crie outra flow.
+- **`requireFollow`** ainda nao aplica filtro — a configuracao e salva mas a verificacao via Graph API sera adicionada depois.
+- **DM direta sem `reply_to.story`** e ignorada pelo webhook controller (fora do escopo deste gatilho — futuro gatilho `dm_direct`).
+- **Janela de 24h**: a DM so sai se o usuario tiver interagido (resposta ao story conta como interacao e abre a janela).

@@ -5,6 +5,7 @@ const {
   getFlowWithNodes,
   replyToComment,
   sendDirectMessage,
+  sendStoryDirectMessage,
   evaluateCondition,
   updateExecution,
   appendExecutionLog,
@@ -21,12 +22,22 @@ const {
 export interface FlowExecutionInput {
   executionId: string;
   flowId: string;
-  igCommentId: string;
-  igCommenterId: string;
-  igCommenterName?: string;
-  igMediaId: string;
-  commentText: string;
   integrationId: string;
+  // Comment-based trigger fields (triggerType omitted or 'comment_on_post')
+  triggerType?: 'comment_on_post' | 'story_reply';
+  igCommentId?: string;
+  igCommenterId?: string;
+  igCommenterName?: string;
+  igMediaId?: string;
+  commentText?: string;
+  // Story reply trigger fields (triggerType='story_reply')
+  igSenderId?: string;
+  igSenderName?: string;
+  igStoryId?: string;
+  igThreadId?: string;
+  igMessageId?: string;
+  messageText?: string;
+  reaction?: string;
 }
 
 /** Mutable context passed through the graph traversal. */
@@ -77,18 +88,30 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
       ctx
     );
 
-    // Send all collected DM messages as a single private reply.
-    // Meta only allows ONE private reply per comment, and recipient:{id}
-    // requires advanced access (instagram_manage_messages App Review).
+    // Send all collected DM messages.
+    // - comment_on_post: ONE private reply per comment (Meta limit), combined.
+    // - story_reply: regular DM using recipient:{id} — user already opened
+    //   the 24h messaging window by replying to the story.
     if (ctx.dmMessages.length > 0) {
       const combinedMessage = ctx.dmMessages.join('\n\n');
-      await sendDirectMessage(
-        flow.integrationId || input.integrationId,
-        flow.organizationId,
-        input.igCommenterId,
-        combinedMessage,
-        input.igCommentId
-      );
+      const integrationId = flow.integrationId || input.integrationId;
+
+      if (input.triggerType === 'story_reply' && input.igSenderId) {
+        await sendStoryDirectMessage(
+          integrationId,
+          flow.organizationId,
+          input.igSenderId,
+          combinedMessage
+        );
+      } else if (input.igCommenterId && input.igCommentId) {
+        await sendDirectMessage(
+          integrationId,
+          flow.organizationId,
+          input.igCommenterId,
+          combinedMessage,
+          input.igCommentId
+        );
+      }
     }
 
     await updateExecution(input.executionId, {
@@ -142,7 +165,7 @@ async function traverseNode(
       if (triggerConfig.keywords?.length) {
         const matches = await evaluateCondition(
           node.data || '{}',
-          input.commentText
+          triggerText(input)
         );
         if (!matches) {
           await appendExecutionLog(input.executionId, {
@@ -161,7 +184,7 @@ async function traverseNode(
     case 'CONDITION': {
       const matches = await evaluateCondition(
         node.data || '{}',
-        input.commentText
+        triggerText(input)
       );
 
       // Find the correct outgoing edge based on match result.
@@ -292,15 +315,27 @@ function safeParseJson(data: string): Record<string, any> {
   }
 }
 
+function triggerText(input: FlowExecutionInput): string {
+  return input.messageText || input.commentText || input.reaction || '';
+}
+
 function interpolateVariables(
   template: string,
   input: FlowExecutionInput
 ): string {
+  const senderName =
+    input.igCommenterName ||
+    input.igSenderName ||
+    input.igCommenterId ||
+    input.igSenderId ||
+    '';
+  const senderId = input.igCommenterId || input.igSenderId || '';
+  const mediaId = input.igMediaId || input.igStoryId || '';
   return template
-    .replace(/\{commenter_name\}/g, input.igCommenterName || input.igCommenterId)
-    .replace(/\{commenter_id\}/g, input.igCommenterId)
-    .replace(/\{comment_text\}/g, input.commentText)
-    .replace(/\{media_id\}/g, input.igMediaId);
+    .replace(/\{commenter_name\}/g, senderName)
+    .replace(/\{commenter_id\}/g, senderId)
+    .replace(/\{comment_text\}/g, triggerText(input))
+    .replace(/\{media_id\}/g, mediaId);
 }
 
 function parseDuration(duration: number, unit: string): number {

@@ -188,6 +188,7 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
       const body: Record<string, any> = {
         name: name.trim(),
         integrationId,
+        triggerType: 'comment_on_post',
         postMode,
       };
       if (postMode === 'specific' && selectedPostIds.length > 0) {
@@ -570,7 +571,11 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
           integrationPicture={(selectedIntegration as any)?.picture}
           integrationName={(selectedIntegration as any)?.name || (selectedIntegration as any)?.display}
           activeTab={activePreviewTab}
-          onTabChange={setActivePreviewTab}
+          onTabChange={(next) => {
+            if (next === 'post' || next === 'comments' || next === 'dm') {
+              setActivePreviewTab(next);
+            }
+          }}
         />
       </div>
 

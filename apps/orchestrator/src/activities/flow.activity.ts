@@ -79,6 +79,32 @@ export class FlowActivity {
   }
 
   @ActivityMethod()
+  async sendStoryDirectMessage(
+    integrationId: string,
+    orgId: string,
+    igScopedUserId: string,
+    message: string
+  ) {
+    const integration = await this._integrationService.getIntegrationById(
+      orgId,
+      integrationId
+    );
+    if (!integration) {
+      throw new Error(`Integration ${integrationId} not found`);
+    }
+
+    const provider = this._integrationManager.getSocialIntegration('instagram') as unknown as InstagramProvider;
+    if (!provider) {
+      throw new Error('Instagram provider not found');
+    }
+
+    // Story replies arrive as DMs already — the user has an open 24h window
+    // to receive messages via recipient:{id}. This path requires
+    // instagram_manage_messages scope.
+    await provider.sendDM(integration.token, igScopedUserId, message);
+  }
+
+  @ActivityMethod()
   async evaluateCondition(
     nodeData: string,
     commentText: string

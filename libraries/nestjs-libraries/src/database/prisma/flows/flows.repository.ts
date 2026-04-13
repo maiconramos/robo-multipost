@@ -240,10 +240,13 @@ export class FlowsRepository {
   createExecution(data: {
     flowId: string;
     temporalWorkflowId?: string;
-    igCommentId: string;
+    triggerType?: string;
+    igCommentId?: string;
     igCommenterId: string;
     igCommenterName?: string;
     igMediaId: string;
+    igThreadId?: string;
+    igMessageId?: string;
     commentText: string;
   }) {
     return this._flowExecution.model.flowExecution.create({ data });
@@ -300,6 +303,12 @@ export class FlowsRepository {
   findExistingExecution(flowId: string, igCommentId: string) {
     return this._flowExecution.model.flowExecution.findFirst({
       where: { flowId, igCommentId },
+    });
+  }
+
+  findExistingExecutionByMessage(flowId: string, igMessageId: string) {
+    return this._flowExecution.model.flowExecution.findFirst({
+      where: { flowId, igMessageId },
     });
   }
 

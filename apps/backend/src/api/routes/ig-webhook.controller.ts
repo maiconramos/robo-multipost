@@ -80,8 +80,18 @@ export class IgWebhookController {
     await this.verifySignature(req, body);
 
     for (const entry of body.entry) {
+      const igAccountId = entry.id;
+
+      // Instagram DM webhooks come via entry.messaging (not entry.changes).
+      // Story replies and reactions are the only DMs we handle right now.
+      if (Array.isArray(entry.messaging)) {
+        for (const event of entry.messaging) {
+          await this.processMessagingEvent(igAccountId, event);
+        }
+      }
+
       if (!entry.changes) {
-        this._logger.warn(`IG webhook entry ${entry.id}: no changes`);
+        this._logger.log(`IG webhook entry ${entry.id}: no changes`);
         continue;
       }
 
@@ -89,6 +99,16 @@ export class IgWebhookController {
         this._logger.log(
           `IG webhook change: field=${change.field} entry.id=${entry.id}`
         );
+
+        // Some Meta apps deliver messages via `changes` as well. Route them
+        // through the same messaging handler when that happens.
+        if (change.field === 'messages') {
+          if (change.value) {
+            await this.processMessagingEvent(igAccountId, change.value);
+          }
+          continue;
+        }
+
         // Instagram uses field='comments'; Facebook Page uses 'feed' with
         // value.item='comment'. Support both but only filter Facebook Page
         // events by item — Instagram comment payloads don't have `item`.
@@ -116,8 +136,6 @@ export class IgWebhookController {
           continue;
         }
 
-        const igAccountId = entry.id;
-
         // Skip self-comments (bot's own replies) to prevent infinite loops
         if (igCommenterId === igAccountId) {
           this._logger.log(
@@ -141,6 +159,111 @@ export class IgWebhookController {
     }
 
     return { status: 'ok' };
+  }
+
+  private async processMessagingEvent(igAccountId: string, event: any) {
+    // Only story_mention / story_reply / reaction are handled here. Plain
+    // DMs without a story context are ignored (future feature).
+    const senderId = event?.sender?.id;
+    const recipientId = event?.recipient?.id;
+    if (!senderId || !recipientId) return;
+
+    // Skip echoes of the bot's own outgoing messages.
+    if (senderId === igAccountId || event?.message?.is_echo) {
+      return;
+    }
+
+    const message = event?.message;
+    const reactionEvent = event?.reaction;
+
+    // Case 1: message reply to a story (text, emoji, or story_mention attachment)
+    let igStoryId: string | undefined =
+      message?.reply_to?.story?.id || message?.reply_to?.story_id;
+    if (!igStoryId && Array.isArray(message?.attachments)) {
+      const storyMention = message.attachments.find(
+        (a: any) => a?.type === 'story_mention'
+      );
+      igStoryId = storyMention?.payload?.story?.id || storyMention?.payload?.url;
+    }
+
+    // Case 2: reaction event directly targeting a story
+    if (!igStoryId && reactionEvent) {
+      igStoryId = reactionEvent.story_id || reactionEvent.story?.id;
+    }
+
+    if (!igStoryId) {
+      // Not story-related — ignore silently.
+      return;
+    }
+
+    const igMessageId: string | undefined =
+      message?.mid || reactionEvent?.mid || event?.timestamp?.toString();
+    if (!igMessageId) {
+      this._logger.warn(
+        `IG webhook: story reply missing message id payload=${JSON.stringify(event)}`
+      );
+      return;
+    }
+
+    const messageText: string = message?.text || '';
+    const reaction: string | undefined =
+      reactionEvent?.emoji ||
+      reactionEvent?.reaction ||
+      message?.reactions?.[0]?.emoji;
+
+    this._logger.log(
+      `IG webhook dispatching story reply ${igMessageId} on story ${igStoryId} by ${senderId}`
+    );
+    await this.processStoryReply({
+      igAccountId,
+      igThreadId: recipientId,
+      igMessageId,
+      igSenderId: senderId,
+      igStoryId,
+      messageText,
+      reaction,
+    });
+  }
+
+  private async processStoryReply(data: {
+    igAccountId: string;
+    igThreadId?: string;
+    igMessageId: string;
+    igSenderId: string;
+    igSenderName?: string;
+    igStoryId: string;
+    messageText: string;
+    reaction?: string;
+  }) {
+    const integrations =
+      await this._integrationService.getIntegrationsByInternalId(
+        data.igAccountId
+      );
+    this._logger.log(
+      `IG webhook: found ${integrations.length} integration(s) for IG account ${data.igAccountId} (story reply)`
+    );
+
+    for (const integration of integrations) {
+      if (
+        integration.providerIdentifier !== 'instagram' ||
+        integration.disabled ||
+        integration.deletedAt
+      ) {
+        continue;
+      }
+
+      await this._flowsService.handleIncomingStoryReply({
+        integrationId: integration.id,
+        organizationId: integration.organizationId,
+        igThreadId: data.igThreadId,
+        igMessageId: data.igMessageId,
+        igSenderId: data.igSenderId,
+        igSenderName: data.igSenderName,
+        igStoryId: data.igStoryId,
+        messageText: data.messageText,
+        reaction: data.reaction,
+      });
+    }
   }
 
   private async processComment(data: {

@@ -1247,10 +1247,13 @@ model FlowExecution {
   id                 String              @id @default(uuid())
   flowId             String
   temporalWorkflowId String?
-  igCommentId        String
+  triggerType        String?
+  igCommentId        String?
   igCommenterId      String
   igCommenterName    String?
   igMediaId          String
+  igThreadId         String?
+  igMessageId        String?
   commentText        String
   status             FlowExecutionStatus @default(RUNNING)
   currentNodeId      String?
@@ -1267,5 +1270,7 @@ model FlowExecution {
   @@index([status])
   @@index([igCommenterId])
   @@index([igMediaId])
+  @@index([igMessageId])
+  @@index([triggerType])
   @@index([createdAt])
 }

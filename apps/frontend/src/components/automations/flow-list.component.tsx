@@ -1,13 +1,13 @@
 'use client';
 
-import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { FC, useCallback, useState } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useFlows } from '@gitroom/frontend/components/automations/hooks/use-flows';
-import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { useRouter } from 'next/navigation';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { NovaAutomacaoModal } from '@gitroom/frontend/components/automations/nova-automacao-modal.component';
 
 export const FlowListComponent: FC = () => {
   const t = useT();
@@ -15,84 +15,7 @@ export const FlowListComponent: FC = () => {
   const router = useRouter();
   const toaster = useToaster();
   const { data: flows, isLoading, mutate } = useFlows();
-  const { data: integrations } = useIntegrationList();
-  const [showCreate, setShowCreate] = useState(false);
-  const [newFlowName, setNewFlowName] = useState('');
-  const [newFlowIntegrationId, setNewFlowIntegrationId] = useState('');
-  const [creating, setCreating] = useState(false);
-  const [webhookCheck, setWebhookCheck] = useState<{
-    loading: boolean;
-    ok?: boolean;
-    error?: string;
-  }>({ loading: false });
-  useEffect(() => {
-    if (!newFlowIntegrationId) {
-      setWebhookCheck({ loading: false });
-      return;
-    }
-    setWebhookCheck({ loading: true });
-    fetchApi(
-      `/flows/integrations/${newFlowIntegrationId}/webhook-status`
-    )
-      .then((r) => r.json())
-      .then((data) => {
-        setWebhookCheck({
-          loading: false,
-          ok: data.ok,
-          error: data.error,
-        });
-      })
-      .catch(() => {
-        setWebhookCheck({
-          loading: false,
-          ok: false,
-          error: t(
-            'webhook_check_failed',
-            'Nao foi possivel verificar o webhook'
-          ),
-        });
-      });
-  }, [newFlowIntegrationId, fetchApi, t]);
-
-  const instagramIntegrations = useMemo(() => {
-    if (!Array.isArray(integrations)) return [];
-    return integrations.filter(
-      (i: any) => i.identifier === 'instagram'
-    );
-  }, [integrations]);
-
-  const handleCreate = useCallback(async () => {
-    if (!newFlowName.trim() || !newFlowIntegrationId) return;
-    setCreating(true);
-    try {
-      const response = await fetchApi('/flows', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: newFlowName,
-          integrationId: newFlowIntegrationId,
-        }),
-      });
-      if (!response.ok) {
-        const body = await response.json().catch(() => ({}));
-        toaster.show(
-          body.message || t('failed_to_create_flow', 'Falha ao criar automacao'),
-          'warning'
-        );
-        return;
-      }
-      const created = await response.json();
-      await mutate();
-      setShowCreate(false);
-      setNewFlowName('');
-      setNewFlowIntegrationId('');
-      toaster.show(t('flow_created', 'Automacao criada com sucesso'), 'success');
-      router.push(`/automacoes/${created.id}`);
-    } catch {
-      toaster.show(t('failed_to_create_flow', 'Falha ao criar automacao'), 'warning');
-    } finally {
-      setCreating(false);
-    }
-  }, [newFlowName, newFlowIntegrationId, fetchApi, mutate, router, t, toaster]);
+  const [showNovaModal, setShowNovaModal] = useState(false);
 
   const handleDelete = useCallback(
     async (id: string) => {
@@ -129,115 +52,20 @@ export const FlowListComponent: FC = () => {
         </div>
         <div className="flex items-center gap-[8px]">
           <button
-            onClick={() => router.push('/automacoes/nova')}
+            onClick={() => setShowNovaModal(true)}
             className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80"
           >
-            {t('new_automation', 'New Automation')}
-          </button>
-          <button
-            onClick={() => setShowCreate(true)}
-            className="rounded-[4px] border border-fifth bg-btnSimple px-[16px] py-[8px] text-[14px] text-textColor hover:bg-boxHover"
-          >
-            {t('start_from_scratch', 'Flow Builder')}
+            {t('new_automation', 'Nova Automacao')}
           </button>
         </div>
       </div>
 
-      {/* Create modal */}
-      {showCreate && (
-        <div className="rounded-[4px] border border-fifth bg-sixth p-[24px]">
-          <h3 className="text-[14px] font-semibold text-textColor mb-[16px]">
-            {t('create_new_flow', 'Create New Automation')}
-          </h3>
-          <div className="flex flex-col gap-[16px]">
-            <div className="flex flex-col gap-[6px]">
-              <label className="text-[14px] text-textColor">
-                {t('flow_name', 'Name')}
-              </label>
-              <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] flex items-center">
-                <input
-                  type="text"
-                  className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px]"
-                  placeholder={t('flow_name_placeholder', 'My Instagram Automation')}
-                  value={newFlowName}
-                  onChange={(e) => setNewFlowName(e.target.value)}
-                />
-              </div>
-            </div>
-            <div className="flex flex-col gap-[6px]">
-              <label className="text-[14px] text-textColor">
-                {t('select_instagram_account', 'Instagram Account')}
-              </label>
-              {instagramIntegrations.length === 0 ? (
-                <p className="text-[13px] text-customColor19">
-                  {t(
-                    'no_instagram_connected',
-                    'No Instagram account connected. Go to Integrations to connect one first.'
-                  )}
-                </p>
-              ) : (
-                <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] flex items-center">
-                  <select
-                    className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px] appearance-none"
-                    value={newFlowIntegrationId}
-                    onChange={(e) => setNewFlowIntegrationId(e.target.value)}
-                  >
-                    <option value="">
-                      {t('select_account', 'Select an account...')}
-                    </option>
-                    {instagramIntegrations.map((ig: any) => (
-                      <option key={ig.id} value={ig.id}>
-                        {ig.name || ig.display || ig.id}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-              )}
-            </div>
-            {newFlowIntegrationId && (
-              <div className="flex flex-col gap-[4px]">
-                {webhookCheck.loading ? (
-                  <p className="text-[12px] text-customColor18">
-                    {t('checking_webhook', 'Verificando webhook...')}
-                  </p>
-                ) : webhookCheck.ok ? (
-                  <p className="text-[12px] text-customColor42">
-                    {t('webhook_ok', 'Webhook configurado corretamente')}
-                  </p>
-                ) : webhookCheck.error ? (
-                  <div className="rounded-[4px] border border-customColor13/40 bg-customColor13/10 p-[12px]">
-                    <p className="text-[12px] text-customColor13 whitespace-pre-wrap leading-[1.5]">
-                      {webhookCheck.error}
-                    </p>
-                  </div>
-                ) : null}
-              </div>
-            )}
-            <div className="flex gap-[8px]">
-              <button
-                onClick={handleCreate}
-                disabled={
-                  creating ||
-                  !newFlowName.trim() ||
-                  !newFlowIntegrationId ||
-                  !webhookCheck.ok
-                }
-                className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80 disabled:opacity-50"
-              >
-                {creating
-                  ? t('creating_flow', 'Creating...')
-                  : t('create', 'Create')}
-              </button>
-              <button
-                onClick={() => setShowCreate(false)}
-                className="rounded-[4px] border border-fifth bg-btnSimple px-[16px] py-[8px] text-[14px] text-textColor hover:opacity-80"
-              >
-                {t('cancel', 'Cancel')}
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
+      <NovaAutomacaoModal
+        open={showNovaModal}
+        onClose={() => setShowNovaModal(false)}
+        onCreated={() => mutate()}
+      />
+
 
       {/* Flow list */}
       {!Array.isArray(flows) || flows.length === 0 ? (

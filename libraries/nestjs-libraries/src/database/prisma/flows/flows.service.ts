@@ -301,27 +301,39 @@ export class FlowsService {
   async quickUpdateFlow(orgId: string, id: string, body: QuickCreateFlowDto, profileId?: string) {
     await this._flowsRepository.updateFlow(orgId, id, { name: body.name }, profileId);
 
-    const nodes: Array<{ type: string; positionX: number; positionY: number; data: string }> = [];
+    const triggerType = body.triggerType ?? 'comment_on_post';
+    const nodes: Array<{ type: string; label?: string; positionX: number; positionY: number; data: string }> = [];
     const edges: Array<{ sourceIndex: number; targetIndex: number }> = [];
 
     const triggerConfig = this.buildTriggerConfig(body);
 
-    nodes.push({ type: 'TRIGGER', positionX: 250, positionY: 50, data: JSON.stringify(triggerConfig) });
+    nodes.push({
+      type: 'TRIGGER',
+      label: triggerType,
+      positionX: 250,
+      positionY: 50,
+      data: JSON.stringify(triggerConfig),
+    });
     let lastIndex = 0;
 
-    const replyMsgs = body.replyMessages?.filter(Boolean) ?? (body.replyMessage ? [body.replyMessage] : []);
-    if (replyMsgs.length) {
-      nodes.push({ type: 'REPLY_COMMENT', positionX: 250, positionY: 50 + nodes.length * 150, data: JSON.stringify({ message: replyMsgs[0], messages: replyMsgs }) });
-      edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
-      lastIndex = nodes.length - 1;
+    if (triggerType === 'comment_on_post') {
+      const replyMsgs = body.replyMessages?.filter(Boolean) ?? (body.replyMessage ? [body.replyMessage] : []);
+      if (replyMsgs.length) {
+        nodes.push({ type: 'REPLY_COMMENT', positionX: 250, positionY: 50 + nodes.length * 150, data: JSON.stringify({ message: replyMsgs[0], messages: replyMsgs }) });
+        edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
+        lastIndex = nodes.length - 1;
+      }
     }
 
     if (body.dmMessage) {
-      nodes.push({ type: 'SEND_DM', positionX: 250, positionY: 50 + nodes.length * 150, data: JSON.stringify({ message: body.dmMessage }) });
+      const dmData: Record<string, any> = { message: body.dmMessage };
+      if (body.dmButtonText) dmData.buttonText = body.dmButtonText;
+      if (body.dmButtonUrl) dmData.buttonUrl = body.dmButtonUrl;
+      nodes.push({ type: 'SEND_DM', positionX: 250, positionY: 50 + nodes.length * 150, data: JSON.stringify(dmData) });
       edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
     }
 
-    const flowNodes = nodes.map((n, i) => ({ id: `temp-${i}`, type: n.type as any, positionX: n.positionX, positionY: n.positionY, data: n.data }));
+    const flowNodes = nodes.map((n, i) => ({ id: `temp-${i}`, type: n.type as any, label: n.label, positionX: n.positionX, positionY: n.positionY, data: n.data }));
     const flowEdges = edges.map((e, i) => ({ id: `temp-edge-${i}`, sourceNodeId: `temp-${e.sourceIndex}`, targetNodeId: `temp-${e.targetIndex}` }));
 
     await this._flowsRepository.saveCanvas(orgId, id, flowNodes, flowEdges, profileId);
@@ -334,18 +346,28 @@ export class FlowsService {
       throw new BadRequestException(check.error);
     }
 
+    const triggerType = body.triggerType ?? 'comment_on_post';
+    const triggerIds =
+      triggerType === 'story_reply' ? body.storyIds : body.postIds;
+
     const flow = await this._flowsRepository.createFlow(
       orgId,
       {
         name: body.name,
         integrationId: body.integrationId,
         triggerPostIds:
-          body.postMode === 'next_publication' ? undefined : body.postIds,
+          body.postMode === 'next_publication' ? undefined : triggerIds,
       },
       profileId
     );
 
-    const nodes: Array<{ type: string; positionX: number; positionY: number; data: string }> = [];
+    const nodes: Array<{
+      type: string;
+      label?: string;
+      positionX: number;
+      positionY: number;
+      data: string;
+    }> = [];
     const edges: Array<{ sourceIndex: number; targetIndex: number }> = [];
 
     // Trigger node
@@ -353,6 +375,7 @@ export class FlowsService {
 
     nodes.push({
       type: 'TRIGGER',
+      label: triggerType,
       positionX: 250,
       positionY: 50,
       data: JSON.stringify(triggerConfig),
@@ -360,26 +383,31 @@ export class FlowsService {
 
     let lastIndex = 0;
 
-    // Reply Comment node
-    const replyMsgs = body.replyMessages?.filter(Boolean) ?? (body.replyMessage ? [body.replyMessage] : []);
-    if (replyMsgs.length) {
-      nodes.push({
-        type: 'REPLY_COMMENT',
-        positionX: 250,
-        positionY: 50 + nodes.length * 150,
-        data: JSON.stringify({ message: replyMsgs[0], messages: replyMsgs }),
-      });
-      edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
-      lastIndex = nodes.length - 1;
+    // Reply Comment node (only for comment_on_post — stories have no public reply)
+    if (triggerType === 'comment_on_post') {
+      const replyMsgs = body.replyMessages?.filter(Boolean) ?? (body.replyMessage ? [body.replyMessage] : []);
+      if (replyMsgs.length) {
+        nodes.push({
+          type: 'REPLY_COMMENT',
+          positionX: 250,
+          positionY: 50 + nodes.length * 150,
+          data: JSON.stringify({ message: replyMsgs[0], messages: replyMsgs }),
+        });
+        edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
+        lastIndex = nodes.length - 1;
+      }
     }
 
     // Send DM node
     if (body.dmMessage) {
+      const dmData: Record<string, any> = { message: body.dmMessage };
+      if (body.dmButtonText) dmData.buttonText = body.dmButtonText;
+      if (body.dmButtonUrl) dmData.buttonUrl = body.dmButtonUrl;
       nodes.push({
         type: 'SEND_DM',
         positionX: 250,
         positionY: 50 + nodes.length * 150,
-        data: JSON.stringify({ message: body.dmMessage }),
+        data: JSON.stringify(dmData),
       });
       edges.push({ sourceIndex: lastIndex, targetIndex: nodes.length - 1 });
     }
@@ -388,6 +416,7 @@ export class FlowsService {
     const flowNodes = nodes.map((n, i) => ({
       id: `temp-${i}`,
       type: n.type as any,
+      label: n.label,
       positionX: n.positionX,
       positionY: n.positionY,
       data: n.data,
@@ -413,11 +442,15 @@ export class FlowsService {
   }
 
   private buildTriggerConfig(body: QuickCreateFlowDto): Record<string, any> {
-    const triggerConfig: Record<string, any> = {};
+    const triggerType = body.triggerType ?? 'comment_on_post';
+    const triggerConfig: Record<string, any> = { triggerType };
 
     if (body.postMode === 'next_publication') {
       triggerConfig.mode = 'next_publication';
-    } else if (body.postIds?.length) {
+    } else if (triggerType === 'story_reply' && body.storyIds?.length) {
+      triggerConfig.mode = 'specific';
+      triggerConfig.storyIds = body.storyIds;
+    } else if (triggerType === 'comment_on_post' && body.postIds?.length) {
       triggerConfig.mode = 'specific';
       triggerConfig.postIds = body.postIds;
     } else if (body.postMode === 'all') {
@@ -426,15 +459,39 @@ export class FlowsService {
 
     if (body.keywords?.length) triggerConfig.keywords = body.keywords;
     if (body.matchMode) triggerConfig.matchMode = body.matchMode;
+    if (triggerType === 'story_reply') {
+      triggerConfig.matchReactions = body.matchReactions ?? true;
+      triggerConfig.requireFollow = body.requireFollow ?? false;
+    }
 
     return triggerConfig;
   }
 
-  private isPendingNextPublication(flow: {
-    triggerPostIds?: string | null;
-    nodes?: Array<{ type: string; data: string | null }>;
-  }): boolean {
+  private getTriggerType(flow: {
+    nodes?: Array<{ type: string; label?: string | null; data: string | null }>;
+  }): 'comment_on_post' | 'story_reply' {
+    const trigger = flow.nodes?.find((n) => n.type === 'TRIGGER');
+    if (trigger?.label === 'story_reply') return 'story_reply';
+    if (trigger?.data) {
+      try {
+        const parsed = JSON.parse(trigger.data);
+        if (parsed?.triggerType === 'story_reply') return 'story_reply';
+      } catch {
+        // ignore
+      }
+    }
+    return 'comment_on_post';
+  }
+
+  private isPendingNextPublication(
+    flow: {
+      triggerPostIds?: string | null;
+      nodes?: Array<{ type: string; label?: string | null; data: string | null }>;
+    },
+    triggerType: 'comment_on_post' | 'story_reply' = 'comment_on_post'
+  ): boolean {
     if (flow.triggerPostIds) return false;
+    if (this.getTriggerType(flow) !== triggerType) return false;
     const trigger = flow.nodes?.find((n) => n.type === 'TRIGGER');
     if (!trigger?.data) return false;
     try {
@@ -446,7 +503,8 @@ export class FlowsService {
 
   async bindPendingFlowsToPost(
     integrationId: string,
-    mediaId: string
+    mediaId: string,
+    triggerType: 'comment_on_post' | 'story_reply' = 'comment_on_post'
   ): Promise<number> {
     if (!integrationId || !mediaId) return 0;
 
@@ -458,7 +516,7 @@ export class FlowsService {
 
       let bound = 0;
       for (const flow of pending) {
-        if (!this.isPendingNextPublication(flow)) continue;
+        if (!this.isPendingNextPublication(flow, triggerType)) continue;
 
         const triggerNode = flow.nodes?.find((n) => n.type === 'TRIGGER');
         if (!triggerNode) continue;
@@ -470,11 +528,15 @@ export class FlowsService {
           currentData = {};
         }
 
-        const newData = {
+        const newData: Record<string, any> = {
           ...currentData,
           mode: 'specific',
-          postIds: [mediaId],
         };
+        if (triggerType === 'story_reply') {
+          newData.storyIds = [mediaId];
+        } else {
+          newData.postIds = [mediaId];
+        }
 
         const ok = await this._flowsRepository.bindFlowTriggerToMedia(
           flow.id,
@@ -487,7 +549,7 @@ export class FlowsService {
 
       if (bound > 0) {
         this._logger.log(
-          `Bound ${bound} pending next_publication flow(s) to media ${mediaId} on integration ${integrationId}`
+          `Bound ${bound} pending next_publication ${triggerType} flow(s) to media ${mediaId} on integration ${integrationId}`
         );
       }
       return bound;
@@ -582,27 +644,37 @@ export class FlowsService {
         payload.igMediaId
       );
 
+    // Only feed/reel (comment_on_post) flows react to comment webhooks.
+    activeFlows = activeFlows.filter(
+      (f) => this.getTriggerType(f) === 'comment_on_post'
+    );
+
     // Lazy bind: if any active flow is still pending in next_publication mode,
     // bind it to this mediaId before matching. Comments only arrive on feed/reel
     // (stories use messages/story_insights), so it's safe to treat this as the
     // "next publication" signal without fetching media_type.
-    const hasPending = activeFlows.some((f) => this.isPendingNextPublication(f));
+    const hasPending = activeFlows.some((f) =>
+      this.isPendingNextPublication(f, 'comment_on_post')
+    );
     if (hasPending) {
       await this.bindPendingFlowsToPost(
         payload.integrationId,
-        payload.igMediaId
+        payload.igMediaId,
+        'comment_on_post'
       );
-      activeFlows = await this._flowsRepository.getActiveFlowsForIntegration(
-        payload.integrationId,
-        payload.igMediaId
-      );
+      activeFlows = (
+        await this._flowsRepository.getActiveFlowsForIntegration(
+          payload.integrationId,
+          payload.igMediaId
+        )
+      ).filter((f) => this.getTriggerType(f) === 'comment_on_post');
     }
 
     // Filter flows that monitor this specific media (or all posts)
     const matchingFlows = activeFlows.filter((flow) => {
       // Defense-in-depth: a flow still pending in next_publication must NOT
       // fire as "all posts" — skip it entirely if the bind didn't take.
-      if (this.isPendingNextPublication(flow)) return false;
+      if (this.isPendingNextPublication(flow, 'comment_on_post')) return false;
       if (!flow.triggerPostIds) return true;
       try {
         const postIds: string[] = JSON.parse(flow.triggerPostIds);
@@ -626,6 +698,7 @@ export class FlowsService {
       const execution = await this._flowsRepository.createExecution({
         flowId: flow.id,
         temporalWorkflowId: workflowId,
+        triggerType: 'comment_on_post',
         igCommentId: payload.igCommentId,
         igCommenterId: payload.igCommenterId,
         igCommenterName: payload.igCommenterName,
@@ -648,6 +721,148 @@ export class FlowsService {
                 igCommenterName: payload.igCommenterName,
                 igMediaId: payload.igMediaId,
                 commentText: payload.commentText,
+                integrationId: payload.integrationId,
+              },
+            ],
+            typedSearchAttributes: new TypedSearchAttributes([
+              {
+                key: orgSearchAttr,
+                value: payload.organizationId,
+              },
+            ]),
+          });
+      } catch (err) {
+        await this._flowsRepository.updateExecution(execution.id, {
+          status: FlowExecutionStatus.FAILED,
+          error: err instanceof Error ? err.message : 'Failed to start workflow',
+          completedAt: new Date(),
+        });
+      }
+
+      results.push(execution);
+    }
+
+    return results;
+  }
+
+  async handleIncomingStoryReply(payload: {
+    integrationId: string;
+    organizationId: string;
+    igThreadId?: string;
+    igMessageId: string;
+    igSenderId: string;
+    igSenderName?: string;
+    igStoryId: string;
+    messageText: string;
+    reaction?: string;
+  }) {
+    let activeFlows =
+      await this._flowsRepository.getActiveFlowsForIntegration(
+        payload.integrationId,
+        payload.igStoryId
+      );
+
+    // Only story_reply flows react to story webhooks.
+    activeFlows = activeFlows.filter(
+      (f) => this.getTriggerType(f) === 'story_reply'
+    );
+
+    // Lazy bind: pending next_publication flows get bound to this storyId.
+    const hasPending = activeFlows.some((f) =>
+      this.isPendingNextPublication(f, 'story_reply')
+    );
+    if (hasPending) {
+      await this.bindPendingFlowsToPost(
+        payload.integrationId,
+        payload.igStoryId,
+        'story_reply'
+      );
+      activeFlows = (
+        await this._flowsRepository.getActiveFlowsForIntegration(
+          payload.integrationId,
+          payload.igStoryId
+        )
+      ).filter((f) => this.getTriggerType(f) === 'story_reply');
+    }
+
+    // Filter flows that monitor this specific story (or all stories)
+    const matchingFlows = activeFlows.filter((flow) => {
+      if (this.isPendingNextPublication(flow, 'story_reply')) return false;
+      if (!flow.triggerPostIds) return true;
+      try {
+        const storyIds: string[] = JSON.parse(flow.triggerPostIds);
+        return storyIds.length === 0 || storyIds.includes(payload.igStoryId);
+      } catch {
+        return true;
+      }
+    });
+
+    // Keyword / reaction matching honoring node config
+    const triggerText = (payload.messageText || payload.reaction || '').toLowerCase();
+    const isReaction = !!payload.reaction && !payload.messageText;
+    const finalFlows = matchingFlows.filter((flow) => {
+      const trigger = flow.nodes?.find((n) => n.type === 'TRIGGER');
+      if (!trigger?.data) return true;
+      let cfg: Record<string, any> = {};
+      try {
+        cfg = JSON.parse(trigger.data);
+      } catch {
+        return true;
+      }
+
+      if (isReaction && cfg.matchReactions === false) return false;
+
+      const keywords: string[] = Array.isArray(cfg.keywords) ? cfg.keywords : [];
+      if (!keywords.length) return true;
+
+      const normalized = keywords.map((k) => String(k).toLowerCase());
+      if (cfg.matchMode === 'all') {
+        return normalized.every((k) => triggerText.includes(k));
+      }
+      return normalized.some((k) => triggerText.includes(k));
+    });
+
+    const results = [];
+    for (const flow of finalFlows) {
+      const existing =
+        await this._flowsRepository.findExistingExecutionByMessage(
+          flow.id,
+          payload.igMessageId
+        );
+      if (existing) continue;
+
+      const workflowId = `flow-exec-${flow.id}-${payload.igMessageId}`;
+
+      const execution = await this._flowsRepository.createExecution({
+        flowId: flow.id,
+        temporalWorkflowId: workflowId,
+        triggerType: 'story_reply',
+        igCommenterId: payload.igSenderId,
+        igCommenterName: payload.igSenderName,
+        igMediaId: payload.igStoryId,
+        igThreadId: payload.igThreadId,
+        igMessageId: payload.igMessageId,
+        commentText: payload.messageText || payload.reaction || '',
+      });
+
+      try {
+        await this._temporalService.client
+          .getRawClient()
+          ?.workflow.start('flowExecutionWorkflow', {
+            workflowId,
+            taskQueue: 'main',
+            args: [
+              {
+                executionId: execution.id,
+                flowId: flow.id,
+                triggerType: 'story_reply',
+                igSenderId: payload.igSenderId,
+                igSenderName: payload.igSenderName,
+                igStoryId: payload.igStoryId,
+                igThreadId: payload.igThreadId,
+                igMessageId: payload.igMessageId,
+                messageText: payload.messageText,
+                reaction: payload.reaction,
                 integrationId: payload.integrationId,
               },
             ],

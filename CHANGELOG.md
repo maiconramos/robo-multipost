@@ -7,6 +7,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado
+- Automacoes de Stories no Instagram: novo fluxo separado que responde via DM a respostas e reacoes de stories (qualquer story, story especifico ou proximo story), com preview vertical e popup unico "Nova Automacao" como hub de entrada para todos os tipos de gatilho. Mantem retrocompatibilidade com automacoes existentes de comentario em publicacao.
+
 ### Upstream
 - Sincronizado com Postiz upstream ate commit `e3b3b82f` (2026-04-10, 24 commits)
 - Instagram: melhor tratamento de erros, fix de refresh token e recuperacao de sessao invalidada

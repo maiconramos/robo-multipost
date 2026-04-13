@@ -4,24 +4,34 @@ import { FC, useState } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 interface PhonePreviewProps {
+  variant?: 'comment' | 'story';
   postThumb?: string;
   postCaption?: string;
   replyMessage?: string;
   dmMessage?: string;
+  dmButtonText?: string;
+  dmButtonUrl?: string;
+  storyThumb?: string;
+  storyMode?: 'all' | 'specific' | 'next_publication';
   commenterName?: string;
   integrationPicture?: string;
   integrationName?: string;
-  activeTab?: 'post' | 'comments' | 'dm';
-  onTabChange?: (tab: 'post' | 'comments' | 'dm') => void;
+  activeTab?: 'post' | 'comments' | 'dm' | 'story';
+  onTabChange?: (tab: 'post' | 'comments' | 'dm' | 'story') => void;
 }
 
-type Tab = 'post' | 'comments' | 'dm';
+type Tab = 'post' | 'comments' | 'dm' | 'story';
 
 export const WizardPhonePreview: FC<PhonePreviewProps> = ({
+  variant = 'comment',
   postThumb,
   postCaption,
   replyMessage,
   dmMessage,
+  dmButtonText,
+  dmButtonUrl,
+  storyThumb,
+  storyMode = 'all',
   commenterName = 'usuario',
   integrationPicture,
   integrationName,
@@ -29,18 +39,25 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
   onTabChange,
 }) => {
   const t = useT();
-  const [internalTab, setInternalTab] = useState<Tab>('comments');
+  const defaultTab: Tab = variant === 'story' ? 'story' : 'comments';
+  const [internalTab, setInternalTab] = useState<Tab>(defaultTab);
   const tab = activeTab ?? internalTab;
   const setTab = (next: Tab) => {
     setInternalTab(next);
     onTabChange?.(next);
   };
 
-  const tabs: { key: Tab; label: string }[] = [
-    { key: 'post', label: t('preview_tab_post', 'Publicar') },
-    { key: 'comments', label: t('preview_tab_comments', 'Comentarios') },
-    { key: 'dm', label: t('preview_tab_dm', 'DM') },
-  ];
+  const tabs: { key: Tab; label: string }[] =
+    variant === 'story'
+      ? [
+          { key: 'story', label: t('preview_tab_story', 'Story') },
+          { key: 'dm', label: t('preview_tab_dm', 'DM') },
+        ]
+      : [
+          { key: 'post', label: t('preview_tab_post', 'Publicar') },
+          { key: 'comments', label: t('preview_tab_comments', 'Comentarios') },
+          { key: 'dm', label: t('preview_tab_dm', 'DM') },
+        ];
 
   return (
     <div className="flex flex-col items-center select-none">
@@ -96,6 +113,86 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
 
         {/* Scrollable content area */}
         <div className="flex-1 flex flex-col overflow-hidden">
+
+          {/* ── STORY TAB ── */}
+          {tab === 'story' && (
+            <div
+              className="flex-1 flex flex-col"
+              style={{
+                background: storyThumb
+                  ? `url(${storyThumb}) center/cover no-repeat`
+                  : '#1a1a1a',
+                position: 'relative',
+              }}
+            >
+              {/* Progress bar */}
+              <div className="flex gap-[4px] px-[12px] pt-[8px]">
+                <div style={{ flex: 1, height: 2, background: '#fff', borderRadius: 1 }} />
+                <div style={{ flex: 1, height: 2, background: 'rgba(255,255,255,0.3)', borderRadius: 1 }} />
+                <div style={{ flex: 1, height: 2, background: 'rgba(255,255,255,0.3)', borderRadius: 1 }} />
+              </div>
+
+              {/* Story header */}
+              <div className="flex items-center justify-between px-[12px] py-[10px]">
+                <div className="flex items-center gap-[8px]">
+                  <div style={{ width: 32, height: 32, borderRadius: '50%', flexShrink: 0, overflow: 'hidden', background: 'linear-gradient(45deg,#f09433,#e6683c,#dc2743,#cc2366,#bc1888)', padding: 2 }}>
+                    {integrationPicture ? (
+                      <img src={integrationPicture} alt="" style={{ width: '100%', height: '100%', borderRadius: '50%', objectFit: 'cover' }} />
+                    ) : (
+                      <div style={{ width: '100%', height: '100%', borderRadius: '50%', background: '#222' }} />
+                    )}
+                  </div>
+                  <span style={{ fontSize: 12, fontWeight: 600, color: '#fff', textShadow: '0 1px 2px rgba(0,0,0,0.6)' }}>
+                    {integrationName || commenterName}
+                  </span>
+                </div>
+                <span style={{ color: '#fff', fontSize: 18, lineHeight: 1 }}>×</span>
+              </div>
+
+              {/* Body placeholder when no thumb */}
+              {!storyThumb && (
+                <div className="flex-1 flex items-center justify-center px-[20px] text-center">
+                  <p style={{ fontSize: 12, color: '#fff' }}>
+                    {storyMode === 'specific'
+                      ? t(
+                          'story_preview_specific_hint',
+                          'Sua automacao sera aplicada ao story selecionado'
+                        )
+                      : storyMode === 'next_publication'
+                      ? t(
+                          'story_preview_next_hint',
+                          'Sua automacao sera aplicada ao proximo story publicado'
+                        )
+                      : t(
+                          'story_preview_all_hint',
+                          'Sua automacao funcionara em qualquer story'
+                        )}
+                  </p>
+                </div>
+              )}
+
+              {/* Reply input */}
+              <div className="px-[12px] pb-[14px] mt-auto">
+                <div className="flex items-center gap-[8px]">
+                  <div
+                    style={{
+                      flex: 1,
+                      borderRadius: 24,
+                      border: '1px solid rgba(255,255,255,0.6)',
+                      background: 'rgba(0,0,0,0.2)',
+                      padding: '8px 14px',
+                    }}
+                  >
+                    <span style={{ fontSize: 11, color: 'rgba(255,255,255,0.85)' }}>
+                      {t('preview_story_reply_placeholder', 'Enviar mensagem...')}
+                    </span>
+                  </div>
+                  <span style={{ fontSize: 18 }}>❤️</span>
+                  <span style={{ fontSize: 18 }}>✈️</span>
+                </div>
+              </div>
+            </div>
+          )}
 
           {/* ── POST TAB ── */}
           {tab === 'post' && (
@@ -267,6 +364,21 @@ export const WizardPhonePreview: FC<PhonePreviewProps> = ({
                         <p style={{ fontSize: 11, color: '#fff', whiteSpace: 'pre-wrap', lineHeight: 1.4 }}>
                           {interpolatePreview(dmMessage, commenterName)}
                         </p>
+                        {dmButtonText && dmButtonUrl && (
+                          <div
+                            style={{
+                              marginTop: 8,
+                              background: '#3d3d9a',
+                              borderRadius: 12,
+                              padding: '6px 10px',
+                              fontSize: 10,
+                              color: '#fff',
+                              textAlign: 'center',
+                            }}
+                          >
+                            {dmButtonText}
+                          </div>
+                        )}
                       </div>
                     </div>
 

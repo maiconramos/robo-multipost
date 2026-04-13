@@ -6,6 +6,7 @@ import {
   ValidateNested,
   IsNumber,
   IsIn,
+  IsBoolean,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { FlowStatus, FlowNodeType } from '@prisma/client';
@@ -94,6 +95,10 @@ export class QuickCreateFlowDto {
   integrationId: string;
 
   @IsOptional()
+  @IsIn(['comment_on_post', 'story_reply'])
+  triggerType?: 'comment_on_post' | 'story_reply';
+
+  @IsOptional()
   @IsIn(['all', 'specific', 'next_publication'])
   postMode?: 'all' | 'specific' | 'next_publication';
 
@@ -105,11 +110,24 @@ export class QuickCreateFlowDto {
   @IsOptional()
   @IsArray()
   @IsString({ each: true })
+  storyIds?: string[];
+
+  @IsOptional()
+  @IsArray()
+  @IsString({ each: true })
   keywords?: string[];
 
   @IsOptional()
   @IsString()
   matchMode?: string;
+
+  @IsOptional()
+  @IsBoolean()
+  matchReactions?: boolean;
+
+  @IsOptional()
+  @IsBoolean()
+  requireFollow?: boolean;
 
   @IsOptional()
   @IsString()
@@ -123,6 +141,14 @@ export class QuickCreateFlowDto {
   @IsOptional()
   @IsString()
   dmMessage?: string;
+
+  @IsOptional()
+  @IsString()
+  dmButtonText?: string;
+
+  @IsOptional()
+  @IsString()
+  dmButtonUrl?: string;
 }
 
 export class SaveCanvasDto {

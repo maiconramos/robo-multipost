@@ -173,18 +173,26 @@ export const FlowSummaryComponent: FC<FlowSummaryProps> = ({
         {/* Trigger card */}
         <div className="rounded-[8px] border-l-[3px] border-l-green-500 border border-fifth bg-sixth p-[16px]">
           <h3 className="text-[13px] font-semibold text-textColor mb-[8px]">
-            {t('summary_trigger', 'Trigger')}
+            {triggerConfig.triggerType === 'story_reply'
+              ? t('trigger_type_story', 'Resposta ao story')
+              : t('trigger_type_comment', 'Comentario em publicacao')}
           </h3>
           <p className="text-[12px] text-customColor18">
-            {triggerConfig.mode === 'next_publication' && !triggerConfig.postIds?.length
-              ? t('summary_next_publication', 'Aguardando próxima publicação')
+            {triggerConfig.mode === 'next_publication'
+              ? triggerConfig.triggerType === 'story_reply'
+                ? t('summary_next_story', 'Aguardando proximo story')
+                : t('summary_next_publication', 'Aguardando proxima publicacao')
+              : triggerConfig.triggerType === 'story_reply'
+              ? triggerConfig.storyIds?.length
+                ? t('summary_specific_stories', '{count} story(ies) especifico(s)').replace('{count}', String(triggerConfig.storyIds.length))
+                : t('summary_all_stories', 'Qualquer story')
               : triggerConfig.postIds?.length
               ? t('summary_specific_posts', '{count} specific post(s)').replace('{count}', String(triggerConfig.postIds.length))
-              : t('summary_all_posts', 'All posts')}
+              : t('summary_all_posts', 'Todos os posts')}
           </p>
           {triggerConfig.keywords?.length > 0 && (
             <p className="text-[11px] text-customColor18 mt-[4px]">
-              {t('trigger_keywords_label', 'Keywords')}: {triggerConfig.keywords.join(', ')}
+              {t('trigger_keywords_label', 'Palavras-chave')}: {triggerConfig.keywords.join(', ')}
             </p>
           )}
         </div>
