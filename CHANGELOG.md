@@ -9,6 +9,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Adicionado
 - Automacoes de Stories no Instagram: novo fluxo separado que responde via DM a respostas e reacoes de stories (qualquer story, story especifico ou proximo story), com preview vertical e popup unico "Nova Automacao" como hub de entrada para todos os tipos de gatilho. Mantem retrocompatibilidade com automacoes existentes de comentario em publicacao.
+- Flow Builder (canvas) agora expoe todos os modos de gatilho: seletor de tipo (Comentario em publicacao vs Resposta ao story), modos `Todos os posts`/`Proxima publicacao`/`Posts especificos` para comentarios e `Qualquer story`/`Proximo story`/`Story especifico` para stories, alem de toggles de reacoes e pedido de follow. O no TRIGGER passa a mostrar o texto correto para cada combinacao e o label do node e sincronizado com o triggerType ao salvar o canvas, mantendo o filtro do webhook consistente.
 
 ### Upstream
 - Sincronizado com Postiz upstream ate commit `e3b3b82f` (2026-04-10, 24 commits)
@@ -23,8 +24,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - **NAO sincronizado** (major upgrade deixado para sync dedicado): langchain 0.3 -> 1.x, mastra 0.x -> 1.x, @mastra/mcp upgrade, @mastra/rag removido upstream. Mantidos em 0.x porque nossa feature Knowledge Base RAG depende de `@mastra/rag@2.1.3` e a migracao para mastra 1.x requer reescrita das tools de chat (copilot.controller, load.tools, generate.image.tool) — deixar para um sync focado separado
 
 ### Corrigido
+- Automacao criada pelo popup "Nova Automacao" salvava o flow como Rascunho ao salvar no wizard, exigindo ativacao manual. Agora o `quickUpdateFlow` promove automaticamente para Ativo quando o flow estava em Rascunho (flows ja pausados ou ativos mantem o status).
 - Backend nao subia em ambiente local apos sync anterior do upstream — resolucao errada de conflito em merge anterior manteve `@mastra/core@0.20` enquanto aceitava `@ag-ui/mastra@1.0.1` (que exige core 1.x), resultando em crash silencioso no import de `@mastra/core/dist/request-context`. Corrigido subindo `@mastra/{core,mcp,memory,pg}` para versoes compativeis e portando arquivos de chat (`copilot.controller`, `load.tools.service`, `mastra.store`, `auth.context`, `agent.tool.interface`, `start.mcp`) para a API do core 1.x, preservando overlays custom do fork (persona prompt, knowledge base RAG / pgVector)
 - Traducao dos textos restantes no painel de configuracoes de publicacao (X e LinkedIn): placeholder de comunidade, toggles "Feito com IA" e "Parceria paga", finalizador de thread, plug "Adicionar repostadores", label e opcoes de atraso (Imediatamente, 1 hora, ...) e mensagem "Nenhuma conta disponivel"
+- Traducao da tela de Historico de execucoes das automacoes: status da execucao (Concluida, Falhou, Em execucao), tipos de node (Gatilho, Responder comentario, Enviar DM, Condicao, Atraso) e estados da timeline (entrou, concluido, erro, ignorado)
 - Verificacao de credenciais do X (Twitter) falhava com "Unable to verify your credentials" mesmo com chaves validas — endpoint e fluxo corrigidos usando `twitter-api-v2.appLogin()`
 - Isolamento de credenciais OAuth do X por perfil — cada perfil do workspace agora usa suas proprias Consumer Keys em todo o fluxo OAuth 1.0a, incluindo publicacao, comentarios, analytics e plugs de repost, sem vazar credenciais entre perfis e sem depender de X_API_KEY/X_API_SECRET globais
 - Logs de diagnostico adicionados ao teste de credenciais (backend e frontend) e ao wrapper `runInConcurrent` (para exibir erros reais de APIs de provider no worker do Temporal)

@@ -299,6 +299,10 @@ export class FlowsService {
   }
 
   async quickUpdateFlow(orgId: string, id: string, body: QuickCreateFlowDto, profileId?: string) {
+    const current = await this._flowsRepository.getFlow(orgId, id, profileId);
+    if (!current) {
+      throw new BadRequestException('Flow not found');
+    }
     await this._flowsRepository.updateFlow(orgId, id, { name: body.name }, profileId);
 
     const triggerType = body.triggerType ?? 'comment_on_post';
@@ -337,6 +341,20 @@ export class FlowsService {
     const flowEdges = edges.map((e, i) => ({ id: `temp-edge-${i}`, sourceNodeId: `temp-${e.sourceIndex}`, targetNodeId: `temp-${e.targetIndex}` }));
 
     await this._flowsRepository.saveCanvas(orgId, id, flowNodes, flowEdges, profileId);
+
+    // Auto-activate on first wizard save: if the flow was still DRAFT (created
+    // via the popup hub which makes an empty draft before the wizard runs),
+    // promote it to ACTIVE so the user doesn't need to remember to activate
+    // it manually. Flows already ACTIVE or PAUSED keep their current status.
+    if (current.status === FlowStatus.DRAFT) {
+      await this._flowsRepository.updateFlowStatus(
+        orgId,
+        id,
+        FlowStatus.ACTIVE,
+        profileId
+      );
+    }
+
     return this._flowsRepository.getFlow(orgId, id, profileId);
   }
 

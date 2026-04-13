@@ -150,72 +150,223 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
 
   const renderFields = () => {
     switch (node.type) {
-      case 'trigger':
+      case 'trigger': {
+        const triggerType: 'comment_on_post' | 'story_reply' =
+          config.triggerType === 'story_reply'
+            ? 'story_reply'
+            : 'comment_on_post';
+        const currentMode: 'all' | 'specific' | 'next_publication' =
+          config.mode === 'next_publication'
+            ? 'next_publication'
+            : config.mode === 'specific' ||
+              (Array.isArray(config.postIds) && config.postIds.length > 0) ||
+              (Array.isArray(config.storyIds) && config.storyIds.length > 0)
+            ? 'specific'
+            : 'all';
+
+        const setTriggerType = (type: 'comment_on_post' | 'story_reply') => {
+          const next: Record<string, any> = { ...config, triggerType: type };
+          // Clear id list from the other type to avoid stale references
+          if (type === 'comment_on_post') delete next.storyIds;
+          if (type === 'story_reply') delete next.postIds;
+          setConfig(next);
+        };
+
+        const setMode = (mode: 'all' | 'specific' | 'next_publication') => {
+          const next: Record<string, any> = { ...config, mode };
+          if (mode !== 'specific') {
+            delete next.postIds;
+            delete next.storyIds;
+          }
+          setConfig(next);
+        };
+
+        const selectedStoryIds: string[] = Array.isArray(config.storyIds)
+          ? config.storyIds
+          : [];
+
         return (
           <>
-            <label className="block text-[14px] text-textColor mb-[6px]">
-              {t('trigger_posts_label', 'Monitored posts')}
+            {/* Trigger type switch */}
+            <label className="block text-[13px] font-semibold text-textColor mb-[8px]">
+              {t('trigger_type_label', 'Tipo de gatilho')}
             </label>
-            <p className="text-[12px] text-customColor18 mb-[12px]">
-              {t(
-                'trigger_posts_hint',
-                'Leave empty to monitor all posts, or select specific ones.'
-              )}
-            </p>
-            {postsLoading && (
-              <p className="text-[12px] text-customColor18">
-                {t('loading_posts', 'Loading posts...')}
-              </p>
-            )}
-            {!postsLoading && (!posts || posts.length === 0) && (
-              <p className="text-[12px] text-customColor18">
-                {t(
-                  'no_posts_found',
-                  'No Instagram posts found. Reconnect the account or create posts first.'
+            <div className="flex flex-col gap-[6px] mb-[16px]">
+              {(
+                [
+                  ['comment_on_post', t('trigger_type_comment', 'Comentario em publicacao')],
+                  ['story_reply', t('trigger_type_story', 'Resposta ao story')],
+                ] as const
+              ).map(([value, label]) => (
+                <label
+                  key={value}
+                  className={`flex items-center gap-[8px] p-[8px] rounded-[6px] border cursor-pointer ${
+                    triggerType === value
+                      ? 'border-btnPrimary bg-btnPrimary/10'
+                      : 'border-newTableBorder hover:border-btnPrimary'
+                  }`}
+                >
+                  <input
+                    type="radio"
+                    checked={triggerType === value}
+                    onChange={() => setTriggerType(value)}
+                  />
+                  <span className="text-[13px] text-textColor">{label}</span>
+                </label>
+              ))}
+            </div>
+
+            {/* Mode */}
+            <label className="block text-[13px] font-semibold text-textColor mb-[8px]">
+              {triggerType === 'story_reply'
+                ? t('story_section_when', 'Quando alguem responder')
+                : t('trigger_posts_label', 'Posts monitorados')}
+            </label>
+            <div className="flex flex-col gap-[6px] mb-[12px]">
+              <label
+                className={`flex items-center gap-[8px] p-[8px] rounded-[6px] border cursor-pointer ${
+                  currentMode === 'all'
+                    ? 'border-btnPrimary bg-btnPrimary/10'
+                    : 'border-newTableBorder hover:border-btnPrimary'
+                }`}
+              >
+                <input
+                  type="radio"
+                  checked={currentMode === 'all'}
+                  onChange={() => setMode('all')}
+                />
+                <span className="text-[13px] text-textColor">
+                  {triggerType === 'story_reply'
+                    ? t('story_mode_all', 'Qualquer story')
+                    : t('trigger_posts_all', 'Todos os posts')}
+                </span>
+              </label>
+              <label
+                className={`flex items-center gap-[8px] p-[8px] rounded-[6px] border cursor-pointer ${
+                  currentMode === 'next_publication'
+                    ? 'border-btnPrimary bg-btnPrimary/10'
+                    : 'border-newTableBorder hover:border-btnPrimary'
+                }`}
+              >
+                <input
+                  type="radio"
+                  checked={currentMode === 'next_publication'}
+                  onChange={() => setMode('next_publication')}
+                />
+                <span className="text-[13px] text-textColor">
+                  {triggerType === 'story_reply'
+                    ? t('story_mode_next', 'Proximo story')
+                    : t('post_mode_next_publication', 'Proxima publicacao')}
+                </span>
+              </label>
+              <label
+                className={`flex items-center gap-[8px] p-[8px] rounded-[6px] border cursor-pointer ${
+                  currentMode === 'specific'
+                    ? 'border-btnPrimary bg-btnPrimary/10'
+                    : 'border-newTableBorder hover:border-btnPrimary'
+                }`}
+              >
+                <input
+                  type="radio"
+                  checked={currentMode === 'specific'}
+                  onChange={() => setMode('specific')}
+                />
+                <span className="text-[13px] text-textColor">
+                  {triggerType === 'story_reply'
+                    ? t('story_mode_specific', 'Story especifico')
+                    : t('summary_specific_posts_label', 'Posts especificos')}
+                </span>
+              </label>
+            </div>
+
+            {/* Specific selectors */}
+            {currentMode === 'specific' && triggerType === 'comment_on_post' && (
+              <>
+                {postsLoading && (
+                  <p className="text-[12px] text-customColor18">
+                    {t('loading_posts', 'Carregando posts...')}
+                  </p>
                 )}
-              </p>
+                {!postsLoading && (!posts || posts.length === 0) && (
+                  <p className="text-[12px] text-customColor18">
+                    {t(
+                      'no_posts_found',
+                      'Nenhum post do Instagram encontrado. Reconecte a conta ou publique antes.'
+                    )}
+                  </p>
+                )}
+                {!postsLoading && posts && posts.length > 0 && (
+                  <div className="max-h-[320px] overflow-y-auto space-y-[8px] mb-[12px]">
+                    {posts.map((post) => {
+                      const isSelected = selectedPostIds.includes(post.id);
+                      const thumb = post.thumbnailUrl || post.mediaUrl;
+                      return (
+                        <label
+                          key={post.id}
+                          className={`flex gap-[8px] p-[8px] rounded-[6px] cursor-pointer border ${
+                            isSelected
+                              ? 'border-btnPrimary bg-newBgColorInner'
+                              : 'border-newTableBorder hover:border-btnPrimary'
+                          }`}
+                        >
+                          <input
+                            type="checkbox"
+                            checked={isSelected}
+                            onChange={() => togglePost(post.id)}
+                            className="mt-[4px]"
+                          />
+                          {thumb && (
+                            <img
+                              src={thumb}
+                              alt=""
+                              className="w-[48px] h-[48px] rounded-[4px] object-cover flex-shrink-0"
+                            />
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-[11px] text-customColor18 uppercase">
+                              {post.mediaType}
+                            </p>
+                            <p className="text-[12px] text-textColor truncate">
+                              {post.caption || t('no_caption', '(sem legenda)')}
+                            </p>
+                          </div>
+                        </label>
+                      );
+                    })}
+                  </div>
+                )}
+              </>
             )}
-            {!postsLoading && posts && posts.length > 0 && (
-              <div className="max-h-[400px] overflow-y-auto space-y-[8px]">
-                {posts.map((post) => {
-                  const isSelected = selectedPostIds.includes(post.id);
-                  const thumb = post.thumbnailUrl || post.mediaUrl;
-                  return (
-                    <label
-                      key={post.id}
-                      className={`flex gap-[8px] p-[8px] rounded-[6px] cursor-pointer border ${
-                        isSelected
-                          ? 'border-btnPrimary bg-newBgColorInner'
-                          : 'border-newTableBorder hover:border-btnPrimary'
-                      }`}
-                    >
-                      <input
-                        type="checkbox"
-                        checked={isSelected}
-                        onChange={() => togglePost(post.id)}
-                        className="mt-[4px]"
-                      />
-                      {thumb && (
-                        <img
-                          src={thumb}
-                          alt=""
-                          className="w-[48px] h-[48px] rounded-[4px] object-cover flex-shrink-0"
-                        />
-                      )}
-                      <div className="flex-1 min-w-0">
-                        <p className="text-[11px] text-customColor18 uppercase">
-                          {post.mediaType}
-                        </p>
-                        <p className="text-[12px] text-textColor truncate">
-                          {post.caption || t('no_caption', '(no caption)')}
-                        </p>
-                      </div>
-                    </label>
-                  );
-                })}
+
+            {currentMode === 'specific' && triggerType === 'story_reply' && (
+              <div className="mb-[12px]">
+                <p className="text-[11px] text-customColor18 mb-[6px]">
+                  {t(
+                    'story_mode_specific_hint',
+                    'Informe o ID do story (visivel no Meta Business Suite)'
+                  )}
+                </p>
+                <div className={inputWrapperClass}>
+                  <input
+                    type="text"
+                    className={`${inputClass} h-[42px]`}
+                    value={selectedStoryIds.join(', ')}
+                    placeholder={t('story_ids_placeholder', 'ID do story')}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        storyIds: e.target.value
+                          .split(',')
+                          .map((s) => s.trim())
+                          .filter(Boolean),
+                      })
+                    }
+                  />
+                </div>
               </div>
             )}
 
+            {/* Keywords */}
             <div className="mt-[16px]">
               <KeywordsField
                 t={t}
@@ -227,8 +378,42 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
                 inputWrapperClass={inputWrapperClass}
               />
             </div>
+
+            {/* Story-only extras */}
+            {triggerType === 'story_reply' && (
+              <div className="mt-[16px] flex flex-col gap-[8px]">
+                <label className="flex items-center justify-between gap-[8px] p-[8px] rounded-[6px] border border-newTableBorder">
+                  <span className="text-[12px] text-textColor">
+                    {t('story_match_reactions', 'Responder reacoes nos stories')}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={config.matchReactions !== false}
+                    onChange={(e) =>
+                      setConfig({ ...config, matchReactions: e.target.checked })
+                    }
+                  />
+                </label>
+                <label className="flex items-center justify-between gap-[8px] p-[8px] rounded-[6px] border border-newTableBorder">
+                  <span className="text-[12px] text-textColor">
+                    {t(
+                      'story_require_follow',
+                      'Pedir para seguir antes de enviar'
+                    )}
+                  </span>
+                  <input
+                    type="checkbox"
+                    checked={!!config.requireFollow}
+                    onChange={(e) =>
+                      setConfig({ ...config, requireFollow: e.target.checked })
+                    }
+                  />
+                </label>
+              </div>
+            )}
           </>
         );
+      }
 
       case 'condition':
         return (

@@ -81,7 +81,12 @@ const ExecutionDetail: FC<{ flowId: string; executionId: string; onBack: () => v
               : 'bg-customColor51/20 text-customColor51'
           }`}
         >
-          {execution.status}
+          {String(
+            t(
+              `flow_execution_status_${execution.status.toLowerCase()}`,
+              execution.status
+            )
+          )}
         </span>
       </div>
 
@@ -122,7 +127,10 @@ const ExecutionDetail: FC<{ flowId: string; executionId: string; onBack: () => v
                 <div>
                   <div className="flex items-center gap-[8px]">
                     <span className="text-[12px] font-medium text-textColor">
-                      {NODE_TYPE_LABELS[entry.nodeType] || entry.nodeType}
+                      {t(
+                        `flow_node_type_${entry.nodeType.toLowerCase()}`,
+                        NODE_TYPE_LABELS[entry.nodeType] || entry.nodeType
+                      )}
                     </span>
                     <span
                       className={`text-[10px] px-[6px] py-[1px] rounded-[3px] ${
@@ -135,7 +143,7 @@ const ExecutionDetail: FC<{ flowId: string; executionId: string; onBack: () => v
                           : 'bg-customColor42/20 text-customColor42'
                       }`}
                     >
-                      {entry.status}
+                      {t(`flow_log_status_${entry.status}`, entry.status)}
                     </span>
                   </div>
                   <span className="text-[10px] text-customColor18">
@@ -233,7 +241,12 @@ export const FlowExecutionsComponent: FC<FlowExecutionsProps> = ({
                         : 'bg-btnSimple text-customColor18'
                     }`}
                   >
-                    {exec.status}
+                    {String(
+                      t(
+                        `flow_execution_status_${exec.status.toLowerCase()}`,
+                        exec.status
+                      )
+                    )}
                   </span>
                 </td>
                 <td className="text-customColor18">

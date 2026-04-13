@@ -1,4 +1,9 @@
 {
+  "trigger_type_label": "Tipo de gatilho",
+  "trigger_node_label_story": "Gatilho: Resposta ao story",
+  "trigger_node_description_story": "Quando alguém responder ou reagir ao seu story",
+  "post_mode_next_publication": "Próxima publicação",
+  "summary_specific_posts_label": "Posts específicos",
   "nova_automacao_title": "Nova Automação",
   "nova_automacao_subtitle": "Escolha um gatilho para sua automação do Instagram",
   "nova_automacao_by_trigger": "Por gatilho",
@@ -1329,5 +1334,18 @@
   "who_can_reply_following": "Contas que você segue",
   "who_can_reply_mentioned_users": "Contas mencionadas",
   "who_can_reply_subscribers": "Assinantes",
-  "who_can_reply_verified": "Contas verificadas"
+  "who_can_reply_verified": "Contas verificadas",
+  "flow_execution_status_completed": "CONCLUÍDA",
+  "flow_execution_status_failed": "FALHOU",
+  "flow_execution_status_running": "EM EXECUÇÃO",
+  "flow_execution_status_pending": "PENDENTE",
+  "flow_node_type_trigger": "Gatilho",
+  "flow_node_type_condition": "Condição",
+  "flow_node_type_reply_comment": "Responder comentário",
+  "flow_node_type_send_dm": "Enviar DM",
+  "flow_node_type_delay": "Atraso",
+  "flow_log_status_entered": "entrou",
+  "flow_log_status_completed": "concluído",
+  "flow_log_status_error": "erro",
+  "flow_log_status_skipped": "ignorado"
 }

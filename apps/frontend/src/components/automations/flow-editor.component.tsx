@@ -299,17 +299,37 @@ const FlowEditorInner: FC<FlowEditorProps> = ({ id }) => {
   const handleSave = useCallback(async () => {
     setSaving(true);
     try {
-      const canvasNodes = nodes.map((n) => ({
-        id: n.id,
-        type: REVERSE_NODE_TYPE_MAP[n.type || 'trigger'],
-        label: typeof n.data?.label === 'string' ? n.data.label : undefined,
-        data:
+      const canvasNodes = nodes.map((n) => {
+        const rawData =
           typeof n.data?.config === 'string'
             ? n.data.config
-            : JSON.stringify(n.data?.config || {}),
-        positionX: n.position.x,
-        positionY: n.position.y,
-      }));
+            : JSON.stringify(n.data?.config || {});
+        const backendType = REVERSE_NODE_TYPE_MAP[n.type || 'trigger'];
+        // For TRIGGER nodes, derive the label from the trigger type in the
+        // config JSON so webhook filters stay in sync. Other node types keep
+        // whatever label the user assigned (or none).
+        let label =
+          typeof n.data?.label === 'string' ? n.data.label : undefined;
+        if (backendType === 'TRIGGER') {
+          try {
+            const parsed = JSON.parse(rawData);
+            label =
+              parsed?.triggerType === 'story_reply'
+                ? 'story_reply'
+                : 'comment_on_post';
+          } catch {
+            label = 'comment_on_post';
+          }
+        }
+        return {
+          id: n.id,
+          type: backendType,
+          label,
+          data: rawData,
+          positionX: n.position.x,
+          positionY: n.position.y,
+        };
+      });
 
       const canvasEdges = edges.map((e) => ({
         id: e.id,

@@ -1,4 +1,9 @@
 {
+  "trigger_type_label": "Trigger type",
+  "trigger_node_label_story": "Trigger: Story reply",
+  "trigger_node_description_story": "When someone replies or reacts to your story",
+  "post_mode_next_publication": "Next publication",
+  "summary_specific_posts_label": "Specific posts",
   "nova_automacao_title": "New Automation",
   "nova_automacao_subtitle": "Pick a trigger for your Instagram automation",
   "nova_automacao_by_trigger": "By trigger",
@@ -1331,5 +1336,18 @@
   "who_can_reply_following": "Accounts you follow",
   "who_can_reply_mentioned_users": "Mentioned accounts",
   "who_can_reply_subscribers": "Subscribers",
-  "who_can_reply_verified": "Verified accounts"
+  "who_can_reply_verified": "Verified accounts",
+  "flow_execution_status_completed": "COMPLETED",
+  "flow_execution_status_failed": "FAILED",
+  "flow_execution_status_running": "RUNNING",
+  "flow_execution_status_pending": "PENDING",
+  "flow_node_type_trigger": "Trigger",
+  "flow_node_type_condition": "Condition",
+  "flow_node_type_reply_comment": "Reply Comment",
+  "flow_node_type_send_dm": "Send DM",
+  "flow_node_type_delay": "Delay",
+  "flow_log_status_entered": "entered",
+  "flow_log_status_completed": "completed",
+  "flow_log_status_error": "error",
+  "flow_log_status_skipped": "skipped"
 }
