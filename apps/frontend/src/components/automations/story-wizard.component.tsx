@@ -58,6 +58,34 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
   const [activePreviewTab, setActivePreviewTab] = useState<
     'post' | 'comments' | 'dm' | 'story'
   >('story');
+  const [messagingState, setMessagingState] = useState<{
+    hasSystemToken: boolean;
+    instagramTokens: Array<{ igUserId: string; username?: string }>;
+  } | null>(null);
+
+  // Fetch messaging tokens once to know if the selected integration can DM.
+  useEffect(() => {
+    let cancelled = false;
+    fetchApi('/credentials/facebook/messaging-tokens')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data) {
+          setMessagingState({
+            hasSystemToken: !!data.hasSystemToken,
+            instagramTokens: Array.isArray(data.instagramTokens)
+              ? data.instagramTokens
+              : [],
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMessagingState(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchApi]);
 
   useEffect(() => {
     if (!initialFlow) return;
@@ -202,6 +230,20 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
   const radioRowClass =
     'flex items-start gap-[10px] p-[12px] rounded-[6px] border border-fifth cursor-pointer hover:bg-boxHover';
 
+  // Check if the selected integration is covered by an available messaging
+  // token (either System User Token OR a per-account entry). Shows a banner
+  // when not configured. Only renders the banner after we've fetched state
+  // and an integration is selected, to avoid flashing a false warning.
+  const needsMessagingConfig = (() => {
+    if (!messagingState || !selectedIntegration) return false;
+    if (messagingState.hasSystemToken) return false;
+    const internalId = (selectedIntegration as any)?.internalId;
+    if (!internalId) return true;
+    return !messagingState.instagramTokens.some(
+      (t) => t.igUserId === internalId
+    );
+  })();
+
   return (
     <div className="flex flex-1 flex-col lg:flex-row gap-[24px] p-[24px]">
       {/* Left: form */}
@@ -220,6 +262,38 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
             )}
           </p>
         </div>
+
+        {/* Messaging token banner */}
+        {needsMessagingConfig && (
+          <div className="flex items-start gap-[10px] rounded-[6px] border border-customColor13/40 bg-customColor13/10 px-[14px] py-[12px]">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-customColor13 flex-shrink-0 mt-[1px]"
+            >
+              <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            </svg>
+            <div className="flex-1">
+              <div className="text-[12px] text-textColor font-[500]">
+                {t(
+                  'story_wizard_messaging_banner',
+                  'Para responder via DM a stories, configure um token de messaging em Settings > Credenciais.'
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => window.open('/settings', '_blank')}
+                className="mt-[6px] text-[11px] text-btnPrimary hover:opacity-80"
+              >
+                {t('story_wizard_messaging_configure', 'Configurar agora →')}
+              </button>
+            </div>
+          </div>
+        )}
 
         {/* Name + integration */}
         <div className={sectionClass}>

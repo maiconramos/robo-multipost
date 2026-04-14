@@ -323,3 +323,85 @@ A execucao de flow para story usa `igMessageId` como chave de idempotencia (em v
 - **`requireFollow`** ainda nao aplica filtro — a configuracao e salva mas a verificacao via Graph API sera adicionada depois.
 - **DM direta sem `reply_to.story`** e ignorada pelo webhook controller (fora do escopo deste gatilho — futuro gatilho `dm_direct`).
 - **Janela de 24h**: a DM so sai se o usuario tiver interagido (resposta ao story conta como interacao e abre a janela).
+
+---
+
+## Configuracao de Messaging Tokens (obrigatorio para DM de story)
+
+A automacao de story envia a resposta via **Send API** do Meta, que exige um token de messaging separado do token usado para postagem. O Robo MultiPost aceita duas opcoes, com prioridade automatica (System User Token se configurado, senao cai no token por conta).
+
+Ambas as opcoes exigem que o app Meta esteja em **Live Mode** (Meta Developer Portal > Settings > Basic > App Mode: Live). Isso nao exige App Review — so requer Privacy Policy URL, categoria e Terms of Service configurados no app.
+
+### Opcao A — Meta System User Token (recomendado)
+
+Vantagens:
+- **Nao expira** (escolhendo "Never" na geracao).
+- **1 token cobre todas as contas** do mesmo Business Manager.
+- **Zero refresh, zero manutencao.**
+
+Como gerar:
+
+1. Acesse `https://business.facebook.com/settings/system-users`
+2. Se nao tiver um System User, clique em **Add** e crie um com role Admin (ou Employee com permissoes adequadas).
+3. No System User criado, clique em **Add Assets** e adicione as Pages cujas contas Instagram Business voce quer automatizar (o Instagram Business esta vinculado a uma Page).
+4. Volte pro System User e clique em **Generate New Token**:
+   - App: o seu app Meta
+   - Expiration: **Never**
+   - Permissions: selecione pelo menos `instagram_basic`, `instagram_manage_comments`, `instagram_manage_messages`, `pages_messaging`, `pages_read_engagement`, `pages_show_list`, `business_management`
+5. Copie o token (Meta so mostra 1 vez — salve num lugar seguro temporariamente).
+6. No Robo MultiPost, va em **Settings > Credenciais > Instagram > Tokens de Messaging > Meta System User Token** e cole o token no campo.
+7. Clique em **Validar e salvar**. O backend chama `/me` e `/me/accounts` no Graph API pra confirmar que o token e valido e mostra o business name + contas conectadas.
+
+Com isso feito, **todas** as automacoes de story passam a funcionar imediatamente. O token nao precisa ser atualizado ate o admin revogar no Meta Dashboard.
+
+### Opcao B — Instagram User Access Token por conta
+
+Vantagens:
+- Nao precisa de Business Manager estruturado.
+- Funciona pra 1 conta ou varias (1 entrada por conta).
+
+Desvantagens:
+- Token dura **60 dias** por padrao — precisa renovacao.
+- **Renovacao e automatica** (feita pelo Robo no momento do uso quando o token tem mais de 24h de idade e menos de 58 dias), entao **sob uso regular nao incomoda**.
+- Sob inatividade > 60 dias, o token expira e e preciso gerar um novo manualmente.
+
+Como gerar:
+
+1. Meta Developer Portal > seu app > **Instagram API setup with Instagram business login** (no sidebar, dentro do produto Instagram).
+2. Na secao **Generate access tokens**, clique em **Add or remove Instagram accounts** e adicione a conta IG Business que quer automatizar.
+3. Ao lado da conta, clique em **Generate token** — Meta abre uma janela de consentimento e retorna um **long-lived Instagram User Access Token** (60 dias).
+4. Copie o token.
+5. No Robo MultiPost, va em **Settings > Credenciais > Instagram > Tokens de Messaging > Tokens por conta Instagram**.
+6. Clique em **+ Adicionar conta**, cole o token e clique em **Validar e salvar**. O backend chama `graph.instagram.com/me` pra validar, captura o IG User ID e o username da conta, e salva com `refreshedAt = now`.
+7. Repita pra cada conta IG que quer automatizar.
+
+A partir dai, o Robo MultiPost renova o token automaticamente sempre que a automacao for disparada apos 24h da ultima renovacao. Voce nao precisa mexer.
+
+### Como o Robo decide qual usar
+
+```
+No momento de enviar DM:
+  1. Se metaSystemUserToken existe → usa ele (POST graph.facebook.com/{ig_user_id}/messages)
+  2. Senao, procura entrada em instagramTokens com igUserId == integration.internalId
+     → usa ela (POST graph.instagram.com/me/messages)
+     → se age > 24h, faz refresh lazy antes de usar
+     → se age > 58d, lanca erro "Token expirado"
+  3. Se nenhum configurado, lanca "Messaging nao configurado"
+```
+
+O erro aparece no **Historico de execucoes** do flow e a UI do Story Wizard mostra um **banner amarelo** quando a integracao selecionada nao tem token valido.
+
+### Escopos necessarios
+
+| Opcao | Scopes exigidas |
+|---|---|
+| System User Token | `instagram_manage_messages` (legacy) OU `instagram_business_manage_messages` (nova) + `pages_messaging` + `instagram_basic` + `pages_read_engagement` |
+| IG User Token | `instagram_business_basic` + `instagram_business_manage_messages` |
+
+Os scopes sao selecionados no momento da geracao do token — revise o checklist acima antes de clicar "Generate".
+
+### Erros comuns
+
+- **"O app nao tem acesso avancado a permissao instagram_manage_messages"** → token foi gerado sem a scope de messaging, ou o app Meta ainda esta em Dev Mode. Regerar o token com a scope correta e confirmar que o app esta em Live Mode.
+- **"Token expirado"** → IG User Token nao usado por > 60 dias. Gerar novo no Meta Dashboard e re-adicionar na tela de credenciais.
+- **"Destinatario nao tem funcao no app"** → app ainda em Dev Mode. Mover para Live Mode ou adicionar o usuario como Instagram Tester temporariamente.
