@@ -27,14 +27,14 @@ const TRIGGERS: TriggerOption[] = [
   {
     id: 'comment_on_post',
     titleKey: 'nova_automacao_sidebar_comment',
-    titleFallback: 'Comentario em publicacao',
+    titleFallback: 'Comentario em Feed/Reels',
     descKey: 'nova_automacao_sidebar_comment_desc',
     descFallback: 'Responda comentarios em posts de feed e reels',
   },
   {
     id: 'story_reply',
     titleKey: 'nova_automacao_sidebar_story',
-    titleFallback: 'Resposta ao story',
+    titleFallback: 'Resposta ao Story',
     descKey: 'nova_automacao_sidebar_story_desc',
     descFallback: 'Envie uma DM quando alguem responder seu story',
   },
@@ -172,23 +172,15 @@ export const NovaAutomacaoModal: FC<Props> = ({ open, onClose, onCreated }) => {
               <button
                 key={trigger.id}
                 onClick={() => setActiveTrigger(trigger.id)}
-                className={`text-left px-[12px] py-[10px] rounded-[4px] text-[13px] transition-colors ${
+                className={`text-left px-[12px] py-[10px] rounded-[4px] text-[13px] font-medium transition-colors ${
                   activeTrigger === trigger.id
                     ? 'bg-btnPrimary/15 text-textColor border border-btnPrimary/40'
                     : 'text-customColor18 hover:bg-boxHover border border-transparent'
                 }`}
               >
-                <div className="font-medium">
-                  {t(trigger.titleKey, trigger.titleFallback)}
-                </div>
-                <div className="text-[11px] text-customColor18 mt-[2px] leading-tight">
-                  {t(trigger.descKey, trigger.descFallback)}
-                </div>
+                {t(trigger.titleKey, trigger.titleFallback)}
               </button>
             ))}
-            <div className="text-[11px] text-customColor18 px-[12px] py-[8px] mt-[8px] italic">
-              {t('nova_automacao_coming_soon', 'Mais gatilhos em breve')}
-            </div>
           </div>
 
           {/* Main */}
