@@ -3,6 +3,7 @@ import { Activity, ActivityMethod } from 'nestjs-temporal-core';
 import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
+import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 import { FlowExecutionStatus } from '@prisma/client';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 
@@ -12,7 +13,8 @@ export class FlowActivity {
   constructor(
     private _flowsService: FlowsService,
     private _integrationService: IntegrationService,
-    private _integrationManager: IntegrationManager
+    private _integrationManager: IntegrationManager,
+    private _instagramMessagingService: InstagramMessagingService
   ) {}
 
   @ActivityMethod()
@@ -93,15 +95,18 @@ export class FlowActivity {
       throw new Error(`Integration ${integrationId} not found`);
     }
 
-    const provider = this._integrationManager.getSocialIntegration('instagram') as unknown as InstagramProvider;
-    if (!provider) {
-      throw new Error('Instagram provider not found');
-    }
-
-    // Story replies arrive as DMs already — the user has an open 24h window
-    // to receive messages via recipient:{id}. This path requires
-    // instagram_manage_messages scope.
-    await provider.sendDM(integration.token, igScopedUserId, message);
+    // Messaging uses a token configured in Settings > Credenciais (Meta
+    // System User Token or per-account IG User Token), NOT the integration
+    // token used for posting. The service resolves the right token, does
+    // lazy refresh, and calls the right Meta endpoint.
+    await this._instagramMessagingService.sendStoryReply({
+      organizationId: integration.organizationId,
+      profileId: integration.profileId || null,
+      igBusinessAccountId: integration.internalId,
+      recipientIgsid: igScopedUserId,
+      message,
+      integrationName: integration.name || undefined,
+    });
   }
 
   @ActivityMethod()

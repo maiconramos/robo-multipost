@@ -40,6 +40,21 @@ export class CredentialService {
   ) {
     const existing = await this.getRaw(organizationId, provider, profileId);
     const merged = existing ? this.unredact(data, existing) : data;
+
+    // If the merge leaves every field empty, delete the record entirely so
+    // `configured` flips back to false and the platform falls back to env
+    // vars cleanly. This is triggered when the user removes the last
+    // configured product section.
+    const hasAnyValue = Object.values(merged).some(
+      (v) => typeof v === 'string' && v.length > 0
+    );
+    if (!hasAnyValue) {
+      if (existing) {
+        await this._credentialRepository.delete(organizationId, provider, profileId);
+      }
+      return null;
+    }
+
     const encryptedData = this._encryptionService.encryptJson(merged);
     return this._credentialRepository.upsert(
       organizationId,
@@ -161,27 +176,112 @@ export class CredentialService {
     return this._credentialRepository.delete(organizationId, provider, profileId);
   }
 
+  /**
+   * Update messaging-related fields in the Facebook credential row
+   * (metaSystemUserToken, metaSystemUserTokenInfo, metaSystemUserTokenValidatedAt,
+   * instagramTokens). Preserves all other fields via the SENTINEL pattern.
+   * Composite fields (info, tokens array) are stored as JSON strings so the
+   * Record<string, string> shape of the credential data stays intact.
+   */
+  async updateMessagingTokens(
+    organizationId: string,
+    profileId: string | undefined,
+    updates: {
+      metaSystemUserToken?: string | null;
+      metaSystemUserTokenValidatedAt?: string | null;
+      metaSystemUserTokenInfo?: Record<string, any> | null;
+      instagramTokens?: Array<Record<string, any>> | null;
+    }
+  ) {
+    const existing = await this.getRaw(organizationId, 'facebook', profileId);
+    const body: Record<string, string> = {};
+
+    // Start by preserving every existing field via SENTINEL.
+    for (const key of Object.keys(existing || {})) {
+      body[key] = SENTINEL;
+    }
+
+    const applyField = (key: string, value: any) => {
+      if (value === undefined) return;
+      if (value === null || value === '') {
+        body[key] = '';
+        return;
+      }
+      if (typeof value === 'string') {
+        body[key] = value;
+        return;
+      }
+      body[key] = JSON.stringify(value);
+    };
+
+    applyField('metaSystemUserToken', updates.metaSystemUserToken);
+    applyField(
+      'metaSystemUserTokenValidatedAt',
+      updates.metaSystemUserTokenValidatedAt
+    );
+    applyField('metaSystemUserTokenInfo', updates.metaSystemUserTokenInfo);
+    applyField('instagramTokens', updates.instagramTokens);
+
+    return this.save(organizationId, 'facebook', body, profileId);
+  }
+
+  /**
+   * Read and parse messaging-related fields from the Facebook credential row.
+   * Returns empty defaults when nothing is configured.
+   */
+  async getMessagingTokens(
+    organizationId: string,
+    profileId?: string
+  ): Promise<{
+    metaSystemUserToken?: string;
+    metaSystemUserTokenValidatedAt?: string;
+    metaSystemUserTokenInfo?: Record<string, any>;
+    instagramTokens: Array<Record<string, any>>;
+  }> {
+    const raw = await this.getRaw(organizationId, 'facebook', profileId);
+    if (!raw) {
+      return { instagramTokens: [] };
+    }
+
+    const parseJson = (value: string | undefined): any => {
+      if (!value) return undefined;
+      try {
+        return JSON.parse(value);
+      } catch {
+        return undefined;
+      }
+    };
+
+    const tokens = parseJson(raw.instagramTokens);
+    const info = parseJson(raw.metaSystemUserTokenInfo);
+
+    return {
+      metaSystemUserToken: raw.metaSystemUserToken || undefined,
+      metaSystemUserTokenValidatedAt:
+        raw.metaSystemUserTokenValidatedAt || undefined,
+      metaSystemUserTokenInfo: info,
+      instagramTokens: Array.isArray(tokens) ? tokens : [],
+    };
+  }
+
   async test(
     organizationId: string,
     provider: string,
-    profileId?: string
+    profileId?: string,
+    section?: string
   ): Promise<{ ok: boolean; error?: string }> {
     const raw = await this.getRaw(organizationId, provider, profileId);
     if (!raw) {
       return { ok: false, error: 'Nenhuma credencial configurada para este provider.' };
     }
 
-    const { clientId, clientSecret } = raw;
-    if (!clientId || !clientSecret) {
-      return { ok: false, error: 'Client ID e Client Secret são obrigatórios.' };
-    }
-
     try {
-      const result = await this.validateCredential(provider, raw);
+      const result = await this.validateCredential(provider, raw, section);
       if (!result.ok) {
         console.error(
-          '[credentials.test] provider=%s resultou em erro: %s',
+          '[credentials.test] provider=%s section=%s resultou em erro: %s',
           provider,
+          section || 'default',
           result.error
         );
       }
@@ -194,16 +294,42 @@ export class CredentialService {
 
   private async validateCredential(
     provider: string,
-    creds: Record<string, string>
+    creds: Record<string, string>,
+    section?: string
   ): Promise<{ ok: boolean; error?: string }> {
     switch (provider) {
       case 'facebook': {
+        // The "facebook" provider bundles credentials for Facebook, Instagram
+        // (API with Instagram Login) and Threads. Only the Facebook App can
+        // be validated via the Graph API OAuth client_credentials endpoint.
+        // Instagram and Threads products only expose user-based OAuth flows
+        // (no client_credentials grant) and their App IDs are not queryable
+        // standalone — so the only way to test those pairs is to run the
+        // full user authorization flow, which is what happens when the user
+        // connects a channel from Canais → Adicionar.
+        if (section && section !== 'facebook') {
+          return {
+            ok: false,
+            error: `Teste direto não é suportado para ${section}. Para validar OAuth, conecte um canal em Canais → Adicionar.`,
+          };
+        }
+
+        if (!creds.clientId || !creds.clientSecret) {
+          return {
+            ok: false,
+            error: 'Facebook App ID e App Secret são obrigatórios.',
+          };
+        }
+
         const res = await fetch(
           `https://graph.facebook.com/oauth/access_token?client_id=${encodeURIComponent(creds.clientId)}&client_secret=${encodeURIComponent(creds.clientSecret)}&grant_type=client_credentials`
         );
         if (!res.ok) {
           const body = await res.json().catch(() => ({}));
-          return { ok: false, error: body?.error?.message || `Facebook retornou ${res.status}` };
+          return {
+            ok: false,
+            error: body?.error?.message || `Facebook retornou ${res.status}`,
+          };
         }
         return { ok: true };
       }

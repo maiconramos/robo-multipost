@@ -53,6 +53,7 @@ import { FlowsRepository } from '@gitroom/nestjs-libraries/database/prisma/flows
 import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
 import { ReviewLinksRepository } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.repository';
 import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
+import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 
 @Global()
 @Module({
@@ -115,6 +116,7 @@ import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/re
     FlowsService,
     ReviewLinksRepository,
     ReviewLinksService,
+    InstagramMessagingService,
   ],
   get exports() {
     return this.providers;
