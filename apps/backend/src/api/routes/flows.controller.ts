@@ -13,6 +13,7 @@ import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.fr
 import { Organization, Profile } from '@prisma/client';
 import { ApiTags } from '@nestjs/swagger';
 import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
+import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
 import {
   CreateFlowDto,
   UpdateFlowDto,
@@ -24,10 +25,16 @@ import {
 @ApiTags('Flows')
 @Controller('/flows')
 export class FlowsController {
-  constructor(private _flowsService: FlowsService) {}
+  constructor(
+    private _flowsService: FlowsService,
+    private _credentialService: CredentialService
+  ) {}
 
   @Get('/webhook-config')
-  getWebhookConfig() {
+  async getWebhookConfig(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
     const rawBase = (
       process.env.WEBHOOK_BASE_URL ||
       process.env.FRONTEND_URL ||
@@ -36,9 +43,18 @@ export class FlowsController {
     ).replace(/\/$/, '');
     const needsApiPrefix = !process.env.WEBHOOK_BASE_URL;
     const callbackPath = `${needsApiPrefix ? '/api' : ''}/public/ig-webhook`;
+
+    // Prefer per-profile verify token when the admin set a custom one in
+    // Settings > Credenciais > Facebook. Falls back to the platform default
+    // so that fresh installs keep working without any configuration.
+    const creds = await this._credentialService
+      .getRaw(org.id, 'facebook', profile?.id)
+      .catch(() => null);
+    const verifyToken = creds?.webhookVerifyToken || 'multipost';
+
     return {
       callbackUrl: rawBase ? `${rawBase}${callbackPath}` : callbackPath,
-      verifyToken: 'multipost',
+      verifyToken,
       subscribedFields: ['comments', 'messages'],
       object: 'instagram',
     };

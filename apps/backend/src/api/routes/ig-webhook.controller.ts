@@ -91,7 +91,6 @@ export class IgWebhookController {
       }
 
       if (!entry.changes) {
-        this._logger.log(`IG webhook entry ${entry.id}: no changes`);
         continue;
       }
 
@@ -319,10 +318,19 @@ export class IgWebhookController {
       rawBodyBuf?.toString('utf8') ??
       (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
 
-    // Collect candidate app secrets with source labels for debugging.
-    // Order: env var FIRST (matches the app that actually hosts the webhook),
-    // then per-workspace credentials.
+    // Collect candidate app secrets. Meta signs Instagram webhooks with the
+    // "Instagram API with Instagram Login" app secret (separate from the
+    // Facebook App Secret when both products are enabled on the same app).
+    // We try all possible sources: Instagram env var first, then Facebook env
+    // var, then per-workspace credential secrets (both instagramAppSecret and
+    // clientSecret fields).
     const candidates: Array<{ source: string; secret: string }> = [];
+    if (process.env.INSTAGRAM_APP_SECRET) {
+      candidates.push({
+        source: 'env:INSTAGRAM_APP_SECRET',
+        secret: process.env.INSTAGRAM_APP_SECRET,
+      });
+    }
     if (process.env.FACEBOOK_APP_SECRET) {
       candidates.push({
         source: 'env:FACEBOOK_APP_SECRET',
@@ -331,24 +339,22 @@ export class IgWebhookController {
     }
     const all = await this._credentialService.findAllDecrypted('facebook');
     for (const c of all) {
+      if (c.data?.instagramAppSecret) {
+        candidates.push({
+          source: `credential:${c.profileId || 'org'}:instagramAppSecret`,
+          secret: c.data.instagramAppSecret,
+        });
+      }
       if (c.data?.clientSecret) {
         candidates.push({
-          source: `credential:${c.profileId || 'org'}`,
+          source: `credential:${c.profileId || 'org'}:clientSecret`,
           secret: c.data.clientSecret,
         });
       }
     }
 
-    // Debug: log raw body details for HMAC troubleshooting
-    const rawBodyHash = crypto
-      .createHash('sha256')
-      .update(rawBodyBuf || rawBodyStr)
-      .digest('hex')
-      .slice(0, 16);
     this._logger.log(
-      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBodyStr.length} rawBodyHash=${rawBodyHash} rawBodyStart=${rawBodyStr.slice(0, 80)} candidates=${candidates.length} sources=[${candidates
-        .map((c) => `${c.source}(len=${c.secret.length},${c.secret.slice(0, 6)}...)`)
-        .join(', ')}]`
+      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBodyStr.length} candidates=${candidates.length}`
     );
 
     if (candidates.length === 0) {
@@ -374,7 +380,7 @@ export class IgWebhookController {
     }
 
     const sigBuf = Buffer.from(signature);
-    const computed: string[] = [];
+    const triedSources: string[] = [];
     for (const { source, secret } of candidates) {
       // Compute HMAC from raw Buffer when available (exact bytes Meta signed)
       const expected =
@@ -383,7 +389,7 @@ export class IgWebhookController {
           .createHmac('sha256', secret)
           .update(rawBodyBuf || rawBodyStr)
           .digest('hex');
-      computed.push(`${source}=${expected.slice(0, 20)}...`);
+      triedSources.push(source);
       const expBuf = Buffer.from(expected);
       if (
         sigBuf.length === expBuf.length &&
@@ -395,7 +401,7 @@ export class IgWebhookController {
     }
 
     this._logger.warn(
-      `IG webhook: signature mismatch. Received: ${signature.slice(0, 20)}... Computed: ${computed.join(' | ')}`
+      `IG webhook: signature mismatch. Tried ${triedSources.length} sources: [${triedSources.join(', ')}]. Remember Instagram API with Instagram Login uses a SEPARATE app secret from the Facebook App Secret — set INSTAGRAM_APP_SECRET env var or instagramAppSecret in the credential.`
     );
     throw new ForbiddenException('Invalid signature');
   }

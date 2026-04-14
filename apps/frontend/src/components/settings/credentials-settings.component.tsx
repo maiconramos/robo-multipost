@@ -1,41 +1,24 @@
 'use client';
 
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useState } from 'react';
 import { useCredentialsList } from '@gitroom/frontend/hooks/use-credentials.hook';
 import { ProviderCredentialForm } from '@gitroom/frontend/components/settings/provider-credential-form.component';
-import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { useToaster } from '@gitroom/react/toaster/toaster';
+import { MetaCredentialsCard } from '@gitroom/frontend/components/settings/meta-credentials.component';
 import clsx from 'clsx';
 
 interface ProviderConfig {
   provider: string;
   label: string;
+  iconUrl: string;
   fields: { key: string; label: string; placeholder: string }[];
   docsUrl: string;
 }
 
 const PROVIDERS: ProviderConfig[] = [
   {
-    provider: 'facebook',
-    label: 'Facebook / Instagram / Threads',
-    fields: [
-      {
-        key: 'clientId',
-        label: 'Client ID',
-        placeholder: 'Cole o App ID do Facebook',
-      },
-      {
-        key: 'clientSecret',
-        label: 'Client Secret',
-        placeholder: 'Cole o App Secret do Facebook',
-      },
-    ],
-    docsUrl: 'https://developers.facebook.com',
-  },
-  {
     provider: 'tiktok',
     label: 'TikTok',
+    iconUrl: '/icons/platforms/tiktok.png',
     fields: [
       {
         key: 'clientId',
@@ -53,6 +36,7 @@ const PROVIDERS: ProviderConfig[] = [
   {
     provider: 'pinterest',
     label: 'Pinterest',
+    iconUrl: '/icons/platforms/pinterest.png',
     fields: [
       {
         key: 'clientId',
@@ -70,6 +54,7 @@ const PROVIDERS: ProviderConfig[] = [
   {
     provider: 'linkedin',
     label: 'LinkedIn',
+    iconUrl: '/icons/platforms/linkedin.png',
     fields: [
       {
         key: 'clientId',
@@ -87,6 +72,7 @@ const PROVIDERS: ProviderConfig[] = [
   {
     provider: 'twitter',
     label: 'Twitter / X',
+    iconUrl: '/icons/platforms/x.png',
     fields: [
       {
         key: 'clientId',
@@ -104,6 +90,7 @@ const PROVIDERS: ProviderConfig[] = [
   {
     provider: 'youtube',
     label: 'YouTube / Google',
+    iconUrl: '/icons/platforms/youtube.png',
     fields: [
       {
         key: 'clientId',
@@ -121,6 +108,7 @@ const PROVIDERS: ProviderConfig[] = [
   {
     provider: 'reddit',
     label: 'Reddit',
+    iconUrl: '/icons/platforms/reddit.png',
     fields: [
       {
         key: 'clientId',
@@ -138,6 +126,7 @@ const PROVIDERS: ProviderConfig[] = [
   {
     provider: 'discord',
     label: 'Discord',
+    iconUrl: '/icons/platforms/discord.png',
     fields: [
       {
         key: 'clientId',
@@ -160,6 +149,7 @@ const PROVIDERS: ProviderConfig[] = [
   {
     provider: 'slack',
     label: 'Slack',
+    iconUrl: '/icons/platforms/slack.png',
     fields: [
       {
         key: 'clientId',
@@ -181,100 +171,6 @@ const PROVIDERS: ProviderConfig[] = [
   },
 ];
 
-const WebhookConfigSection: React.FC = () => {
-  const t = useT();
-  const fetchApi = useFetch();
-  const toaster = useToaster();
-  const [webhookConfig, setWebhookConfig] = useState<{
-    callbackUrl: string;
-    verifyToken: string;
-  } | null>(null);
-
-  useEffect(() => {
-    fetchApi('/flows/webhook-config')
-      .then((r) => r.json())
-      .then((data) => {
-        const origin =
-          typeof window !== 'undefined' ? window.location.origin : '';
-        const url = data.callbackUrl.startsWith('http')
-          ? data.callbackUrl
-          : `${origin}${data.callbackUrl}`;
-        setWebhookConfig({ callbackUrl: url, verifyToken: data.verifyToken });
-      })
-      .catch(() => {
-        // non-critical
-      });
-  }, [fetchApi]);
-
-  const copyToClipboard = useCallback(
-    (text: string) => {
-      navigator.clipboard.writeText(text).then(() => {
-        toaster.show(
-          t('copied_to_clipboard', 'Copiado para a area de transferencia'),
-          'success'
-        );
-      });
-    },
-    [toaster, t]
-  );
-
-  if (!webhookConfig) return null;
-
-  return (
-    <div className="mt-[16px] border-t border-fifth pt-[16px] flex flex-col gap-[12px]">
-      <div className="text-[13px] font-semibold text-textColor">
-        {t('webhook_config_title', 'Configuracao do webhook Instagram')}
-      </div>
-      <p className="text-[12px] text-customColor18">
-        {t(
-          'webhook_config_instructions',
-          'Cole estes valores no Meta Developer Portal > Produtos > Webhooks > Instagram:'
-        )}
-      </p>
-      <div className="flex flex-col gap-[8px]">
-        <div className="flex flex-col gap-[4px]">
-          <span className="text-[11px] text-customColor18">
-            {t('callback_url', 'Callback URL')}
-          </span>
-          <div className="flex items-center gap-[8px] bg-newBgColorInner border border-newTableBorder rounded-[4px] px-[12px] py-[8px]">
-            <code className="text-[12px] text-textColor flex-1 truncate">
-              {webhookConfig.callbackUrl}
-            </code>
-            <button
-              onClick={() => copyToClipboard(webhookConfig.callbackUrl)}
-              className="text-[11px] text-btnPrimary hover:opacity-80"
-            >
-              {t('copy', 'Copiar')}
-            </button>
-          </div>
-        </div>
-        <div className="flex flex-col gap-[4px]">
-          <span className="text-[11px] text-customColor18">
-            {t('verify_token', 'Verify Token')}
-          </span>
-          <div className="flex items-center gap-[8px] bg-newBgColorInner border border-newTableBorder rounded-[4px] px-[12px] py-[8px]">
-            <code className="text-[12px] text-textColor flex-1">
-              {webhookConfig.verifyToken}
-            </code>
-            <button
-              onClick={() => copyToClipboard(webhookConfig.verifyToken)}
-              className="text-[11px] text-btnPrimary hover:opacity-80"
-            >
-              {t('copy', 'Copiar')}
-            </button>
-          </div>
-        </div>
-      </div>
-      <p className="text-[11px] text-customColor18">
-        {t(
-          'webhook_subscribed_fields',
-          'Campos assinados: comments, messages'
-        )}
-      </p>
-    </div>
-  );
-};
-
 const ProviderCard: React.FC<{
   config: ProviderConfig;
   configured: boolean;
@@ -293,6 +189,11 @@ const ProviderCard: React.FC<{
         onClick={toggle}
       >
         <div className="flex items-center gap-[12px]">
+          <img
+            src={config.iconUrl}
+            alt={config.label}
+            className="w-[24px] h-[24px] object-contain"
+          />
           <div className="text-[15px] font-[500]">{config.label}</div>
           {configured ? (
             <span className="inline-flex items-center gap-[6px] rounded-full bg-customColor42/20 text-customColor42 px-[10px] py-[2px] text-[12px]">
@@ -335,7 +236,6 @@ const ProviderCard: React.FC<{
             onSaved={onMutate}
             onDeleted={onMutate}
           />
-          {config.provider === 'facebook' && <WebhookConfigSection />}
         </div>
       )}
     </div>
@@ -370,6 +270,10 @@ export const CredentialsSettingsSection: React.FC = () => {
         variáveis de ambiente globais.
       </div>
       <div className="my-[16px] mt-[16px] flex flex-col gap-[8px]">
+        <MetaCredentialsCard
+          configured={configuredMap.get('facebook') || false}
+          onMutate={handleMutate}
+        />
         {PROVIDERS.map((config) => (
           <ProviderCard
             key={config.provider}

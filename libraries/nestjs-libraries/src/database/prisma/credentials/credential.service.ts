@@ -94,17 +94,22 @@ export class CredentialService {
     profileId?: string
   ): Promise<{ ok: boolean; error?: string }> {
     const creds = await this.getRaw(organizationId, 'facebook', profileId);
-    if (!creds?.clientId || !creds?.clientSecret) {
+    // Prefer Instagram App credentials when the workspace uses the "Instagram
+    // API with Instagram Login" product — Meta expects the Instagram app ID
+    // and secret there. Falls back to the Facebook App credentials for
+    // classic Graph API setups.
+    const appId = creds?.instagramAppId || creds?.clientId;
+    const appSecret = creds?.instagramAppSecret || creds?.clientSecret;
+    if (!appId || !appSecret) {
       return {
         ok: false,
         error:
-          'Configure Client ID e Client Secret do Facebook antes de configurar o webhook.',
+          'Configure o App ID e App Secret do Facebook (ou do Instagram quando usar "Instagram API with Instagram Login") antes de configurar o webhook.',
       };
     }
 
-    const appId = creds.clientId;
-    const appAccessToken = `${appId}|${creds.clientSecret}`;
-    const verifyToken = creds.webhookVerifyToken || 'multipost';
+    const appAccessToken = `${appId}|${appSecret}`;
+    const verifyToken = creds?.webhookVerifyToken || 'multipost';
 
     try {
       const params = new URLSearchParams({

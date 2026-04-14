@@ -1,8 +1,21 @@
 // @ts-check
 import { withSentryConfig } from '@sentry/nextjs';
 
+const devAllowedOrigins = (() => {
+  if (process.env.NODE_ENV !== 'development') return undefined;
+  const hosts = new Set();
+  for (const url of [process.env.FRONTEND_URL, process.env.NEXT_PUBLIC_BACKEND_URL]) {
+    if (!url) continue;
+    try {
+      hosts.add(new URL(url).host);
+    } catch {}
+  }
+  return hosts.size ? Array.from(hosts) : undefined;
+})();
+
 /** @type {import('next').NextConfig} */
 const nextConfig = {
+  ...(devAllowedOrigins ? { allowedDevOrigins: devAllowedOrigins } : {}),
   experimental: {
     proxyTimeout: 90_000,
   },
