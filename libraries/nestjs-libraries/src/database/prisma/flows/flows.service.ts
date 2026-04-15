@@ -479,7 +479,13 @@ export class FlowsService {
     if (body.matchMode) triggerConfig.matchMode = body.matchMode;
     if (triggerType === 'story_reply') {
       triggerConfig.matchReactions = body.matchReactions ?? true;
-      triggerConfig.requireFollow = body.requireFollow ?? false;
+    }
+    // The follow-gate flag works for both triggers:
+    //   story_reply  -> sends gate text via regular DM
+    //   comment_on_post -> sends gate text via private reply (button stripped)
+    triggerConfig.requireFollow = body.requireFollow ?? false;
+    if (body.followGateMessage !== undefined) {
+      triggerConfig.followGateMessage = body.followGateMessage;
     }
 
     return triggerConfig;
@@ -617,6 +623,41 @@ export class FlowsService {
         }`
       );
       return { posts: [], nextCursor: null };
+    }
+  }
+
+  async getInstagramStoriesByIntegration(
+    orgId: string,
+    integrationId: string
+  ) {
+    const integration = await this._integrationService.getIntegrationById(
+      orgId,
+      integrationId
+    );
+    if (!integration || integration.providerIdentifier !== 'instagram') {
+      return { stories: [] };
+    }
+
+    const provider = this._integrationManager.getSocialIntegration(
+      'instagram'
+    ) as unknown as InstagramProvider;
+    if (!provider) {
+      return { stories: [] };
+    }
+
+    try {
+      return await provider.getRecentStories(
+        integration.internalId,
+        integration.token,
+        'graph.facebook.com'
+      );
+    } catch (err) {
+      this._logger.warn(
+        `Failed to fetch Instagram stories: ${
+          err instanceof Error ? err.message : 'Unknown error'
+        }`
+      );
+      return { stories: [] };
     }
   }
 

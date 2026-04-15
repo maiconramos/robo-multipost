@@ -53,7 +53,9 @@ export class FlowActivity {
     orgId: string,
     _igUserId: string,
     message: string,
-    commentId: string
+    commentId: string,
+    buttonText?: string,
+    buttonUrl?: string
   ) {
     const integration = await this._integrationService.getIntegrationById(
       orgId,
@@ -76,7 +78,9 @@ export class FlowActivity {
       integration.token,
       integration.internalId,
       commentId,
-      message
+      message,
+      buttonText,
+      buttonUrl
     );
   }
 
@@ -85,7 +89,9 @@ export class FlowActivity {
     integrationId: string,
     orgId: string,
     igScopedUserId: string,
-    message: string
+    message: string,
+    buttonText?: string,
+    buttonUrl?: string
   ) {
     const integration = await this._integrationService.getIntegrationById(
       orgId,
@@ -105,6 +111,43 @@ export class FlowActivity {
       igBusinessAccountId: integration.internalId,
       recipientIgsid: igScopedUserId,
       message,
+      buttonText,
+      buttonUrl,
+      integrationName: integration.name || undefined,
+    });
+  }
+
+  @ActivityMethod()
+  async checkIgFollowStatus(
+    integrationId: string,
+    orgId: string,
+    igUserId: string,
+    source: 'story_reply' | 'comment' = 'story_reply'
+  ): Promise<boolean> {
+    const integration = await this._integrationService.getIntegrationById(
+      orgId,
+      integrationId
+    );
+    if (!integration) {
+      return true;
+    }
+
+    // Comment-based flows already hold a Page Access Token on the integration
+    // row, so we can call the Graph API directly without requiring the user
+    // to set up a separate messaging token. Story flows don't have that token
+    // in hand so they fall back to the messaging service resolver.
+    if (source === 'comment' && integration.token) {
+      return this._instagramMessagingService.isFollowingByToken(
+        integration.token,
+        igUserId
+      );
+    }
+
+    return this._instagramMessagingService.isUserFollowingBusiness({
+      organizationId: integration.organizationId,
+      profileId: integration.profileId || null,
+      igBusinessAccountId: integration.internalId,
+      recipientIgsid: igUserId,
       integrationName: integration.name || undefined,
     });
   }

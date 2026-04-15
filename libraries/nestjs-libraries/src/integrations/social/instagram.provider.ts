@@ -984,7 +984,9 @@ export class InstagramProvider
     accessToken: string,
     _igAccountId: string,
     commentId: string,
-    message: string
+    message: string,
+    buttonText?: string,
+    buttonUrl?: string
   ): Promise<{ recipientId: string; messageId: string }> {
     // Private reply requires Facebook Page ID + Page Access Token on graph.facebook.com.
     // integration.token IS a Page Access Token, so GET /me returns the Page.
@@ -1001,13 +1003,35 @@ export class InstagramProvider
     }
     const pageId = meBody.id;
 
+    // When a CTA is provided, send as a button template (same schema as
+    // regular DMs). Text <= 640 chars, title <= 20 chars.
+    const hasButton = !!(buttonText && buttonUrl);
+    const messagePayload = hasButton
+      ? {
+          attachment: {
+            type: 'template',
+            payload: {
+              template_type: 'button',
+              text: message.slice(0, 640),
+              buttons: [
+                {
+                  type: 'web_url',
+                  url: buttonUrl,
+                  title: (buttonText || '').slice(0, 20),
+                },
+              ],
+            },
+          },
+        }
+      : { text: message };
+
     const url = `https://graph.facebook.com/v25.0/${pageId}/messages?access_token=${accessToken}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         recipient: { comment_id: commentId },
-        message: { text: message },
+        message: messagePayload,
       }),
     });
 
@@ -1170,6 +1194,41 @@ export class InstagramProvider
         timestamp: m.timestamp,
       })),
       nextCursor: body.paging?.cursors?.after ?? null,
+    };
+  }
+
+  async getRecentStories(
+    igAccountId: string,
+    accessToken: string,
+    type = 'graph.facebook.com'
+  ): Promise<{
+    stories: Array<{
+      id: string;
+      mediaType: string;
+      mediaUrl?: string;
+      thumbnailUrl?: string;
+      permalink?: string;
+      timestamp?: string;
+    }>;
+  }> {
+    // Instagram Graph API only exposes active stories (last 24h) via this edge.
+    const fields = 'id,media_type,media_url,thumbnail_url,permalink,timestamp';
+    const response = await fetch(
+      `https://${type}/v25.0/${igAccountId}/stories?fields=${fields}&access_token=${accessToken}`
+    );
+    const body = await response.json();
+    if (!response.ok || !body.data) {
+      return { stories: [] };
+    }
+    return {
+      stories: body.data.map((m: any) => ({
+        id: m.id,
+        mediaType: m.media_type,
+        mediaUrl: m.media_url,
+        thumbnailUrl: m.thumbnail_url,
+        permalink: m.permalink,
+        timestamp: m.timestamp,
+      })),
     };
   }
 }

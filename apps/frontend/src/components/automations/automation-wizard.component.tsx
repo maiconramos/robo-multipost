@@ -8,6 +8,10 @@ import { useIntegrationPosts } from '@gitroom/frontend/components/automations/ho
 import { useRouter } from 'next/navigation';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { WizardPhonePreview } from '@gitroom/frontend/components/automations/wizard-phone-preview.component';
+import { AddLinkModal } from '@gitroom/frontend/components/automations/add-link-modal.component';
+
+const FOLLOW_GATE_DEFAULT_PT =
+  'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
 
 interface Props {
   flowId?: string;
@@ -58,6 +62,13 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
   const [replyMessages, setReplyMessages] = useState<string[]>(['']);
   const [enableDm, setEnableDm] = useState(false);
   const [dmMessage, setDmMessage] = useState('');
+  const [dmButtonText, setDmButtonText] = useState('');
+  const [dmButtonUrl, setDmButtonUrl] = useState('');
+  const [showAddLink, setShowAddLink] = useState(false);
+  const [requireFollow, setRequireFollow] = useState(false);
+  const [followGateMessage, setFollowGateMessage] = useState(
+    FOLLOW_GATE_DEFAULT_PT
+  );
   const [saving, setSaving] = useState(false);
   const [showAllPostsModal, setShowAllPostsModal] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<'post' | 'comments' | 'dm'>('post');
@@ -100,6 +111,14 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
     if (dmCfg.message) {
       setEnableDm(true);
       setDmMessage(dmCfg.message);
+    }
+    if (dmCfg.buttonText) setDmButtonText(dmCfg.buttonText);
+    if (dmCfg.buttonUrl) setDmButtonUrl(dmCfg.buttonUrl);
+    if (typeof triggerCfg.requireFollow === 'boolean') {
+      setRequireFollow(triggerCfg.requireFollow);
+    }
+    if (typeof triggerCfg.followGateMessage === 'string') {
+      setFollowGateMessage(triggerCfg.followGateMessage);
     }
   }, [initialFlow]);
 
@@ -204,6 +223,14 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
       }
       if (dmMessage.trim()) {
         body.dmMessage = dmMessage.trim();
+        if (dmButtonText.trim() && dmButtonUrl.trim()) {
+          body.dmButtonText = dmButtonText.trim();
+          body.dmButtonUrl = dmButtonUrl.trim();
+        }
+      }
+      body.requireFollow = requireFollow;
+      if (requireFollow && followGateMessage.trim()) {
+        body.followGateMessage = followGateMessage.trim();
       }
 
       const url = isEditing ? `/flows/${flowId}/quick-update` : '/flows/quick-create';
@@ -233,7 +260,9 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
   }, [
     canSave, name, integrationId, postMode, selectedPostIds,
     keywordMode, keywords, matchMode, enableReply, replyMessages,
-    enableDm, dmMessage, fetchApi, router, toaster, t,
+    enableDm, dmMessage, dmButtonText, dmButtonUrl,
+    requireFollow, followGateMessage,
+    isEditing, flowId, fetchApi, router, toaster, t,
   ]);
 
   const inputClass =
@@ -242,8 +271,8 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
     'bg-newBgColorInner border border-newTableBorder rounded-[8px]';
 
   return (
-    <div className="flex flex-1 h-full">
-      {/* Left sidebar — form */}
+    <div className="flex flex-1 min-h-0">
+      {/* Left sidebar — form (internal scroll) */}
       <div className="flex-1 overflow-y-auto p-[24px] max-w-[600px]">
         <div className="flex items-center gap-[12px] mb-[24px]">
           <button
@@ -545,6 +574,66 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
               <p className="text-[11px] text-customColor18 mt-[4px]">
                 {t('variables_hint', 'Variables: {commenter_name}, {comment_text}')}
               </p>
+              <button
+                type="button"
+                onClick={() => setShowAddLink(true)}
+                className="mt-[10px] rounded-[4px] border border-dashed border-fifth text-[12px] text-textColor px-[14px] py-[8px] hover:bg-boxHover"
+              >
+                {dmButtonText && dmButtonUrl
+                  ? `${dmButtonText} · ${dmButtonUrl}`
+                  : `+ ${t('story_add_link', 'Adicionar um link')}`}
+              </button>
+            </div>
+
+            {/* Extras — follow gate */}
+            <div className="border-t border-fifth pt-[20px] mb-[20px]">
+              <h2 className="text-[16px] font-semibold text-textColor mb-[12px]">
+                {t('story_section_extras', 'Outros recursos para automatizar')}
+              </h2>
+              <div className="rounded-[6px] border border-fifth">
+                <label className="flex items-center justify-between gap-[12px] p-[10px] cursor-pointer">
+                  <div>
+                    <div className="text-[13px] text-textColor">
+                      {t(
+                        'story_require_follow',
+                        'Pedir para seguir antes de enviar'
+                      )}
+                    </div>
+                    <div className="text-[11px] text-customColor18 mt-[2px]">
+                      {t(
+                        'story_require_follow_hint',
+                        'Quando o remetente não seguir a conta, responde com uma mensagem pedindo para seguir.'
+                      )}
+                    </div>
+                  </div>
+                  <input
+                    type="checkbox"
+                    checked={requireFollow}
+                    onChange={(e) => setRequireFollow(e.target.checked)}
+                    className="h-[18px] w-[18px] accent-btnPrimary cursor-pointer"
+                  />
+                </label>
+                {requireFollow && (
+                  <div className="border-t border-fifth p-[10px] flex flex-col gap-[6px]">
+                    <label className="text-[11px] text-customColor18">
+                      {t(
+                        'story_follow_gate_label',
+                        'Mensagem enviada para quem ainda não segue'
+                      )}
+                    </label>
+                    <textarea
+                      value={followGateMessage}
+                      onChange={(e) => setFollowGateMessage(e.target.value)}
+                      rows={3}
+                      placeholder={t(
+                        'story_follow_gate_placeholder',
+                        FOLLOW_GATE_DEFAULT_PT
+                      )}
+                      className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                    />
+                  </div>
+                )}
+              </div>
             </div>
 
             {/* Save button */}
@@ -561,13 +650,15 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
         )}
       </div>
 
-      {/* Right side — phone preview */}
+      {/* Right side — phone preview (fixed; the left column scrolls internally) */}
       <div className="hidden lg:flex flex-1 items-center justify-center bg-newBgColor border-l border-fifth p-[24px]">
         <WizardPhonePreview
           postThumb={selectedPost?.thumbnailUrl || selectedPost?.mediaUrl}
           postCaption={selectedPost?.caption}
           replyMessage={enableReply ? replyMessages.filter(m => m.trim())[0] : undefined}
           dmMessage={dmMessage || undefined}
+          dmButtonText={dmButtonText || undefined}
+          dmButtonUrl={dmButtonUrl || undefined}
           integrationPicture={(selectedIntegration as any)?.picture}
           integrationName={(selectedIntegration as any)?.name || (selectedIntegration as any)?.display}
           activeTab={activePreviewTab}
@@ -669,6 +760,17 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
           </div>
         </div>
       )}
+
+      <AddLinkModal
+        open={showAddLink}
+        initialText={dmButtonText}
+        initialUrl={dmButtonUrl}
+        onClose={() => setShowAddLink(false)}
+        onSave={(text, url) => {
+          setDmButtonText(text);
+          setDmButtonUrl(url);
+        }}
+      />
     </div>
   );
 };

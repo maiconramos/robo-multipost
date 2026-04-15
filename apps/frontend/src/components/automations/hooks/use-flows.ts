@@ -71,3 +71,19 @@ export const useIntegrationPosts = (integrationId: string | null) => {
     load
   );
 };
+
+export const useIntegrationStories = (integrationId: string | null) => {
+  const fetch = useFetch();
+  const load = useCallback(
+    async (path: string) => {
+      const data = await (await fetch(path)).json();
+      return Array.isArray(data) ? data : (data?.stories ?? []);
+    },
+    [fetch]
+  );
+
+  return useSWR(
+    integrationId ? `/flows/integrations/${integrationId}/stories` : null,
+    load
+  );
+};

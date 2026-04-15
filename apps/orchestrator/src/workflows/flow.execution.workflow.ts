@@ -6,6 +6,7 @@ const {
   replyToComment,
   sendDirectMessage,
   sendStoryDirectMessage,
+  checkIgFollowStatus,
   evaluateCondition,
   updateExecution,
   appendExecutionLog,
@@ -18,6 +19,9 @@ const {
     initialInterval: '10 seconds',
   },
 });
+
+const FOLLOW_GATE_DEFAULT =
+  'Ola! Esse conteudo e exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
 
 export interface FlowExecutionInput {
   executionId: string;
@@ -49,6 +53,12 @@ interface TraversalContext {
    * combined private reply at the end.
    */
   dmMessages: string[];
+  /**
+   * Optional button attached to the DM. Only one button is supported by Meta's
+   * button template, so the last SEND_DM node with a button wins.
+   */
+  dmButtonText?: string;
+  dmButtonUrl?: string;
 }
 
 export async function flowExecutionWorkflow(input: FlowExecutionInput) {
@@ -101,7 +111,9 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
           integrationId,
           flow.organizationId,
           input.igSenderId,
-          combinedMessage
+          combinedMessage,
+          ctx.dmButtonText,
+          ctx.dmButtonUrl
         );
       } else if (input.igCommenterId && input.igCommentId) {
         await sendDirectMessage(
@@ -109,7 +121,9 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
           flow.organizationId,
           input.igCommenterId,
           combinedMessage,
-          input.igCommentId
+          input.igCommentId,
+          ctx.dmButtonText,
+          ctx.dmButtonUrl
         );
       }
     }
@@ -176,6 +190,43 @@ async function traverseNode(
             error: 'keywords_not_matched',
           });
           return;
+        }
+      }
+
+      // Follow gate: when the sender doesn't follow the IG business account,
+      // reply with a customizable gate message instead of the configured DM
+      // (and drop any button — the CTA is "follow us and reply again").
+      // Works for both story_reply and comment_on_post triggers.
+      if (triggerConfig.requireFollow) {
+        const senderId =
+          input.triggerType === 'story_reply'
+            ? input.igSenderId
+            : input.igCommenterId;
+        if (senderId) {
+          const follows = await checkIgFollowStatus(
+            integrationId,
+            orgId,
+            senderId,
+            input.triggerType === 'story_reply' ? 'story_reply' : 'comment'
+          );
+          if (!follows) {
+            const gateText = interpolateVariables(
+              (triggerConfig.followGateMessage as string | undefined) ||
+                FOLLOW_GATE_DEFAULT,
+              input
+            );
+            ctx.dmMessages.push(gateText);
+            ctx.dmButtonText = undefined;
+            ctx.dmButtonUrl = undefined;
+            await appendExecutionLog(input.executionId, {
+              nodeId,
+              nodeType: node.type,
+              status: 'completed',
+              timestamp: new Date().toISOString(),
+              error: 'follow_gate_applied',
+            });
+            return;
+          }
         }
       }
       break;
@@ -254,6 +305,10 @@ async function traverseNode(
       if (message) {
         // Collect message — all DMs are sent as a single private reply at the end.
         ctx.dmMessages.push(message);
+      }
+      if (config.buttonText && config.buttonUrl) {
+        ctx.dmButtonText = config.buttonText;
+        ctx.dmButtonUrl = config.buttonUrl;
       }
       break;
     }

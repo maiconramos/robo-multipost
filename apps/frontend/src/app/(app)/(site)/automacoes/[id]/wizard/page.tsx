@@ -14,7 +14,7 @@ export default async function WizardEditPage({
 }) {
   const { id } = await params;
   return (
-    <div className="bg-newBgColorInner flex-1 flex-col flex">
+    <div className="bg-newBgColorInner flex-1 flex-col flex h-[calc(100dvh-104px)] overflow-hidden">
       <AutomationWizardServerWrapper flowId={id} />
     </div>
   );

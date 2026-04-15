@@ -111,6 +111,17 @@ export class FlowsController {
     );
   }
 
+  @Get('/integrations/:integrationId/stories')
+  async getIntegrationStories(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integrationId') integrationId: string
+  ) {
+    return this._flowsService.getInstagramStoriesByIntegration(
+      org.id,
+      integrationId
+    );
+  }
+
   @Get('/:id')
   async getFlow(
     @GetOrgFromRequest() org: Organization,

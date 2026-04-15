@@ -69,6 +69,8 @@ export class InstagramMessagingService {
     igBusinessAccountId: string;
     recipientIgsid: string;
     message: string;
+    buttonText?: string;
+    buttonUrl?: string;
     integrationName?: string;
   }): Promise<void> {
     const state = await this.loadState(params.organizationId, params.profileId);
@@ -80,6 +82,8 @@ export class InstagramMessagingService {
         token: state.metaSystemUserToken,
         recipientIgsid: params.recipientIgsid,
         message: params.message,
+        buttonText: params.buttonText,
+        buttonUrl: params.buttonUrl,
       });
       return;
     }
@@ -107,7 +111,89 @@ export class InstagramMessagingService {
       token: tokenToUse,
       recipientIgsid: params.recipientIgsid,
       message: params.message,
+      buttonText: params.buttonText,
+      buttonUrl: params.buttonUrl,
     });
+  }
+
+  /**
+   * Check whether the given Instagram-scoped user id follows the business
+   * account, using the messaging token (System User or per-account IG User).
+   * Used by story_reply flows since those don't have a Page Access Token in hand.
+   * Returns true/false; throws only when there is no usable token.
+   * On Graph API failure the check is logged and returns true (fail-open).
+   */
+  async isUserFollowingBusiness(params: {
+    organizationId: string;
+    profileId: string | null;
+    igBusinessAccountId: string;
+    recipientIgsid: string;
+    integrationName?: string;
+  }): Promise<boolean> {
+    const state = await this.loadState(params.organizationId, params.profileId);
+
+    let baseUrl: string;
+    let token: string;
+
+    if (state.metaSystemUserToken) {
+      baseUrl = `${GRAPH_FB}/${params.recipientIgsid}`;
+      token = state.metaSystemUserToken;
+    } else {
+      const entry = state.instagramTokens.find(
+        (t) => t.igUserId === params.igBusinessAccountId
+      );
+      if (!entry) {
+        throw new Error(
+          `Messaging nao configurado para ${params.integrationName || 'esta conta'}. Acesse Settings > Credenciais > Instagram e configure um System User Token ou um token por conta.`
+        );
+      }
+      const fresh = await this.ensureFreshIgToken(
+        params.organizationId,
+        params.profileId,
+        state,
+        entry
+      );
+      baseUrl = `${GRAPH_IG}/${params.recipientIgsid}`;
+      token = fresh;
+    }
+
+    return this.fetchFollowFlag(baseUrl, token, params.recipientIgsid);
+  }
+
+  /**
+   * Check follow status using an arbitrary token. Used by comment_on_post
+   * flows which already have the Page Access Token on the integration row —
+   * avoids requiring a messaging token setup for comment-only automations.
+   */
+  async isFollowingByToken(token: string, igsid: string): Promise<boolean> {
+    return this.fetchFollowFlag(`${GRAPH_FB}/${igsid}`, token, igsid);
+  }
+
+  private async fetchFollowFlag(
+    baseUrl: string,
+    token: string,
+    igsid: string
+  ): Promise<boolean> {
+    try {
+      const res = await fetch(
+        `${baseUrl}?fields=is_user_follow_business&access_token=${encodeURIComponent(token)}`
+      );
+      const body = await res.json().catch(() => ({}));
+      if (!res.ok || body.error) {
+        this._logger.warn(
+          `Follow check failed for IGSID=${igsid}: ${
+            body?.error?.message || `HTTP ${res.status}`
+          }. Falling back to allow DM.`
+        );
+        return true;
+      }
+      return body.is_user_follow_business === true;
+    } catch (e: any) {
+      this._logger.warn(
+        `Follow check threw for IGSID=${igsid}: ${e?.message || String(e)}. Falling back to allow DM.`
+      );
+      return true;
+    }
   }
 
   /**
@@ -317,14 +403,40 @@ export class InstagramMessagingService {
     token: string;
     recipientIgsid: string;
     message: string;
+    buttonText?: string;
+    buttonUrl?: string;
   }): Promise<void> {
     const url = `${params.baseUrl}?access_token=${encodeURIComponent(params.token)}`;
+
+    // Meta's button template caps text at 640 chars and button title at 20.
+    // When a button is configured, send as an attachment template so the
+    // CTA renders natively in Instagram. Otherwise fall back to plain text.
+    const hasButton = !!(params.buttonText && params.buttonUrl);
+    const messagePayload = hasButton
+      ? {
+          attachment: {
+            type: 'template',
+            payload: {
+              template_type: 'button',
+              text: params.message.slice(0, 640),
+              buttons: [
+                {
+                  type: 'web_url',
+                  url: params.buttonUrl,
+                  title: (params.buttonText || '').slice(0, 20),
+                },
+              ],
+            },
+          },
+        }
+      : { text: params.message };
+
     const res = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         recipient: { id: params.recipientIgsid },
-        message: { text: params.message },
+        message: messagePayload,
       }),
     });
 

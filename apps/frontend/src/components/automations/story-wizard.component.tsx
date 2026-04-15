@@ -4,6 +4,7 @@ import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { useIntegrationStories } from '@gitroom/frontend/components/automations/hooks/use-flows';
 import { useRouter } from 'next/navigation';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { WizardPhonePreview } from '@gitroom/frontend/components/automations/wizard-phone-preview.component';
@@ -13,6 +14,9 @@ interface Props {
   flowId?: string;
   initialFlow?: any;
 }
+
+const FOLLOW_GATE_DEFAULT_PT =
+  'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
 
 function safeJson(data?: string): Record<string, any> {
   if (!data) return {};
@@ -48,8 +52,10 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
   const [keywordMode, setKeywordMode] = useState<'any_word_or_reaction' | 'specific'>('any_word_or_reaction');
   const [keywords, setKeywords] = useState<string[]>([]);
   const [keywordInput, setKeywordInput] = useState('');
-  const [matchReactions, setMatchReactions] = useState(true);
   const [requireFollow, setRequireFollow] = useState(false);
+  const [followGateMessage, setFollowGateMessage] = useState(
+    FOLLOW_GATE_DEFAULT_PT
+  );
   const [dmMessage, setDmMessage] = useState('');
   const [dmButtonText, setDmButtonText] = useState('');
   const [dmButtonUrl, setDmButtonUrl] = useState('');
@@ -108,11 +114,11 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
       setKeywordMode('specific');
       setKeywords(triggerCfg.keywords);
     }
-    if (typeof triggerCfg.matchReactions === 'boolean') {
-      setMatchReactions(triggerCfg.matchReactions);
-    }
     if (typeof triggerCfg.requireFollow === 'boolean') {
       setRequireFollow(triggerCfg.requireFollow);
+    }
+    if (typeof triggerCfg.followGateMessage === 'string') {
+      setFollowGateMessage(triggerCfg.followGateMessage);
     }
     if (dmCfg.message) setDmMessage(dmCfg.message);
     if (dmCfg.buttonText) setDmButtonText(dmCfg.buttonText);
@@ -137,6 +143,21 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
     [instagramIntegrations, integrationId]
   );
 
+  const { data: stories, isLoading: storiesLoading } = useIntegrationStories(
+    storyMode === 'specific' ? integrationId || null : null
+  );
+
+  const selectedStory = useMemo(() => {
+    if (!Array.isArray(stories) || selectedStoryIds.length === 0) return null;
+    return stories.find((s: any) => s.id === selectedStoryIds[0]) || null;
+  }, [stories, selectedStoryIds]);
+
+  const toggleStory = (id: string) => {
+    setSelectedStoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
   const addKeyword = () => {
     const v = keywordInput.trim();
     if (!v) return;
@@ -158,9 +179,12 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
         integrationId,
         triggerType: 'story_reply',
         postMode: storyMode,
-        matchReactions,
+        matchReactions: keywordMode === 'any_word_or_reaction',
         requireFollow,
       };
+      if (requireFollow && followGateMessage.trim()) {
+        body.followGateMessage = followGateMessage.trim();
+      }
       if (storyMode === 'specific' && selectedStoryIds.length > 0) {
         body.storyIds = selectedStoryIds;
       }
@@ -212,8 +236,8 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
     selectedStoryIds,
     keywordMode,
     keywords,
-    matchReactions,
     requireFollow,
+    followGateMessage,
     dmMessage,
     dmButtonText,
     dmButtonUrl,
@@ -245,9 +269,9 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
   })();
 
   return (
-    <div className="flex flex-1 flex-col lg:flex-row gap-[24px] p-[24px]">
-      {/* Left: form */}
-      <div className="flex-1 flex flex-col gap-[24px] max-w-[560px]">
+    <div className="flex flex-1 min-h-0">
+      {/* Left: form (internal scroll) */}
+      <div className="flex-1 overflow-y-auto p-[24px] max-w-[600px] flex flex-col gap-[24px]">
         {/* Header */}
         <div>
           <h1 className="text-[20px] font-semibold text-textColor">
@@ -393,21 +417,84 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
                 )}
               </div>
               {storyMode === 'specific' && (
-                <input
-                  type="text"
-                  value={selectedStoryIds.join(',')}
-                  onChange={(e) =>
-                    setSelectedStoryIds(
-                      e.target.value
-                        .split(',')
-                        .map((s) => s.trim())
-                        .filter(Boolean)
-                    )
-                  }
-                  onClick={(e) => e.stopPropagation()}
-                  className="mt-[8px] w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[6px] outline-none"
-                  placeholder={t('story_ids_placeholder', 'ID do story')}
-                />
+                <div onClick={(e) => e.stopPropagation()} className="mt-[10px]">
+                  {!integrationId ? (
+                    <p className="text-[11px] text-customColor18">
+                      {t(
+                        'story_select_account_first',
+                        'Selecione uma conta do Instagram primeiro'
+                      )}
+                    </p>
+                  ) : storiesLoading ? (
+                    <p className="text-[11px] text-customColor18">
+                      {t('loading_stories', 'Carregando stories...')}
+                    </p>
+                  ) : !stories?.length ? (
+                    <p className="text-[11px] text-customColor18">
+                      {t(
+                        'no_active_stories',
+                        'Nenhum story ativo nas ultimas 24h nesta conta.'
+                      )}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-[6px]">
+                      {(stories as any[]).map((s: any) => {
+                        const isSelected = selectedStoryIds.includes(s.id);
+                        const thumb = s.thumbnailUrl || s.mediaUrl;
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => toggleStory(s.id)}
+                            className={`relative aspect-[9/16] rounded-[6px] overflow-hidden cursor-pointer border-2 ${
+                              isSelected ? 'border-btnPrimary' : 'border-transparent'
+                            }`}
+                          >
+                            {thumb ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={thumb}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-sixth" />
+                            )}
+                            {s.mediaType === 'VIDEO' && (
+                              <div className="absolute top-[4px] right-[4px]">
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="white"
+                                >
+                                  <rect x="2" y="2" width="20" height="20" rx="3" />
+                                  <polygon
+                                    points="10,8 16,12 10,16"
+                                    fill="#000"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+                            {isSelected && (
+                              <div className="absolute inset-0 bg-btnPrimary/20 flex items-center justify-center">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="white"
+                                  strokeWidth="3"
+                                >
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
               )}
             </div>
           </label>
@@ -523,44 +610,50 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
           <h3 className={sectionTitleClass}>
             {t('story_section_extras', 'Outros recursos para automatizar')}
           </h3>
-          <label className="flex items-center justify-between gap-[12px] p-[10px] rounded-[6px] border border-fifth">
-            <div>
-              <div className="text-[13px] text-textColor">
-                {t('story_match_reactions', 'Responder reacoes nos stories')}
+          <div className="rounded-[6px] border border-fifth">
+            <label className="flex items-center justify-between gap-[12px] p-[10px] cursor-pointer">
+              <div>
+                <div className="text-[13px] text-textColor">
+                  {t(
+                    'story_require_follow',
+                    'Pedir para seguir antes de enviar'
+                  )}
+                </div>
+                <div className="text-[11px] text-customColor18 mt-[2px]">
+                  {t(
+                    'story_require_follow_hint',
+                    'Quando o remetente não seguir a conta, responde com uma mensagem pedindo para seguir.'
+                  )}
+                </div>
               </div>
-              <div className="text-[11px] text-customColor18 mt-[2px]">
-                {t(
-                  'story_match_reactions_hint',
-                  'Reacoes com emoji contam como gatilho'
-                )}
+              <input
+                type="checkbox"
+                checked={requireFollow}
+                onChange={(e) => setRequireFollow(e.target.checked)}
+                className="h-[18px] w-[18px] accent-btnPrimary cursor-pointer"
+              />
+            </label>
+            {requireFollow && (
+              <div className="border-t border-fifth p-[10px] flex flex-col gap-[6px]">
+                <label className="text-[11px] text-customColor18">
+                  {t(
+                    'story_follow_gate_label',
+                    'Mensagem enviada para quem ainda não segue'
+                  )}
+                </label>
+                <textarea
+                  value={followGateMessage}
+                  onChange={(e) => setFollowGateMessage(e.target.value)}
+                  rows={3}
+                  placeholder={t(
+                    'story_follow_gate_placeholder',
+                    FOLLOW_GATE_DEFAULT_PT
+                  )}
+                  className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                />
               </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={matchReactions}
-              onChange={(e) => setMatchReactions(e.target.checked)}
-              className="h-[18px] w-[18px] accent-btnPrimary cursor-pointer"
-            />
-          </label>
-          <label className="flex items-center justify-between gap-[12px] p-[10px] rounded-[6px] border border-fifth">
-            <div>
-              <div className="text-[13px] text-textColor">
-                {t('story_require_follow', 'Pedir para seguir antes de enviar')}
-              </div>
-              <div className="text-[11px] text-customColor18 mt-[2px]">
-                {t(
-                  'story_require_follow_hint',
-                  'Configuracao salva. Verificacao de follow sera adicionada em breve.'
-                )}
-              </div>
-            </div>
-            <input
-              type="checkbox"
-              checked={requireFollow}
-              onChange={(e) => setRequireFollow(e.target.checked)}
-              className="h-[18px] w-[18px] accent-btnPrimary cursor-pointer"
-            />
-          </label>
+            )}
+          </div>
         </div>
 
         {/* Save */}
@@ -587,17 +680,18 @@ export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
         </div>
       </div>
 
-      {/* Right: preview */}
-      <div className="flex-shrink-0 flex items-start justify-center lg:sticky lg:top-[24px]">
+      {/* Right: preview (fixed; the left column scrolls internally) */}
+      <div className="hidden lg:flex flex-1 items-center justify-center bg-newBgColor border-l border-fifth p-[24px]">
         <WizardPhonePreview
           variant="story"
           storyMode={storyMode}
+          storyThumb={selectedStory?.thumbnailUrl || selectedStory?.mediaUrl}
           dmMessage={dmMessage}
           dmButtonText={dmButtonText}
           dmButtonUrl={dmButtonUrl}
           commenterName="usuario"
-          integrationPicture={selectedIntegration?.picture}
-          integrationName={selectedIntegration?.name}
+          integrationPicture={(selectedIntegration as any)?.picture}
+          integrationName={(selectedIntegration as any)?.name}
           activeTab={activePreviewTab}
           onTabChange={(t) => setActivePreviewTab(t)}
         />

@@ -131,6 +131,10 @@ export class QuickCreateFlowDto {
 
   @IsOptional()
   @IsString()
+  followGateMessage?: string;
+
+  @IsOptional()
+  @IsString()
   replyMessage?: string;
 
   @IsOptional()
