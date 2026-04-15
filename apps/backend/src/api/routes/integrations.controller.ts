@@ -270,11 +270,24 @@ export class IntegrationsController {
           profile?.id
         );
         if (dbCreds) {
-          getExternalUrl = {
-            client_id: dbCreds.clientId || '',
-            client_secret: dbCreds.clientSecret || '',
-            instanceUrl: '',
-          };
+          // Threads uses a separate Meta app (Threads App) with its own
+          // ID/Secret, stored under the Threads section of the Meta
+          // credentials form. Fall back to the Facebook App pair only when
+          // the workspace hasn't filled in the Threads-specific fields.
+          if (integration === 'threads') {
+            getExternalUrl = {
+              client_id: dbCreds.threadsAppId || dbCreds.clientId || '',
+              client_secret:
+                dbCreds.threadsAppSecret || dbCreds.clientSecret || '',
+              instanceUrl: '',
+            };
+          } else {
+            getExternalUrl = {
+              client_id: dbCreds.clientId || '',
+              client_secret: dbCreds.clientSecret || '',
+              instanceUrl: '',
+            };
+          }
         }
       }
 
