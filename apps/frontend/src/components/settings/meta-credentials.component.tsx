@@ -864,19 +864,37 @@ export const MetaCredentialsCard: React.FC<Props> = ({
                         }
                       />
                     </div>
-                    <LabeledInput
-                      label={t('verify_token', 'Verify Token')}
-                      value={
-                        formValues.webhookVerifyToken || DEFAULT_VERIFY_TOKEN
-                      }
-                      onChange={(v) => handleField('webhookVerifyToken', v)}
-                      onCopy={() =>
-                        copyToClipboard(
-                          formValues.webhookVerifyToken ||
-                            DEFAULT_VERIFY_TOKEN
-                        )
-                      }
-                    />
+                    <div className="border-t border-fifth pt-[12px] flex flex-col gap-[8px]">
+                      <div className="text-[12px] font-[600] text-textColor">
+                        {t('meta_instagram_webhook', 'Webhook do Instagram')}
+                      </div>
+                      <div className="grid grid-cols-2 gap-[12px]">
+                        {callbackUrl ? (
+                          <CopyRow
+                            label={t('callback_url', 'Callback URL')}
+                            value={callbackUrl}
+                            onCopy={() => copyToClipboard(callbackUrl)}
+                          />
+                        ) : (
+                          <div />
+                        )}
+                        <LabeledInput
+                          label={t('verify_token', 'Verify Token')}
+                          value={
+                            formValues.webhookVerifyToken || DEFAULT_VERIFY_TOKEN
+                          }
+                          onChange={(v) =>
+                            handleField('webhookVerifyToken', v)
+                          }
+                          onCopy={() =>
+                            copyToClipboard(
+                              formValues.webhookVerifyToken ||
+                                DEFAULT_VERIFY_TOKEN
+                            )
+                          }
+                        />
+                      </div>
+                    </div>
                   </>
                 ) : (
                   <>
@@ -894,24 +912,28 @@ export const MetaCredentialsCard: React.FC<Props> = ({
                         )}
                       />
                     </div>
-                    <ReadOnlyRow
-                      label={t('verify_token', 'Verify Token')}
-                      value={remoteVerifyToken}
-                    />
+                    <div className="border-t border-fifth pt-[12px] flex flex-col gap-[8px]">
+                      <div className="text-[12px] font-[600] text-textColor">
+                        {t('meta_instagram_webhook', 'Webhook do Instagram')}
+                      </div>
+                      <div className="grid grid-cols-2 gap-[12px]">
+                        {callbackUrl ? (
+                          <CopyRow
+                            label={t('callback_url', 'Callback URL')}
+                            value={callbackUrl}
+                            onCopy={() => copyToClipboard(callbackUrl)}
+                          />
+                        ) : (
+                          <div />
+                        )}
+                        <ReadOnlyRow
+                          label={t('verify_token', 'Verify Token')}
+                          value={remoteVerifyToken}
+                        />
+                      </div>
+                    </div>
                   </>
                 )}
-                <div className="border-t border-fifth pt-[12px] flex flex-col gap-[8px]">
-                  <div className="text-[12px] font-[600] text-textColor">
-                    {t('meta_instagram_webhook', 'Webhook do Instagram')}
-                  </div>
-                  {callbackUrl && (
-                    <CopyRow
-                      label={t('callback_url', 'Callback URL')}
-                      value={callbackUrl}
-                      onCopy={() => copyToClipboard(callbackUrl)}
-                    />
-                  )}
-                </div>
                 <div className="border-t border-fifth pt-[12px]">
                   <MessagingTokensSection />
                 </div>

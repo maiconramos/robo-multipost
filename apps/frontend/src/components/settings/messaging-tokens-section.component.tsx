@@ -302,133 +302,20 @@ export const MessagingTokensSection: FC<Props> = ({ refreshKey = 0 }) => {
   const hasIgTokens = (state?.instagramTokens?.length || 0) > 0;
 
   return (
-    <div className="flex flex-col gap-[20px]">
-      <div>
-        <div className="text-[13px] font-[600] text-textColor mb-[4px]">
+    <div className="flex flex-col gap-[18px]">
+      {/* ============ Token do Instagram (por conta) — principal ============ */}
+      <div className="flex flex-col gap-[8px]">
+        <div className="text-[12px] font-[600] text-textColor">
+          {t('meta_instagram_tokens_label', 'Token do Instagram')}
+        </div>
+        <div className="text-[11px] text-customColor18 leading-[1.4]">
           {t(
-            'meta_messaging_section_title',
-            'Tokens de Messaging (para DM de story)'
-          )}
-        </div>
-        <div className="text-[11px] text-customColor18">
-          {t(
-            'meta_messaging_section_hint',
-            'Necessario apenas para automacoes que respondem via DM a respostas de story. Posts normais nao precisam.'
-          )}
-        </div>
-      </div>
-
-      {/* ============ Bloco A — System User Token ============ */}
-      <div className="border border-fifth rounded-[8px] p-[14px] flex flex-col gap-[10px]">
-        <div className="flex items-center justify-between">
-          <div>
-            <div className="text-[13px] font-[600] text-textColor">
-              {t(
-                'meta_system_user_token_label',
-                'Meta System User Token (recomendado)'
-              )}
-            </div>
-            <div className="text-[11px] text-customColor18 mt-[2px]">
-              {t(
-                'meta_system_user_token_hint',
-                '1 token cobre todas as contas do Business Manager. Nao expira. Gere em Business Settings > System Users.'
-              )}
-            </div>
-          </div>
-          {hasSystem && (
-            <span className="inline-flex items-center gap-[6px] rounded-full bg-customColor42/20 text-customColor42 px-[10px] py-[2px] text-[11px]">
-              <span className="w-[6px] h-[6px] rounded-full bg-customColor42 inline-block" />
-              {t('token_valid', 'Token valido')}
-            </span>
+            'meta_instagram_tokens_hint',
+            'Gere um token especifico para cada Instagram. Expira em 60 dias, renovado automaticamente a cada uso apos 24h.'
           )}
         </div>
 
-        {hasSystem && state?.systemTokenInfo ? (
-          <div className="flex flex-col gap-[6px] text-[12px] text-customColor18">
-            <div>
-              <span className="text-textColor font-[500]">
-                {state.systemTokenInfo.businessName ||
-                  t('business_manager', 'Business Manager')}
-              </span>
-              {' · '}
-              {state.systemTokenInfo.pages.length}{' '}
-              {t('connected_accounts', 'contas conectadas')}
-            </div>
-            {state.systemTokenInfo.pages.length > 0 && (
-              <ul className="list-disc list-inside text-[11px]">
-                {state.systemTokenInfo.pages.map((p) => (
-                  <li key={p.id}>
-                    {p.username ? `@${p.username}` : p.name}
-                    {p.igUserId ? ` (${p.igUserId})` : ''}
-                  </li>
-                ))}
-              </ul>
-            )}
-            <div className="mt-[4px]">
-              <button
-                type="button"
-                onClick={handleRemoveSystemToken}
-                disabled={savingSystem}
-                className="text-[11px] text-customColor19 hover:opacity-80"
-              >
-                {t('remove', 'Remover')}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-[8px]">
-            <textarea
-              className="w-full bg-newBgColorInner border border-newTableBorder rounded-[8px] text-[12px] text-textColor px-[12px] py-[10px] outline-none resize-none font-mono"
-              rows={3}
-              placeholder={t(
-                'meta_system_user_token_placeholder',
-                'Cole o System User Access Token aqui (comeca com EAA...)'
-              )}
-              value={systemInput}
-              onChange={(e) => setSystemInput(e.target.value)}
-            />
-            <div className="flex items-center justify-between">
-              <a
-                href="https://business.facebook.com/settings/system-users"
-                target="_blank"
-                rel="noopener noreferrer"
-                className="text-[11px] text-customColor18 underline hover:font-bold"
-              >
-                {t(
-                  'meta_system_user_token_how_to',
-                  'Como gerar no Business Manager →'
-                )}
-              </a>
-              <button
-                type="button"
-                onClick={handleSaveSystemToken}
-                disabled={!systemInput.trim() || savingSystem}
-                className="rounded-[4px] bg-btnPrimary px-[14px] py-[6px] text-[12px] text-white hover:opacity-80 disabled:opacity-50"
-              >
-                {savingSystem
-                  ? t('validating', 'Validando...')
-                  : t('validate_and_save', 'Validar e salvar')}
-              </button>
-            </div>
-          </div>
-        )}
-      </div>
-
-      {/* ============ Bloco B — Per-account IG User Tokens ============ */}
-      <div className="border border-fifth rounded-[8px] p-[14px] flex flex-col gap-[10px]">
-        <div>
-          <div className="text-[13px] font-[600] text-textColor">
-            {t('meta_instagram_tokens_label', 'Tokens por conta Instagram')}
-          </div>
-          <div className="text-[11px] text-customColor18 mt-[2px]">
-            {t(
-              'meta_instagram_tokens_hint',
-              'Alternativa ao System User. Gere um token por conta em Meta Developer Portal > Instagram API setup > Generate Token. Expira em 60 dias, renovado automaticamente a cada uso apos 24h.'
-            )}
-          </div>
-        </div>
-
-        {hasIgTokens ? (
+        {hasIgTokens && (
           <div className="flex flex-col gap-[6px]">
             {state!.instagramTokens.map((entry) => {
               const status = tokenStatus(entry.refreshedAt);
@@ -447,13 +334,13 @@ export const MessagingTokensSection: FC<Props> = ({ refreshKey = 0 }) => {
               return (
                 <div
                   key={entry.igUserId}
-                  className="flex items-center justify-between gap-[8px] px-[10px] py-[8px] rounded-[6px] border border-newTableBorder bg-newBgColorInner"
+                  className="flex items-center justify-between gap-[8px] px-[12px] py-[8px] rounded-[8px] border border-newTableBorder bg-newBgColorInner"
                 >
                   <div className="flex-1 min-w-0">
-                    <div className="text-[12px] text-textColor truncate">
+                    <div className="text-[13px] text-textColor truncate">
                       {entry.username ? `@${entry.username}` : entry.igUserId}
                     </div>
-                    <div className="text-[10px] text-customColor18">
+                    <div className="text-[11px] text-customColor18">
                       {t('refreshed', 'Renovado')}: {formatRelative(entry.refreshedAt)}
                     </div>
                   </div>
@@ -465,36 +352,11 @@ export const MessagingTokensSection: FC<Props> = ({ refreshKey = 0 }) => {
                 </div>
               );
             })}
-            <div className="flex items-center justify-between mt-[4px]">
-              <button
-                type="button"
-                onClick={() => setAdding(true)}
-                disabled={adding}
-                className="text-[11px] text-btnPrimary hover:opacity-80"
-              >
-                + {t('meta_instagram_tokens_add', 'Adicionar conta')}
-              </button>
-              <button
-                type="button"
-                onClick={handleClearAllIgTokens}
-                disabled={savingSystem}
-                className="text-[11px] text-customColor19 hover:opacity-80"
-              >
-                {t('meta_instagram_tokens_clear_all', 'Limpar todos')}
-              </button>
-            </div>
-          </div>
-        ) : (
-          <div className="text-[11px] text-customColor18">
-            {t(
-              'meta_instagram_tokens_empty',
-              'Nenhum token por conta configurado.'
-            )}
           </div>
         )}
 
-        {adding && (
-          <div className="flex flex-col gap-[8px] border-t border-fifth pt-[10px]">
+        {adding ? (
+          <div className="flex flex-col gap-[8px]">
             <textarea
               className="w-full bg-newBgColorInner border border-newTableBorder rounded-[8px] text-[12px] text-textColor px-[12px] py-[10px] outline-none resize-none font-mono"
               rows={3}
@@ -538,16 +400,111 @@ export const MessagingTokensSection: FC<Props> = ({ refreshKey = 0 }) => {
               </div>
             </div>
           </div>
+        ) : (
+          <div className="flex items-center gap-[12px]">
+            <button
+              type="button"
+              onClick={() => setAdding(true)}
+              className="text-[11px] text-btnPrimary hover:opacity-80"
+            >
+              + {t('meta_instagram_tokens_add', 'Adicionar conta')}
+            </button>
+            {hasIgTokens && (
+              <button
+                type="button"
+                onClick={handleClearAllIgTokens}
+                disabled={savingSystem}
+                className="text-[11px] text-customColor19 hover:opacity-80"
+              >
+                {t('meta_instagram_tokens_clear_all', 'Limpar todos')}
+              </button>
+            )}
+          </div>
         )}
+      </div>
 
-        {!hasIgTokens && !adding && (
-          <button
-            type="button"
-            onClick={() => setAdding(true)}
-            className="self-start rounded-[4px] border border-dashed border-fifth text-[12px] text-textColor px-[12px] py-[6px] hover:bg-boxHover"
-          >
-            + {t('meta_instagram_tokens_add', 'Adicionar conta')}
-          </button>
+      {/* ============ System User Token — alternativa ============ */}
+      <div className="flex flex-col gap-[8px] border-t border-fifth pt-[14px]">
+        <div className="flex items-center gap-[8px]">
+          <div className="text-[12px] font-[600] text-textColor">
+            {t(
+              'meta_system_user_token_label',
+              'Token Usuario do Sistema'
+            )}
+          </div>
+          <span className="inline-flex items-center rounded-full bg-fifth text-customColor18 px-[8px] py-[1px] text-[10px]">
+            {t('alternative', 'alternativa')}
+          </span>
+          {hasSystem && (
+            <span className="inline-flex items-center gap-[4px] rounded-full bg-customColor42/20 text-customColor42 px-[8px] py-[1px] text-[10px]">
+              <span className="w-[5px] h-[5px] rounded-full bg-customColor42 inline-block" />
+              {t('token_valid', 'Token valido')}
+            </span>
+          )}
+        </div>
+        <div className="text-[11px] text-customColor18 leading-[1.4]">
+          {t(
+            'meta_system_user_token_hint',
+            'Gere em Business Settings > System Users. Nao expira. Adicione o usuario ao Instagram que deseja utilizar.'
+          )}
+        </div>
+
+        {hasSystem && state?.systemTokenInfo ? (
+          <div className="flex flex-col gap-[4px] text-[12px] text-customColor18">
+            <div>
+              <span className="text-textColor font-[500]">
+                {state.systemTokenInfo.businessName ||
+                  t('business_manager', 'Business Manager')}
+              </span>
+              {' · '}
+              {state.systemTokenInfo.pages.length}{' '}
+              {t('connected_accounts', 'contas conectadas')}
+            </div>
+            <button
+              type="button"
+              onClick={handleRemoveSystemToken}
+              disabled={savingSystem}
+              className="self-start text-[11px] text-customColor19 hover:opacity-80"
+            >
+              {t('remove', 'Remover')}
+            </button>
+          </div>
+        ) : (
+          <div className="flex flex-col gap-[8px]">
+            <textarea
+              className="w-full bg-newBgColorInner border border-newTableBorder rounded-[8px] text-[12px] text-textColor px-[12px] py-[10px] outline-none resize-none font-mono"
+              rows={3}
+              placeholder={t(
+                'meta_system_user_token_placeholder',
+                'Cole o System User Access Token aqui (comeca com EAA...)'
+              )}
+              value={systemInput}
+              onChange={(e) => setSystemInput(e.target.value)}
+            />
+            <div className="flex items-center justify-between">
+              <a
+                href="https://business.facebook.com/settings/system-users"
+                target="_blank"
+                rel="noopener noreferrer"
+                className="text-[11px] text-customColor18 underline hover:font-bold"
+              >
+                {t(
+                  'meta_system_user_token_how_to',
+                  'Como gerar no Business Manager →'
+                )}
+              </a>
+              <button
+                type="button"
+                onClick={handleSaveSystemToken}
+                disabled={!systemInput.trim() || savingSystem}
+                className="rounded-[4px] bg-btnPrimary px-[12px] py-[6px] text-[11px] text-white hover:opacity-80 disabled:opacity-50"
+              >
+                {savingSystem
+                  ? t('validating', 'Validando...')
+                  : t('validate_and_save', 'Validar e salvar')}
+              </button>
+            </div>
+          </div>
         )}
       </div>
     </div>
