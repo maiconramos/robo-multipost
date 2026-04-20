@@ -21,6 +21,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Flow Builder (canvas) agora expoe todos os modos de gatilho: seletor de tipo (Comentario em publicacao vs Resposta ao story), modos `Todos os posts`/`Proxima publicacao`/`Posts especificos` para comentarios e `Qualquer story`/`Proximo story`/`Story especifico` para stories, alem de toggles de reacoes e pedido de follow. O no TRIGGER passa a mostrar o texto correto para cada combinacao e o label do node e sincronizado com o triggerType ao salvar o canvas, mantendo o filtro do webhook consistente.
 - Suporte a desenvolvimento local com dominio HTTPS proprio via Cloudflare Tunnel: `next.config.js` agora le `FRONTEND_URL` e `NEXT_PUBLIC_BACKEND_URL` do `.env` e libera os hosts em `allowedDevOrigins` automaticamente, permitindo rodar `pnpm dev` apontando OAuth callbacks pra um subdominio estavel sem precisar publicar imagens Docker a cada teste de integracao com Meta/Google/TikTok/etc.
 
+### Documentacao
+- Dossie de proposta da feature de repost automatico de stories do Instagram (inspirada em Repurpose.io / Repostify): monitora stories publicados diretamente no app do Instagram e reposta em TikTok (nativo + Late) e YouTube Shorts, com interface de 2 colunas (origem/destinos) integrada em Automacoes, polling Temporal com short-circuit para respeitar rate limits da Graph API, modelo Prisma generico preparado para expansao a Reels/Feed, edge cases (musica licenciada, janela de 24h, stickers interativos, carrosseis) e perguntas em aberto. Nenhuma implementacao ainda — apenas documentacao em `docs/architecture/instagram-story-repurpose.md`
+
 ### Upstream
 - Sincronizado com Postiz upstream ate commit `e3b3b82f` (2026-04-10, 24 commits)
 - Instagram: melhor tratamento de erros, fix de refresh token e recuperacao de sessao invalidada
