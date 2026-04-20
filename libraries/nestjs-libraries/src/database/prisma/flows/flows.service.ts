@@ -775,6 +775,7 @@ export class FlowsService {
               {
                 executionId: execution.id,
                 flowId: flow.id,
+                triggerType: 'comment_on_post',
                 igCommentId: payload.igCommentId,
                 igCommenterId: payload.igCommenterId,
                 igCommenterName: payload.igCommenterName,

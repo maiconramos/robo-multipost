@@ -136,20 +136,33 @@ export class FlowActivity {
     // row, so we can call the Graph API directly without requiring the user
     // to set up a separate messaging token. Story flows don't have that token
     // in hand so they fall back to the messaging service resolver.
+    let follows: boolean | null;
     if (source === 'comment' && integration.token) {
-      return this._instagramMessagingService.isFollowingByToken(
+      follows = await this._instagramMessagingService.isFollowingByToken(
         integration.token,
         igUserId
       );
+    } else {
+      follows = await this._instagramMessagingService.isUserFollowingBusiness({
+        organizationId: integration.organizationId,
+        profileId: integration.profileId || null,
+        igBusinessAccountId: integration.internalId,
+        recipientIgsid: igUserId,
+        integrationName: integration.name || undefined,
+      });
     }
 
-    return this._instagramMessagingService.isUserFollowingBusiness({
-      organizationId: integration.organizationId,
-      profileId: integration.profileId || null,
-      igBusinessAccountId: integration.internalId,
-      recipientIgsid: igUserId,
-      integrationName: integration.name || undefined,
-    });
+    // Null = Meta did not answer (common for commenters with no prior DM
+    // context). Behavior diverges by source:
+    //  - comment_on_post: user explicitly opted in to the follow gate, so
+    //    err on the side of sending the gate message. Followers might see
+    //    it by mistake, but non-followers reliably do. Trade-off accepted.
+    //  - story_reply: the messaging token normally has context, so errors
+    //    are unusual. Fail-open to avoid blocking legitimate flows.
+    if (follows === null) {
+      return source !== 'comment';
+    }
+    return follows;
   }
 
   @ActivityMethod()

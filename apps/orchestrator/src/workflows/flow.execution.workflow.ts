@@ -203,12 +203,21 @@ async function traverseNode(
             ? input.igSenderId
             : input.igCommenterId;
         if (senderId) {
+          const source =
+            input.triggerType === 'story_reply' ? 'story_reply' : 'comment';
           const follows = await checkIgFollowStatus(
             integrationId,
             orgId,
             senderId,
-            input.triggerType === 'story_reply' ? 'story_reply' : 'comment'
+            source
           );
+          await appendExecutionLog(input.executionId, {
+            nodeId,
+            nodeType: node.type,
+            status: 'follow_check',
+            timestamp: new Date().toISOString(),
+            error: `source=${source} follows=${follows}`,
+          });
           if (!follows) {
             const gateText = interpolateVariables(
               (triggerConfig.followGateMessage as string | undefined) ||

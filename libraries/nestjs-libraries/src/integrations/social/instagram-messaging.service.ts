@@ -129,7 +129,7 @@ export class InstagramMessagingService {
     igBusinessAccountId: string;
     recipientIgsid: string;
     integrationName?: string;
-  }): Promise<boolean> {
+  }): Promise<boolean | null> {
     const state = await this.loadState(params.organizationId, params.profileId);
 
     let baseUrl: string;
@@ -164,35 +164,48 @@ export class InstagramMessagingService {
    * Check follow status using an arbitrary token. Used by comment_on_post
    * flows which already have the Page Access Token on the integration row —
    * avoids requiring a messaging token setup for comment-only automations.
+   * Returns true/false when Meta answers, or null when the check is
+   * inconclusive (API error). The caller decides how to treat null.
    */
-  async isFollowingByToken(token: string, igsid: string): Promise<boolean> {
+  async isFollowingByToken(
+    token: string,
+    igsid: string
+  ): Promise<boolean | null> {
     return this.fetchFollowFlag(`${GRAPH_FB}/${igsid}`, token, igsid);
   }
 
+  /**
+   * Returns true/false when Meta responds, null when the call fails
+   * (network error or Graph API error). Null means "unknown" so the caller
+   * can choose fail-open or fail-closed semantics — the Messenger User
+   * Profile API errors for users without prior message context, so comment
+   * flows (where the commenter has not DMd yet) often land here.
+   */
   private async fetchFollowFlag(
     baseUrl: string,
     token: string,
     igsid: string
-  ): Promise<boolean> {
+  ): Promise<boolean | null> {
     try {
       const res = await fetch(
         `${baseUrl}?fields=is_user_follow_business&access_token=${encodeURIComponent(token)}`
       );
       const body = await res.json().catch(() => ({}));
       if (!res.ok || body.error) {
+        const detail = body?.error
+          ? JSON.stringify(body.error)
+          : `HTTP ${res.status}`;
         this._logger.warn(
-          `Follow check failed for IGSID=${igsid}: ${
-            body?.error?.message || `HTTP ${res.status}`
-          }. Falling back to allow DM.`
+          `Follow check inconclusive for IGSID=${igsid}: ${detail}`
         );
-        return true;
+        return null;
       }
       return body.is_user_follow_business === true;
     } catch (e: any) {
       this._logger.warn(
-        `Follow check threw for IGSID=${igsid}: ${e?.message || String(e)}. Falling back to allow DM.`
+        `Follow check threw for IGSID=${igsid}: ${e?.message || String(e)}`
       );
-      return true;
+      return null;
     }
   }
 
