@@ -1,5 +1,6 @@
 import {
   AuthTokenDetails,
+  ClientInformation,
   PostDetails,
   PostResponse,
   SocialProvider,
@@ -23,6 +24,8 @@ export class InstagramStandaloneProvider
 {
   identifier = 'instagram-standalone';
   name = 'Instagram\n(Standalone)';
+  toolTip =
+    'Recomendado. Login direto no Instagram — follow gate em automacoes funciona sem App Review.';
   isBetweenSteps = false;
   refreshCron = true;
   scopes = [
@@ -30,6 +33,7 @@ export class InstagramStandaloneProvider
     'instagram_business_content_publish',
     'instagram_business_manage_comments',
     'instagram_business_manage_insights',
+    'instagram_business_manage_messages',
   ];
     override maxConcurrentJob = 200; // Instagram standalone has stricter limits
   dto = InstagramDto;
@@ -77,13 +81,13 @@ export class InstagramStandaloneProvider
     };
   }
 
-  async generateAuthUrl() {
+  async generateAuthUrl(clientInformation?: ClientInformation) {
+    const clientId =
+      clientInformation?.client_id || process.env.INSTAGRAM_APP_ID;
     const state = makeId(6);
     return {
       url:
-        `https://www.instagram.com/oauth/authorize?enable_fb_login=0&client_id=${
-          process.env.INSTAGRAM_APP_ID
-        }&redirect_uri=${encodeURIComponent(
+        `https://www.instagram.com/oauth/authorize?enable_fb_login=0&client_id=${clientId}&redirect_uri=${encodeURIComponent(
           `${
             process?.env.FRONTEND_URL?.indexOf('https') == -1
               ? `https://redirectmeto.com/${process?.env.FRONTEND_URL}`
@@ -97,14 +101,22 @@ export class InstagramStandaloneProvider
     };
   }
 
-  async authenticate(params: {
-    code: string;
-    codeVerifier: string;
-    refresh: string;
-  }) {
+  async authenticate(
+    params: {
+      code: string;
+      codeVerifier: string;
+      refresh: string;
+    },
+    clientInformation?: ClientInformation
+  ) {
+    const clientId =
+      clientInformation?.client_id || process.env.INSTAGRAM_APP_ID!;
+    const clientSecret =
+      clientInformation?.client_secret || process.env.INSTAGRAM_APP_SECRET!;
+
     const formData = new FormData();
-    formData.append('client_id', process.env.INSTAGRAM_APP_ID!);
-    formData.append('client_secret', process.env.INSTAGRAM_APP_SECRET!);
+    formData.append('client_id', clientId);
+    formData.append('client_secret', clientSecret);
     formData.append('grant_type', 'authorization_code');
     formData.append(
       'redirect_uri',
@@ -127,8 +139,8 @@ export class InstagramStandaloneProvider
       await fetch(
         'https://graph.instagram.com/access_token' +
           '?grant_type=ig_exchange_token' +
-          `&client_id=${process.env.INSTAGRAM_APP_ID}` +
-          `&client_secret=${process.env.INSTAGRAM_APP_SECRET}` +
+          `&client_id=${clientId}` +
+          `&client_secret=${clientSecret}` +
           `&access_token=${getAccessToken.access_token}`
       )
     ).json();

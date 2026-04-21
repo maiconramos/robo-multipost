@@ -90,6 +90,13 @@ export const TriggerNode: FC<NodeProps> = memo(({ data, selected }) => {
           {t('trigger_keywords_label', 'Palavras-chave')}: {keywords.join(', ')}
         </p>
       )}
+      {config.requireFollow && (
+        <span
+          className="inline-block mt-[6px] text-[10px] px-[6px] py-[2px] rounded-[10px] border border-yellow-500/40 bg-yellow-500/10 text-yellow-200"
+        >
+          ⚠️ {t('trigger_node_follow_gate_badge', 'Pede para seguir')}
+        </span>
+      )}
       <Handle type="source" position={Position.Bottom} className="!bg-green-400" />
     </div>
   );

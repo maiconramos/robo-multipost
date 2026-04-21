@@ -1,6 +1,12 @@
 import { Injectable, BadRequestException, Logger } from '@nestjs/common';
 import { FlowsRepository } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.repository';
-import { FlowStatus, FlowNodeType, FlowExecutionStatus } from '@prisma/client';
+import {
+  FlowStatus,
+  FlowNodeType,
+  FlowExecutionStatus,
+  PendingPostback,
+  PendingPostbackStatus,
+} from '@prisma/client';
 import {
   CreateFlowDto,
   UpdateFlowDto,
@@ -15,6 +21,11 @@ import { TypedSearchAttributes } from '@temporalio/common';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
+import * as crypto from 'crypto';
+
+// Janela de 24h da Meta para trocar mensagens apos interacao do usuario.
+// Usamos 23h para dar margem de seguranca e nao tentar DM expirado.
+const POSTBACK_EXPIRATION_MS = 23 * 60 * 60 * 1000;
 
 @Injectable()
 export class FlowsService {
@@ -487,6 +498,21 @@ export class FlowsService {
     if (body.followGateMessage !== undefined) {
       triggerConfig.followGateMessage = body.followGateMessage;
     }
+    if (body.openingDmMessage !== undefined) {
+      triggerConfig.openingDmMessage = body.openingDmMessage;
+    }
+    if (body.openingDmButtonText !== undefined) {
+      triggerConfig.openingDmButtonText = body.openingDmButtonText;
+    }
+    if (body.alreadyFollowedButtonText !== undefined) {
+      triggerConfig.alreadyFollowedButtonText = body.alreadyFollowedButtonText;
+    }
+    if (body.gateExhaustedMessage !== undefined) {
+      triggerConfig.gateExhaustedMessage = body.gateExhaustedMessage;
+    }
+    if (body.maxGateAttempts !== undefined) {
+      triggerConfig.maxGateAttempts = body.maxGateAttempts;
+    }
 
     return triggerConfig;
   }
@@ -945,5 +971,213 @@ export class FlowsService {
     }
 
     return results;
+  }
+
+  // --- Follow-gate em 2 etapas (postback) ---
+
+  /**
+   * Gera um payload curto (<=23 chars) assinado com HMAC. Formato:
+   *   pb_<12 chars base64url>_<8 chars hex>
+   * O prefixo `pb_` permite filtrar trafico alheio no webhook sem fazer
+   * lookup no banco. O sufixo HMAC impede que um atacante externo forje
+   * payloads (ver verifyPostbackPayload).
+   */
+  private generatePostbackPayload(): { payload: string; payloadHmac: string } {
+    const shortId = crypto.randomBytes(9).toString('base64url'); // 12 chars
+    const secret = this.getPostbackSecret();
+    const hmac = crypto
+      .createHmac('sha256', secret)
+      .update(shortId)
+      .digest('hex')
+      .slice(0, 8);
+    return { payload: `pb_${shortId}_${hmac}`, payloadHmac: hmac };
+  }
+
+  /**
+   * Valida que o payload tem formato esperado e HMAC correto. Retorna false
+   * para formato invalido ou assinatura inconsistente. Usa comparacao de tempo
+   * constante para evitar leak via timing.
+   */
+  private verifyPostbackPayload(payload: string): boolean {
+    const match = payload.match(/^pb_([A-Za-z0-9_-]{12})_([a-f0-9]{8})$/);
+    if (!match) return false;
+    const [, shortId, providedHmac] = match;
+    const secret = this.getPostbackSecret();
+    const expectedHmac = crypto
+      .createHmac('sha256', secret)
+      .update(shortId)
+      .digest('hex')
+      .slice(0, 8);
+    try {
+      return crypto.timingSafeEqual(
+        Buffer.from(providedHmac),
+        Buffer.from(expectedHmac)
+      );
+    } catch {
+      return false;
+    }
+  }
+
+  private getPostbackSecret(): string {
+    return (
+      process.env.POSTBACK_SIGNING_SECRET ||
+      process.env.FACEBOOK_APP_SECRET ||
+      'dev-only-fallback-postback-secret'
+    );
+  }
+
+  /**
+   * Cria um PendingPostback com payload assinado. Retorna a linha
+   * persistida para o caller usar o `payload` como botao e o `id`
+   * para referencia. Chamado pela activity `createPendingPostback`.
+   */
+  async createPendingPostback(input: {
+    flowId: string;
+    originExecutionId: string;
+    integrationId: string;
+    organizationId: string;
+    igSenderId: string;
+    igCommenterName?: string;
+    igMediaId?: string;
+    igCommentId?: string;
+    kind?: string;
+    attemptCount?: number;
+    maxAttempts?: number;
+    snapshotFinalDm?: string;
+    snapshotFinalBtnText?: string;
+    snapshotFinalBtnUrl?: string;
+    snapshotGateDm?: string;
+    snapshotAlreadyBtnText?: string;
+    snapshotExhaustedMessage?: string;
+    openingDmMessage?: string;
+    openingDmButtonText?: string;
+  }): Promise<PendingPostback> {
+    const { payload, payloadHmac } = this.generatePostbackPayload();
+    const expiresAt = new Date(Date.now() + POSTBACK_EXPIRATION_MS);
+    return this._flowsRepository.createPendingPostback({
+      ...input,
+      payload,
+      payloadHmac,
+      expiresAt,
+    });
+  }
+
+  getPendingPostback(id: string) {
+    return this._flowsRepository.findPostbackById(id);
+  }
+
+  consumePendingPostback(id: string) {
+    return this._flowsRepository.consumePostback(id);
+  }
+
+  abandonPendingPostback(id: string) {
+    return this._flowsRepository.abandonPostback(id);
+  }
+
+  incrementPostbackAttempt(id: string) {
+    return this._flowsRepository.incrementPostbackAttempt(id);
+  }
+
+  expirePendingPostbacks(now?: Date) {
+    return this._flowsRepository.expirePendingPostbacks(now);
+  }
+
+  /**
+   * Processa um clique no botao postback. Validacoes em ordem:
+   *   1. Formato/HMAC do payload (bloqueia spoofing externo)
+   *   2. Existencia no banco
+   *   3. Status = PENDING (nao foi consumido, abandonado ou expirado)
+   *   4. expiresAt > agora (janela Meta ainda aberta)
+   *   5. Dedupe de re-entrega pelo `metaMid` (update atomico)
+   * Se tudo ok, dispara o workflow `followGateResolveWorkflow` e retorna
+   * silenciosamente 200 OK para a Meta nao reenviar.
+   */
+  async handlePostbackClick(input: {
+    payload: string;
+    metaMid?: string;
+    senderIgsid: string;
+    igAccountId: string;
+  }): Promise<void> {
+    if (!input.payload.startsWith('pb_')) return;
+
+    if (!this.verifyPostbackPayload(input.payload)) {
+      this._logger.warn(
+        `Postback with invalid HMAC received from sender=${input.senderIgsid}: ${input.payload}`
+      );
+      return;
+    }
+
+    const pending = await this._flowsRepository.findPostbackByPayload(
+      input.payload
+    );
+    if (!pending) {
+      this._logger.warn(
+        `Postback payload has valid HMAC but no pending row found: ${input.payload}`
+      );
+      return;
+    }
+
+    if (pending.status !== PendingPostbackStatus.PENDING) {
+      this._logger.log(
+        `Postback ${pending.id} already in status ${pending.status}, ignoring click`
+      );
+      return;
+    }
+
+    if (pending.expiresAt.getTime() < Date.now()) {
+      this._logger.log(
+        `Postback ${pending.id} expired at ${pending.expiresAt.toISOString()}, marking EXPIRED`
+      );
+      await this._flowsRepository.expirePendingPostbacks();
+      return;
+    }
+
+    // Dedupe webhook re-delivery by mid. When Meta retries the webhook, the
+    // same mid arrives twice; markMetaMidIfUnconsumed returns false on retry.
+    if (input.metaMid) {
+      const isFirst = await this._flowsRepository.markMetaMidIfUnconsumed(
+        input.payload,
+        input.metaMid
+      );
+      if (!isFirst) {
+        this._logger.log(
+          `Postback ${pending.id}: duplicate Meta delivery mid=${input.metaMid}, ignoring`
+        );
+        return;
+      }
+    }
+
+    const workflowId = `follow-gate-resolve-${pending.id}`;
+    try {
+      await this._temporalService.client
+        .getRawClient()
+        ?.workflow.start('followGateResolveWorkflow', {
+          workflowId,
+          taskQueue: 'main',
+          args: [{ pendingPostbackId: pending.id }],
+          typedSearchAttributes: new TypedSearchAttributes([
+            {
+              key: orgSearchAttr,
+              value: pending.organizationId,
+            },
+          ]),
+        });
+      this._logger.log(
+        `Postback ${pending.id}: dispatched ${workflowId} for execution ${pending.originExecutionId}`
+      );
+    } catch (err) {
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      // Workflow ID already running means Meta delivered the same click to
+      // a second worker before the mid dedupe caught it — safe to ignore.
+      if (msg.includes('WorkflowAlreadyStarted') || msg.includes('already started')) {
+        this._logger.log(
+          `Postback ${pending.id}: workflow ${workflowId} already running (expected on retry)`
+        );
+        return;
+      }
+      this._logger.warn(
+        `Postback ${pending.id}: failed to start resolve workflow: ${msg}`
+      );
+    }
   }
 }

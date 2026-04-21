@@ -5,7 +5,12 @@ jest.mock('@gitroom/nestjs-libraries/database/prisma/integrations/integration.se
 
 import { FlowsService } from '../flows.service';
 import { FlowsRepository } from '../flows.repository';
-import { FlowStatus, FlowNodeType, FlowExecutionStatus } from '@prisma/client';
+import {
+  FlowStatus,
+  FlowNodeType,
+  FlowExecutionStatus,
+  PendingPostbackStatus,
+} from '@prisma/client';
 import { BadRequestException } from '@nestjs/common';
 
 const mockRepository = {
@@ -24,6 +29,14 @@ const mockRepository = {
   getActiveFlowsForIntegration: jest.fn(),
   findPendingNextPublicationFlows: jest.fn(),
   bindFlowTriggerToMedia: jest.fn(),
+  createPendingPostback: jest.fn(),
+  findPostbackByPayload: jest.fn(),
+  findPostbackById: jest.fn(),
+  consumePostback: jest.fn(),
+  abandonPostback: jest.fn(),
+  incrementPostbackAttempt: jest.fn(),
+  markMetaMidIfUnconsumed: jest.fn(),
+  expirePendingPostbacks: jest.fn(),
 } as unknown as jest.Mocked<FlowsRepository>;
 
 const mockWorkflowStart = jest.fn().mockResolvedValue({ workflowId: 'wf-1' });
@@ -493,6 +506,231 @@ describe('FlowsService', () => {
       expect(await service.bindPendingFlowsToPost('', 'm')).toBe(0);
       expect(await service.bindPendingFlowsToPost('i', '')).toBe(0);
       expect(mockRepository.findPendingNextPublicationFlows).not.toHaveBeenCalled();
+    });
+  });
+
+  // --- Follow-gate postback handling ---
+
+  describe('createPendingPostback', () => {
+    it('generates a signed payload and persists via repository', async () => {
+      process.env.POSTBACK_SIGNING_SECRET = 'unit-test-secret';
+      mockRepository.createPendingPostback.mockImplementation(async (data: any) => ({
+        id: 'pb-1',
+        ...data,
+      }));
+
+      const row = await service.createPendingPostback({
+        flowId: 'flow-1',
+        originExecutionId: 'exec-1',
+        integrationId: 'int-1',
+        organizationId: 'org-1',
+        igSenderId: 'sender-1',
+      });
+
+      expect(mockRepository.createPendingPostback).toHaveBeenCalledTimes(1);
+      const arg = mockRepository.createPendingPostback.mock.calls[0][0] as any;
+      expect(arg.payload).toMatch(/^pb_[A-Za-z0-9_-]{12}_[a-f0-9]{8}$/);
+      expect(arg.payloadHmac).toHaveLength(8);
+      expect(arg.expiresAt).toBeInstanceOf(Date);
+      // expires ~23h in the future (tolerate a couple seconds of drift)
+      const deltaMs = arg.expiresAt.getTime() - Date.now();
+      expect(deltaMs).toBeGreaterThan(22 * 60 * 60 * 1000);
+      expect(deltaMs).toBeLessThanOrEqual(23 * 60 * 60 * 1000 + 5000);
+      expect((row as any).payload).toBe(arg.payload);
+    });
+
+    it('generated payload passes verifyPostbackPayload (round-trip)', async () => {
+      process.env.POSTBACK_SIGNING_SECRET = 'unit-test-secret';
+      mockRepository.createPendingPostback.mockImplementation(async (data: any) => ({
+        id: 'pb-1',
+        ...data,
+      }));
+
+      await service.createPendingPostback({
+        flowId: 'flow-1',
+        originExecutionId: 'exec-1',
+        integrationId: 'int-1',
+        organizationId: 'org-1',
+        igSenderId: 'sender-1',
+      });
+      const { payload } = mockRepository.createPendingPostback.mock.calls[0][0] as any;
+
+      const handled = await service.handlePostbackClick({
+        payload,
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+      // handlePostbackClick with no matching row logs warn but does not throw
+      expect(handled).toBeUndefined();
+      expect(mockRepository.findPostbackByPayload).toHaveBeenCalledWith(payload);
+    });
+  });
+
+  describe('handlePostbackClick', () => {
+    beforeEach(() => {
+      process.env.POSTBACK_SIGNING_SECRET = 'unit-test-secret';
+    });
+
+    const makeValidPayload = () => {
+      const crypto = require('crypto');
+      const shortId = crypto.randomBytes(9).toString('base64url');
+      const hmac = crypto
+        .createHmac('sha256', 'unit-test-secret')
+        .update(shortId)
+        .digest('hex')
+        .slice(0, 8);
+      return `pb_${shortId}_${hmac}`;
+    };
+
+    it('ignores payloads without the pb_ prefix (outside traffic)', async () => {
+      await service.handlePostbackClick({
+        payload: 'GET_STARTED',
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+      expect(mockRepository.findPostbackByPayload).not.toHaveBeenCalled();
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+    });
+
+    it('ignores payloads with invalid HMAC (spoofing attempt)', async () => {
+      await service.handlePostbackClick({
+        payload: 'pb_abcdefghijkl_deadbeef',
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+      expect(mockRepository.findPostbackByPayload).not.toHaveBeenCalled();
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+    });
+
+    it('no-ops when the pending row does not exist', async () => {
+      const payload = makeValidPayload();
+      mockRepository.findPostbackByPayload.mockResolvedValue(null);
+
+      await service.handlePostbackClick({
+        payload,
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+
+      expect(mockRepository.findPostbackByPayload).toHaveBeenCalledWith(payload);
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+    });
+
+    it('no-ops when the pending row is not PENDING', async () => {
+      const payload = makeValidPayload();
+      mockRepository.findPostbackByPayload.mockResolvedValue({
+        id: 'pb-1',
+        status: PendingPostbackStatus.CONSUMED,
+        expiresAt: new Date(Date.now() + 60_000),
+        organizationId: 'org-1',
+        originExecutionId: 'exec-1',
+      } as any);
+
+      await service.handlePostbackClick({
+        payload,
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+    });
+
+    it('marks expired rows and skips dispatch when past expiresAt', async () => {
+      const payload = makeValidPayload();
+      mockRepository.findPostbackByPayload.mockResolvedValue({
+        id: 'pb-1',
+        status: PendingPostbackStatus.PENDING,
+        expiresAt: new Date(Date.now() - 60_000),
+        organizationId: 'org-1',
+        originExecutionId: 'exec-1',
+      } as any);
+      mockRepository.expirePendingPostbacks.mockResolvedValue(1);
+
+      await service.handlePostbackClick({
+        payload,
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+
+      expect(mockRepository.expirePendingPostbacks).toHaveBeenCalledTimes(1);
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+    });
+
+    it('dedupes by metaMid: duplicate delivery is a no-op', async () => {
+      const payload = makeValidPayload();
+      mockRepository.findPostbackByPayload.mockResolvedValue({
+        id: 'pb-1',
+        status: PendingPostbackStatus.PENDING,
+        expiresAt: new Date(Date.now() + 60_000),
+        organizationId: 'org-1',
+        originExecutionId: 'exec-1',
+      } as any);
+      mockRepository.markMetaMidIfUnconsumed.mockResolvedValue(false);
+
+      await service.handlePostbackClick({
+        payload,
+        metaMid: 'mid-dup',
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+
+      expect(mockRepository.markMetaMidIfUnconsumed).toHaveBeenCalledWith(
+        payload,
+        'mid-dup'
+      );
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+    });
+
+    it('dispatches followGateResolveWorkflow on the happy path', async () => {
+      const payload = makeValidPayload();
+      mockRepository.findPostbackByPayload.mockResolvedValue({
+        id: 'pb-1',
+        status: PendingPostbackStatus.PENDING,
+        expiresAt: new Date(Date.now() + 60_000),
+        organizationId: 'org-1',
+        originExecutionId: 'exec-1',
+      } as any);
+      mockRepository.markMetaMidIfUnconsumed.mockResolvedValue(true);
+
+      await service.handlePostbackClick({
+        payload,
+        metaMid: 'mid-first',
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+
+      expect(mockWorkflowStart).toHaveBeenCalledWith(
+        'followGateResolveWorkflow',
+        expect.objectContaining({
+          workflowId: 'follow-gate-resolve-pb-1',
+          taskQueue: 'main',
+          args: [{ pendingPostbackId: 'pb-1' }],
+        })
+      );
+    });
+
+    it('swallows WorkflowAlreadyStarted errors (concurrent retry)', async () => {
+      const payload = makeValidPayload();
+      mockRepository.findPostbackByPayload.mockResolvedValue({
+        id: 'pb-1',
+        status: PendingPostbackStatus.PENDING,
+        expiresAt: new Date(Date.now() + 60_000),
+        organizationId: 'org-1',
+        originExecutionId: 'exec-1',
+      } as any);
+      mockRepository.markMetaMidIfUnconsumed.mockResolvedValue(true);
+      mockWorkflowStart.mockRejectedValue(
+        new Error('WorkflowAlreadyStarted: duplicate')
+      );
+
+      await expect(
+        service.handlePostbackClick({
+          payload,
+          metaMid: 'mid-first',
+          senderIgsid: 'sender-1',
+          igAccountId: 'acct-1',
+        })
+      ).resolves.toBeUndefined();
     });
   });
 });

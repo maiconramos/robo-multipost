@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
+import { InstagramDmButton } from '@gitroom/nestjs-libraries/integrations/social/instagram-dm-button.type';
 
 const GRAPH_FB = 'https://graph.facebook.com/v25.0';
 const GRAPH_IG = 'https://graph.instagram.com/v25.0';
@@ -8,6 +9,23 @@ const GRAPH_IG_REFRESH = 'https://graph.instagram.com/refresh_access_token';
 const DAY = 86_400_000;
 const REFRESH_MIN_AGE = 1 * DAY;
 const REFRESH_MAX_AGE = 58 * DAY;
+
+// Converte o botao interno para o shape esperado pela Messenger API.
+// Postback trigga o webhook messaging_postbacks (usado no follow-gate).
+function renderButton(button: InstagramDmButton) {
+  if (button.kind === 'postback') {
+    return {
+      type: 'postback',
+      title: button.title.slice(0, 20),
+      payload: button.payload,
+    };
+  }
+  return {
+    type: 'web_url',
+    url: button.url,
+    title: button.title.slice(0, 20),
+  };
+}
 
 export interface IgMessagingTokenEntry {
   igUserId: string;
@@ -69,8 +87,7 @@ export class InstagramMessagingService {
     igBusinessAccountId: string;
     recipientIgsid: string;
     message: string;
-    buttonText?: string;
-    buttonUrl?: string;
+    button?: InstagramDmButton;
     integrationName?: string;
   }): Promise<void> {
     const state = await this.loadState(params.organizationId, params.profileId);
@@ -82,8 +99,7 @@ export class InstagramMessagingService {
         token: state.metaSystemUserToken,
         recipientIgsid: params.recipientIgsid,
         message: params.message,
-        buttonText: params.buttonText,
-        buttonUrl: params.buttonUrl,
+        button: params.button,
       });
       return;
     }
@@ -111,8 +127,7 @@ export class InstagramMessagingService {
       token: tokenToUse,
       recipientIgsid: params.recipientIgsid,
       message: params.message,
-      buttonText: params.buttonText,
-      buttonUrl: params.buttonUrl,
+      button: params.button,
     });
   }
 
@@ -166,20 +181,35 @@ export class InstagramMessagingService {
    * avoids requiring a messaging token setup for comment-only automations.
    * Returns true/false when Meta answers, or null when the check is
    * inconclusive (API error). The caller decides how to treat null.
+   *
+   * useInstagramGraph=true routes to graph.instagram.com with an IG User
+   * Token. Needed for Instagram Login API integrations (providerIdentifier
+   * = 'instagram-standalone') because Facebook Login's Page Access Token +
+   * graph.facebook.com path requires Advanced Access to instagram_manage_messages,
+   * which is unreachable for self-hosted student instances without App Review.
    */
   async isFollowingByToken(
     token: string,
-    igsid: string
+    igsid: string,
+    useInstagramGraph = false
   ): Promise<boolean | null> {
-    return this.fetchFollowFlag(`${GRAPH_FB}/${igsid}`, token, igsid);
+    const base = useInstagramGraph ? GRAPH_IG : GRAPH_FB;
+    return this.fetchFollowFlag(`${base}/${igsid}`, token, igsid);
   }
 
   /**
-   * Returns true/false when Meta responds, null when the call fails
-   * (network error or Graph API error). Null means "unknown" so the caller
-   * can choose fail-open or fail-closed semantics — the Messenger User
-   * Profile API errors for users without prior message context, so comment
-   * flows (where the commenter has not DMd yet) often land here.
+   * Returns:
+   *   true  -> Meta said the user follows the business
+   *   false -> Meta said explicitly the user does NOT follow
+   *   null  -> Inconclusive: HTTP error, Graph error, or the field is
+   *            simply absent from the response. The caller decides what
+   *            to do with null (e.g. fail-open for story_reply, fail-closed
+   *            for comment_on_post). The Messenger User Profile API
+   *            sometimes returns 200 with the field missing for users
+   *            without prior message context.
+   * The full response body is logged so we can diagnose production cases
+   * where a known follower gets interpreted as non-follower (Meta cache
+   * staleness, field gating, etc).
    */
   private async fetchFollowFlag(
     baseUrl: string,
@@ -194,13 +224,19 @@ export class InstagramMessagingService {
       if (!res.ok || body.error) {
         const detail = body?.error
           ? JSON.stringify(body.error)
-          : `HTTP ${res.status}`;
+          : `HTTP ${res.status} body=${JSON.stringify(body)}`;
         this._logger.warn(
-          `Follow check inconclusive for IGSID=${igsid}: ${detail}`
+          `Follow check error for IGSID=${igsid}: ${detail}`
         );
         return null;
       }
-      return body.is_user_follow_business === true;
+      const raw = body.is_user_follow_business;
+      if (raw === true) return true;
+      if (raw === false) return false;
+      this._logger.warn(
+        `Follow check field missing for IGSID=${igsid}: ${JSON.stringify(body)}`
+      );
+      return null;
     } catch (e: any) {
       this._logger.warn(
         `Follow check threw for IGSID=${igsid}: ${e?.message || String(e)}`
@@ -411,34 +447,92 @@ export class InstagramMessagingService {
     return body.access_token as string;
   }
 
+  /**
+   * Resolve um IG User Token cadastrado em Settings > Credenciais
+   * ("Tokens de messaging por conta") para a conta IG Business dada.
+   * Aplica lazy refresh quando o token esta proximo do vencimento.
+   *
+   * Usado pelo fluxo de comment_on_post em integrations conectadas via
+   * Facebook Login (providerIdentifier='instagram'): quando o workspace
+   * ja tem o IG User Token salvo, roteia a checagem de follow e o envio
+   * de DMs por graph.instagram.com, dispensando o App Review exigido
+   * pelo caminho graph.facebook.com com Page Access Token.
+   *
+   * Retorna null quando nao ha token cadastrado ou quando o refresh
+   * falha — o chamador decide o fallback.
+   */
+  async resolveIgUserToken(
+    organizationId: string,
+    profileId: string | null,
+    igBusinessAccountId: string
+  ): Promise<string | null> {
+    const state = await this.loadState(organizationId, profileId);
+    const entry = state.instagramTokens.find(
+      (t) => t.igUserId === igBusinessAccountId
+    );
+    if (!entry) return null;
+
+    try {
+      return await this.ensureFreshIgToken(
+        organizationId,
+        profileId,
+        state,
+        entry
+      );
+    } catch (e: any) {
+      this._logger.warn(
+        `resolveIgUserToken failed for igUserId=${igBusinessAccountId}: ${e?.message || String(e)}`
+      );
+      return null;
+    }
+  }
+
+  /**
+   * Envia uma DM diretamente com um token arbitrario, sem consultar o
+   * estado de credenciais de messaging. Usado por integrations conectadas
+   * via Instagram Login API (providerIdentifier='instagram-standalone'),
+   * onde o proprio integration.token ja e um IG User Token valido em
+   * graph.instagram.com/me/messages. Dispensa o setup extra de System
+   * User Token ou IG User Token em Settings > Credenciais para o fluxo
+   * de follow-gate em DMs pos-postback.
+   */
+  async sendDmWithToken(params: {
+    token: string;
+    recipientIgsid: string;
+    message: string;
+    button?: InstagramDmButton;
+    useInstagramGraph?: boolean;
+  }): Promise<void> {
+    const base = params.useInstagramGraph ? GRAPH_IG : GRAPH_FB;
+    await this.postDm({
+      baseUrl: `${base}/me/messages`,
+      token: params.token,
+      recipientIgsid: params.recipientIgsid,
+      message: params.message,
+      button: params.button,
+    });
+  }
+
   private async postDm(params: {
     baseUrl: string;
     token: string;
     recipientIgsid: string;
     message: string;
-    buttonText?: string;
-    buttonUrl?: string;
+    button?: InstagramDmButton;
   }): Promise<void> {
     const url = `${params.baseUrl}?access_token=${encodeURIComponent(params.token)}`;
 
     // Meta's button template caps text at 640 chars and button title at 20.
     // When a button is configured, send as an attachment template so the
     // CTA renders natively in Instagram. Otherwise fall back to plain text.
-    const hasButton = !!(params.buttonText && params.buttonUrl);
-    const messagePayload = hasButton
+    const messagePayload = params.button
       ? {
           attachment: {
             type: 'template',
             payload: {
               template_type: 'button',
               text: params.message.slice(0, 640),
-              buttons: [
-                {
-                  type: 'web_url',
-                  url: params.buttonUrl,
-                  title: (params.buttonText || '').slice(0, 20),
-                },
-              ],
+              buttons: [renderButton(params.button)],
             },
           },
         }

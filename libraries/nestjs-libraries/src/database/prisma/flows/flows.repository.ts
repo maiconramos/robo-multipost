@@ -1,6 +1,10 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
-import { FlowStatus, FlowExecutionStatus } from '@prisma/client';
+import {
+  FlowStatus,
+  FlowExecutionStatus,
+  PendingPostbackStatus,
+} from '@prisma/client';
 import { FlowNodeDto, FlowEdgeDto } from '@gitroom/nestjs-libraries/dtos/flows/flow.dto';
 
 @Injectable()
@@ -9,7 +13,8 @@ export class FlowsRepository {
     private _flow: PrismaRepository<'flow'>,
     private _flowNode: PrismaRepository<'flowNode'>,
     private _flowEdge: PrismaRepository<'flowEdge'>,
-    private _flowExecution: PrismaRepository<'flowExecution'>
+    private _flowExecution: PrismaRepository<'flowExecution'>,
+    private _pendingPostback: PrismaRepository<'pendingPostback'>
   ) {}
 
   getFlows(orgId: string, profileId?: string) {
@@ -377,5 +382,112 @@ export class FlowsRepository {
     });
 
     return true;
+  }
+
+  // --- Pending Postbacks (botões postback no fluxo de follow gate 2 etapas) ---
+
+  createPendingPostback(data: {
+    payload: string;
+    payloadHmac: string;
+    flowId: string;
+    originExecutionId: string;
+    integrationId: string;
+    organizationId: string;
+    igSenderId: string;
+    igCommenterName?: string;
+    igMediaId?: string;
+    igCommentId?: string;
+    kind?: string;
+    attemptCount?: number;
+    maxAttempts?: number;
+    snapshotFinalDm?: string;
+    snapshotFinalBtnText?: string;
+    snapshotFinalBtnUrl?: string;
+    snapshotGateDm?: string;
+    snapshotAlreadyBtnText?: string;
+    snapshotExhaustedMessage?: string;
+    openingDmMessage?: string;
+    openingDmButtonText?: string;
+    expiresAt: Date;
+  }) {
+    return this._pendingPostback.model.pendingPostback.create({ data });
+  }
+
+  findPostbackByPayload(payload: string) {
+    return this._pendingPostback.model.pendingPostback.findUnique({
+      where: { payload },
+    });
+  }
+
+  findPostbackById(id: string) {
+    return this._pendingPostback.model.pendingPostback.findUnique({
+      where: { id },
+    });
+  }
+
+  /**
+   * Marca o `consumedMetaMid` atomicamente. Retorna `true` se era a primeira
+   * entrega (e consumiu), `false` se outro processo ja marcou — protege contra
+   * re-entrega do webhook pela Meta. Nao altera o `status`: quem chama decide
+   * se o postback vai para CONSUMED/ABANDONED/etc.
+   */
+  async markMetaMidIfUnconsumed(
+    payload: string,
+    metaMid: string
+  ): Promise<boolean> {
+    const result = await this._pendingPostback.model.pendingPostback.updateMany(
+      {
+        where: { payload, consumedMetaMid: null },
+        data: { consumedMetaMid: metaMid },
+      }
+    );
+    return result.count > 0;
+  }
+
+  consumePostback(id: string) {
+    return this._pendingPostback.model.pendingPostback.update({
+      where: { id },
+      data: {
+        status: PendingPostbackStatus.CONSUMED,
+        consumedAt: new Date(),
+      },
+    });
+  }
+
+  abandonPostback(id: string) {
+    return this._pendingPostback.model.pendingPostback.update({
+      where: { id },
+      data: {
+        status: PendingPostbackStatus.ABANDONED,
+        consumedAt: new Date(),
+      },
+    });
+  }
+
+  incrementPostbackAttempt(id: string) {
+    return this._pendingPostback.model.pendingPostback.update({
+      where: { id },
+      data: { attemptCount: { increment: 1 } },
+    });
+  }
+
+  /**
+   * Marca todos os postbacks com `expiresAt < now AND status=PENDING` como
+   * EXPIRED. Usado por uma activity periodica do Temporal.
+   */
+  async expirePendingPostbacks(now: Date = new Date()): Promise<number> {
+    const result = await this._pendingPostback.model.pendingPostback.updateMany(
+      {
+        where: {
+          status: PendingPostbackStatus.PENDING,
+          expiresAt: { lt: now },
+        },
+        data: {
+          status: PendingPostbackStatus.EXPIRED,
+          consumedAt: now,
+        },
+      }
+    );
+    return result.count;
   }
 }

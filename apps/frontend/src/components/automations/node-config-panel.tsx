@@ -12,6 +12,17 @@ interface NodeConfigPanelProps {
   onClose: () => void;
 }
 
+// Mantidos em sync com os defaults do automation-wizard.component.tsx.
+const FOLLOW_GATE_DEFAULT_PT =
+  'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
+const OPENING_DM_DEFAULT_PT =
+  'Obrigado pelo interesse! Clique no botão abaixo para receber o link.';
+const OPENING_DM_BTN_DEFAULT_PT = 'Quero o link';
+const ALREADY_FOLLOWED_BTN_DEFAULT_PT = 'Já segui! 💙';
+const GATE_EXHAUSTED_DEFAULT_PT =
+  'Não consegui confirmar que você está seguindo. Tente novamente mais tarde 😉';
+const DEFAULT_MAX_GATE_ATTEMPTS = 3;
+
 interface InstagramPost {
   id: string;
   caption?: string;
@@ -381,7 +392,7 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
 
             {/* Story-only extras */}
             {triggerType === 'story_reply' && (
-              <div className="mt-[16px] flex flex-col gap-[8px]">
+              <div className="mt-[16px]">
                 <label className="flex items-center justify-between gap-[8px] p-[8px] rounded-[6px] border border-newTableBorder">
                   <span className="text-[12px] text-textColor">
                     {t('story_match_reactions', 'Responder reacoes nos stories')}
@@ -394,23 +405,248 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
                     }
                   />
                 </label>
-                <label className="flex items-center justify-between gap-[8px] p-[8px] rounded-[6px] border border-newTableBorder">
-                  <span className="text-[12px] text-textColor">
-                    {t(
-                      'story_require_follow',
-                      'Pedir para seguir antes de enviar'
-                    )}
-                  </span>
-                  <input
-                    type="checkbox"
-                    checked={!!config.requireFollow}
-                    onChange={(e) =>
-                      setConfig({ ...config, requireFollow: e.target.checked })
-                    }
-                  />
-                </label>
               </div>
             )}
+
+            {/* Follow gate — aplica a ambos os triggerTypes. Para comment_on_post
+                o gate usa fluxo de 2 etapas (DM inicial com botao postback).
+                Para story_reply o gate e reenviado junto com a resposta. */}
+            <div className="mt-[16px]">
+              <label className="flex items-center justify-between gap-[8px] p-[8px] rounded-[6px] border border-newTableBorder">
+                <span className="text-[12px] text-textColor">
+                  {t(
+                    'story_require_follow',
+                    'Pedir para seguir antes de enviar'
+                  )}
+                </span>
+                <input
+                  type="checkbox"
+                  checked={!!config.requireFollow}
+                  onChange={(e) =>
+                    setConfig({ ...config, requireFollow: e.target.checked })
+                  }
+                />
+              </label>
+
+              {!!config.requireFollow && triggerType === 'comment_on_post' && (
+                <div className="mt-[10px] rounded-[6px] border border-fifth p-[10px] flex flex-col gap-[12px]">
+                  <div className="rounded-[6px] border border-yellow-500/40 bg-yellow-500/10 p-[10px] flex flex-col gap-[6px]">
+                    <div className="text-[12px] font-semibold text-textColor">
+                      ⚠️{' '}
+                      {t(
+                        'follow_gate_warning_title',
+                        'Atenção: gate de follow em 2 etapas'
+                      )}
+                    </div>
+                    <ol className="list-decimal list-inside text-[11px] text-customColor18 space-y-[2px]">
+                      <li>
+                        {t(
+                          'follow_gate_warning_step_1',
+                          'Resposta pública no comentário'
+                        )}
+                      </li>
+                      <li>
+                        {t(
+                          'follow_gate_warning_step_2',
+                          'DM inicial com botão (abre janela de mensagens)'
+                        )}
+                      </li>
+                      <li>
+                        {t(
+                          'follow_gate_warning_step_3',
+                          'Verificação de follow após o clique'
+                        )}
+                      </li>
+                      <li>
+                        {t(
+                          'follow_gate_warning_step_4',
+                          'Envia o link ou convida a seguir'
+                        )}
+                      </li>
+                    </ol>
+                  </div>
+
+                  <div className="flex flex-col gap-[6px]">
+                    <label className="text-[11px] text-customColor18">
+                      {t(
+                        'follow_gate_opening_dm_label',
+                        'DM inicial (antes de checar follow)'
+                      )}
+                    </label>
+                    <textarea
+                      value={config.openingDmMessage || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          openingDmMessage: e.target.value,
+                        })
+                      }
+                      rows={2}
+                      placeholder={t(
+                        'follow_gate_opening_dm_placeholder',
+                        OPENING_DM_DEFAULT_PT
+                      )}
+                      className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-[6px]">
+                    <label className="text-[11px] text-customColor18">
+                      {t(
+                        'follow_gate_opening_btn_label',
+                        'Texto do botão inicial'
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      value={config.openingDmButtonText || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          openingDmButtonText: e.target.value,
+                        })
+                      }
+                      placeholder={t(
+                        'follow_gate_opening_btn_placeholder',
+                        OPENING_DM_BTN_DEFAULT_PT
+                      )}
+                      maxLength={20}
+                      className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-[6px]">
+                    <label className="text-[11px] text-customColor18">
+                      {t(
+                        'story_follow_gate_label',
+                        'Mensagem enviada para quem ainda não segue'
+                      )}
+                    </label>
+                    <textarea
+                      value={config.followGateMessage || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          followGateMessage: e.target.value,
+                        })
+                      }
+                      rows={3}
+                      placeholder={t(
+                        'story_follow_gate_placeholder',
+                        FOLLOW_GATE_DEFAULT_PT
+                      )}
+                      className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-[6px]">
+                    <label className="text-[11px] text-customColor18">
+                      {t(
+                        'follow_gate_already_btn_label',
+                        'Texto do botão "Já segui"'
+                      )}
+                    </label>
+                    <input
+                      type="text"
+                      value={config.alreadyFollowedButtonText || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          alreadyFollowedButtonText: e.target.value,
+                        })
+                      }
+                      placeholder={t(
+                        'follow_gate_already_btn_placeholder',
+                        ALREADY_FOLLOWED_BTN_DEFAULT_PT
+                      )}
+                      maxLength={20}
+                      className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-[6px]">
+                    <label className="text-[11px] text-customColor18">
+                      {t(
+                        'follow_gate_exhausted_label',
+                        'Mensagem quando tentativas esgotam'
+                      )}
+                    </label>
+                    <textarea
+                      value={config.gateExhaustedMessage || ''}
+                      onChange={(e) =>
+                        setConfig({
+                          ...config,
+                          gateExhaustedMessage: e.target.value,
+                        })
+                      }
+                      rows={2}
+                      placeholder={t(
+                        'follow_gate_exhausted_placeholder',
+                        GATE_EXHAUSTED_DEFAULT_PT
+                      )}
+                      className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                    />
+                  </div>
+
+                  <div className="flex flex-col gap-[6px]">
+                    <label className="text-[11px] text-customColor18">
+                      {t(
+                        'follow_gate_max_attempts_label',
+                        'Máximo de tentativas após "Já segui"'
+                      )}
+                    </label>
+                    <input
+                      type="number"
+                      min={1}
+                      max={10}
+                      value={config.maxGateAttempts ?? DEFAULT_MAX_GATE_ATTEMPTS}
+                      onChange={(e) => {
+                        const v = Number(e.target.value);
+                        setConfig({
+                          ...config,
+                          maxGateAttempts: Number.isFinite(v)
+                            ? Math.max(1, Math.min(10, Math.floor(v)))
+                            : DEFAULT_MAX_GATE_ATTEMPTS,
+                        });
+                      }}
+                      className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none"
+                    />
+                    <span className="text-[10px] text-customColor18">
+                      {t(
+                        'follow_gate_max_attempts_hint',
+                        'Evita loop infinito se a pessoa nunca seguir.'
+                      )}
+                    </span>
+                  </div>
+                </div>
+              )}
+
+              {!!config.requireFollow && triggerType === 'story_reply' && (
+                <div className="mt-[10px] rounded-[6px] border border-fifth p-[10px]">
+                  <label className="text-[11px] text-customColor18 block mb-[6px]">
+                    {t(
+                      'story_follow_gate_label',
+                      'Mensagem enviada para quem ainda não segue'
+                    )}
+                  </label>
+                  <textarea
+                    value={config.followGateMessage || ''}
+                    onChange={(e) =>
+                      setConfig({
+                        ...config,
+                        followGateMessage: e.target.value,
+                      })
+                    }
+                    rows={3}
+                    placeholder={t(
+                      'story_follow_gate_placeholder',
+                      FOLLOW_GATE_DEFAULT_PT
+                    )}
+                    className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                  />
+                </div>
+              )}
+            </div>
           </>
         );
       }
@@ -491,6 +727,60 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
                 'Use quebras de linha para separar paragrafos. A Meta permite apenas 1 mensagem direta por comentario.'
               )}
             </p>
+
+            {/* Button CTA — mesmo contrato do wizard (buttonText + buttonUrl). */}
+            <div className="mt-[16px] pt-[12px] border-t border-fifth flex flex-col gap-[10px]">
+              <label className="text-[12px] font-semibold text-textColor">
+                {t('dm_button_section', 'Botão na mensagem (opcional)')}
+              </label>
+
+              <div>
+                <label className="block text-[11px] text-customColor18 mb-[4px]">
+                  {t('dm_button_text_label', 'Texto do botão')}
+                </label>
+                <div className={inputWrapperClass}>
+                  <input
+                    type="text"
+                    className={`${inputClass} h-[40px]`}
+                    value={config.buttonText || ''}
+                    onChange={(e) =>
+                      setConfig({ ...config, buttonText: e.target.value })
+                    }
+                    placeholder={t(
+                      'dm_button_text_placeholder',
+                      'Acessar o link'
+                    )}
+                    maxLength={20}
+                  />
+                </div>
+                <p className="text-[10px] text-customColor18 mt-[4px]">
+                  {t('dm_button_text_hint', 'Meta limita a 20 caracteres.')}
+                </p>
+              </div>
+
+              <div>
+                <label className="block text-[11px] text-customColor18 mb-[4px]">
+                  {t('dm_button_url_label', 'URL do botão')}
+                </label>
+                <div className={inputWrapperClass}>
+                  <input
+                    type="url"
+                    className={`${inputClass} h-[40px]`}
+                    value={config.buttonUrl || ''}
+                    onChange={(e) =>
+                      setConfig({ ...config, buttonUrl: e.target.value })
+                    }
+                    placeholder="https://..."
+                  />
+                </div>
+                <p className="text-[10px] text-customColor18 mt-[4px]">
+                  {t(
+                    'dm_button_url_hint',
+                    'Preencha os dois campos para exibir o botão. Deixe vazio para enviar apenas texto.'
+                  )}
+                </p>
+              </div>
+            </div>
           </>
         );
 

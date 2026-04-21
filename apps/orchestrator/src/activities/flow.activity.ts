@@ -6,6 +6,26 @@ import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integ
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 import { FlowExecutionStatus } from '@prisma/client';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
+import type { InstagramDmButton } from '@gitroom/nestjs-libraries/integrations/social/instagram-dm-button.type';
+
+const GATE_FALLBACK_MESSAGE =
+  'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e clica no botão abaixo 💙';
+const GATE_EXHAUSTED_MESSAGE =
+  'Não consegui confirmar que você está seguindo. Tente novamente mais tarde 😉';
+
+// Integrations conectadas via Instagram Login API (graph.instagram.com + IG
+// User Token) devem rotear comentários/DMs/follow-check para graph.instagram.com,
+// pois o Page Access Token de Facebook Login não tem acesso Standard ao campo
+// is_user_follow_business nem ao endpoint de messaging. Standard Access no fluxo
+// de IG Login dispensa App Review — crítico para instâncias self-hosted de alunos.
+const IG_LOGIN_GRAPH = 'graph.instagram.com';
+const FB_LOGIN_GRAPH = 'graph.facebook.com';
+
+interface IgRoute {
+  token: string;
+  host: string;
+  useIgGraph: boolean;
+}
 
 @Injectable()
 @Activity()
@@ -16,6 +36,53 @@ export class FlowActivity {
     private _integrationManager: IntegrationManager,
     private _instagramMessagingService: InstagramMessagingService
   ) {}
+
+  /**
+   * Escolhe token + host da Meta Graph API para fluxos de comentario/DM
+   * privado em integrations IG.
+   *
+   * Prioridade:
+   *   1. integration conectada via Instagram Login API
+   *      (providerIdentifier='instagram-standalone'): usa o proprio
+   *      integration.token + graph.instagram.com.
+   *   2. integration conectada via Facebook Login ('instagram') MAS com
+   *      IG User Token cadastrado em Settings > Credenciais: usa esse
+   *      token + graph.instagram.com. Dispensa reconectar via Standalone
+   *      quando o aluno ja tem o token gerado direto no Meta Dashboard.
+   *   3. Fallback: integration.token (Page Access Token) +
+   *      graph.facebook.com. Funciona apenas com Advanced Access a
+   *      instagram_manage_messages / is_user_follow_business (App Review).
+   */
+  private async resolveIgRoute(integration: {
+    token: string;
+    providerIdentifier?: string | null;
+    organizationId: string;
+    profileId?: string | null;
+    internalId: string;
+  }): Promise<IgRoute> {
+    if (integration.providerIdentifier === 'instagram-standalone') {
+      return {
+        token: integration.token,
+        host: IG_LOGIN_GRAPH,
+        useIgGraph: true,
+      };
+    }
+
+    const igToken = await this._instagramMessagingService.resolveIgUserToken(
+      integration.organizationId,
+      integration.profileId || null,
+      integration.internalId
+    );
+    if (igToken) {
+      return { token: igToken, host: IG_LOGIN_GRAPH, useIgGraph: true };
+    }
+
+    return {
+      token: integration.token,
+      host: FB_LOGIN_GRAPH,
+      useIgGraph: false,
+    };
+  }
 
   @ActivityMethod()
   async getFlowWithNodes(flowId: string) {
@@ -43,8 +110,9 @@ export class FlowActivity {
       throw new Error('Instagram provider not found');
     }
 
+    const { token, host } = await this.resolveIgRoute(integration);
     // Threaded reply to the specific comment (not a new top-level comment on the media).
-    await provider.replyToComment(integration.token, commentId, message);
+    await provider.replyToComment(token, commentId, message, host);
   }
 
   @ActivityMethod()
@@ -70,17 +138,23 @@ export class FlowActivity {
       throw new Error('Instagram provider not found');
     }
 
+    const button =
+      buttonText && buttonUrl
+        ? ({ kind: 'url', title: buttonText, url: buttonUrl } as const)
+        : undefined;
+
+    const { token, host } = await this.resolveIgRoute(integration);
     // Always use private reply (recipient: { comment_id }).
     // This is the ONLY way to DM a commenter without advanced access
     // to instagram_manage_messages. Limited to ONE per comment, so the
     // workflow collects all DM messages and sends them combined here.
     await provider.sendPrivateReply(
-      integration.token,
+      token,
       integration.internalId,
       commentId,
       message,
-      buttonText,
-      buttonUrl
+      button,
+      host
     );
   }
 
@@ -101,6 +175,11 @@ export class FlowActivity {
       throw new Error(`Integration ${integrationId} not found`);
     }
 
+    const button =
+      buttonText && buttonUrl
+        ? ({ kind: 'url', title: buttonText, url: buttonUrl } as const)
+        : undefined;
+
     // Messaging uses a token configured in Settings > Credenciais (Meta
     // System User Token or per-account IG User Token), NOT the integration
     // token used for posting. The service resolves the right token, does
@@ -111,8 +190,7 @@ export class FlowActivity {
       igBusinessAccountId: integration.internalId,
       recipientIgsid: igScopedUserId,
       message,
-      buttonText,
-      buttonUrl,
+      button,
       integrationName: integration.name || undefined,
     });
   }
@@ -132,15 +210,17 @@ export class FlowActivity {
       return true;
     }
 
-    // Comment-based flows already hold a Page Access Token on the integration
-    // row, so we can call the Graph API directly without requiring the user
-    // to set up a separate messaging token. Story flows don't have that token
-    // in hand so they fall back to the messaging service resolver.
+    // Comment-based flows resolvem token via resolveIgRoute — prefere
+    // IG User Token (standalone OAuth ou cadastrado em Settings >
+    // Credenciais) sobre Page Access Token, ja que is_user_follow_business
+    // so tem Standard Access em graph.instagram.com.
     let follows: boolean | null;
     if (source === 'comment' && integration.token) {
+      const route = await this.resolveIgRoute(integration);
       follows = await this._instagramMessagingService.isFollowingByToken(
-        integration.token,
-        igUserId
+        route.token,
+        igUserId,
+        route.useIgGraph
       );
     } else {
       follows = await this._instagramMessagingService.isUserFollowingBusiness({
@@ -219,5 +299,262 @@ export class FlowActivity {
     entry: { nodeId: string; nodeType: string; status: string; timestamp: string; error?: string }
   ) {
     return this._flowsService.appendExecutionLog(executionId, entry);
+  }
+
+  // --- Follow-gate em 2 etapas (postback) ---
+
+  @ActivityMethod()
+  async createPendingPostback(input: {
+    flowId: string;
+    originExecutionId: string;
+    integrationId: string;
+    organizationId: string;
+    igSenderId: string;
+    igCommenterName?: string;
+    igMediaId?: string;
+    igCommentId?: string;
+    kind?: string;
+    attemptCount?: number;
+    maxAttempts?: number;
+    snapshotFinalDm?: string;
+    snapshotFinalBtnText?: string;
+    snapshotFinalBtnUrl?: string;
+    snapshotGateDm?: string;
+    snapshotAlreadyBtnText?: string;
+    snapshotExhaustedMessage?: string;
+    openingDmMessage?: string;
+    openingDmButtonText?: string;
+  }) {
+    return this._flowsService.createPendingPostback(input);
+  }
+
+  @ActivityMethod()
+  async getPendingPostback(id: string) {
+    return this._flowsService.getPendingPostback(id);
+  }
+
+  @ActivityMethod()
+  async consumePendingPostback(id: string) {
+    return this._flowsService.consumePendingPostback(id);
+  }
+
+  @ActivityMethod()
+  async expirePendingPostbacks() {
+    return this._flowsService.expirePendingPostbacks();
+  }
+
+  /**
+   * Envia a DM inicial ao comentarista com um botao postback. Usa
+   * private reply (recipient: { comment_id }) porque o usuario ainda
+   * nao abriu janela de messaging conosco. Unica oportunidade de DM
+   * para aquele commentId.
+   */
+  @ActivityMethod()
+  async sendOpeningDmWithPostback(pendingPostbackId: string) {
+    const pb = await this._flowsService.getPendingPostback(pendingPostbackId);
+    if (!pb) throw new Error(`PendingPostback ${pendingPostbackId} not found`);
+    if (!pb.igCommentId) {
+      throw new Error(
+        `PendingPostback ${pendingPostbackId} has no igCommentId — opening DM requires private reply`
+      );
+    }
+
+    const integration = await this._integrationService.getIntegrationById(
+      pb.organizationId,
+      pb.integrationId
+    );
+    if (!integration) {
+      throw new Error(`Integration ${pb.integrationId} not found`);
+    }
+
+    const provider = this._integrationManager.getSocialIntegration(
+      'instagram'
+    ) as unknown as InstagramProvider;
+    if (!provider) throw new Error('Instagram provider not found');
+
+    const message = pb.openingDmMessage?.trim() || GATE_FALLBACK_MESSAGE;
+    const button: InstagramDmButton = {
+      kind: 'postback',
+      title: pb.openingDmButtonText?.trim() || 'Quero o link',
+      payload: pb.payload,
+    };
+
+    const { token, host } = await this.resolveIgRoute(integration);
+    await provider.sendPrivateReply(
+      token,
+      integration.internalId,
+      pb.igCommentId,
+      message,
+      button,
+      host
+    );
+  }
+
+  /**
+   * Envia a DM final (link prometido) apos confirmacao de follow.
+   * Usa o messaging service porque o usuario ja abriu janela de 24h
+   * ao clicar no botao postback inicial — DM normal funciona dentro
+   * dessa janela. Requer messaging token configurado no workspace.
+   */
+  @ActivityMethod()
+  async sendFinalDm(pendingPostbackId: string) {
+    const pb = await this._flowsService.getPendingPostback(pendingPostbackId);
+    if (!pb) throw new Error(`PendingPostback ${pendingPostbackId} not found`);
+
+    const integration = await this._integrationService.getIntegrationById(
+      pb.organizationId,
+      pb.integrationId
+    );
+    if (!integration) {
+      throw new Error(`Integration ${pb.integrationId} not found`);
+    }
+
+    const message = pb.snapshotFinalDm?.trim();
+    if (!message) {
+      // Nothing to send — flow didn't configure a final DM. Just no-op.
+      return;
+    }
+
+    const button: InstagramDmButton | undefined =
+      pb.snapshotFinalBtnText && pb.snapshotFinalBtnUrl
+        ? {
+            kind: 'url',
+            title: pb.snapshotFinalBtnText,
+            url: pb.snapshotFinalBtnUrl,
+          }
+        : undefined;
+
+    // Integrations via Instagram Login API ja possuem IG User Token no
+    // integration.token — dispensa messaging token separado em Settings.
+    if (integration.providerIdentifier === 'instagram-standalone') {
+      await this._instagramMessagingService.sendDmWithToken({
+        token: integration.token,
+        recipientIgsid: pb.igSenderId,
+        message,
+        button,
+        useInstagramGraph: true,
+      });
+      return;
+    }
+
+    await this._instagramMessagingService.sendStoryReply({
+      organizationId: integration.organizationId,
+      profileId: integration.profileId || null,
+      igBusinessAccountId: integration.internalId,
+      recipientIgsid: pb.igSenderId,
+      message,
+      button,
+      integrationName: integration.name || undefined,
+    });
+  }
+
+  /**
+   * Quando o usuario clicou no botao postback mas a Meta confirmou que
+   * ele nao segue a conta. Dois modos:
+   *   exhausted=false: incrementa a tentativa, cria um NOVO PendingPostback
+   *     (kind='already_followed') com botao "Ja segui!" e envia o gate DM.
+   *   exhausted=true: envia mensagem final de desistencia sem botao e
+   *     abandona o pending atual.
+   */
+  @ActivityMethod()
+  async sendAlreadyFollowedGate(
+    pendingPostbackId: string,
+    opts: { exhausted: boolean }
+  ) {
+    const pb = await this._flowsService.getPendingPostback(pendingPostbackId);
+    if (!pb) throw new Error(`PendingPostback ${pendingPostbackId} not found`);
+
+    const integration = await this._integrationService.getIntegrationById(
+      pb.organizationId,
+      pb.integrationId
+    );
+    if (!integration) {
+      throw new Error(`Integration ${pb.integrationId} not found`);
+    }
+
+    const isStandalone =
+      integration.providerIdentifier === 'instagram-standalone';
+
+    if (opts.exhausted) {
+      // Apologetic message, no button. Avoids locking the user in a button
+      // loop when they'll never follow.
+      const exhaustedMessage =
+        pb.snapshotExhaustedMessage?.trim() || GATE_EXHAUSTED_MESSAGE;
+      if (isStandalone) {
+        await this._instagramMessagingService.sendDmWithToken({
+          token: integration.token,
+          recipientIgsid: pb.igSenderId,
+          message: exhaustedMessage,
+          useInstagramGraph: true,
+        });
+      } else {
+        await this._instagramMessagingService.sendStoryReply({
+          organizationId: integration.organizationId,
+          profileId: integration.profileId || null,
+          igBusinessAccountId: integration.internalId,
+          recipientIgsid: pb.igSenderId,
+          message: exhaustedMessage,
+          integrationName: integration.name || undefined,
+        });
+      }
+      return;
+    }
+
+    // Create a new pending (kind='already_followed') carrying forward the
+    // same snapshots so a future click resolves to the same final DM.
+    const newPending = await this._flowsService.createPendingPostback({
+      flowId: pb.flowId,
+      originExecutionId: pb.originExecutionId,
+      integrationId: pb.integrationId,
+      organizationId: pb.organizationId,
+      igSenderId: pb.igSenderId,
+      igCommenterName: pb.igCommenterName || undefined,
+      igMediaId: pb.igMediaId || undefined,
+      igCommentId: pb.igCommentId || undefined,
+      kind: 'already_followed',
+      attemptCount: pb.attemptCount + 1,
+      maxAttempts: pb.maxAttempts,
+      snapshotFinalDm: pb.snapshotFinalDm || undefined,
+      snapshotFinalBtnText: pb.snapshotFinalBtnText || undefined,
+      snapshotFinalBtnUrl: pb.snapshotFinalBtnUrl || undefined,
+      snapshotGateDm: pb.snapshotGateDm || undefined,
+      snapshotAlreadyBtnText: pb.snapshotAlreadyBtnText || undefined,
+      snapshotExhaustedMessage: pb.snapshotExhaustedMessage || undefined,
+      openingDmMessage: pb.openingDmMessage || undefined,
+      openingDmButtonText: pb.openingDmButtonText || undefined,
+    });
+
+    // Consume the current pending — it has served its purpose (this click)
+    // and the new pending carries the next attempt.
+    await this._flowsService.consumePendingPostback(pb.id);
+
+    const gateMessage =
+      pb.snapshotGateDm?.trim() || GATE_FALLBACK_MESSAGE;
+    const button: InstagramDmButton = {
+      kind: 'postback',
+      title: pb.snapshotAlreadyBtnText?.trim() || 'Ja segui!',
+      payload: newPending.payload,
+    };
+
+    if (isStandalone) {
+      await this._instagramMessagingService.sendDmWithToken({
+        token: integration.token,
+        recipientIgsid: pb.igSenderId,
+        message: gateMessage,
+        button,
+        useInstagramGraph: true,
+      });
+      return;
+    }
+
+    await this._instagramMessagingService.sendStoryReply({
+      organizationId: integration.organizationId,
+      profileId: integration.profileId || null,
+      igBusinessAccountId: integration.internalId,
+      recipientIgsid: pb.igSenderId,
+      message: gateMessage,
+      button,
+      integrationName: integration.name || undefined,
+    });
   }
 }

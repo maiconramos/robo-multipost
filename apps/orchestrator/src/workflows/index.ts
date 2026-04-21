@@ -7,3 +7,4 @@ export * from './send.email.workflow';
 export * from './refresh.token.workflow';
 export * from './streak.workflow';
 export * from './flow.execution.workflow';
+export * from './follow-gate-resolve.workflow';

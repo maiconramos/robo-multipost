@@ -13,6 +13,14 @@ import { AddLinkModal } from '@gitroom/frontend/components/automations/add-link-
 const FOLLOW_GATE_DEFAULT_PT =
   'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
 
+const OPENING_DM_DEFAULT_PT =
+  'Obrigado pelo interesse! Clique no botão abaixo para receber o link.';
+const OPENING_DM_BTN_DEFAULT_PT = 'Quero o link';
+const ALREADY_FOLLOWED_BTN_DEFAULT_PT = 'Já segui! 💙';
+const GATE_EXHAUSTED_DEFAULT_PT =
+  'Não consegui confirmar que você está seguindo. Tente novamente mais tarde 😉';
+const DEFAULT_MAX_GATE_ATTEMPTS = 3;
+
 interface Props {
   flowId?: string;
   initialFlow?: any;
@@ -69,6 +77,21 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
   const [followGateMessage, setFollowGateMessage] = useState(
     FOLLOW_GATE_DEFAULT_PT
   );
+  const [openingDmMessage, setOpeningDmMessage] = useState(
+    OPENING_DM_DEFAULT_PT
+  );
+  const [openingDmButtonText, setOpeningDmButtonText] = useState(
+    OPENING_DM_BTN_DEFAULT_PT
+  );
+  const [alreadyFollowedButtonText, setAlreadyFollowedButtonText] = useState(
+    ALREADY_FOLLOWED_BTN_DEFAULT_PT
+  );
+  const [gateExhaustedMessage, setGateExhaustedMessage] = useState(
+    GATE_EXHAUSTED_DEFAULT_PT
+  );
+  const [maxGateAttempts, setMaxGateAttempts] = useState(
+    DEFAULT_MAX_GATE_ATTEMPTS
+  );
   const [saving, setSaving] = useState(false);
   const [showAllPostsModal, setShowAllPostsModal] = useState(false);
   const [activePreviewTab, setActivePreviewTab] = useState<'post' | 'comments' | 'dm'>('post');
@@ -119,6 +142,21 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
     }
     if (typeof triggerCfg.followGateMessage === 'string') {
       setFollowGateMessage(triggerCfg.followGateMessage);
+    }
+    if (typeof triggerCfg.openingDmMessage === 'string') {
+      setOpeningDmMessage(triggerCfg.openingDmMessage);
+    }
+    if (typeof triggerCfg.openingDmButtonText === 'string') {
+      setOpeningDmButtonText(triggerCfg.openingDmButtonText);
+    }
+    if (typeof triggerCfg.alreadyFollowedButtonText === 'string') {
+      setAlreadyFollowedButtonText(triggerCfg.alreadyFollowedButtonText);
+    }
+    if (typeof triggerCfg.gateExhaustedMessage === 'string') {
+      setGateExhaustedMessage(triggerCfg.gateExhaustedMessage);
+    }
+    if (typeof triggerCfg.maxGateAttempts === 'number') {
+      setMaxGateAttempts(triggerCfg.maxGateAttempts);
     }
   }, [initialFlow]);
 
@@ -198,7 +236,9 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
   const canSave =
     !!name.trim() &&
     !!integrationId &&
-    ((enableReply && replyMessages.some(m => m.trim())) || dmMessage.trim().length > 0);
+    ((enableReply && replyMessages.some(m => m.trim())) || dmMessage.trim().length > 0) &&
+    (!requireFollow ||
+      (openingDmMessage.trim().length > 0 && openingDmButtonText.trim().length > 0));
 
   const handleSave = useCallback(async () => {
     if (!canSave) return;
@@ -232,6 +272,22 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
       if (requireFollow && followGateMessage.trim()) {
         body.followGateMessage = followGateMessage.trim();
       }
+      if (requireFollow) {
+        if (openingDmMessage.trim()) {
+          body.openingDmMessage = openingDmMessage.trim();
+        }
+        if (openingDmButtonText.trim()) {
+          body.openingDmButtonText = openingDmButtonText.trim();
+        }
+        if (alreadyFollowedButtonText.trim()) {
+          body.alreadyFollowedButtonText = alreadyFollowedButtonText.trim();
+        }
+        if (gateExhaustedMessage.trim()) {
+          body.gateExhaustedMessage = gateExhaustedMessage.trim();
+        }
+        const clampedAttempts = Math.max(1, Math.min(10, Math.floor(maxGateAttempts) || DEFAULT_MAX_GATE_ATTEMPTS));
+        body.maxGateAttempts = clampedAttempts;
+      }
 
       const url = isEditing ? `/flows/${flowId}/quick-update` : '/flows/quick-create';
       const method = isEditing ? 'PUT' : 'POST';
@@ -262,6 +318,7 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
     keywordMode, keywords, matchMode, enableReply, replyMessages,
     enableDm, dmMessage, dmButtonText, dmButtonUrl,
     requireFollow, followGateMessage,
+    openingDmMessage, openingDmButtonText, alreadyFollowedButtonText, gateExhaustedMessage, maxGateAttempts,
     isEditing, flowId, fetchApi, router, toaster, t,
   ]);
 
@@ -614,23 +671,164 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
                   />
                 </label>
                 {requireFollow && (
-                  <div className="border-t border-fifth p-[10px] flex flex-col gap-[6px]">
-                    <label className="text-[11px] text-customColor18">
-                      {t(
-                        'story_follow_gate_label',
-                        'Mensagem enviada para quem ainda não segue'
-                      )}
-                    </label>
-                    <textarea
-                      value={followGateMessage}
-                      onChange={(e) => setFollowGateMessage(e.target.value)}
-                      rows={3}
-                      placeholder={t(
-                        'story_follow_gate_placeholder',
-                        FOLLOW_GATE_DEFAULT_PT
-                      )}
-                      className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
-                    />
+                  <div className="border-t border-fifth p-[10px] flex flex-col gap-[12px]">
+                    <div className="rounded-[6px] border border-yellow-500/40 bg-yellow-500/10 p-[10px] flex flex-col gap-[6px]">
+                      <div className="text-[12px] font-semibold text-textColor">
+                        ⚠️ {t(
+                          'follow_gate_warning_title',
+                          'Atenção: gate de follow em 2 etapas'
+                        )}
+                      </div>
+                      <ol className="list-decimal list-inside text-[11px] text-customColor18 space-y-[2px]">
+                        <li>
+                          {t(
+                            'follow_gate_warning_step_1',
+                            'Resposta pública no comentário'
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            'follow_gate_warning_step_2',
+                            'DM inicial com botão (abre janela de mensagens)'
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            'follow_gate_warning_step_3',
+                            'Verificação de follow após o clique'
+                          )}
+                        </li>
+                        <li>
+                          {t(
+                            'follow_gate_warning_step_4',
+                            'Envia o link ou convida a seguir'
+                          )}
+                        </li>
+                      </ol>
+                    </div>
+
+                    <div className="flex flex-col gap-[6px]">
+                      <label className="text-[11px] text-customColor18">
+                        {t(
+                          'follow_gate_opening_dm_label',
+                          'DM inicial (antes de checar follow)'
+                        )}
+                      </label>
+                      <textarea
+                        value={openingDmMessage}
+                        onChange={(e) => setOpeningDmMessage(e.target.value)}
+                        rows={2}
+                        placeholder={t(
+                          'follow_gate_opening_dm_placeholder',
+                          OPENING_DM_DEFAULT_PT
+                        )}
+                        className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-[6px]">
+                      <label className="text-[11px] text-customColor18">
+                        {t(
+                          'follow_gate_opening_btn_label',
+                          'Texto do botão inicial'
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        value={openingDmButtonText}
+                        onChange={(e) => setOpeningDmButtonText(e.target.value)}
+                        placeholder={t(
+                          'follow_gate_opening_btn_placeholder',
+                          OPENING_DM_BTN_DEFAULT_PT
+                        )}
+                        maxLength={20}
+                        className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-[6px]">
+                      <label className="text-[11px] text-customColor18">
+                        {t(
+                          'story_follow_gate_label',
+                          'Mensagem enviada para quem ainda não segue'
+                        )}
+                      </label>
+                      <textarea
+                        value={followGateMessage}
+                        onChange={(e) => setFollowGateMessage(e.target.value)}
+                        rows={3}
+                        placeholder={t(
+                          'story_follow_gate_placeholder',
+                          FOLLOW_GATE_DEFAULT_PT
+                        )}
+                        className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-[6px]">
+                      <label className="text-[11px] text-customColor18">
+                        {t(
+                          'follow_gate_already_btn_label',
+                          'Texto do botão "Já segui"'
+                        )}
+                      </label>
+                      <input
+                        type="text"
+                        value={alreadyFollowedButtonText}
+                        onChange={(e) => setAlreadyFollowedButtonText(e.target.value)}
+                        placeholder={t(
+                          'follow_gate_already_btn_placeholder',
+                          ALREADY_FOLLOWED_BTN_DEFAULT_PT
+                        )}
+                        maxLength={20}
+                        className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-[6px]">
+                      <label className="text-[11px] text-customColor18">
+                        {t(
+                          'follow_gate_exhausted_label',
+                          'Mensagem quando tentativas esgotam'
+                        )}
+                      </label>
+                      <textarea
+                        value={gateExhaustedMessage}
+                        onChange={(e) => setGateExhaustedMessage(e.target.value)}
+                        rows={2}
+                        placeholder={t(
+                          'follow_gate_exhausted_placeholder',
+                          GATE_EXHAUSTED_DEFAULT_PT
+                        )}
+                        className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                      />
+                    </div>
+
+                    <div className="flex flex-col gap-[6px]">
+                      <label className="text-[11px] text-customColor18">
+                        {t(
+                          'follow_gate_max_attempts_label',
+                          'Máximo de tentativas após "Já segui"'
+                        )}
+                      </label>
+                      <input
+                        type="number"
+                        min={1}
+                        max={10}
+                        value={maxGateAttempts}
+                        onChange={(e) => {
+                          const v = Number(e.target.value);
+                          setMaxGateAttempts(Number.isFinite(v) ? v : DEFAULT_MAX_GATE_ATTEMPTS);
+                        }}
+                        className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none"
+                      />
+                      <span className="text-[10px] text-customColor18">
+                        {t(
+                          'follow_gate_max_attempts_hint',
+                          'Evita loop infinito se a pessoa nunca seguir.'
+                        )}
+                      </span>
+                    </div>
                   </div>
                 )}
               </div>

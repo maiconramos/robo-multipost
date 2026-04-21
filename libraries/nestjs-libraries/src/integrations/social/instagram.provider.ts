@@ -13,6 +13,24 @@ import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.ab
 import { InstagramDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 import { Integration } from '@prisma/client';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
+import { InstagramDmButton } from '@gitroom/nestjs-libraries/integrations/social/instagram-dm-button.type';
+
+// Traduz o botao interno para o formato de botao da Meta Messenger API.
+// Meta limita o title do botao a 20 chars; trimming garante envio valido.
+function buildButton(button: InstagramDmButton) {
+  if (button.kind === 'postback') {
+    return {
+      type: 'postback',
+      title: button.title.slice(0, 20),
+      payload: button.payload,
+    };
+  }
+  return {
+    type: 'web_url',
+    url: button.url,
+    title: button.title.slice(0, 20),
+  };
+}
 
 @Rules(
   "Instagram should have at least one attachment, if it's a story, it can have only one picture"
@@ -938,21 +956,17 @@ export class InstagramProvider
   async sendDM(
     accessToken: string,
     igScopedUserId: string,
-    message: string
+    message: string,
+    type = 'graph.facebook.com'
   ): Promise<{ recipientId: string; messageId: string }> {
-    // Resolve Page ID from the token (same approach as sendPrivateReply)
-    const meRes = await fetch(
-      `https://graph.facebook.com/v25.0/me?access_token=${accessToken}`
-    );
-    const meBody = await meRes.json();
-    if (!meRes.ok || meBody.error) {
-      throw new Error(
-        `Failed to resolve Facebook Page ID: ${meBody?.error?.message || JSON.stringify(meBody)}`
-      );
-    }
-    const pageId = meBody.id;
+    // Instagram Login API (graph.instagram.com + IG User Token) uses /me/messages
+    // directly — the IG User Token already scopes to the IG business account,
+    // no Page ID resolution needed. Facebook Login (graph.facebook.com + Page
+    // Access Token) needs the Page ID from /me.
+    const url = type === 'graph.instagram.com'
+      ? `https://${type}/v21.0/me/messages?access_token=${accessToken}`
+      : await this.resolvePageMessagesUrl(accessToken, type);
 
-    const url = `https://graph.facebook.com/v25.0/${pageId}/messages?access_token=${accessToken}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -975,6 +989,22 @@ export class InstagramProvider
     };
   }
 
+  private async resolvePageMessagesUrl(
+    accessToken: string,
+    type = 'graph.facebook.com'
+  ): Promise<string> {
+    const meRes = await fetch(
+      `https://${type}/v25.0/me?access_token=${accessToken}`
+    );
+    const meBody = await meRes.json();
+    if (!meRes.ok || meBody.error) {
+      throw new Error(
+        `Failed to resolve Facebook Page ID: ${meBody?.error?.message || JSON.stringify(meBody)}`
+      );
+    }
+    return `https://${type}/v25.0/${meBody.id}/messages?access_token=${accessToken}`;
+  }
+
   // Send a private reply (DM) to someone who commented on your post.
   // This is the Meta "private_replies" API — the ONLY supported way to DM
   // a commenter without them having messaged you first. Valid for 7 days
@@ -985,47 +1015,31 @@ export class InstagramProvider
     _igAccountId: string,
     commentId: string,
     message: string,
-    buttonText?: string,
-    buttonUrl?: string
+    button?: InstagramDmButton,
+    type = 'graph.facebook.com'
   ): Promise<{ recipientId: string; messageId: string }> {
-    // Private reply requires Facebook Page ID + Page Access Token on graph.facebook.com.
-    // integration.token IS a Page Access Token, so GET /me returns the Page.
-    // Ref: https://developers.facebook.com/docs/instagram-platform/instagram-api-with-instagram-login/messaging-api/private-replies
-    // Must be sent within 7 days of the comment.
-    const meRes = await fetch(
-      `https://graph.facebook.com/v25.0/me?access_token=${accessToken}`
-    );
-    const meBody = await meRes.json();
-    if (!meRes.ok || meBody.error) {
-      throw new Error(
-        `Failed to resolve Facebook Page ID: ${meBody?.error?.message || JSON.stringify(meBody)}`
-      );
-    }
-    const pageId = meBody.id;
+    // Instagram Login API (graph.instagram.com + IG User Token) hits /me/messages.
+    // Facebook Login (graph.facebook.com + Page Access Token) needs the Page ID.
+    // Must be sent within 7 days of the comment in both flows.
+    const url = type === 'graph.instagram.com'
+      ? `https://${type}/v21.0/me/messages?access_token=${accessToken}`
+      : await this.resolvePageMessagesUrl(accessToken, type);
 
     // When a CTA is provided, send as a button template (same schema as
     // regular DMs). Text <= 640 chars, title <= 20 chars.
-    const hasButton = !!(buttonText && buttonUrl);
-    const messagePayload = hasButton
+    const messagePayload = button
       ? {
           attachment: {
             type: 'template',
             payload: {
               template_type: 'button',
               text: message.slice(0, 640),
-              buttons: [
-                {
-                  type: 'web_url',
-                  url: buttonUrl,
-                  title: (buttonText || '').slice(0, 20),
-                },
-              ],
+              buttons: [buildButton(button)],
             },
           },
         }
       : { text: message };
 
-    const url = `https://graph.facebook.com/v25.0/${pageId}/messages?access_token=${accessToken}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1055,11 +1069,12 @@ export class InstagramProvider
   async replyToComment(
     accessToken: string,
     commentId: string,
-    message: string
+    message: string,
+    type = 'graph.facebook.com'
   ): Promise<{ id: string }> {
-    // Page Access Token works on graph.facebook.com (not graph.instagram.com
-    // which requires an Instagram User Token from Instagram Login).
-    const url = `https://graph.facebook.com/v25.0/${commentId}/replies?access_token=${accessToken}`;
+    // Both flows support threaded replies at /{comment-id}/replies — route
+    // depends on which token the integration holds (Page Access vs IG User).
+    const url = `https://${type}/v21.0/${commentId}/replies?access_token=${accessToken}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

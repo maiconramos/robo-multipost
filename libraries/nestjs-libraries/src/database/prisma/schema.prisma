@@ -1173,9 +1173,17 @@ enum FlowNodeType {
 
 enum FlowExecutionStatus {
   RUNNING
+  WAITING_POSTBACK
   COMPLETED
   FAILED
   CANCELLED
+}
+
+enum PendingPostbackStatus {
+  PENDING
+  CONSUMED
+  EXPIRED
+  ABANDONED
 }
 
 model Flow {
@@ -1191,12 +1199,13 @@ model Flow {
   updatedAt      DateTime   @updatedAt
   deletedAt      DateTime?
 
-  organization Organization    @relation(fields: [organizationId], references: [id])
-  profile      Profile?        @relation(fields: [profileId], references: [id])
-  integration  Integration     @relation(fields: [integrationId], references: [id])
-  nodes        FlowNode[]
-  edges        FlowEdge[]
-  executions   FlowExecution[]
+  organization     Organization      @relation(fields: [organizationId], references: [id])
+  profile          Profile?          @relation(fields: [profileId], references: [id])
+  integration      Integration       @relation(fields: [integrationId], references: [id])
+  nodes            FlowNode[]
+  edges            FlowEdge[]
+  executions       FlowExecution[]
+  pendingPostbacks PendingPostback[]
 
   @@index([organizationId])
   @@index([profileId])
@@ -1264,7 +1273,8 @@ model FlowExecution {
   createdAt          DateTime            @default(now())
   updatedAt          DateTime            @updatedAt
 
-  flow Flow @relation(fields: [flowId], references: [id])
+  flow             Flow              @relation(fields: [flowId], references: [id])
+  pendingPostbacks PendingPostback[]
 
   @@index([flowId])
   @@index([status])
@@ -1273,4 +1283,51 @@ model FlowExecution {
   @@index([igMessageId])
   @@index([triggerType])
   @@index([createdAt])
+}
+
+model PendingPostback {
+  id                String                @id @default(uuid())
+  payload           String                @unique
+  payloadHmac       String
+
+  flowId            String
+  originExecutionId String
+  integrationId     String
+  organizationId    String
+
+  igSenderId        String
+  igCommenterName   String?
+  igMediaId         String?
+  igCommentId       String?
+
+  kind              String                @default("initial")
+  attemptCount      Int                   @default(0)
+  maxAttempts       Int                   @default(3)
+
+  consumedMetaMid   String?               @unique
+  status            PendingPostbackStatus @default(PENDING)
+
+  // Snapshots imutaveis capturados no momento da criacao.
+  // O flow pode ser editado dentro das 24h de janela da Meta.
+  snapshotFinalDm        String?
+  snapshotFinalBtnText   String?
+  snapshotFinalBtnUrl    String?
+  snapshotGateDm          String?
+  snapshotAlreadyBtnText  String?
+  snapshotExhaustedMessage String?
+  openingDmMessage        String?
+  openingDmButtonText     String?
+
+  createdAt  DateTime  @default(now())
+  expiresAt  DateTime
+  consumedAt DateTime?
+
+  flow      Flow          @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  execution FlowExecution @relation(fields: [originExecutionId], references: [id], onDelete: Cascade)
+
+  @@index([flowId])
+  @@index([originExecutionId])
+  @@index([expiresAt])
+  @@index([status])
+  @@index([igSenderId])
 }

@@ -10,6 +10,8 @@ const {
   evaluateCondition,
   updateExecution,
   appendExecutionLog,
+  createPendingPostback,
+  sendOpeningDmWithPostback,
 } = proxyActivities<FlowActivity>({
   startToCloseTimeout: '5 minute',
   taskQueue: 'main',
@@ -21,7 +23,7 @@ const {
 });
 
 const FOLLOW_GATE_DEFAULT =
-  'Ola! Esse conteudo e exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
+  'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
 
 export interface FlowExecutionInput {
   executionId: string;
@@ -59,6 +61,12 @@ interface TraversalContext {
    */
   dmButtonText?: string;
   dmButtonUrl?: string;
+  /**
+   * Sinaliza que o TRIGGER ja pausou a execucao em WAITING_POSTBACK
+   * (follow-gate 2 etapas). O top-level workflow nao deve sobrescrever
+   * o status para COMPLETED — quem retoma e o followGateResolveWorkflow.
+   */
+  awaitingPostback?: boolean;
 }
 
 export async function flowExecutionWorkflow(input: FlowExecutionInput) {
@@ -97,6 +105,12 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
       0,
       ctx
     );
+
+    // Se o TRIGGER pausou para aguardar postback (follow-gate 2 etapas),
+    // nao enviamos DMs aqui nem marcamos COMPLETED — o gate controla o fluxo.
+    if (ctx.awaitingPostback) {
+      return;
+    }
 
     // Send all collected DM messages.
     // - comment_on_post: ONE private reply per comment (Meta limit), combined.
@@ -191,6 +205,90 @@ async function traverseNode(
           });
           return;
         }
+      }
+
+      // Follow gate 2 etapas para comentarios: is_user_follow_business nao eh
+      // confiavel antes do usuario abrir janela de messaging. Entao:
+      //   1. Responde publicamente no comentario.
+      //   2. Envia DM inicial com botao postback (abre janela ao clicar).
+      //   3. Cria PendingPostback e pausa em WAITING_POSTBACK.
+      //   4. followGateResolveWorkflow retoma quando o clique chegar.
+      // Story replies continuam usando o check direto — a janela ja esta
+      // aberta no momento da resposta.
+      if (
+        triggerConfig.requireFollow &&
+        input.triggerType === 'comment_on_post' &&
+        input.igCommentId &&
+        input.igMediaId &&
+        input.igCommenterId
+      ) {
+        // 1. Resposta publica no comentario (se configurada no flow).
+        const replyNode = nodes.find((n: any) => n.type === 'REPLY_COMMENT');
+        if (replyNode) {
+          const cfg = safeParseJson(replyNode.data);
+          const rawMsg = pickReplyMessage(cfg);
+          const msg = interpolateVariables(rawMsg, input);
+          if (msg) {
+            await replyToComment(
+              integrationId,
+              orgId,
+              input.igCommentId,
+              input.igMediaId,
+              msg
+            );
+          }
+        }
+
+        // 2. Snapshots vindos do nó SEND_DM (se houver) para servir como
+        // conteudo da DM final apos confirmacao do follow.
+        const dmNode = nodes.find((n: any) => n.type === 'SEND_DM');
+        const dmCfg = dmNode ? safeParseJson(dmNode.data) : {};
+        const finalDmMessage = interpolateVariables(
+          dmCfg.message || dmCfg.template || '',
+          input
+        );
+
+        // 3. Cria pending postback e envia opening DM com botao.
+        const pending = await createPendingPostback({
+          flowId: input.flowId,
+          originExecutionId: input.executionId,
+          integrationId,
+          organizationId: orgId,
+          igSenderId: input.igCommenterId,
+          igCommenterName: input.igCommenterName,
+          igMediaId: input.igMediaId,
+          igCommentId: input.igCommentId,
+          kind: 'initial',
+          maxAttempts: triggerConfig.maxGateAttempts ?? 3,
+          snapshotFinalDm: finalDmMessage || undefined,
+          snapshotFinalBtnText: dmCfg.buttonText || undefined,
+          snapshotFinalBtnUrl: dmCfg.buttonUrl || undefined,
+          snapshotGateDm: triggerConfig.followGateMessage || undefined,
+          snapshotAlreadyBtnText:
+            triggerConfig.alreadyFollowedButtonText || undefined,
+          snapshotExhaustedMessage:
+            triggerConfig.gateExhaustedMessage || undefined,
+          openingDmMessage: triggerConfig.openingDmMessage || undefined,
+          openingDmButtonText:
+            triggerConfig.openingDmButtonText || undefined,
+        });
+
+        await sendOpeningDmWithPostback(pending.id);
+
+        // 4. Pausa a execucao ate o clique do usuario chegar.
+        ctx.awaitingPostback = true;
+        await updateExecution(input.executionId, {
+          status: 'WAITING_POSTBACK' as any,
+          currentNodeId: nodeId,
+        });
+        await appendExecutionLog(input.executionId, {
+          nodeId,
+          nodeType: node.type,
+          status: 'awaiting_postback',
+          timestamp: new Date().toISOString(),
+          error: `pendingPostbackId=${pending.id}`,
+        });
+        return;
       }
 
       // Follow gate: when the sender doesn't follow the IG business account,
@@ -377,6 +475,20 @@ function safeParseJson(data: string): Record<string, any> {
   } catch {
     return {};
   }
+}
+
+// Escolhe aleatoriamente uma mensagem do array `messages`, ou cai em
+// `message`/`template`. Usado no TRIGGER de follow-gate 2 etapas para
+// reaproveitar a mesma logica do no REPLY_COMMENT.
+function pickReplyMessage(config: Record<string, any>): string {
+  const messages =
+    Array.isArray(config.messages) && config.messages.length > 0
+      ? (config.messages as string[])
+      : null;
+  if (messages) {
+    return messages[Math.floor(Math.random() * messages.length)];
+  }
+  return config.message || config.template || '';
 }
 
 function triggerText(input: FlowExecutionInput): string {

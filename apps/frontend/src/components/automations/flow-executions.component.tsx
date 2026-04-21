@@ -17,6 +17,7 @@ const NODE_TYPE_LABELS: Record<string, string> = {
   REPLY_COMMENT: 'Reply Comment',
   SEND_DM: 'Send DM',
   DELAY: 'Delay',
+  GATE_RESOLVE: 'Gate de Follow',
 };
 
 const NODE_TYPE_COLORS: Record<string, string> = {
@@ -25,6 +26,7 @@ const NODE_TYPE_COLORS: Record<string, string> = {
   REPLY_COMMENT: '#3b82f6',
   SEND_DM: '#a855f7',
   DELAY: '#f97316',
+  GATE_RESOLVE: '#eab308',
 };
 
 const ExecutionDetail: FC<{ flowId: string; executionId: string; onBack: () => void }> = ({
@@ -78,6 +80,8 @@ const ExecutionDetail: FC<{ flowId: string; executionId: string; onBack: () => v
               ? 'bg-customColor42/20 text-customColor42'
               : execution.status === 'FAILED'
               ? 'bg-customColor19/20 text-customColor19'
+              : execution.status === 'WAITING_POSTBACK'
+              ? 'bg-yellow-500/20 text-yellow-500'
               : 'bg-customColor51/20 text-customColor51'
           }`}
         >
@@ -106,9 +110,10 @@ const ExecutionDetail: FC<{ flowId: string; executionId: string; onBack: () => v
           <div className="absolute left-[8px] top-[4px] bottom-[4px] w-[2px] bg-fifth" />
           {log.map((entry, i) => {
             const color = NODE_TYPE_COLORS[entry.nodeType] || '#6b7280';
-            const isError = entry.status === 'error';
-            const isSkipped = entry.status === 'skipped';
-            const isCompleted = entry.status === 'completed';
+            const isError = entry.status === 'error' || entry.status === 'gate_exhausted';
+            const isSkipped = entry.status === 'skipped' || entry.status === 'gate_blocked';
+            const isCompleted = entry.status === 'completed' || entry.status === 'gate_passed';
+            const isWaiting = entry.status === 'awaiting_postback';
             return (
               <div key={i} className="relative mb-[16px] last:mb-0">
                 <div
@@ -119,6 +124,8 @@ const ExecutionDetail: FC<{ flowId: string; executionId: string; onBack: () => v
                       ? '#ef4444'
                       : isSkipped
                       ? '#6b7280'
+                      : isWaiting
+                      ? '#eab308'
                       : isCompleted
                       ? color
                       : 'transparent',
@@ -138,6 +145,8 @@ const ExecutionDetail: FC<{ flowId: string; executionId: string; onBack: () => v
                           ? 'bg-customColor19/20 text-customColor19'
                           : isSkipped
                           ? 'bg-btnSimple text-customColor18'
+                          : isWaiting
+                          ? 'bg-yellow-500/20 text-yellow-500'
                           : entry.status === 'entered'
                           ? 'bg-customColor51/20 text-customColor51'
                           : 'bg-customColor42/20 text-customColor42'
@@ -238,6 +247,8 @@ export const FlowExecutionsComponent: FC<FlowExecutionsProps> = ({
                         ? 'bg-customColor19/20 text-customColor19'
                         : exec.status === 'RUNNING'
                         ? 'bg-customColor51/20 text-customColor51'
+                        : exec.status === 'WAITING_POSTBACK'
+                        ? 'bg-yellow-500/20 text-yellow-500'
                         : 'bg-btnSimple text-customColor18'
                     }`}
                   >

@@ -1,5 +1,10 @@
 import { FlowsRepository } from '../flows.repository';
-import { FlowStatus, FlowNodeType, FlowExecutionStatus } from '@prisma/client';
+import {
+  FlowStatus,
+  FlowNodeType,
+  FlowExecutionStatus,
+  PendingPostbackStatus,
+} from '@prisma/client';
 
 const mockFlowModel = {
   findMany: jest.fn(),
@@ -27,10 +32,18 @@ const mockFlowExecutionModel = {
   findFirst: jest.fn(),
 };
 
+const mockPendingPostbackModel = {
+  create: jest.fn(),
+  findUnique: jest.fn(),
+  update: jest.fn(),
+  updateMany: jest.fn(),
+};
+
 const mockFlowPrisma = { model: { flow: mockFlowModel } } as any;
 const mockFlowNodePrisma = { model: { flowNode: mockFlowNodeModel } } as any;
 const mockFlowEdgePrisma = { model: { flowEdge: mockFlowEdgeModel } } as any;
 const mockFlowExecutionPrisma = { model: { flowExecution: mockFlowExecutionModel } } as any;
+const mockPendingPostbackPrisma = { model: { pendingPostback: mockPendingPostbackModel } } as any;
 
 describe('FlowsRepository', () => {
   let repository: FlowsRepository;
@@ -41,7 +54,8 @@ describe('FlowsRepository', () => {
       mockFlowPrisma,
       mockFlowNodePrisma,
       mockFlowEdgePrisma,
-      mockFlowExecutionPrisma
+      mockFlowExecutionPrisma,
+      mockPendingPostbackPrisma
     );
   });
 
@@ -295,6 +309,183 @@ describe('FlowsRepository', () => {
         },
       });
       expect(result).toEqual(flows);
+    });
+  });
+
+  describe('PendingPostback', () => {
+    describe('createPendingPostback', () => {
+      it('should create a pending postback with snapshots', async () => {
+        const created = { id: 'pb-1', payload: 'pb_abc_1234abcd' };
+        mockPendingPostbackModel.create.mockResolvedValue(created);
+
+        const expiresAt = new Date(Date.now() + 23 * 60 * 60 * 1000);
+        const result = await repository.createPendingPostback({
+          payload: 'pb_abc_1234abcd',
+          payloadHmac: '1234abcd',
+          flowId: 'flow-1',
+          originExecutionId: 'exec-1',
+          integrationId: 'int-1',
+          organizationId: 'org-1',
+          igSenderId: 'igsid-1',
+          igCommentId: 'comment-1',
+          igMediaId: 'media-1',
+          kind: 'initial',
+          maxAttempts: 3,
+          snapshotFinalDm: 'Final DM body',
+          snapshotFinalBtnText: 'Open',
+          snapshotFinalBtnUrl: 'https://example.com',
+          snapshotGateDm: 'Please follow first',
+          snapshotAlreadyBtnText: 'Já segui!',
+          openingDmMessage: 'Thanks for the interest',
+          openingDmButtonText: 'Quero o link',
+          expiresAt,
+        });
+
+        expect(mockPendingPostbackModel.create).toHaveBeenCalledWith({
+          data: expect.objectContaining({
+            payload: 'pb_abc_1234abcd',
+            payloadHmac: '1234abcd',
+            flowId: 'flow-1',
+            originExecutionId: 'exec-1',
+            integrationId: 'int-1',
+            organizationId: 'org-1',
+            igSenderId: 'igsid-1',
+            kind: 'initial',
+            maxAttempts: 3,
+            expiresAt,
+          }),
+        });
+        expect(result).toEqual(created);
+      });
+    });
+
+    describe('findPostbackByPayload', () => {
+      it('should find postback by unique payload', async () => {
+        const pb = { id: 'pb-1', status: PendingPostbackStatus.PENDING };
+        mockPendingPostbackModel.findUnique.mockResolvedValue(pb);
+
+        const result = await repository.findPostbackByPayload('pb_abc_1234abcd');
+
+        expect(mockPendingPostbackModel.findUnique).toHaveBeenCalledWith({
+          where: { payload: 'pb_abc_1234abcd' },
+        });
+        expect(result).toEqual(pb);
+      });
+
+      it('should return null when payload does not exist', async () => {
+        mockPendingPostbackModel.findUnique.mockResolvedValue(null);
+
+        const result = await repository.findPostbackByPayload('pb_nope_00000000');
+        expect(result).toBeNull();
+      });
+    });
+
+    describe('findPostbackById', () => {
+      it('should find postback by id', async () => {
+        const pb = { id: 'pb-1' };
+        mockPendingPostbackModel.findUnique.mockResolvedValue(pb);
+
+        const result = await repository.findPostbackById('pb-1');
+
+        expect(mockPendingPostbackModel.findUnique).toHaveBeenCalledWith({
+          where: { id: 'pb-1' },
+        });
+        expect(result).toEqual(pb);
+      });
+    });
+
+    describe('markMetaMidIfUnconsumed', () => {
+      it('should return true when first webhook delivery consumes the mid', async () => {
+        mockPendingPostbackModel.updateMany.mockResolvedValue({ count: 1 });
+
+        const result = await repository.markMetaMidIfUnconsumed(
+          'pb_abc_1234abcd',
+          'mid.xyz'
+        );
+
+        expect(mockPendingPostbackModel.updateMany).toHaveBeenCalledWith({
+          where: { payload: 'pb_abc_1234abcd', consumedMetaMid: null },
+          data: { consumedMetaMid: 'mid.xyz' },
+        });
+        expect(result).toBe(true);
+      });
+
+      it('should return false on re-delivery of the same webhook mid', async () => {
+        mockPendingPostbackModel.updateMany.mockResolvedValue({ count: 0 });
+
+        const result = await repository.markMetaMidIfUnconsumed(
+          'pb_abc_1234abcd',
+          'mid.xyz'
+        );
+
+        expect(result).toBe(false);
+      });
+    });
+
+    describe('consumePostback', () => {
+      it('should transition postback to CONSUMED and set consumedAt', async () => {
+        mockPendingPostbackModel.update.mockResolvedValue({ id: 'pb-1' });
+
+        await repository.consumePostback('pb-1');
+
+        expect(mockPendingPostbackModel.update).toHaveBeenCalledWith({
+          where: { id: 'pb-1' },
+          data: {
+            status: PendingPostbackStatus.CONSUMED,
+            consumedAt: expect.any(Date),
+          },
+        });
+      });
+    });
+
+    describe('abandonPostback', () => {
+      it('should transition postback to ABANDONED', async () => {
+        mockPendingPostbackModel.update.mockResolvedValue({ id: 'pb-1' });
+
+        await repository.abandonPostback('pb-1');
+
+        expect(mockPendingPostbackModel.update).toHaveBeenCalledWith({
+          where: { id: 'pb-1' },
+          data: {
+            status: PendingPostbackStatus.ABANDONED,
+            consumedAt: expect.any(Date),
+          },
+        });
+      });
+    });
+
+    describe('incrementPostbackAttempt', () => {
+      it('should increment attemptCount by 1', async () => {
+        mockPendingPostbackModel.update.mockResolvedValue({ id: 'pb-1' });
+
+        await repository.incrementPostbackAttempt('pb-1');
+
+        expect(mockPendingPostbackModel.update).toHaveBeenCalledWith({
+          where: { id: 'pb-1' },
+          data: { attemptCount: { increment: 1 } },
+        });
+      });
+    });
+
+    describe('expirePendingPostbacks', () => {
+      it('should mark overdue PENDING postbacks as EXPIRED and return count', async () => {
+        mockPendingPostbackModel.updateMany.mockResolvedValue({ count: 3 });
+
+        const now = new Date('2026-04-20T12:00:00Z');
+        const result = await repository.expirePendingPostbacks(now);
+
+        expect(mockPendingPostbackModel.updateMany).toHaveBeenCalledWith({
+          where: {
+            status: PendingPostbackStatus.PENDING,
+            expiresAt: { lt: now },
+          },
+          data: {
+            status: PendingPostbackStatus.EXPIRED,
+            consumedAt: now,
+          },
+        });
+        expect(result).toBe(3);
+      });
     });
   });
 });

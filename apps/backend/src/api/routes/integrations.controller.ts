@@ -281,6 +281,17 @@ export class IntegrationsController {
                 dbCreds.threadsAppSecret || dbCreds.clientSecret || '',
               instanceUrl: '',
             };
+          } else if (integration === 'instagram-standalone') {
+            // Instagram Login API usa o App do produto "Instagram" (Instagram
+            // App ID/Secret). Se o workspace nao preencheu os campos dedicados,
+            // cai nos campos gerais (clientId/clientSecret do Facebook) como
+            // fallback — mesmo App Meta serve se tiver os dois produtos.
+            getExternalUrl = {
+              client_id: dbCreds.instagramAppId || dbCreds.clientId || '',
+              client_secret:
+                dbCreds.instagramAppSecret || dbCreds.clientSecret || '',
+              instanceUrl: '',
+            };
           } else {
             getExternalUrl = {
               client_id: dbCreds.clientId || '',

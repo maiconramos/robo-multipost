@@ -7,6 +7,9 @@ import {
   IsNumber,
   IsIn,
   IsBoolean,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { FlowStatus, FlowNodeType } from '@prisma/client';
@@ -153,6 +156,30 @@ export class QuickCreateFlowDto {
   @IsOptional()
   @IsString()
   dmButtonUrl?: string;
+
+  // Fluxo de 2 etapas: DM inicial enviada com botao postback. So usado quando
+  // requireFollow=true e triggerType=comment_on_post.
+  @IsOptional()
+  @IsString()
+  openingDmMessage?: string;
+
+  @IsOptional()
+  @IsString()
+  openingDmButtonText?: string;
+
+  @IsOptional()
+  @IsString()
+  alreadyFollowedButtonText?: string;
+
+  @IsOptional()
+  @IsString()
+  gateExhaustedMessage?: string;
+
+  @IsOptional()
+  @IsInt()
+  @Min(1)
+  @Max(10)
+  maxGateAttempts?: number;
 }
 
 export class SaveCanvasDto {

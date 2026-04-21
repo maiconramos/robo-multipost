@@ -15,10 +15,21 @@ A arquitetura suporta **multi-tenancy**: cada perfil/workspace pode ter seu prop
 
 ## Pre-requisitos
 
-- Conta Instagram Business conectada a uma Pagina do Facebook
+- Conta Instagram Business (com ou sem Pagina do Facebook — ver proximo bloco)
 - App criado em [developers.facebook.com](https://developers.facebook.com)
 - Dominio publico (ou ngrok/cloudflared em desenvolvimento) para receber os webhooks
 - Instagram ja conectado na tela **Canais** do Robo MultiPost
+
+### Escolha de fluxo de conexao (IMPORTANTE)
+
+O Robo MultiPost oferece dois canais Instagram na tela de conexao:
+
+| Canal | Quando usar | Follow gate funciona sem App Review? |
+|---|---|---|
+| **Instagram (Standalone)** | Recomendado. Conta IG Business com login direto no Instagram | **Sim** — via Instagram Login API (`graph.instagram.com`) com Standard Access |
+| **Instagram (Facebook Business)** | Conta IG vinculada a uma Page do Facebook e gerenciada pelo Business Manager | Nao — exige Advanced Access a `instagram_manage_messages` (App Review completo) |
+
+> **Para instancias de alunos/self-hosted**: use sempre **Instagram (Standalone)**. A Meta nao exige App Review para o campo `is_user_follow_business` no fluxo Instagram Login, entao o follow gate em automacoes de comentario funciona imediatamente apos a conexao. Ja existia conectado via "Instagram (Facebook Business)"? Reconecte o perfil escolhendo **Instagram (Standalone)** para ativar o follow gate.
 
 ---
 

@@ -172,6 +172,27 @@ export class IgWebhookController {
       return;
     }
 
+    // Postback clicks (botao do template de DM) vem antes das checagens de
+    // story reply: nao ha reply_to story nem attachment; tudo esta em
+    // event.postback.{payload,mid}. Usado pelo follow-gate em 2 etapas.
+    if (event?.postback?.payload) {
+      const payload: string = event.postback.payload;
+      if (typeof payload === 'string' && payload.startsWith('pb_')) {
+        const metaMid: string | undefined =
+          event?.postback?.mid || event?.mid;
+        this._logger.log(
+          `IG webhook postback received sender=${senderId} payload=${payload}`
+        );
+        await this._flowsService.handlePostbackClick({
+          payload,
+          metaMid,
+          senderIgsid: senderId,
+          igAccountId,
+        });
+      }
+      return;
+    }
+
     const message = event?.message;
     const reactionEvent = event?.reaction;
 

@@ -10,6 +10,9 @@ export const SendDmNode: FC<NodeProps> = memo(({ data, selected }) => {
     ? (() => { try { return JSON.parse(data.config as string); } catch { return {}; } })()
     : (data?.config || {});
   const message = config.message || config.template || '';
+  const buttonText: string = config.buttonText || '';
+  const buttonUrl: string = config.buttonUrl || '';
+  const hasButton = !!buttonText && !!buttonUrl;
 
   return (
     <div
@@ -37,6 +40,14 @@ export const SendDmNode: FC<NodeProps> = memo(({ data, selected }) => {
       </div>
       {message && (
         <p className="text-[12px] text-customColor18 truncate max-w-[180px]">{message}</p>
+      )}
+      {hasButton && (
+        <span
+          className="inline-block mt-[6px] text-[10px] px-[6px] py-[2px] rounded-[10px] border border-purple-400/40 bg-purple-500/10 text-purple-200 max-w-[180px] truncate"
+          title={buttonUrl}
+        >
+          🔗 {buttonText}
+        </span>
       )}
       <Handle type="source" position={Position.Bottom} className="!bg-purple-400" />
     </div>
