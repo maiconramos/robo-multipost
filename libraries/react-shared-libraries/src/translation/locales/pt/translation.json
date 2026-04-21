@@ -948,7 +948,6 @@
   "channel_connected_description": "Seu canal do {{provider}} foi conectado com sucesso. Você pode fechar esta janela agora.",
   "adding_channel": "Adicionando Canal",
   "tooltip_instagram": "O Instagram deve ser conta comercial e estar conectado a uma página do Facebook",
-  "tooltip_instagram-standalone": "Recomendado. Login direto no Instagram — follow gate em automações funciona sem precisar de App Review da Meta.",
   "tooltip_x": "Você será conectado à sua conta atual. Se quiser usar outra conta, troque primeiro no X",
   "tooltip_whop": "Agendar publicações em fóruns",
   "tooltip_nostr": "Certifique-se de fornecer uma chave HEX da sua chave privada Nostr, você pode obtê-la em sites como iris.to",

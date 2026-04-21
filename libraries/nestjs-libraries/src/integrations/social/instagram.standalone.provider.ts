@@ -24,8 +24,6 @@ export class InstagramStandaloneProvider
 {
   identifier = 'instagram-standalone';
   name = 'Instagram\n(Standalone)';
-  toolTip =
-    'Recomendado. Login direto no Instagram — follow gate em automacoes funciona sem App Review.';
   isBetweenSteps = false;
   refreshCron = true;
   scopes = [

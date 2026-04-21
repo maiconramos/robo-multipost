@@ -950,7 +950,6 @@
   "channel_connected_description": "Your {{provider}} channel has been successfully connected. You can close this window now.",
   "adding_channel": "Adding Channel",
   "tooltip_instagram": "Instagram must be business and connected to a Facebook page",
-  "tooltip_instagram-standalone": "Recommended. Direct Instagram login — follow gate in automations works without Meta App Review.",
   "tooltip_x": "You will be logged in into your current account, if you would like a different account, change it first on X",
   "tooltip_whop": "Schedule posts to forums",
   "tooltip_nostr": "Make sure you private a HEX key of your Nostr private key, you can get it from websites like iris.to",

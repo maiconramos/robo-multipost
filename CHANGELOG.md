@@ -7,6 +7,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Documentação
+- Nova referência de arquitetura para automações Instagram em `docs/architecture/instagram-automations.md`, voltada a agentes de IA e ao time de engenharia: mapa dos arquivos-chave (backend/orchestrator/libraries/frontend), as três camadas de credenciais Meta (App, Integration, Messaging Tokens), roteamento de host/token via `FlowActivity.resolveIgRoute`, fluxo completo do follow gate de 2 etapas (opening DM + postback + PendingPostback), convenções e armadilhas. `CLAUDE.md` ganhou um bloco resumido com as regras de ouro apontando para o doc detalhado.
+
+### Alterado
+- Removido o badge/tooltip "Recomendado" do canal Instagram (Standalone) na tela de conexão de canais — o aviso sobre follow gate funcionar sem App Review deixou de ser relevante após o IG User Token cadastrado em Settings passar a funcionar também para integrações conectadas via "Instagram (Facebook Business)". As chaves de tradução `tooltip_instagram-standalone` foram removidas em pt e en.
+
 ### Adicionado
 - Flow Builder (canvas) recebeu paridade com o wizard de automações de comentário: o painel do nó de Gatilho agora exibe o toggle "Pedir para seguir antes de enviar" para comentários (antes restrito a stories), com card amarelo explicando o fluxo de 2 etapas e campos dedicados para DM inicial, texto do botão inicial, mensagem de gate, texto do botão "Já segui", mensagem de desistência e máximo de tentativas. O nó de Send DM ganhou seção de botão opcional (texto + URL), e os nós no canvas passam a mostrar badge "Pede para seguir" no gatilho e chip do botão no Send DM. Automações criadas no Flow Builder passam a suportar o mesmo follow gate de comentários sem precisar trocar para o wizard.
 

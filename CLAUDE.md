@@ -260,6 +260,46 @@ GET  /settings/ai-credits/summary               → lista perfis com creditos e 
 - **Frontend badges:** `apps/frontend/src/components/launches/ai.image.tsx`, `ai.video.tsx`
 - **Testes:** `__tests__/subscription.service.spec.ts`, `subscription.repository.spec.ts`
 
+## Automacoes Instagram (follow gate, DMs, webhooks)
+
+Subsistema crítico — antes de mexer, ler:
+
+- **Referência de agente:** `docs/architecture/instagram-automations.md`
+  (mapa de arquivos, camadas de credenciais, roteamento de tokens,
+  follow-gate 2 etapas, armadilhas).
+- **Guia de usuário:** `docs/automacoes-instagram.md`.
+
+### Regras de ouro
+
+1. **Três camadas de credenciais Meta** (nunca misturar):
+   - Credenciais do App (workspace) — `Credentials.clientId/clientSecret`,
+     `instagramAppId/instagramAppSecret`, `threadsAppId/threadsAppSecret`.
+     Usadas em OAuth e validação HMAC.
+   - Token da Integration — `Integration.token` é Page Access Token
+     (providerIdentifier=`instagram`) OU IG User Token
+     (providerIdentifier=`instagram-standalone`).
+   - Messaging Tokens (cadastrados em Settings > Credenciais > Instagram)
+     — Meta System User Token + IG User Tokens por conta, em
+     `Credentials.metaSystemUserToken` / `Credentials.instagramTokens`.
+
+2. **Decisão única de host/token** para activities de comentário:
+   `FlowActivity.resolveIgRoute(integration)` em
+   `apps/orchestrator/src/activities/flow.activity.ts`.
+   Prioridade: standalone → IG User Token cadastrado → Page Access Token.
+
+3. **Propagação de `ClientInformation`** é obrigatória em providers OAuth
+   — veja `memory/feedback_per_profile_credentials.md`.
+
+4. **Follow-gate em `comment_on_post`** usa fluxo de 2 etapas com
+   `PendingPostback` + botão postback. `sendPrivateReply` só pode ser
+   usado UMA vez por comentário. Workflow:
+   `flow.execution.workflow.ts` cria o pending,
+   `follow-gate-resolve.workflow.ts` resolve quando o clique chega.
+
+5. **HMAC do webhook IG** deve ser validado com `FACEBOOK_APP_SECRET` E
+   `INSTAGRAM_APP_SECRET` (quando ambos os produtos estão no mesmo app
+   Meta). Ver `ig-webhook.controller.ts`.
+
 ## Persona de IA e Knowledge Base por Perfil
 
 Cada perfil pode ter:
