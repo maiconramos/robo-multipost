@@ -4,6 +4,7 @@ import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/fl
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
+import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/instagram-route.resolver';
 import { FlowExecutionStatus } from '@prisma/client';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import type { InstagramDmButton } from '@gitroom/nestjs-libraries/integrations/social/instagram-dm-button.type';
@@ -12,20 +13,6 @@ const GATE_FALLBACK_MESSAGE =
   'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e clica no botão abaixo 💙';
 const GATE_EXHAUSTED_MESSAGE =
   'Não consegui confirmar que você está seguindo. Tente novamente mais tarde 😉';
-
-// Integrations conectadas via Instagram Login API (graph.instagram.com + IG
-// User Token) devem rotear comentários/DMs/follow-check para graph.instagram.com,
-// pois o Page Access Token de Facebook Login não tem acesso Standard ao campo
-// is_user_follow_business nem ao endpoint de messaging. Standard Access no fluxo
-// de IG Login dispensa App Review — crítico para instâncias self-hosted de alunos.
-const IG_LOGIN_GRAPH = 'graph.instagram.com';
-const FB_LOGIN_GRAPH = 'graph.facebook.com';
-
-interface IgRoute {
-  token: string;
-  host: string;
-  useIgGraph: boolean;
-}
 
 @Injectable()
 @Activity()
@@ -37,51 +24,14 @@ export class FlowActivity {
     private _instagramMessagingService: InstagramMessagingService
   ) {}
 
-  /**
-   * Escolhe token + host da Meta Graph API para fluxos de comentario/DM
-   * privado em integrations IG.
-   *
-   * Prioridade:
-   *   1. integration conectada via Instagram Login API
-   *      (providerIdentifier='instagram-standalone'): usa o proprio
-   *      integration.token + graph.instagram.com.
-   *   2. integration conectada via Facebook Login ('instagram') MAS com
-   *      IG User Token cadastrado em Settings > Credenciais: usa esse
-   *      token + graph.instagram.com. Dispensa reconectar via Standalone
-   *      quando o aluno ja tem o token gerado direto no Meta Dashboard.
-   *   3. Fallback: integration.token (Page Access Token) +
-   *      graph.facebook.com. Funciona apenas com Advanced Access a
-   *      instagram_manage_messages / is_user_follow_business (App Review).
-   */
-  private async resolveIgRoute(integration: {
+  private resolveIgRoute(integration: {
     token: string;
     providerIdentifier?: string | null;
     organizationId: string;
     profileId?: string | null;
     internalId: string;
-  }): Promise<IgRoute> {
-    if (integration.providerIdentifier === 'instagram-standalone') {
-      return {
-        token: integration.token,
-        host: IG_LOGIN_GRAPH,
-        useIgGraph: true,
-      };
-    }
-
-    const igToken = await this._instagramMessagingService.resolveIgUserToken(
-      integration.organizationId,
-      integration.profileId || null,
-      integration.internalId
-    );
-    if (igToken) {
-      return { token: igToken, host: IG_LOGIN_GRAPH, useIgGraph: true };
-    }
-
-    return {
-      token: integration.token,
-      host: FB_LOGIN_GRAPH,
-      useIgGraph: false,
-    };
+  }) {
+    return resolveIgRoute(integration, this._instagramMessagingService);
   }
 
   @ActivityMethod()

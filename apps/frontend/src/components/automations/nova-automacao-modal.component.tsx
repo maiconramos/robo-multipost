@@ -13,7 +13,7 @@ interface Props {
   onCreated?: () => void;
 }
 
-type TriggerType = 'comment_on_post' | 'story_reply';
+type TriggerType = 'comment_on_post' | 'story_reply' | 'repost_story';
 
 interface TriggerOption {
   id: TriggerType;
@@ -37,6 +37,14 @@ const TRIGGERS: TriggerOption[] = [
     titleFallback: 'Resposta ao Story',
     descKey: 'nova_automacao_sidebar_story_desc',
     descFallback: 'Envie uma DM quando alguem responder seu story',
+  },
+  {
+    id: 'repost_story',
+    titleKey: 'nova_automacao_sidebar_repost',
+    titleFallback: 'Repost de Story',
+    descKey: 'nova_automacao_sidebar_repost_desc',
+    descFallback:
+      'Monitore stories do Instagram e republique em TikTok e YouTube Shorts',
   },
 ];
 
@@ -95,9 +103,16 @@ export const NovaAutomacaoModal: FC<Props> = ({ open, onClose, onCreated }) => {
   }, [integrations]);
 
   const canCreate =
-    !!flowName.trim() && !!integrationId && !!webhookCheck.ok && !creating;
+    activeTrigger === 'repost_story'
+      ? true
+      : !!flowName.trim() && !!integrationId && !!webhookCheck.ok && !creating;
 
   const handleCreate = async () => {
+    if (activeTrigger === 'repost_story') {
+      onClose();
+      router.push('/automacoes/repost/nova');
+      return;
+    }
     if (!canCreate) return;
     setCreating(true);
     try {
@@ -200,7 +215,36 @@ export const NovaAutomacaoModal: FC<Props> = ({ open, onClose, onCreated }) => {
               </p>
             </div>
 
-            {/* Form: name + integration */}
+            {activeTrigger === 'repost_story' ? (
+              <div className="flex flex-col gap-[12px] max-w-[520px] rounded-[4px] border border-fifth bg-sixth/60 p-[16px]">
+                <p className="text-[13px] text-textColor leading-[1.6]">
+                  {t(
+                    'repost_modal_intro',
+                    'Crie uma regra que monitora os stories publicados em uma conta Instagram Business e republica automaticamente em TikTok e YouTube Shorts.'
+                  )}
+                </p>
+                <ul className="text-[12px] text-customColor18 list-disc pl-[18px] space-y-[4px]">
+                  <li>
+                    {t(
+                      'repost_modal_bullet_interval',
+                      'Polling a cada 5 min a 6 h por regra (default 15 min).'
+                    )}
+                  </li>
+                  <li>
+                    {t(
+                      'repost_modal_bullet_calendar',
+                      'Cada repost aparece no calendário como um Post em fila.'
+                    )}
+                  </li>
+                  <li>
+                    {t(
+                      'repost_modal_bullet_images',
+                      'V1 repostará apenas vídeos. Fotos são puladas automaticamente.'
+                    )}
+                  </li>
+                </ul>
+              </div>
+            ) : (
             <div className="flex flex-col gap-[14px] max-w-[520px]">
               <div className="flex flex-col gap-[6px]">
                 <label className="text-[13px] text-textColor">
@@ -271,6 +315,7 @@ export const NovaAutomacaoModal: FC<Props> = ({ open, onClose, onCreated }) => {
                 </div>
               )}
             </div>
+            )}
           </div>
         </div>
 
@@ -289,6 +334,8 @@ export const NovaAutomacaoModal: FC<Props> = ({ open, onClose, onCreated }) => {
           >
             {creating
               ? t('creating_flow', 'Criando...')
+              : activeTrigger === 'repost_story'
+              ? t('repost_open_wizard', 'Abrir wizard de Repost')
               : t('create_and_continue', 'Criar e continuar')}
           </button>
         </div>

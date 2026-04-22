@@ -8,6 +8,7 @@ import { useRouter } from 'next/navigation';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { NovaAutomacaoModal } from '@gitroom/frontend/components/automations/nova-automacao-modal.component';
+import { RepostListComponent } from '@gitroom/frontend/components/automations/repost/repost-list.component';
 
 export const FlowListComponent: FC = () => {
   const t = useT();
@@ -148,6 +149,10 @@ export const FlowListComponent: FC = () => {
           ))}
         </div>
       )}
+
+      <div className="mt-[16px] pt-[16px] border-t border-fifth">
+        <RepostListComponent />
+      </div>
     </div>
   );
 };

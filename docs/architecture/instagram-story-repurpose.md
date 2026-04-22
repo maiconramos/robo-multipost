@@ -1,8 +1,53 @@
 # Dossiê: Repost Automático de Stories do Instagram
 
-> Status: **Proposta** (Fase Futura)
-> Última atualização: 2026-04-20
+> Status: **V1 implementado** (beta) — 2026-04-21
+> Última atualização: 2026-04-21
 > Inspiração: [Repurpose.io](https://repurpose.io), [Repostify](https://repostify.com)
+
+## V1 entregue (resumo)
+
+Arquivos de referência já implementados:
+
+- **Schema**: `RepostRule` + `RepostLog` + enums `RepostSourceType`/`RepostLogStatus`
+  em `libraries/nestjs-libraries/src/database/prisma/schema.prisma`.
+- **Backend**: `RepostRepository`/`RepostService` em
+  `libraries/nestjs-libraries/src/database/prisma/repost/` (registrados no
+  `DatabaseModule` global) + `RepostController` em
+  `apps/backend/src/api/routes/repost.controller.ts` (registrado em
+  `ApiModule` como rota autenticada). Rotas: `GET/POST/PUT/DELETE /repost/rules`,
+  `POST /repost/rules/:id/toggle`, `POST /repost/rules/:id/run-now`,
+  `GET /repost/rules/:id/logs`, `GET /repost/source-candidates`,
+  `GET /repost/destination-candidates`.
+- **Orchestrator**: `apps/orchestrator/src/workflows/repost.workflow.ts`
+  (loop durable com `sleep(intervalMinutes * 60_000)`) +
+  `apps/orchestrator/src/activities/repost.activity.ts`
+  (`runRepostCycle` com short-circuit, idempotência e filtros) +
+  `workflowId: 'repost-rule-{ruleId}'`.
+- **Helper reutilizável**: `resolveIgRoute` extraído de
+  `FlowActivity.resolveIgRoute` para
+  `libraries/nestjs-libraries/src/integrations/social/instagram-route.resolver.ts`
+  — compartilhado entre automações de comentário e repost.
+- **Frontend**: hooks SWR em
+  `apps/frontend/src/components/automations/hooks/use-repost.ts` (regra
+  "1 hook = 1 useSWR" aplicada), `repost-rule-form.component.tsx`,
+  `repost-list.component.tsx`, `repost-wizard.component.tsx`,
+  `repost-edit.component.tsx` em
+  `apps/frontend/src/components/automations/repost/`. Rotas:
+  `/automacoes/repost/nova` e `/automacoes/repost/[id]`. O 3º card
+  "Repost de Story" foi adicionado a `NovaAutomacaoModal`.
+- **i18n**: chaves `repost_*` + `nova_automacao_sidebar_repost*` em
+  `pt/translation.json` (com acentos) e `en/translation.json`.
+
+Decisões confirmadas no V1:
+
+- **Destinos**: TikTok (`tiktok`), TikTok via Late (`late-tiktok`),
+  YouTube Shorts (`youtube`). Futuro: `late-youtube`, IG Reels, Facebook
+  Reels.
+- **Fotos**: puladas no V1 com `skippedReason=FILTER_IMAGE`.
+- **Polling mínimo**: 5 min; default 15 min; máximo 360 min (6 h).
+- **Bootstrap**: ao criar a regra, `lastSourceItemId` é preenchido com o
+  maior ID de story ativo — só stories publicados **depois** disso
+  entram no repost.
 
 ## Contexto e motivação
 
