@@ -4,26 +4,26 @@ import { useCallback } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 
-interface LateUsage {
+interface ZernioUsage {
   planName: string | null;
   uploads: { used: number; limit: number };
   profiles: { used: number; limit: number };
   lastReset: string | null;
 }
 
-export interface LateSettings {
+export interface ZernioSettings {
   configured: boolean;
-  usage: LateUsage | null;
+  usage: ZernioUsage | null;
 }
 
-export const useLateSettings = () => {
+export const useZernioSettings = () => {
   const fetch = useFetch();
 
   const load = useCallback(async () => {
-    return (await fetch('/settings/late')).json();
+    return (await fetch('/settings/zernio')).json();
   }, []);
 
-  return useSWR<LateSettings>('late-settings', load, {
+  return useSWR<ZernioSettings>('zernio-settings', load, {
     revalidateOnFocus: false,
     revalidateOnReconnect: false,
     revalidateIfStale: false,

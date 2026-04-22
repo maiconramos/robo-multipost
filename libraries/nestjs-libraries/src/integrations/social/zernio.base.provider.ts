@@ -9,14 +9,14 @@ import {
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { Integration } from '@prisma/client';
-import Late from '@getlatedev/node';
+import Zernio from '@zernio/node';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 
 // In-memory cache for usage stats (TTL: 5 minutes)
 const usageCache = new Map<string, { data: any; expiresAt: number }>();
 const USAGE_CACHE_TTL = 5 * 60 * 1000;
 
-export class LateBaseProvider
+export class ZernioBaseProvider
   extends SocialAbstract
   implements SocialProvider
 {
@@ -33,8 +33,8 @@ export class LateBaseProvider
     protected readonly charLimit: number
   ) {
     super();
-    this.identifier = `late-${platform}`;
-    this.name = `${platformName} (via Late)`;
+    this.identifier = `zernio-${platform}`;
+    this.name = `${platformName} (via Zernio)`;
   }
 
   maxLength() {
@@ -46,19 +46,19 @@ export class LateBaseProvider
   ): Promise<GenerateAuthUrlResponse> {
     const state = makeId(20);
     const codeVerifier = makeId(10);
-    const lateApiKey = clientInformation?.instanceUrl;
+    const zernioApiKey = clientInformation?.instanceUrl;
 
-    if (!lateApiKey) {
+    if (!zernioApiKey) {
       throw new Error(
-        'Late API key not configured. Go to Settings > Late to configure it.'
+        'Zernio API key not configured. Go to Settings > Zernio to configure it.'
       );
     }
 
-    const late = new Late({ apiKey: lateApiKey });
+    const zernio = new Zernio({ apiKey: zernioApiKey });
     const profileId = `postiz_${makeId(10)}`;
     const redirectUrl = `${process.env.FRONTEND_URL}/integrations/social/${this.identifier}`;
 
-    const { data } = await late.connect.getConnectUrl({
+    const { data } = await zernio.connect.getConnectUrl({
       path: { platform: this.platform as any },
       query: {
         profileId,
@@ -67,8 +67,8 @@ export class LateBaseProvider
     });
 
     await ioRedis.set(
-      `late:${codeVerifier}`,
-      JSON.stringify({ lateApiKey, profileId }),
+      `zernio:${codeVerifier}`,
+      JSON.stringify({ zernioApiKey, profileId }),
       'EX',
       3600
     );
@@ -85,22 +85,22 @@ export class LateBaseProvider
     codeVerifier: string;
     refresh?: string;
   }): Promise<AuthTokenDetails> {
-    const lateAccountId = params.code;
+    const zernioAccountId = params.code;
 
-    const stateData = await ioRedis.get(`late:${params.codeVerifier}`);
+    const stateData = await ioRedis.get(`zernio:${params.codeVerifier}`);
     if (!stateData) {
       throw new Error('Session expired. Please try connecting again.');
     }
 
-    const { lateApiKey } = JSON.parse(stateData);
-    const late = new Late({ apiKey: lateApiKey });
+    const { zernioApiKey } = JSON.parse(stateData);
+    const zernio = new Zernio({ apiKey: zernioApiKey });
 
-    const { data } = await late.accounts.listAccounts();
+    const { data } = await zernio.accounts.listAccounts();
     const account = (data?.accounts || []).find(
-      (a: any) => a._id === lateAccountId
+      (a: any) => a._id === zernioAccountId
     );
 
-    // Late SDK doesn't provide profile pictures for accounts.
+    // Zernio SDK doesn't provide profile pictures for accounts.
     // Use the platform icon as fallback.
     const picture =
       this.platform === 'youtube'
@@ -108,9 +108,9 @@ export class LateBaseProvider
         : `/icons/platforms/${this.platform}.png`;
 
     return {
-      id: lateAccountId,
+      id: zernioAccountId,
       name: account?.displayName || account?.username || `${this.platformName} Account`,
-      accessToken: lateApiKey,
+      accessToken: zernioApiKey,
       refreshToken: '',
       expiresIn: 999999999,
       picture,
@@ -130,13 +130,13 @@ export class LateBaseProvider
     };
   }
 
-  private async checkUsage(late: InstanceType<typeof Late>, apiKey: string) {
+  private async checkUsage(zernio: InstanceType<typeof Zernio>, apiKey: string) {
     const cached = usageCache.get(apiKey);
     if (cached && cached.expiresAt > Date.now()) {
       return cached.data;
     }
 
-    const { data: usage } = await late.usage.getUsageStats();
+    const { data: usage } = await zernio.usage.getUsageStats();
     usageCache.set(apiKey, {
       data: usage,
       expiresAt: Date.now() + USAGE_CACHE_TTL,
@@ -150,16 +150,16 @@ export class LateBaseProvider
     postDetails: PostDetails[],
     integration: Integration
   ): Promise<PostResponse[]> {
-    const late = new Late({ apiKey: accessToken });
+    const zernio = new Zernio({ apiKey: accessToken });
 
     try {
-      const usage = await this.checkUsage(late, accessToken);
+      const usage = await this.checkUsage(zernio, accessToken);
       if (
         usage?.apiRequests &&
         usage.apiRequests.used >= usage.apiRequests.limit
       ) {
         throw new Error(
-          `Late API request limit reached (${usage.apiRequests.used}/${usage.apiRequests.limit}). Upgrade your plan at getlate.dev`
+          `Zernio API request limit reached (${usage.apiRequests.used}/${usage.apiRequests.limit}). Upgrade your plan at zernio.com`
         );
       }
     } catch (err: any) {
@@ -168,13 +168,17 @@ export class LateBaseProvider
       }
     }
 
-    // Use the real Late accountId from customInstanceDetails if available,
+    // Use the real Zernio accountId from customInstanceDetails if available,
     // otherwise fall back to internalId (backwards compat with old integrations).
     let realAccountId = id;
     if (integration.customInstanceDetails) {
       try {
         const details = JSON.parse(integration.customInstanceDetails);
-        if (details.lateAccountId) {
+        // Support both new (zernioAccountId) and legacy (lateAccountId) keys so
+        // integrations migrated from Late keep working without touching the JSON.
+        if (details.zernioAccountId) {
+          realAccountId = details.zernioAccountId;
+        } else if (details.lateAccountId) {
           realAccountId = details.lateAccountId;
         }
       } catch {}
@@ -192,7 +196,7 @@ export class LateBaseProvider
     const platformSpecificData = firstPost.settings || {};
 
     try {
-      const { data } = await late.posts.createPost({
+      const { data } = await zernio.posts.createPost({
         body: {
           content: firstPost.message,
           mediaItems: mediaItems as any,
@@ -207,17 +211,17 @@ export class LateBaseProvider
         },
       });
 
-      const latePostId = data?.post?._id || '';
+      const zernioPostId = data?.post?._id || '';
 
-      // Poll Late API to verify the post was actually published on the platform.
-      // Late accepts the post immediately but publishing may fail asynchronously
+      // Poll Zernio API to verify the post was actually published on the platform.
+      // Zernio accepts the post immediately but publishing may fail asynchronously
       // (e.g. expired token, account disconnected).
-      if (latePostId) {
-        const finalStatus = await this.pollPostStatus(late, latePostId);
+      if (zernioPostId) {
+        const finalStatus = await this.pollPostStatus(zernio, zernioPostId);
         if (finalStatus === 'failed') {
-          const errorMsg = await this.getPostErrorMessage(late, latePostId);
+          const errorMsg = await this.getPostErrorMessage(zernio, zernioPostId);
           throw new Error(
-            errorMsg || `Post was sent to Late but failed to publish on ${this.platformName}. Check your Late dashboard for details.`
+            errorMsg || `Post was sent to Zernio but failed to publish on ${this.platformName}. Check your Zernio dashboard for details.`
           );
         }
       }
@@ -225,7 +229,7 @@ export class LateBaseProvider
       return [
         {
           id: firstPost.id,
-          postId: latePostId,
+          postId: zernioPostId,
           releaseURL: '',
           status: 'success',
         },
@@ -233,12 +237,12 @@ export class LateBaseProvider
     } catch (err: any) {
       if (err?.status === 401) {
         throw new Error(
-          'Late API key invalid or expired. Reconfigure in Settings > Late.'
+          'Zernio API key invalid or expired. Reconfigure in Settings > Zernio.'
         );
       }
       if (err?.status === 429) {
         throw new Error(
-          'Late API rate limit reached. Please wait a few minutes.'
+          'Zernio API rate limit reached. Please wait a few minutes.'
         );
       }
       throw err;
@@ -246,7 +250,7 @@ export class LateBaseProvider
   }
 
   private async pollPostStatus(
-    late: InstanceType<typeof Late>,
+    zernio: InstanceType<typeof Zernio>,
     postId: string,
     maxAttempts = 10,
     intervalMs = 3000
@@ -254,7 +258,7 @@ export class LateBaseProvider
     for (let i = 0; i < maxAttempts; i++) {
       await new Promise((resolve) => setTimeout(resolve, intervalMs));
       try {
-        const { data } = await late.posts.getPost({
+        const { data } = await zernio.posts.getPost({
           path: { postId },
         });
         const status = data?.post?.status;
@@ -266,21 +270,33 @@ export class LateBaseProvider
         // Ignore errors during polling, keep trying
       }
     }
-    // Timed out — assume success since Late accepted the post
+    // Timed out — assume success since Zernio accepted the post
     return 'unknown';
   }
 
   private async getPostErrorMessage(
-    late: InstanceType<typeof Late>,
+    zernio: InstanceType<typeof Zernio>,
     postId: string
   ): Promise<string | null> {
     try {
-      const { data } = await late.logs.getPostLogs({
-        path: { postId },
+      const { data } = await zernio.logs.listLogs({
+        query: {
+          type: 'publishing',
+          status: 'failed',
+          search: postId,
+          limit: 5,
+        },
       });
-      const logs = (data as any)?.logs || [];
-      const failedLog = logs.find((log: any) => log.status === 'failed');
-      return failedLog?.response?.errorMessage || failedLog?.response?.rawBody || null;
+      const logs = ((data as any)?.logs || []) as Array<any>;
+      const failedLog = logs.find(
+        (log) => log.status === 'failed' && (log.post_id === postId || log.postId === postId)
+      ) || logs[0];
+      return (
+        failedLog?.error_message ||
+        failedLog?.response?.errorMessage ||
+        failedLog?.response?.rawBody ||
+        null
+      );
     } catch {
       return null;
     }

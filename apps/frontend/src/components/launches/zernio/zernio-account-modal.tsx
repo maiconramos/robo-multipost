@@ -2,11 +2,11 @@
 
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { useLateProfiles } from '@gitroom/frontend/hooks/use-late-profiles.hook';
+import { useZernioProfiles } from '@gitroom/frontend/hooks/use-zernio-profiles.hook';
 import {
-  useLateAccounts,
-  LateAccount,
-} from '@gitroom/frontend/hooks/use-late-accounts.hook';
+  useZernioAccounts,
+  ZernioAccount,
+} from '@gitroom/frontend/hooks/use-zernio-accounts.hook';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Button } from '@gitroom/react/form/button';
@@ -45,7 +45,7 @@ export const PlatformIcon: FC<{ platform: string; size?: number }> = ({
   );
 };
 
-export const LateAccountModal: FC<{
+export const ZernioAccountModal: FC<{
   onComplete: () => void;
 }> = ({ onComplete }) => {
   const fetch = useFetch();
@@ -57,9 +57,9 @@ export const LateAccountModal: FC<{
   const [connecting, setConnecting] = useState(false);
 
   const { data: profilesData, isLoading: profilesLoading } =
-    useLateProfiles();
+    useZernioProfiles();
   const { data: accountsData, isLoading: accountsLoading } =
-    useLateAccounts(selectedProfileId);
+    useZernioAccounts(selectedProfileId);
 
   // Auto-select if only one profile
   const profiles = profilesData?.profiles || [];
@@ -73,7 +73,7 @@ export const LateAccountModal: FC<{
   // Group accounts by platform
   const groupedAccounts = useMemo(() => {
     const accounts = accountsData?.accounts || [];
-    const groups: Record<string, LateAccount[]> = {};
+    const groups: Record<string, ZernioAccount[]> = {};
     for (const account of accounts) {
       const platform = account.platform || 'unknown';
       if (!groups[platform]) groups[platform] = [];
@@ -83,15 +83,15 @@ export const LateAccountModal: FC<{
   }, [accountsData]);
 
   const handleConnectAccount = useCallback(
-    async (account: LateAccount) => {
+    async (account: ZernioAccount) => {
       if (connecting) return;
       setConnecting(true);
 
       try {
-        const response = await fetch('/integrations/late/connect-account', {
+        const response = await fetch('/integrations/zernio/connect-account', {
           method: 'POST',
           body: JSON.stringify({
-            lateProfileId: effectiveProfileId,
+            zernioProfileId: effectiveProfileId,
             accountId: account._id,
             platform: account.platform,
             username: account.username,
@@ -131,7 +131,7 @@ export const LateAccountModal: FC<{
 
       try {
         const response = await fetch(
-          `/integrations/late/new-account-url?platform=${platform}&lateProfileId=${effectiveProfileId}`
+          `/integrations/zernio/new-account-url?platform=${platform}&zernioProfileId=${effectiveProfileId}`
         );
         const data = await response.json();
         if (data.url) {
@@ -166,16 +166,16 @@ export const LateAccountModal: FC<{
         ) : profiles.length === 0 ? (
           <p className="text-[14px] text-textColor/60 text-center py-[20px]">
             {t(
-              'no_late_profiles_found',
-              'No Late profiles found. Make sure your Late API key is configured in Settings.'
+              'no_zernio_profiles_found',
+              'No Zernio profiles found. Make sure your Zernio API key is configured in Settings.'
             )}
           </p>
         ) : (
           <>
             <p className="text-[14px] text-textColor/80">
               {t(
-                'select_late_profile',
-                'Select a Late profile to see connected accounts:'
+                'select_zernio_profile',
+                'Select a Zernio profile to see connected accounts:'
               )}
             </p>
             <div className="flex flex-col gap-[8px]">
@@ -192,7 +192,7 @@ export const LateAccountModal: FC<{
                   </div>
                   {profile.isDefault && (
                     <span className="text-[11px] px-[8px] py-[2px] rounded-full bg-buttonColor text-white">
-                      Default
+                      {t('default_profile_badge', 'Default')}
                     </span>
                   )}
                 </button>
@@ -223,7 +223,7 @@ export const LateAccountModal: FC<{
       ) : Object.keys(groupedAccounts).length === 0 ? (
         <p className="text-[14px] text-textColor/60 text-center py-[20px]">
           {t(
-            'no_late_accounts_found',
+            'no_zernio_accounts_found',
             'No connected accounts found in this profile.'
           )}
         </p>
@@ -257,7 +257,7 @@ export const LateAccountModal: FC<{
                   </div>
                   {account.isActive && (
                     <span className="text-[11px] px-[6px] py-[1px] rounded-full bg-green-500/20 text-green-500">
-                      Active
+                      {t('account_active_badge', 'Active')}
                     </span>
                   )}
                 </button>
@@ -288,7 +288,7 @@ const ConnectNewAccountSection: FC<{
         onClick={() => setExpanded(true)}
         className="w-full text-[13px] text-buttonColor hover:text-buttonColor/80 cursor-pointer text-center py-[4px]"
       >
-        + {t('connect_new_account', 'Connect a new account via Late')}
+        + {t('connect_new_account', 'Connect a new account via Zernio')}
       </button>
     );
   }

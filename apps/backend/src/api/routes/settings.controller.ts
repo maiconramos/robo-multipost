@@ -85,56 +85,56 @@ export class SettingsController {
     );
   }
 
-  @Get('/late')
-  async getLateSettings(
+  @Get('/zernio')
+  async getZernioSettings(
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile | null
   ) {
     if (profile?.id) {
-      return this._profileService.getLateSettings(profile.id);
+      return this._profileService.getZernioSettings(profile.id);
     }
-    return this._organizationService.getLateSettings(org.id);
+    return this._organizationService.getZernioSettings(org.id);
   }
 
-  @Post('/late')
+  @Post('/zernio')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
-  async saveLateApiKey(
+  async saveZernioApiKey(
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile | null,
     @Body('apiKey') apiKey: string
   ) {
     if (profile?.id) {
-      return this._profileService.saveLateApiKey(profile.id, apiKey);
+      return this._profileService.saveZernioApiKey(profile.id, apiKey);
     }
-    return this._organizationService.saveLateApiKey(org.id, apiKey);
+    return this._organizationService.saveZernioApiKey(org.id, apiKey);
   }
 
-  @Delete('/late')
+  @Delete('/zernio')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
-  async removeLateApiKey(
+  async removeZernioApiKey(
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile | null
   ) {
     if (profile?.id) {
-      return this._profileService.removeLateApiKey(profile.id);
+      return this._profileService.removeZernioApiKey(profile.id);
     }
-    return this._organizationService.removeLateApiKey(org.id);
+    return this._organizationService.removeZernioApiKey(org.id);
   }
 
-  @Get('/share-late-with-profiles')
-  async getShareLateWithProfiles(
+  @Get('/share-zernio-with-profiles')
+  async getShareZernioWithProfiles(
     @GetOrgFromRequest() org: Organization
   ) {
-    return this._organizationService.getShareLateWithProfiles(org.id);
+    return this._organizationService.getShareZernioWithProfiles(org.id);
   }
 
-  @Post('/share-late-with-profiles')
+  @Post('/share-zernio-with-profiles')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
-  async updateShareLateWithProfiles(
+  async updateShareZernioWithProfiles(
     @GetOrgFromRequest() org: Organization,
     @Body('enabled') enabled: boolean
   ) {
-    return this._organizationService.updateShareLateWithProfiles(org.id, enabled);
+    return this._organizationService.updateShareZernioWithProfiles(org.id, enabled);
   }
 
   @Get('/profiles/:profileId/ai-credits')

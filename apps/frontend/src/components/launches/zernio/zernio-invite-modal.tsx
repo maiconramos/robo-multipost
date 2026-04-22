@@ -2,15 +2,15 @@
 
 import React, { FC, useCallback, useMemo, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { useLateProfiles } from '@gitroom/frontend/hooks/use-late-profiles.hook';
+import { useZernioProfiles } from '@gitroom/frontend/hooks/use-zernio-profiles.hook';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import {
   PLATFORM_NAMES,
   PlatformIcon,
-} from '@gitroom/frontend/components/launches/late/late-account-modal';
+} from '@gitroom/frontend/components/launches/zernio/zernio-account-modal';
 
-export const LateInviteModal: FC<{
+export const ZernioInviteModal: FC<{
   onComplete: (url: string) => void;
 }> = ({ onComplete }) => {
   const fetch = useFetch();
@@ -22,7 +22,7 @@ export const LateInviteModal: FC<{
   const [generating, setGenerating] = useState(false);
 
   const { data: profilesData, isLoading: profilesLoading } =
-    useLateProfiles();
+    useZernioProfiles();
 
   const profiles = profilesData?.profiles || [];
   const autoSelectedProfileId = useMemo(() => {
@@ -38,7 +38,7 @@ export const LateInviteModal: FC<{
       setGenerating(true);
 
       try {
-        const response = await fetch('/integrations/late/invite-link', {
+        const response = await fetch('/integrations/zernio/invite-link', {
           method: 'POST',
           body: JSON.stringify({
             profileId: effectiveProfileId,
@@ -93,16 +93,16 @@ export const LateInviteModal: FC<{
         ) : profiles.length === 0 ? (
           <p className="text-[14px] text-textColor/60 text-center py-[20px]">
             {t(
-              'no_late_profiles_found',
-              'No Late profiles found. Make sure your Late API key is configured in Settings.'
+              'no_zernio_profiles_found',
+              'No Zernio profiles found. Make sure your Zernio API key is configured in Settings.'
             )}
           </p>
         ) : (
           <>
             <p className="text-[14px] text-textColor/80">
               {t(
-                'select_late_profile',
-                'Select a Late profile to see connected accounts:'
+                'select_zernio_profile',
+                'Select a Zernio profile to see connected accounts:'
               )}
             </p>
             <div className="flex flex-col gap-[8px]">
@@ -119,7 +119,7 @@ export const LateInviteModal: FC<{
                   </div>
                   {profile.isDefault && (
                     <span className="text-[11px] px-[8px] py-[2px] rounded-full bg-buttonColor text-white">
-                      Default
+                      {t('default_profile_badge', 'Default')}
                     </span>
                   )}
                 </button>

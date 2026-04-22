@@ -7,7 +7,7 @@ import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { Organization, ShortLinkPreference } from '@prisma/client';
-import Late from '@getlatedev/node';
+import Zernio from '@zernio/node';
 import { AutopostService } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.service';
 
 @Injectable()
@@ -132,9 +132,9 @@ export class OrganizationService {
     );
   }
 
-  private async fetchLateUsage(apiKey: string) {
-    const late = new Late({ apiKey });
-    const result = await late.usage.getUsageStats();
+  private async fetchZernioUsage(apiKey: string) {
+    const zernio = new Zernio({ apiKey });
+    const result = await zernio.usage.getUsageStats();
     // SDK returns { data: UsageStats } via RequestResult wrapper
     const stats = (result as any)?.data ?? result;
     return {
@@ -151,55 +151,55 @@ export class OrganizationService {
     };
   }
 
-  async getLateSettings(orgId: string) {
-    const org = await this._organizationRepository.getLateApiKey(orgId);
-    if (!org?.lateApiKey) {
+  async getZernioSettings(orgId: string) {
+    const org = await this._organizationRepository.getZernioApiKey(orgId);
+    if (!org?.zernioApiKey) {
       return { configured: false, usage: null };
     }
 
     try {
-      const apiKey = AuthService.fixedDecryption(org.lateApiKey);
-      const usage = await this.fetchLateUsage(apiKey);
+      const apiKey = AuthService.fixedDecryption(org.zernioApiKey);
+      const usage = await this.fetchZernioUsage(apiKey);
       return { configured: true, usage };
     } catch {
       return { configured: true, usage: null };
     }
   }
 
-  async saveLateApiKey(orgId: string, apiKey: string) {
+  async saveZernioApiKey(orgId: string, apiKey: string) {
     if (!apiKey.startsWith('sk_')) {
-      throw new HttpException('Invalid Late API key format. Key must start with "sk_".', 400);
+      throw new HttpException('Invalid Zernio API key format. Key must start with "sk_".', 400);
     }
 
-    // Validate key by calling Late API
+    // Validate key by calling Zernio API
     try {
-      const usage = await this.fetchLateUsage(apiKey);
+      const usage = await this.fetchZernioUsage(apiKey);
       const encrypted = AuthService.fixedEncryption(apiKey);
-      await this._organizationRepository.saveLateApiKey(orgId, encrypted);
+      await this._organizationRepository.saveZernioApiKey(orgId, encrypted);
       return { configured: true, usage };
     } catch {
-      throw new HttpException('Invalid Late API key. Could not connect to Late.', 400);
+      throw new HttpException('Invalid Zernio API key. Could not connect to Zernio.', 400);
     }
   }
 
-  async removeLateApiKey(orgId: string) {
-    await this._organizationRepository.removeLateApiKey(orgId);
+  async removeZernioApiKey(orgId: string) {
+    await this._organizationRepository.removeZernioApiKey(orgId);
     return { configured: false };
   }
 
-  async getDecryptedLateApiKey(orgId: string): Promise<string | null> {
-    const org = await this._organizationRepository.getLateApiKey(orgId);
-    if (!org?.lateApiKey) {
+  async getDecryptedZernioApiKey(orgId: string): Promise<string | null> {
+    const org = await this._organizationRepository.getZernioApiKey(orgId);
+    if (!org?.zernioApiKey) {
       return null;
     }
-    return AuthService.fixedDecryption(org.lateApiKey);
+    return AuthService.fixedDecryption(org.zernioApiKey);
   }
 
-  async getShareLateWithProfiles(orgId: string) {
-    return this._organizationRepository.getShareLateWithProfiles(orgId);
+  async getShareZernioWithProfiles(orgId: string) {
+    return this._organizationRepository.getShareZernioWithProfiles(orgId);
   }
 
-  async updateShareLateWithProfiles(orgId: string, enabled: boolean) {
-    return this._organizationRepository.updateShareLateWithProfiles(orgId, enabled);
+  async updateShareZernioWithProfiles(orgId: string, enabled: boolean) {
+    return this._organizationRepository.updateShareZernioWithProfiles(orgId, enabled);
   }
 }

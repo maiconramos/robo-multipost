@@ -37,19 +37,19 @@ import { MoltbookProvider } from '@gitroom/nestjs-libraries/integrations/social/
 import { SkoolProvider } from '@gitroom/nestjs-libraries/integrations/social/skool.provider';
 import { WhopProvider } from '@gitroom/nestjs-libraries/integrations/social/whop.provider';
 import { MeweProvider } from '@gitroom/nestjs-libraries/integrations/social/mewe.provider';
-import { LateTikTokProvider } from '@gitroom/nestjs-libraries/integrations/social/late-tiktok.provider';
-import { LatePinterestProvider } from '@gitroom/nestjs-libraries/integrations/social/late-pinterest.provider';
-import { LateTwitterProvider } from '@gitroom/nestjs-libraries/integrations/social/late-twitter.provider';
-import { LateInstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/late-instagram.provider';
-import { LateYoutubeProvider } from '@gitroom/nestjs-libraries/integrations/social/late-youtube.provider';
-import { LateFacebookProvider } from '@gitroom/nestjs-libraries/integrations/social/late-facebook.provider';
-import { LateLinkedinProvider } from '@gitroom/nestjs-libraries/integrations/social/late-linkedin.provider';
-import { LateRedditProvider } from '@gitroom/nestjs-libraries/integrations/social/late-reddit.provider';
-import { LateBlueskyProvider } from '@gitroom/nestjs-libraries/integrations/social/late-bluesky.provider';
-import { LateThreadsProvider } from '@gitroom/nestjs-libraries/integrations/social/late-threads.provider';
-import { LateTelegramProvider } from '@gitroom/nestjs-libraries/integrations/social/late-telegram.provider';
-import { LateGoogleBusinessProvider } from '@gitroom/nestjs-libraries/integrations/social/late-googlebusiness.provider';
-import { LateSnapchatProvider } from '@gitroom/nestjs-libraries/integrations/social/late-snapchat.provider';
+import { ZernioTikTokProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-tiktok.provider';
+import { ZernioPinterestProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-pinterest.provider';
+import { ZernioTwitterProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-twitter.provider';
+import { ZernioInstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-instagram.provider';
+import { ZernioYoutubeProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-youtube.provider';
+import { ZernioFacebookProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-facebook.provider';
+import { ZernioLinkedinProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-linkedin.provider';
+import { ZernioRedditProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-reddit.provider';
+import { ZernioBlueskyProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-bluesky.provider';
+import { ZernioThreadsProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-threads.provider';
+import { ZernioTelegramProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-telegram.provider';
+import { ZernioGoogleBusinessProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-googlebusiness.provider';
+import { ZernioSnapchatProvider } from '@gitroom/nestjs-libraries/integrations/social/zernio-snapchat.provider';
 
 export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new XProvider(),
@@ -86,19 +86,19 @@ export const socialIntegrationList: Array<SocialAbstract & SocialProvider> = [
   new SkoolProvider(),
   new MeweProvider(),
   // new MastodonCustomProvider(),
-  new LateTikTokProvider(),
-  new LatePinterestProvider(),
-  new LateTwitterProvider(),
-  new LateInstagramProvider(),
-  new LateYoutubeProvider(),
-  new LateFacebookProvider(),
-  new LateLinkedinProvider(),
-  new LateRedditProvider(),
-  new LateBlueskyProvider(),
-  new LateThreadsProvider(),
-  new LateTelegramProvider(),
-  new LateGoogleBusinessProvider(),
-  new LateSnapchatProvider(),
+  new ZernioTikTokProvider(),
+  new ZernioPinterestProvider(),
+  new ZernioTwitterProvider(),
+  new ZernioInstagramProvider(),
+  new ZernioYoutubeProvider(),
+  new ZernioFacebookProvider(),
+  new ZernioLinkedinProvider(),
+  new ZernioRedditProvider(),
+  new ZernioBlueskyProvider(),
+  new ZernioThreadsProvider(),
+  new ZernioTelegramProvider(),
+  new ZernioGoogleBusinessProvider(),
+  new ZernioSnapchatProvider(),
 ];
 
 const facebookCreds = {
@@ -217,10 +217,10 @@ export class IntegrationManager {
       }))
     );
 
-    // Add virtual "Late" entry for the unified Late connector
+    // Add virtual "Zernio" entry for the unified Zernio connector
     social.push({
-      name: 'Late',
-      identifier: 'late',
+      name: 'Zernio',
+      identifier: 'zernio',
       toolTip: undefined,
       editor: 'normal' as const,
       isExternal: false,

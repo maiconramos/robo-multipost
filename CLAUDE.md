@@ -198,7 +198,7 @@ pnpm lint
 
 - **Idioma padrão:** pt-BR (arquivo de tradução `pt` já existe em `react-shared-libraries/src/translation/locales/`)
 - **Branding:** "Robô MultiPost" (fork do Postiz, créditos mantidos por exigência da AGPL)
-- **Integração Late:** TikTok e Pinterest via [Late API](https://docs.getlate.dev/llms-full.txt) como provedor alternativo
+- **Integração Zernio:** TikTok e Pinterest via [Zernio API](https://docs.zernio.com/llms-full.txt) como provedor alternativo (ex-Late/getlate.dev — mesma empresa, nova marca)
 - **Billing:** desabilitado por padrão para self-hosted (`DISABLE_BILLING=true`)
 - **Marketplace:** desabilitado por padrão (`DISABLE_MARKETPLACE=true`)
 - **Storage:** local por padrão, Cloudflare R2 como opção avançada

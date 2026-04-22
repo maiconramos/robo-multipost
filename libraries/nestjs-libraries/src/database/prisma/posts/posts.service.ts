@@ -770,7 +770,7 @@ export class PostsService {
 
       if (body.type !== 'update') {
         this.startWorkflow(
-          post.settings.__type.startsWith('late-')
+          post.settings.__type.startsWith('zernio-')
             ? 'main'
             : post.settings.__type.split('-')[0].toLowerCase(),
           posts[0].id,
@@ -823,7 +823,7 @@ export class PostsService {
     if (action === 'schedule') {
       try {
         await this.startWorkflow(
-          getPostById.integration.providerIdentifier.startsWith('late-')
+          getPostById.integration.providerIdentifier.startsWith('zernio-')
             ? 'main'
             : getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
           getPostById.id,

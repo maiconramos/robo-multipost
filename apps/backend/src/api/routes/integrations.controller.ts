@@ -222,38 +222,38 @@ export class IntegrationsController {
     const integrationProvider =
       this._integrationManager.getSocialIntegration(integration);
 
-    const isLateProvider = integration.startsWith('late-');
+    const isZernioProvider = integration.startsWith('zernio-');
 
-    if (integrationProvider.externalUrl && !externalUrl && !isLateProvider) {
+    if (integrationProvider.externalUrl && !externalUrl && !isZernioProvider) {
       throw new Error('Missing external url');
     }
 
     try {
       let getExternalUrl: { client_id: string; client_secret: string; instanceUrl: string } | undefined;
 
-      if (isLateProvider) {
-        let lateApiKey: string | null = null;
+      if (isZernioProvider) {
+        let zernioApiKey: string | null = null;
         if (profile?.id) {
-          lateApiKey = await this._profileService.getDecryptedLateApiKey(profile.id);
-          // If profile has no key, check if org shares Late with profiles
-          if (!lateApiKey) {
+          zernioApiKey = await this._profileService.getDecryptedZernioApiKey(profile.id);
+          // If profile has no key, check if org shares Zernio with profiles
+          if (!zernioApiKey) {
             const shareSettings =
-              await this._organizationService.getShareLateWithProfiles(org.id);
-            if (shareSettings?.shareLateWithProfiles) {
-              lateApiKey = await this._organizationService.getDecryptedLateApiKey(org.id);
+              await this._organizationService.getShareZernioWithProfiles(org.id);
+            if (shareSettings?.shareZernioWithProfiles) {
+              zernioApiKey = await this._organizationService.getDecryptedZernioApiKey(org.id);
             }
           }
         } else {
           // No active profile — use org-level key
-          lateApiKey = await this._organizationService.getDecryptedLateApiKey(org.id);
+          zernioApiKey = await this._organizationService.getDecryptedZernioApiKey(org.id);
         }
-        if (!lateApiKey) {
-          throw new Error('Late API key not configured. Go to Settings > Late to configure it.');
+        if (!zernioApiKey) {
+          throw new Error('Zernio API key not configured. Go to Settings > Zernio to configure it.');
         }
         getExternalUrl = {
           client_id: '',
           client_secret: '',
-          instanceUrl: lateApiKey,
+          instanceUrl: zernioApiKey,
         };
       } else if (integrationProvider.externalUrl) {
         getExternalUrl = {

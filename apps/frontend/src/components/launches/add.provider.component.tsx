@@ -19,8 +19,8 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import clsx from 'clsx';
 import copy from 'copy-to-clipboard';
 import { capitalize } from 'lodash';
-import { LateAccountModal } from '@gitroom/frontend/components/launches/late/late-account-modal';
-import { LateInviteModal } from '@gitroom/frontend/components/launches/late/late-invite-modal';
+import { ZernioAccountModal } from '@gitroom/frontend/components/launches/zernio/zernio-account-modal';
+import { ZernioInviteModal } from '@gitroom/frontend/components/launches/zernio/zernio-invite-modal';
 const resolver = classValidatorResolver(ApiKeyDto);
 
 export const useAddProvider = (update?: () => void, invite?: boolean) => {
@@ -406,17 +406,17 @@ export const AddProviderComponent: FC<{
         }>
       ) =>
       async () => {
-        if (invite && identifier === 'late') {
+        if (invite && identifier === 'zernio') {
           modal.openModal({
-            title: t('late_invite_link', 'Late - Invite Link'),
+            title: t('zernio_invite_link', 'Zernio - Invite Link'),
             withCloseButton: true,
             children: (
-              <LateInviteModal
+              <ZernioInviteModal
                 onComplete={(url) => {
                   toaster.show(
                     t(
-                      'invite_link_copied_late',
-                      'Invite link copied! After the client connects, the account will be available in Add Channel > Late.'
+                      'invite_link_copied_zernio',
+                      'Invite link copied! After the client connects, the account will be available in Add Channel > Zernio.'
                     ),
                     'success'
                   );
@@ -429,12 +429,12 @@ export const AddProviderComponent: FC<{
           return;
         }
 
-        if (identifier === 'late') {
+        if (identifier === 'zernio') {
           modal.openModal({
-            title: 'Late',
+            title: 'Zernio',
             withCloseButton: true,
             children: (
-              <LateAccountModal
+              <ZernioAccountModal
                 onComplete={() => {
                   modal.closeAll();
                   update?.();

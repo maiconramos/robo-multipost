@@ -18,9 +18,9 @@ import {
   AuthorizationActions,
   Sections,
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
-import Late from '@getlatedev/node';
+import Zernio from '@zernio/node';
 
-const SUPPORTED_LATE_PLATFORMS = [
+const SUPPORTED_ZERNIO_PLATFORMS = [
   'twitter',
   'instagram',
   'tiktok',
@@ -36,61 +36,60 @@ const SUPPORTED_LATE_PLATFORMS = [
   'snapchat',
 ];
 
-@ApiTags('Late Integrations')
-@Controller('/integrations/late')
-export class LateIntegrationsController {
+@ApiTags('Zernio Integrations')
+@Controller('/integrations/zernio')
+export class ZernioIntegrationsController {
   constructor(
     private _organizationService: OrganizationService,
     private _profileService: ProfileService,
     private _integrationService: IntegrationService
   ) {}
 
-  private async getLateApiKey(
+  private async getZernioApiKey(
     org: Organization,
     profile?: Profile
   ): Promise<string> {
-    let lateApiKey: string | null = null;
+    let zernioApiKey: string | null = null;
     if (profile?.id) {
-      lateApiKey = await this._profileService.getDecryptedLateApiKey(
+      zernioApiKey = await this._profileService.getDecryptedZernioApiKey(
         profile.id
       );
-      // If profile has no key, check if org shares Late with profiles
-      if (!lateApiKey) {
+      // If profile has no key, check if org shares Zernio with profiles
+      if (!zernioApiKey) {
         const shareSettings =
-          await this._organizationService.getShareLateWithProfiles(org.id);
-        if (shareSettings?.shareLateWithProfiles) {
-          lateApiKey = await this._organizationService.getDecryptedLateApiKey(
-            org.id
-          );
+          await this._organizationService.getShareZernioWithProfiles(org.id);
+        if (shareSettings?.shareZernioWithProfiles) {
+          zernioApiKey =
+            await this._organizationService.getDecryptedZernioApiKey(org.id);
         }
       }
     } else {
       // No active profile — use org-level key
-      lateApiKey = await this._organizationService.getDecryptedLateApiKey(
+      zernioApiKey = await this._organizationService.getDecryptedZernioApiKey(
         org.id
       );
     }
-    if (!lateApiKey) {
+    if (!zernioApiKey) {
       throw new HttpException(
-        'Late API key not configured. Go to Settings > Late to configure it.',
+        'Zernio API key not configured. Go to Settings > Zernio to configure it.',
         400
       );
     }
-    return lateApiKey;
+    return zernioApiKey;
   }
 
   @Get('/profiles')
   @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
-  async getLateProfiles(
+  async getZernioProfiles(
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile
   ) {
-    const apiKey = await this.getLateApiKey(org, profile);
-    const late = new Late({ apiKey });
+    const apiKey = await this.getZernioApiKey(org, profile);
+    const zernio = new Zernio({ apiKey });
 
-    const { data, error } = await late.profiles.listProfiles();
+    const { data, error } = await zernio.profiles.listProfiles();
     if (error) {
-      throw new HttpException('Failed to fetch Late profiles', 500);
+      throw new HttpException('Failed to fetch Zernio profiles', 500);
     }
 
     return {
@@ -104,23 +103,23 @@ export class LateIntegrationsController {
 
   @Get('/accounts')
   @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
-  async getLateAccounts(
+  async getZernioAccounts(
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile,
-    @Query('profileId') lateProfileId: string
+    @Query('profileId') zernioProfileId: string
   ) {
-    if (!lateProfileId) {
+    if (!zernioProfileId) {
       throw new HttpException('profileId is required', 400);
     }
 
-    const apiKey = await this.getLateApiKey(org, profile);
-    const late = new Late({ apiKey });
+    const apiKey = await this.getZernioApiKey(org, profile);
+    const zernio = new Zernio({ apiKey });
 
-    const { data, error } = await late.accounts.listAccounts({
-      query: { profileId: lateProfileId },
+    const { data, error } = await zernio.accounts.listAccounts({
+      query: { profileId: zernioProfileId },
     });
     if (error) {
-      throw new HttpException('Failed to fetch Late accounts', 500);
+      throw new HttpException('Failed to fetch Zernio accounts', 500);
     }
 
     return {
@@ -137,21 +136,21 @@ export class LateIntegrationsController {
 
   @Post('/connect-account')
   @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
-  async connectLateAccount(
+  async connectZernioAccount(
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile,
     @Body()
     body: {
-      lateProfileId: string;
+      zernioProfileId: string;
       accountId: string;
       platform: string;
       username: string;
       displayName: string;
     }
   ) {
-    const { lateProfileId, accountId, platform, username, displayName } = body;
+    const { zernioProfileId, accountId, platform, username, displayName } = body;
 
-    if (!SUPPORTED_LATE_PLATFORMS.includes(platform)) {
+    if (!SUPPORTED_ZERNIO_PLATFORMS.includes(platform)) {
       throw new HttpException(`Unsupported platform: ${platform}`, 400);
     }
 
@@ -159,18 +158,18 @@ export class LateIntegrationsController {
       throw new HttpException('accountId and platform are required', 400);
     }
 
-    const apiKey = await this.getLateApiKey(org, profile);
-    const providerIdentifier = `late-${platform}`;
+    const apiKey = await this.getZernioApiKey(org, profile);
+    const providerIdentifier = `zernio-${platform}`;
     const name = displayName || username || `${platform} Account`;
 
-    // Late SDK doesn't provide profile pictures for accounts.
+    // Zernio SDK doesn't provide profile pictures for accounts.
     // Use the platform icon as fallback so the integration doesn't show a blank avatar.
     const picture =
       platform === 'youtube'
         ? '/icons/platforms/youtube.svg'
         : `/icons/platforms/${platform}.png`;
 
-    // Compose internalId with profileId suffix so the same Late account can exist
+    // Compose internalId with profileId suffix so the same Zernio account can exist
     // in multiple profiles (the unique constraint is [organizationId, internalId]).
     // The real accountId is stored in customInstanceDetails for use during posting.
     const internalId = profile?.id
@@ -194,7 +193,7 @@ export class LateIntegrationsController {
         false,
         undefined,
         undefined,
-        JSON.stringify({ lateProfileId, lateAccountId: accountId }),
+        JSON.stringify({ zernioProfileId, zernioAccountId: accountId }),
         profile?.id
       );
 
@@ -215,28 +214,52 @@ export class LateIntegrationsController {
       throw new HttpException('profileId and platform are required', 400);
     }
 
-    const apiKey = await this.getLateApiKey(org, profile);
+    const apiKey = await this.getZernioApiKey(org, profile);
 
-    // Undocumented Late endpoint — direct HTTP call (not in SDK)
-    const response = await globalThis.fetch(
-      'https://getlate.dev/api/v1/platform-invites',
-      {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          Authorization: `Bearer ${apiKey}`,
+    // Undocumented Zernio endpoint carried over from the Late era — direct HTTP
+    // call (not in SDK). If Zernio removed it the UI should fall back to the
+    // dashboard, so we translate any non-2xx into a 501 the frontend can catch.
+    let response: Response;
+    try {
+      response = await globalThis.fetch(
+        'https://zernio.com/api/v1/platform-invites',
+        {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            Authorization: `Bearer ${apiKey}`,
+          },
+          body: JSON.stringify({
+            profileId: body.profileId,
+            platform: body.platform,
+          }),
+        }
+      );
+    } catch (err) {
+      throw new HttpException(
+        {
+          error: 'INVITE_UNSUPPORTED',
+          message:
+            'Use the Zernio dashboard to invite platform connections.',
         },
-        body: JSON.stringify({
-          profileId: body.profileId,
-          platform: body.platform,
-        }),
-      }
-    );
+        501
+      );
+    }
 
     if (!response.ok) {
+      if (response.status === 404) {
+        throw new HttpException(
+          {
+            error: 'INVITE_UNSUPPORTED',
+            message:
+              'Use the Zernio dashboard to invite platform connections.',
+          },
+          501
+        );
+      }
       const err = await response.json().catch(() => ({}));
       throw new HttpException(
-        err.message || 'Failed to create Late platform invite',
+        err.message || 'Failed to create Zernio platform invite',
         response.status >= 500 ? 502 : response.status
       );
     }
@@ -250,31 +273,31 @@ export class LateIntegrationsController {
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile,
     @Query('platform') platform: string,
-    @Query('lateProfileId') lateProfileId: string
+    @Query('zernioProfileId') zernioProfileId: string
   ) {
-    if (!SUPPORTED_LATE_PLATFORMS.includes(platform)) {
+    if (!SUPPORTED_ZERNIO_PLATFORMS.includes(platform)) {
       throw new HttpException(`Unsupported platform: ${platform}`, 400);
     }
 
-    if (!lateProfileId) {
-      throw new HttpException('lateProfileId is required', 400);
+    if (!zernioProfileId) {
+      throw new HttpException('zernioProfileId is required', 400);
     }
 
-    const apiKey = await this.getLateApiKey(org, profile);
-    const late = new Late({ apiKey });
+    const apiKey = await this.getZernioApiKey(org, profile);
+    const zernio = new Zernio({ apiKey });
 
-    const redirectUrl = `${process.env.FRONTEND_URL}/integrations/social/late-${platform}`;
+    const redirectUrl = `${process.env.FRONTEND_URL}/integrations/social/zernio-${platform}`;
 
-    const { data, error } = await late.connect.getConnectUrl({
+    const { data, error } = await zernio.connect.getConnectUrl({
       path: { platform: platform as any },
       query: {
-        profileId: lateProfileId,
+        profileId: zernioProfileId,
         redirect_url: redirectUrl,
       },
     });
 
     if (error || !data?.authUrl) {
-      throw new HttpException('Failed to get connect URL from Late', 500);
+      throw new HttpException('Failed to get connect URL from Zernio', 500);
     }
 
     return { url: data.authUrl };

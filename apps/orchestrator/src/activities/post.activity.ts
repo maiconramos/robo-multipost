@@ -59,7 +59,7 @@ export class PostActivity {
           signalArgs: [],
           args: [
             {
-              taskQueue: post.integration.providerIdentifier.startsWith('late-')
+              taskQueue: post.integration.providerIdentifier.startsWith('zernio-')
                 ? 'main'
                 : post.integration.providerIdentifier
                     .split('-')[0]

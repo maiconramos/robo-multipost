@@ -2,7 +2,7 @@
 
 import React, { useCallback, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
-import { useLateSettings } from '@gitroom/frontend/hooks/use-late-settings.hook';
+import { useZernioSettings } from '@gitroom/frontend/hooks/use-zernio-settings.hook';
 import { Button } from '@gitroom/react/form/button';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useDecisionModal } from '@gitroom/frontend/components/layout/new-modal';
@@ -43,12 +43,12 @@ const UsageBar: React.FC<{
         <div className="text-[12px] text-customColor19">
           Limite atingido.{' '}
           <a
-            href="https://getlate.dev"
+            href="https://zernio.com"
             target="_blank"
             rel="noopener noreferrer"
             className="underline hover:font-bold"
           >
-            Atualize em getlate.dev
+            Atualize em zernio.com
           </a>
         </div>
       )}
@@ -56,11 +56,11 @@ const UsageBar: React.FC<{
   );
 };
 
-export const LateSettingsSection: React.FC = () => {
+export const ZernioSettingsSection: React.FC = () => {
   const fetch = useFetch();
   const toaster = useToaster();
   const decision = useDecisionModal();
-  const { data, isLoading, mutate } = useLateSettings();
+  const { data, isLoading, mutate } = useZernioSettings();
   const [apiKey, setApiKey] = useState('');
   const [saving, setSaving] = useState(false);
 
@@ -68,16 +68,16 @@ export const LateSettingsSection: React.FC = () => {
     if (!apiKey.trim()) return;
     setSaving(true);
     try {
-      const res = await fetch('/settings/late', {
+      const res = await fetch('/settings/zernio', {
         method: 'POST',
         body: JSON.stringify({ apiKey: apiKey.trim() }),
       });
       if (res.ok) {
         setApiKey('');
         await mutate();
-        toaster.show('Late conectado com sucesso', 'success');
+        toaster.show('Zernio conectado com sucesso', 'success');
       } else {
-        toaster.show('Erro ao conectar Late. Verifique sua API key.', 'warning');
+        toaster.show('Erro ao conectar Zernio. Verifique sua API key.', 'warning');
       }
     } finally {
       setSaving(false);
@@ -86,16 +86,16 @@ export const LateSettingsSection: React.FC = () => {
 
   const handleDisconnect = useCallback(async () => {
     const approved = await decision.open({
-      title: 'Remover conexão Late?',
+      title: 'Remover conexão Zernio?',
       description:
-        'Isso irá remover sua API key do Late. Publicações no TikTok e Pinterest via Late deixarão de funcionar.',
+        'Isso irá remover sua API key do Zernio. Publicações no TikTok e Pinterest via Zernio deixarão de funcionar.',
       approveLabel: 'Sim, remover',
       cancelLabel: 'Cancelar',
     });
     if (!approved) return;
-    await fetch('/settings/late', { method: 'DELETE' });
+    await fetch('/settings/zernio', { method: 'DELETE' });
     await mutate();
-    toaster.show('Conexão Late removida', 'success');
+    toaster.show('Conexão Zernio removida', 'success');
   }, [decision, fetch, mutate, toaster]);
 
   if (isLoading) {
@@ -111,16 +111,16 @@ export const LateSettingsSection: React.FC = () => {
 
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">Late — TikTok e Pinterest</h3>
+      <h3 className="text-[20px]">Zernio — TikTok e Pinterest</h3>
       <div className="text-customColor18 mt-[4px]">
-        Configure sua API key do Late para publicar no TikTok e Pinterest sem
+        Configure sua API key do Zernio para publicar no TikTok e Pinterest sem
         precisar de aprovação de app.
       </div>
       <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px] flex flex-col gap-[24px]">
         {!configured ? (
           <>
             <div className="flex flex-col gap-[6px]">
-              <div className="text-[14px]">Late API Key</div>
+              <div className="text-[14px]">Zernio API Key</div>
               <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] text-textColor placeholder-textColor flex items-center">
                 <input
                   className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px]"
@@ -139,12 +139,12 @@ export const LateSettingsSection: React.FC = () => {
               <div className="text-[12px] text-customColor18">
                 Obtenha sua API key em{' '}
                 <a
-                  href="https://getlate.dev/dashboard/api-keys"
+                  href="https://zernio.com/dashboard/api-keys"
                   target="_blank"
                   rel="noopener noreferrer"
                   className="underline hover:font-bold"
                 >
-                  getlate.dev/settings/api-keys
+                  zernio.com/dashboard/api-keys
                 </a>
               </div>
             </div>
@@ -157,12 +157,12 @@ export const LateSettingsSection: React.FC = () => {
                 Conectar
               </Button>
               <a
-                href="https://getlate.dev"
+                href="https://zernio.com"
                 target="_blank"
                 rel="noopener noreferrer"
                 className="text-[14px] text-customColor18 underline hover:font-bold"
               >
-                Criar conta no Late (gratuito)
+                Criar conta no Zernio (gratuito)
               </a>
             </div>
           </>
@@ -171,7 +171,7 @@ export const LateSettingsSection: React.FC = () => {
             <div className="flex items-center gap-[8px]">
               <span className="inline-flex items-center gap-[6px] rounded-full bg-customColor42/20 text-customColor42 px-[12px] py-[4px] text-[13px]">
                 <span className="w-[8px] h-[8px] rounded-full bg-customColor42 inline-block" />
-                Late conectado
+                Zernio conectado
               </span>
             </div>
             {usage && (
@@ -211,4 +211,4 @@ export const LateSettingsSection: React.FC = () => {
   );
 };
 
-export default LateSettingsSection;
+export default ZernioSettingsSection;

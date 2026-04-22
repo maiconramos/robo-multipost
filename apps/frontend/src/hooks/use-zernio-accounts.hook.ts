@@ -4,7 +4,7 @@ import { useCallback } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 
-export interface LateAccount {
+export interface ZernioAccount {
   _id: string;
   platform: string;
   username: string;
@@ -13,22 +13,22 @@ export interface LateAccount {
   isActive: boolean;
 }
 
-interface LateAccountsResponse {
-  accounts: LateAccount[];
+interface ZernioAccountsResponse {
+  accounts: ZernioAccount[];
 }
 
-export const useLateAccounts = (lateProfileId: string | null) => {
+export const useZernioAccounts = (zernioProfileId: string | null) => {
   const fetch = useFetch();
 
   const load = useCallback(async () => {
-    if (!lateProfileId) return { accounts: [] };
+    if (!zernioProfileId) return { accounts: [] };
     return (
-      await fetch(`/integrations/late/accounts?profileId=${lateProfileId}`)
+      await fetch(`/integrations/zernio/accounts?profileId=${zernioProfileId}`)
     ).json();
-  }, [lateProfileId]);
+  }, [zernioProfileId]);
 
-  return useSWR<LateAccountsResponse>(
-    lateProfileId ? `late-accounts-${lateProfileId}` : null,
+  return useSWR<ZernioAccountsResponse>(
+    zernioProfileId ? `zernio-accounts-${zernioProfileId}` : null,
     load,
     {
       revalidateOnFocus: false,

@@ -420,38 +420,38 @@ export class OrganizationRepository {
     });
   }
 
-  getLateApiKey(orgId: string) {
+  getZernioApiKey(orgId: string) {
     return this._organization.model.organization.findUnique({
       where: { id: orgId },
-      select: { lateApiKey: true },
+      select: { zernioApiKey: true },
     });
   }
 
-  saveLateApiKey(orgId: string, encryptedKey: string) {
+  saveZernioApiKey(orgId: string, encryptedKey: string) {
     return this._organization.model.organization.update({
       where: { id: orgId },
-      data: { lateApiKey: encryptedKey },
+      data: { zernioApiKey: encryptedKey },
     });
   }
 
-  removeLateApiKey(orgId: string) {
+  removeZernioApiKey(orgId: string) {
     return this._organization.model.organization.update({
       where: { id: orgId },
-      data: { lateApiKey: null },
+      data: { zernioApiKey: null },
     });
   }
 
-  getShareLateWithProfiles(orgId: string) {
+  getShareZernioWithProfiles(orgId: string) {
     return this._organization.model.organization.findUnique({
       where: { id: orgId },
-      select: { shareLateWithProfiles: true },
+      select: { shareZernioWithProfiles: true },
     });
   }
 
-  updateShareLateWithProfiles(orgId: string, enabled: boolean) {
+  updateShareZernioWithProfiles(orgId: string, enabled: boolean) {
     return this._organization.model.organization.update({
       where: { id: orgId },
-      data: { shareLateWithProfiles: enabled },
+      data: { shareZernioWithProfiles: enabled },
     });
   }
 }

@@ -9,6 +9,7 @@ export class StartupMigrationService implements OnModuleInit {
 
   async onModuleInit() {
     await this.migrateProfileScope();
+    await this.migrateLateToZernio();
   }
 
   /**
@@ -96,6 +97,75 @@ export class StartupMigrationService implements OnModuleInit {
       this.logger.log('Profile scope migration completed successfully.');
     } catch (error) {
       this.logger.error('Profile scope migration failed:', error);
+    }
+  }
+
+  /**
+   * Copia chaves de API Late para as colunas Zernio e reescreve
+   * providerIdentifier de integrations existentes (late-X -> zernio-X).
+   * Idempotente: cada UPDATE filtra linhas ja migradas.
+   */
+  private async migrateLateToZernio() {
+    try {
+      const pendingIntegrations = await this.prisma.integration.count({
+        where: { providerIdentifier: { startsWith: 'late-' } },
+      });
+
+      const pendingOrgKeys = await this.prisma.organization.count({
+        where: {
+          lateApiKey: { not: null },
+          zernioApiKey: null,
+        },
+      });
+
+      const pendingProfileKeys = await this.prisma.profile.count({
+        where: {
+          lateApiKey: { not: null },
+          zernioApiKey: null,
+        },
+      });
+
+      if (
+        pendingIntegrations === 0 &&
+        pendingOrgKeys === 0 &&
+        pendingProfileKeys === 0
+      ) {
+        return;
+      }
+
+      this.logger.log(
+        `Late->Zernio migration pending: ${pendingIntegrations} integrations, ${pendingOrgKeys} org keys, ${pendingProfileKeys} profile keys.`
+      );
+
+      await this.prisma.$transaction(async (tx) => {
+        await tx.$executeRawUnsafe(`
+          UPDATE "Organization"
+          SET "zernioApiKey" = "lateApiKey"
+          WHERE "lateApiKey" IS NOT NULL AND "zernioApiKey" IS NULL
+        `);
+
+        await tx.$executeRawUnsafe(`
+          UPDATE "Organization"
+          SET "shareZernioWithProfiles" = "shareLateWithProfiles"
+          WHERE "shareLateWithProfiles" = true AND "shareZernioWithProfiles" = false
+        `);
+
+        await tx.$executeRawUnsafe(`
+          UPDATE "Profile"
+          SET "zernioApiKey" = "lateApiKey"
+          WHERE "lateApiKey" IS NOT NULL AND "zernioApiKey" IS NULL
+        `);
+
+        await tx.$executeRawUnsafe(`
+          UPDATE "Integration"
+          SET "providerIdentifier" = 'zernio-' || SUBSTRING("providerIdentifier" FROM 6)
+          WHERE "providerIdentifier" LIKE 'late-%'
+        `);
+      });
+
+      this.logger.log('Late->Zernio migration completed successfully.');
+    } catch (error) {
+      this.logger.error('Late->Zernio migration failed:', error);
     }
   }
 }

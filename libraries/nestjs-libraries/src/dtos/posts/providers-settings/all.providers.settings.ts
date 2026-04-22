@@ -60,19 +60,19 @@ export type AllProvidersSettings =
   | ProviderExtension<'skool', SkoolDto>
   | ProviderExtension<'mewe', MeweDto>
   | ProviderExtension<'whop', WhopDto>
-  | ProviderExtension<'late-tiktok', TikTokDto>
-  | ProviderExtension<'late-instagram', InstagramDto>
-  | ProviderExtension<'late-youtube', YoutubeSettingsDto>
-  | ProviderExtension<'late-facebook', FacebookDto>
-  | ProviderExtension<'late-linkedin', LinkedinDto>
-  | ProviderExtension<'late-pinterest', PinterestSettingsDto>
-  | ProviderExtension<'late-reddit', RedditSettingsDto>
-  | ProviderExtension<'late-twitter', XDto>
-  | ProviderExtension<'late-bluesky', None>
-  | ProviderExtension<'late-threads', None>
-  | ProviderExtension<'late-telegram', None>
-  | ProviderExtension<'late-googlebusiness', GmbSettingsDto>
-  | ProviderExtension<'late-snapchat', None>;
+  | ProviderExtension<'zernio-tiktok', TikTokDto>
+  | ProviderExtension<'zernio-instagram', InstagramDto>
+  | ProviderExtension<'zernio-youtube', YoutubeSettingsDto>
+  | ProviderExtension<'zernio-facebook', FacebookDto>
+  | ProviderExtension<'zernio-linkedin', LinkedinDto>
+  | ProviderExtension<'zernio-pinterest', PinterestSettingsDto>
+  | ProviderExtension<'zernio-reddit', RedditSettingsDto>
+  | ProviderExtension<'zernio-twitter', XDto>
+  | ProviderExtension<'zernio-bluesky', None>
+  | ProviderExtension<'zernio-threads', None>
+  | ProviderExtension<'zernio-telegram', None>
+  | ProviderExtension<'zernio-googlebusiness', GmbSettingsDto>
+  | ProviderExtension<'zernio-snapchat', None>;
 
 type None = NonNullable<unknown>;
 
@@ -111,19 +111,19 @@ export const allProviders = (setEmpty?: any) => {
     { value: SkoolDto, name: 'skool' },
     { value: WhopDto, name: 'whop' },
     { value: MeweDto, name: 'mewe' },
-    { value: TikTokDto, name: 'late-tiktok' },
-    { value: InstagramDto, name: 'late-instagram' },
-    { value: YoutubeSettingsDto, name: 'late-youtube' },
-    { value: FacebookDto, name: 'late-facebook' },
-    { value: LinkedinDto, name: 'late-linkedin' },
-    { value: PinterestSettingsDto, name: 'late-pinterest' },
-    { value: RedditSettingsDto, name: 'late-reddit' },
-    { value: XDto, name: 'late-twitter' },
-    { value: setEmpty, name: 'late-bluesky' },
-    { value: setEmpty, name: 'late-threads' },
-    { value: setEmpty, name: 'late-telegram' },
-    { value: GmbSettingsDto, name: 'late-googlebusiness' },
-    { value: setEmpty, name: 'late-snapchat' },
+    { value: TikTokDto, name: 'zernio-tiktok' },
+    { value: InstagramDto, name: 'zernio-instagram' },
+    { value: YoutubeSettingsDto, name: 'zernio-youtube' },
+    { value: FacebookDto, name: 'zernio-facebook' },
+    { value: LinkedinDto, name: 'zernio-linkedin' },
+    { value: PinterestSettingsDto, name: 'zernio-pinterest' },
+    { value: RedditSettingsDto, name: 'zernio-reddit' },
+    { value: XDto, name: 'zernio-twitter' },
+    { value: setEmpty, name: 'zernio-bluesky' },
+    { value: setEmpty, name: 'zernio-threads' },
+    { value: setEmpty, name: 'zernio-telegram' },
+    { value: GmbSettingsDto, name: 'zernio-googlebusiness' },
+    { value: setEmpty, name: 'zernio-snapchat' },
   ].filter((f) => f.value);
 };
 

@@ -22,6 +22,8 @@ model Organization {
   shortlink               ShortLinkPreference  @default(ASK)
   lateApiKey              String?
   shareLateWithProfiles   Boolean              @default(false)
+  zernioApiKey            String?
+  shareZernioWithProfiles Boolean              @default(false)
   autoPost                AutoPost[]
   Comments                Comments[]
   credits                 Credits[]
@@ -49,6 +51,7 @@ model Organization {
   oauthAuthorizations     OAuthAuthorization[]
   flows                   Flow[]
   reviewLinks             ReviewLink[]
+  repostRules             RepostRule[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -362,6 +365,7 @@ model Integration {
   plugs                 Plugs[]
   posts                 Post[]
   flows                 Flow[]
+  repostRulesAsSource   RepostRule[] @relation("RepostRuleSource")
 
   @@unique([organizationId, internalId])
   @@index([rootInternalId])
@@ -1054,6 +1058,7 @@ model Profile {
   organizationId String
   isDefault      Boolean             @default(false)
   lateApiKey     String?
+  zernioApiKey   String?
   shortlink      ShortLinkPreference @default(ASK)
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -1076,6 +1081,7 @@ model Profile {
   persona        ProfilePersona?
   knowledgeDocuments ProfileKnowledgeDocument[]
   flows          Flow[]
+  repostRules    RepostRule[]
 
   @@unique([organizationId, slug, deletedAt])
   @@index([organizationId])
@@ -1330,4 +1336,71 @@ model PendingPostback {
   @@index([expiresAt])
   @@index([status])
   @@index([igSenderId])
+}
+
+// ─── Repost de Stories do Instagram ──────────────────────────────────
+
+enum RepostSourceType {
+  INSTAGRAM_STORY
+  // V2 planejada: INSTAGRAM_REEL, INSTAGRAM_FEED
+}
+
+enum RepostLogStatus {
+  PENDING
+  DOWNLOADED
+  PUBLISHED
+  PARTIAL
+  SKIPPED
+  FAILED
+}
+
+model RepostRule {
+  id                        String           @id @default(uuid())
+  organizationId            String
+  profileId                 String
+  name                      String
+  enabled                   Boolean          @default(true)
+  sourceIntegrationId       String
+  sourceType                RepostSourceType @default(INSTAGRAM_STORY)
+  destinationIntegrationIds String[]         @default([])
+  intervalMinutes           Int              @default(15)
+  filterIncludeVideos       Boolean          @default(true)
+  filterIncludeImages       Boolean          @default(false)
+  filterMaxDurationSeconds  Int?
+  captionTemplate           String?
+  lastSourceItemId          String?
+  lastRunAt                 DateTime?
+  createdAt                 DateTime         @default(now())
+  updatedAt                 DateTime         @updatedAt
+  deletedAt                 DateTime?
+
+  organization      Organization @relation(fields: [organizationId], references: [id])
+  profile           Profile      @relation(fields: [profileId], references: [id])
+  sourceIntegration Integration  @relation("RepostRuleSource", fields: [sourceIntegrationId], references: [id])
+  logs              RepostLog[]
+
+  @@index([organizationId, profileId])
+  @@index([sourceIntegrationId])
+  @@index([enabled])
+  @@index([deletedAt])
+}
+
+model RepostLog {
+  id               String          @id @default(uuid())
+  ruleId           String
+  sourceItemId     String
+  mediaType        String
+  mediaUrlOriginal String
+  storedMediaId    String?
+  status           RepostLogStatus @default(PENDING)
+  skippedReason    String?
+  errorMessage     String?
+  publishedPosts   Json?
+  discoveredAt     DateTime        @default(now())
+  processedAt      DateTime?
+
+  rule RepostRule @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, sourceItemId])
+  @@index([ruleId, status])
 }

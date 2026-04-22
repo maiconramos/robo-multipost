@@ -49,9 +49,6 @@ importers:
       '@dub/analytics':
         specifier: ^0.0.32
         version: 0.0.32
-      '@getlatedev/node':
-        specifier: ^0.1.35
-        version: 0.1.58
       '@hookform/resolvers':
         specifier: ^3.3.4
         version: 3.10.0(react-hook-form@7.71.2(react@19.2.4))
@@ -319,6 +316,9 @@ importers:
       '@uppy/xhr-upload':
         specifier: ^4.3.3
         version: 4.4.2(@uppy/core@4.5.3)
+      '@zernio/node':
+        specifier: ^0.2.80
+        version: 0.2.80
       accept-language:
         specifier: ^3.0.20
         version: 3.0.20
@@ -2693,10 +2693,6 @@ packages:
 
   '@fractalwagmi/solana-wallet-adapter@0.1.1':
     resolution: {integrity: sha512-oTZLEuD+zLKXyhZC5tDRMPKPj8iaxKLxXiCjqRfOo4xmSbS2izGRWLJbKMYYsJysn/OI3UJ3P6CWP8WUWi0dZg==}
-
-  '@getlatedev/node@0.1.58':
-    resolution: {integrity: sha512-0mrF1i7tKgpTpGM9xJJE2Q1JXLut+cRXchiZv2BEatSwHWrcQYL1vKDeAqvV5iGY6Cy8+rP2Drv6cEG6ZsnIpQ==}
-    engines: {node: '>=18'}
 
   '@graphql-tools/executor@1.5.1':
     resolution: {integrity: sha512-n94Qcu875Mji9GQ52n5UbgOTxlgvFJicBPYD+FRks9HKIQpdNPjkkrKZUYNG51XKa+bf03rxNflm4+wXhoHHrA==}
@@ -8929,6 +8925,10 @@ packages:
 
   '@zeit/schemas@2.36.0':
     resolution: {integrity: sha512-7kjMwcChYEzMKjeex9ZFXkt1AyNov9R5HZtjBKVsmVpw7pa7ZtlCGvCBC2vnnXctaYN+aRI61HjIqeetZW5ROg==}
+
+  '@zernio/node@0.2.80':
+    resolution: {integrity: sha512-lSQHEusxn6NPVFv40ew60jQEJjsWS3Gb4OWnGnw+VnkeocEpVoDReAcKWUJx4+sGmYYJfkVE7CxvW8R1Qb62RA==}
+    engines: {node: '>=18'}
 
   abab@2.0.6:
     resolution: {integrity: sha512-j2afSsaIENvHZN2B8GOpF566vZ5WVk5opAiMTvWgaQT8DkbOqsTfvNAvHoRGU2zzP8cPoqys+xHTRDWW8L+/BA==}
@@ -20645,8 +20645,6 @@ snapshots:
       - react
       - react-dom
 
-  '@getlatedev/node@0.1.58': {}
-
   '@graphql-tools/executor@1.5.1(graphql@16.13.1)':
     dependencies:
       '@graphql-tools/utils': 11.0.0(graphql@16.13.1)
@@ -28660,6 +28658,8 @@ snapshots:
       d3-zoom: 3.0.0
 
   '@zeit/schemas@2.36.0': {}
+
+  '@zernio/node@0.2.80': {}
 
   abab@2.0.6: {}
 

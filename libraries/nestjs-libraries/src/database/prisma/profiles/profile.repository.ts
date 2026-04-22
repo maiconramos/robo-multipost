@@ -150,24 +150,24 @@ export class ProfileRepository {
     });
   }
 
-  getLateApiKey(profileId: string) {
+  getZernioApiKey(profileId: string) {
     return this._profile.model.profile.findUnique({
       where: { id: profileId },
-      select: { lateApiKey: true },
+      select: { zernioApiKey: true },
     });
   }
 
-  saveLateApiKey(profileId: string, encryptedKey: string) {
+  saveZernioApiKey(profileId: string, encryptedKey: string) {
     return this._profile.model.profile.update({
       where: { id: profileId },
-      data: { lateApiKey: encryptedKey },
+      data: { zernioApiKey: encryptedKey },
     });
   }
 
-  removeLateApiKey(profileId: string) {
+  removeZernioApiKey(profileId: string) {
     return this._profile.model.profile.update({
       where: { id: profileId },
-      data: { lateApiKey: null },
+      data: { zernioApiKey: null },
     });
   }
 
