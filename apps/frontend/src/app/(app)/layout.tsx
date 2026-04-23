@@ -22,6 +22,8 @@ import {
 import { HtmlComponent } from '@gitroom/frontend/components/layout/html.component';
 import Script from 'next/script';
 import { ChangeDirClient } from '@gitroom/frontend/components/new-layout/change.dir.client';
+import { DynamicBrandingProvider } from '@gitroom/frontend/components/layout/dynamic.branding.provider';
+import { fetchBrandingSSR } from '@gitroom/frontend/components/layout/fetch.branding.ssr';
 
 const jakartaSans = Plus_Jakarta_Sans({
   weight: ['600', '500'],
@@ -32,13 +34,15 @@ const jakartaSans = Plus_Jakarta_Sans({
 export default async function AppLayout({ children }: { children: ReactNode }) {
   const cookieStore = await cookies();
   const language = cookieStore.get(cookieName)?.value || fallbackLng;
+  const authCookie = cookieStore.get('auth')?.value;
+  const branding = await fetchBrandingSSR(authCookie);
   const Plausible = !!process.env.STRIPE_PUBLISHABLE_KEY
     ? PlausibleProvider
     : Fragment;
   return (
     <html>
       <head>
-        <link rel="icon" href="/favicon.ico" sizes="any" />
+        <link rel="icon" href={branding?.faviconUrl || '/favicon.ico'} sizes="any" />
         {/* Datafast analytics removed for self-hosted */}
       </head>
       <ChangeDirClient />
@@ -97,8 +101,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                   host={process.env.NEXT_PUBLIC_POSTHOG_HOST}
                 >
                   <LayoutContext>
-                    <UtmSaver />
-                    {children}
+                    <DynamicBrandingProvider branding={branding}>
+                      <UtmSaver />
+                      {children}
+                    </DynamicBrandingProvider>
                   </LayoutContext>
                 </PHProvider>
               </PlausibleProvider>
@@ -108,8 +114,10 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
                 host={process.env.NEXT_PUBLIC_POSTHOG_HOST}
               >
                 <LayoutContext>
-                  <UtmSaver />
-                  {children}
+                  <DynamicBrandingProvider branding={branding}>
+                    <UtmSaver />
+                    {children}
+                  </DynamicBrandingProvider>
                 </LayoutContext>
               </PHProvider>
             )}

@@ -38,6 +38,7 @@ import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-app
 import { AiCreditsSettingsSection } from '@gitroom/frontend/components/settings/ai-credits.settings.component';
 import { ProfilePersonaSettingsSection } from '@gitroom/frontend/components/settings/profile-persona.settings.component';
 import { KnowledgeBaseSettingsSection } from '@gitroom/frontend/components/settings/knowledge-base.settings.component';
+import { BrandingSettingsSection } from '@gitroom/frontend/components/settings/branding/branding.settings.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -100,6 +101,9 @@ export const SettingsPopup: FC<{
       arr.push({ tab: 'teams', label: t('teams', 'Teams') });
     }
     arr.push({ tab: 'credentials', label: t('credentials_tab', 'Credenciais') });
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'branding', label: t('branding_tab', 'White label') });
+    }
     if (user?.role !== 'USER') {
       arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Agente de IA') });
     }
@@ -244,6 +248,12 @@ export const SettingsPopup: FC<{
                   <CredentialsSettingsSection />
                   <hr className="border-newTableBorder my-[24px]" />
                   <ZernioSettingsSection />
+                </div>
+              )}
+
+              {tab === 'branding' && user?.role !== 'USER' && (
+                <div>
+                  <BrandingSettingsSection />
                 </div>
               )}
 

@@ -52,10 +52,33 @@ model Organization {
   flows                   Flow[]
   reviewLinks             ReviewLink[]
   repostRules             RepostRule[]
+  branding                OrganizationBranding?
 
   @@index([apiKey])
   @@index([streakSince])
   @@index([paymentId])
+}
+
+model OrganizationBranding {
+  id                String       @id @default(uuid())
+  organizationId    String       @unique
+  organization      Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  brandName         String?      @db.VarChar(80)
+  accentColor       String?      @db.VarChar(9)
+  aiAccentColor     String?      @db.VarChar(9)
+  logoLightPath     String?
+  logoDarkPath      String?
+  logoTextLightPath String?
+  logoTextDarkPath  String?
+  faviconPath       String?
+  ogImagePath       String?
+  loginBgPath       String?
+  loginHeroText     String?      @db.VarChar(200)
+  emailFromName     String?      @db.VarChar(80)
+  createdAt         DateTime     @default(now())
+  updatedAt         DateTime     @updatedAt
+
+  @@index([organizationId])
 }
 
 model Tags {

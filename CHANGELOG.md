@@ -7,6 +7,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado
+- Suporte a white-label por workspace: admins podem customizar logos (claro/escuro, com e sem texto), favicon, imagem Open Graph, fundo da tela de login, nome da marca, texto de destaque do login, remetente de e-mail e cores accent (principal e IA) em Settings > White label. Paginas publicas (login, register, preview) mantem a marca padrao; ao logar, a identidade visual do workspace e carregada via SSR sem flash. Uploads usam o mesmo UploadFactory (storage local ou Cloudflare R2). Nova model Prisma `OrganizationBranding` (1:1 com Organization, cascade delete), endpoints REST `/branding` (GET/PUT) e `/branding/asset/:type` (POST/DELETE), componente `DynamicBrandingProvider` injetando variaveis CSS `--color-accent`, `--color-accent-hover`, `--color-accent-contrast`, `--color-accent-ai` no runtime. As tres ocorrencias hardcoded de `#cd2628` em `colors.scss` (`--new-btn-primary`, `--color-forth`, `--color-custom30`) e nos SVGs de logo foram consolidadas em `--color-accent` / classe Tailwind `fill-accent`, mantendo compatibilidade com mais de 400 referencias existentes.
+
 ### Documentação
 - Nova referência de arquitetura para automações Instagram em `docs/architecture/instagram-automations.md`, voltada a agentes de IA e ao time de engenharia: mapa dos arquivos-chave (backend/orchestrator/libraries/frontend), as três camadas de credenciais Meta (App, Integration, Messaging Tokens), roteamento de host/token via `FlowActivity.resolveIgRoute`, fluxo completo do follow gate de 2 etapas (opening DM + postback + PendingPostback), convenções e armadilhas. `CLAUDE.md` ganhou um bloco resumido com as regras de ouro apontando para o doc detalhado.
 

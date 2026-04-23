@@ -42,6 +42,7 @@ import { OAuthController, OAuthAuthorizedController } from '@gitroom/backend/api
 import { AnnouncementsController } from '@gitroom/backend/api/routes/announcements.controller';
 import { FlowsController } from '@gitroom/backend/api/routes/flows.controller';
 import { RepostController } from '@gitroom/backend/api/routes/repost.controller';
+import { BrandingController } from '@gitroom/backend/api/routes/branding.controller';
 import { IgWebhookController } from '@gitroom/backend/api/routes/ig-webhook.controller';
 import { AuthProviderManager } from '@gitroom/backend/services/auth/providers/providers.manager';
 import { GithubProvider } from '@gitroom/backend/services/auth/providers/github.provider';
@@ -74,6 +75,7 @@ const authenticatedController = [
   AnnouncementsController,
   FlowsController,
   RepostController,
+  BrandingController,
 ];
 @Module({
   imports: [UploadModule],

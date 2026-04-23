@@ -34,7 +34,7 @@ export const LoadingComponent: FC<{
   return (
     <div className="flex-1 flex justify-center pt-[100px]">
       <Spinner
-        color="#cd2628"
+        color="var(--color-accent)"
         width={props.width || 100}
         height={props.height || 100}
       />

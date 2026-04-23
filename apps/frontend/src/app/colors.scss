@@ -1,5 +1,11 @@
 :root {
+  --color-accent-default: #cd2628;
+  --color-accent-ai-default: #d82d7e;
   .dark {
+    --color-accent: var(--color-accent-default);
+    --color-accent-hover: #ae1f21;
+    --color-accent-contrast: #ffffff;
+    --color-accent-ai: var(--color-accent-ai-default);
     --new-back-drop: #000;
     --new-settings: #242323;
     --new-border: #252525;
@@ -14,8 +20,8 @@
     --new-blockSeparator: #272626;
     --new-btn-simple: #313030;
     --new-btn-text: #ffffff;
-    --new-btn-primary: #cd2628;
-    --new-ai-btn: #d82d7e;
+    --new-btn-primary: var(--color-accent);
+    --new-ai-btn: var(--color-accent-ai);
     --new-box-hover: #201f1f;
     --new-table-border: #2b2b2b;
     --new-table-header: #1e1d1d;
@@ -44,6 +50,10 @@
     --youtube-svg-border: #A0A0A0;
   }
   .light {
+    --color-accent: var(--color-accent-default);
+    --color-accent-hover: #ae1f21;
+    --color-accent-contrast: #ffffff;
+    --color-accent-ai: #c5219f;
     --new-back-drop: #e28e8e;
     --new-settings: #eceef1;
     --new-sep: #d5d9dd;
@@ -58,8 +68,8 @@
     --new-blockSeparator: #f2f2f4;
     --new-btn-simple: #eceef1;
     --new-btn-text: #0e0e0e;
-    --new-btn-primary: #cd2628;
-    --new-ai-btn: #c5219f;
+    --new-btn-primary: var(--color-accent);
+    --new-ai-btn: var(--color-accent-ai);
     --new-box-hover: #f4f6f8;
     --new-table-border: #e7e9eb;
     --new-table-header: #f5f7f9;
@@ -102,7 +112,7 @@
     --color-secondary: #090b13;
     --color-text: #ffffff;
     --color-third: #080b13;
-    --color-forth: #cd2628;
+    --color-forth: var(--color-accent);
     --color-fifth: var(--new-bgLineColor);
     --color-sixth: var(--new-table-header);
     --color-seventh: #e28e8e;
@@ -139,7 +149,7 @@
     --color-custom27: #71767b;
     --color-custom28: #b69dec;
     --color-custom29: #291259;
-    --color-custom30: #cd2628;
+    --color-custom30: var(--color-accent);
     --color-custom31: #0f1727;
     --color-custom32: #181818;
     --color-custom33: #f2f2f2;
@@ -172,7 +182,7 @@
     --color-secondary: #fff;
     --color-text: #000;
     --color-third: white;
-    --color-forth: #cd2628;
+    --color-forth: var(--color-accent);
     --color-fifth: var(--new-bgLineColor);
     --color-sixth: var(--new-table-header);
     --color-seventh: #e28e8e;
