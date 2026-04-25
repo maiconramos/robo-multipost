@@ -10,6 +10,7 @@ export class StartupMigrationService implements OnModuleInit {
   async onModuleInit() {
     await this.migrateProfileScope();
     await this.migrateLateToZernio();
+    await this.backfillRepostDestinations();
   }
 
   /**
@@ -166,6 +167,84 @@ export class StartupMigrationService implements OnModuleInit {
       this.logger.log('Late->Zernio migration completed successfully.');
     } catch (error) {
       this.logger.error('Late->Zernio migration failed:', error);
+    }
+  }
+
+  /**
+   * Backfill de RepostRuleDestination a partir do array
+   * destinationIntegrationIds (V1). Infere o formato de repost a partir
+   * do providerIdentifier da integration. Idempotente: so cria linhas
+   * que ainda nao existam.
+   */
+  private async backfillRepostDestinations() {
+    try {
+      const rulesWithLegacy = await this.prisma.repostRule.count({
+        where: {
+          destinationIntegrationIds: { isEmpty: false },
+          destinations: { none: {} },
+        },
+      });
+
+      if (rulesWithLegacy === 0) {
+        return;
+      }
+
+      this.logger.log(
+        `Backfilling RepostRuleDestination para ${rulesWithLegacy} regras (V1 -> V2)...`
+      );
+
+      // Mapeia providerIdentifier para o formato correspondente no V2.
+      const formatByProvider: Record<string, string> = {
+        instagram: 'INSTAGRAM_POST',
+        'instagram-standalone': 'INSTAGRAM_POST',
+        facebook: 'FACEBOOK_REEL',
+        tiktok: 'TIKTOK_FEED',
+        'zernio-tiktok': 'TIKTOK_FEED',
+        youtube: 'YOUTUBE_SHORT',
+        'zernio-youtube': 'YOUTUBE_SHORT',
+      };
+
+      const rules = await this.prisma.repostRule.findMany({
+        where: {
+          destinationIntegrationIds: { isEmpty: false },
+          destinations: { none: {} },
+        },
+        select: { id: true, destinationIntegrationIds: true },
+      });
+
+      for (const rule of rules) {
+        const integrations = await this.prisma.integration.findMany({
+          where: { id: { in: rule.destinationIntegrationIds } },
+          select: { id: true, providerIdentifier: true },
+        });
+
+        for (const integration of integrations) {
+          const format = formatByProvider[integration.providerIdentifier];
+          if (!format) continue;
+
+          await this.prisma.repostRuleDestination
+            .upsert({
+              where: {
+                ruleId_integrationId_format: {
+                  ruleId: rule.id,
+                  integrationId: integration.id,
+                  format: format as any,
+                },
+              },
+              create: {
+                ruleId: rule.id,
+                integrationId: integration.id,
+                format: format as any,
+              },
+              update: {},
+            })
+            .catch(() => undefined);
+        }
+      }
+
+      this.logger.log('Backfill RepostRuleDestination concluido.');
+    } catch (error) {
+      this.logger.error('Backfill RepostRuleDestination falhou:', error);
     }
   }
 }

@@ -1,23 +1,69 @@
 import { Injectable } from '@nestjs/common';
-import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
+import {
+  PrismaRepository,
+  PrismaTransaction,
+} from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import {
   CreateRepostRuleDto,
   UpdateRepostRuleDto,
 } from '@gitroom/nestjs-libraries/dtos/repost/repost.rule.dto';
-import { Prisma, RepostLogStatus } from '@prisma/client';
+import {
+  Prisma,
+  RepostDestinationFormat,
+  RepostLogStatus,
+} from '@prisma/client';
 
 export interface RepostRulePublishedPost {
   integrationId: string;
   postId: string;
+  format?: RepostDestinationFormat;
   releaseUrl?: string;
   error?: string;
 }
+
+export interface RepostDestinationInput {
+  integrationId: string;
+  format: RepostDestinationFormat;
+}
+
+// include padrao quando carregamos uma regra — inclui sourceIntegration,
+// destinations (com integration) e _count.logs.
+const RULE_INCLUDE = {
+  sourceIntegration: {
+    select: {
+      id: true,
+      name: true,
+      picture: true,
+      providerIdentifier: true,
+    },
+  },
+  destinations: {
+    include: {
+      integration: {
+        select: {
+          id: true,
+          name: true,
+          picture: true,
+          providerIdentifier: true,
+          disabled: true,
+          deletedAt: true,
+        },
+      },
+    },
+    orderBy: { createdAt: 'asc' as const },
+  },
+  _count: {
+    select: { logs: true },
+  },
+} satisfies Prisma.RepostRuleInclude;
 
 @Injectable()
 export class RepostRepository {
   constructor(
     private _repostRule: PrismaRepository<'repostRule'>,
-    private _repostLog: PrismaRepository<'repostLog'>
+    private _repostLog: PrismaRepository<'repostLog'>,
+    private _repostRuleDestination: PrismaRepository<'repostRuleDestination'>,
+    private _tx: PrismaTransaction
   ) {}
 
   getRules(orgId: string, profileId?: string) {
@@ -27,6 +73,7 @@ export class RepostRepository {
         ...(profileId ? { profileId } : {}),
         deletedAt: null,
       },
+      include: RULE_INCLUDE,
       orderBy: { createdAt: 'desc' },
     });
   }
@@ -39,12 +86,14 @@ export class RepostRepository {
         ...(profileId ? { profileId } : {}),
         deletedAt: null,
       },
+      include: RULE_INCLUDE,
     });
   }
 
   getRuleFresh(id: string) {
     return this._repostRule.model.repostRule.findUnique({
       where: { id },
+      include: RULE_INCLUDE,
     });
   }
 
@@ -53,22 +102,32 @@ export class RepostRepository {
     profileId: string,
     body: CreateRepostRuleDto
   ) {
-    return this._repostRule.model.repostRule.create({
+    const created = await this._repostRule.model.repostRule.create({
       data: {
         organizationId: orgId,
         profileId,
         name: body.name,
         sourceIntegrationId: body.sourceIntegrationId,
-        sourceType: body.sourceType ?? 'INSTAGRAM_STORY',
-        destinationIntegrationIds: body.destinationIntegrationIds,
+        sourceType: body.sourceType,
+        // Mantem shadow com destinationIntegrationIds apenas durante a
+        // janela de migracao. A fonte da verdade e RepostRuleDestination.
+        destinationIntegrationIds: body.destinations.map((d) => d.integrationId),
         intervalMinutes: body.intervalMinutes ?? 15,
         filterIncludeVideos: body.filterIncludeVideos ?? true,
         filterIncludeImages: body.filterIncludeImages ?? false,
         filterMaxDurationSeconds: body.filterMaxDurationSeconds ?? null,
         captionTemplate: body.captionTemplate ?? null,
         enabled: body.enabled ?? true,
+        destinations: {
+          create: body.destinations.map((d) => ({
+            integrationId: d.integrationId,
+            format: d.format,
+          })),
+        },
       },
+      include: RULE_INCLUDE,
     });
+    return created;
   }
 
   async updateRule(
@@ -77,7 +136,7 @@ export class RepostRepository {
     body: UpdateRepostRuleDto,
     profileId?: string
   ) {
-    return this._repostRule.model.repostRule.update({
+    const updated = await this._repostRule.model.repostRule.update({
       where: {
         id,
         organizationId: orgId,
@@ -88,8 +147,15 @@ export class RepostRepository {
         ...(body.sourceIntegrationId !== undefined
           ? { sourceIntegrationId: body.sourceIntegrationId }
           : {}),
-        ...(body.destinationIntegrationIds !== undefined
-          ? { destinationIntegrationIds: body.destinationIntegrationIds }
+        ...(body.sourceType !== undefined
+          ? { sourceType: body.sourceType }
+          : {}),
+        ...(body.destinations !== undefined
+          ? {
+              destinationIntegrationIds: body.destinations.map(
+                (d) => d.integrationId
+              ),
+            }
           : {}),
         ...(body.intervalMinutes !== undefined
           ? { intervalMinutes: body.intervalMinutes }
@@ -108,7 +174,33 @@ export class RepostRepository {
           : {}),
         ...(body.enabled !== undefined ? { enabled: body.enabled } : {}),
       },
+      include: RULE_INCLUDE,
     });
+
+    if (body.destinations !== undefined) {
+      await this.replaceDestinations(id, body.destinations);
+    }
+
+    return this._repostRule.model.repostRule.findUnique({
+      where: { id },
+      include: RULE_INCLUDE,
+    });
+  }
+
+  async replaceDestinations(ruleId: string, dests: RepostDestinationInput[]) {
+    await this._tx.model.$transaction([
+      this._repostRuleDestination.model.repostRuleDestination.deleteMany({
+        where: { ruleId },
+      }),
+      this._repostRuleDestination.model.repostRuleDestination.createMany({
+        data: dests.map((d) => ({
+          ruleId,
+          integrationId: d.integrationId,
+          format: d.format,
+        })),
+        skipDuplicates: true,
+      }),
+    ]);
   }
 
   toggleRule(orgId: string, id: string, enabled: boolean, profileId?: string) {

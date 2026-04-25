@@ -1,8 +1,75 @@
 # Dossiê: Repost Automático de Stories do Instagram
 
-> Status: **V1 implementado** (beta) — 2026-04-21
-> Última atualização: 2026-04-21
+> Status: **V2 implementado** (matriz de formatos) — 2026-04-22
+> Última atualização: 2026-04-22
 > Inspiração: [Repurpose.io](https://repurpose.io), [Repostify](https://repostify.com)
+
+## V2 — matriz de formatos origem × destino (2026-04-22)
+
+Além do V1 original (monitorar Story, republicar em TikTok Feed e YouTube),
+o V2 amplia a gama de **origens** e **destinos** tratando formato como
+dado explícito:
+
+- **Origens** aceitas: `INSTAGRAM_STORY`, `INSTAGRAM_POST` (Reel/Feed unificado).
+- **Destinos** aceitos: `INSTAGRAM_POST`, `INSTAGRAM_STORY`, `FACEBOOK_REEL`,
+  `TIKTOK_FEED`, `YOUTUBE_SHORT`.
+- **Facebook Story** foi **descartado** — Graph API pública não expõe
+  publicação de Story em Page.
+- **TikTok Feed e YouTube Short como ORIGEM** ficaram para V3 (exigem
+  fetching novo nos providers; scopes OAuth adicionais).
+
+### Matriz de compatibilidade
+
+`libraries/nestjs-libraries/src/database/prisma/repost/repost.matrix.ts`
+exporta três constantes:
+
+- `PROVIDER_DESTINATION_FORMATS` — o que cada provider consegue publicar.
+- `SOURCE_DESTINATION_MATRIX` — quais formatos cada `sourceType` pode
+  alimentar (os dois sourceTypes atuais compartilham todos os destinos
+  porque ambos são vídeo/foto vertical 9:16).
+- `PROVIDER_SOURCE_TYPES` — providers que podem servir como origem.
+
+### Schema atualizado
+
+- Novo enum `RepostDestinationFormat`.
+- `RepostSourceType` agora inclui `INSTAGRAM_POST`.
+- Nova tabela `RepostRuleDestination { ruleId, integrationId, format }`
+  com unique `(ruleId, integrationId, format)`. A coluna legada
+  `RepostRule.destinationIntegrationIds: String[]` permanece por
+  compatibilidade mas passa a ser **shadow** (escrita espelhada, leitura
+  ignorada). Será removida em deploy posterior.
+
+### Migração automática (`StartupMigrationService.backfillRepostDestinations`)
+
+No boot do backend, para cada `RepostRule` com `destinationIntegrationIds`
+não vazio mas sem `destinations`:
+
+1. Resolve cada ID em uma `Integration`.
+2. Infere o `format` pelo `providerIdentifier` (tiktok → `TIKTOK_FEED`,
+   youtube → `YOUTUBE_SHORT`, etc.).
+3. Upsert em `RepostRuleDestination`.
+
+Idempotente; só roda quando há pendências.
+
+### Activity (`repost.activity.ts`)
+
+- **Dispatcher de fetching** por `rule.sourceType` (`getRecentStories()`
+  ou `getRecentMedia()`).
+- **`buildSettingsForFormat()`** gera o `settings` do Post conforme o
+  formato do destino. Para `YOUTUBE_SHORT`, garante `#Shorts` no título
+  (adiciona se faltar, case-insensitive).
+- **`skipByImageFormat()`** pula destinos que não aceitam foto
+  (TikTok, YouTube, Facebook Reel).
+
+### UI
+
+- Seletor de Fonte mostra "Instagram — Story (@alma)" e
+  "Instagram — Reel/Feed (@alma)" como entradas separadas.
+- Seletor de Destinos busca `/repost/destination-candidates?sourceType=...`
+  — o dropdown lista cada par (integração × formato) como entrada única
+  (ex.: "TikTok · Feed (@alma)", "YouTube · Short (@canal)",
+  "Instagram · Story (@alma)"). Trocar a fonte reseta os destinos já
+  escolhidos (a matriz pode invalidar formatos).
 
 ## V1 entregue (resumo)
 

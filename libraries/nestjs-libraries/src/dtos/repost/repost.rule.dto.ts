@@ -10,8 +10,19 @@ import {
   Max,
   MaxLength,
   Min,
+  ValidateNested,
 } from 'class-validator';
-import { RepostSourceType } from '@prisma/client';
+import { Type } from 'class-transformer';
+import { RepostDestinationFormat, RepostSourceType } from '@prisma/client';
+
+export class RepostDestinationDto {
+  @IsString()
+  @IsDefined()
+  integrationId: string;
+
+  @IsEnum(RepostDestinationFormat)
+  format: RepostDestinationFormat;
+}
 
 export class CreateRepostRuleDto {
   @IsString()
@@ -24,13 +35,14 @@ export class CreateRepostRuleDto {
   sourceIntegrationId: string;
 
   @IsEnum(RepostSourceType)
-  @IsOptional()
-  sourceType?: RepostSourceType;
+  @IsDefined()
+  sourceType: RepostSourceType;
 
   @IsArray()
   @ArrayNotEmpty()
-  @IsString({ each: true })
-  destinationIntegrationIds: string[];
+  @ValidateNested({ each: true })
+  @Type(() => RepostDestinationDto)
+  destinations: RepostDestinationDto[];
 
   @IsInt()
   @Min(5)
@@ -72,11 +84,16 @@ export class UpdateRepostRuleDto {
   @IsOptional()
   sourceIntegrationId?: string;
 
+  @IsEnum(RepostSourceType)
+  @IsOptional()
+  sourceType?: RepostSourceType;
+
   @IsArray()
   @ArrayNotEmpty()
-  @IsString({ each: true })
+  @ValidateNested({ each: true })
+  @Type(() => RepostDestinationDto)
   @IsOptional()
-  destinationIntegrationIds?: string[];
+  destinations?: RepostDestinationDto[];
 
   @IsInt()
   @Min(5)

@@ -366,6 +366,7 @@ model Integration {
   posts                 Post[]
   flows                 Flow[]
   repostRulesAsSource   RepostRule[] @relation("RepostRuleSource")
+  repostRuleDestinations RepostRuleDestination[] @relation("RepostRuleDestination")
 
   @@unique([organizationId, internalId])
   @@index([rootInternalId])
@@ -1342,7 +1343,16 @@ model PendingPostback {
 
 enum RepostSourceType {
   INSTAGRAM_STORY
-  // V2 planejada: INSTAGRAM_REEL, INSTAGRAM_FEED
+  INSTAGRAM_POST
+  // V3: TIKTOK_FEED, YOUTUBE_SHORT (quando implementar fetching destas origens)
+}
+
+enum RepostDestinationFormat {
+  INSTAGRAM_POST
+  INSTAGRAM_STORY
+  FACEBOOK_REEL
+  TIKTOK_FEED
+  YOUTUBE_SHORT
 }
 
 enum RepostLogStatus {
@@ -1362,6 +1372,8 @@ model RepostRule {
   enabled                   Boolean          @default(true)
   sourceIntegrationId       String
   sourceType                RepostSourceType @default(INSTAGRAM_STORY)
+  // Mantido como shadow pelo periodo de migracao — o novo RepostRuleDestination
+  // eh a fonte da verdade. Sera removido em deploy posterior.
   destinationIntegrationIds String[]         @default([])
   intervalMinutes           Int              @default(15)
   filterIncludeVideos       Boolean          @default(true)
@@ -1374,15 +1386,31 @@ model RepostRule {
   updatedAt                 DateTime         @updatedAt
   deletedAt                 DateTime?
 
-  organization      Organization @relation(fields: [organizationId], references: [id])
-  profile           Profile      @relation(fields: [profileId], references: [id])
-  sourceIntegration Integration  @relation("RepostRuleSource", fields: [sourceIntegrationId], references: [id])
+  organization      Organization            @relation(fields: [organizationId], references: [id])
+  profile           Profile                 @relation(fields: [profileId], references: [id])
+  sourceIntegration Integration             @relation("RepostRuleSource", fields: [sourceIntegrationId], references: [id])
   logs              RepostLog[]
+  destinations      RepostRuleDestination[]
 
   @@index([organizationId, profileId])
   @@index([sourceIntegrationId])
   @@index([enabled])
   @@index([deletedAt])
+}
+
+model RepostRuleDestination {
+  id            String                  @id @default(uuid())
+  ruleId        String
+  integrationId String
+  format        RepostDestinationFormat
+  createdAt     DateTime                @default(now())
+
+  rule        RepostRule  @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  integration Integration @relation("RepostRuleDestination", fields: [integrationId], references: [id])
+
+  @@unique([ruleId, integrationId, format])
+  @@index([ruleId])
+  @@index([integrationId])
 }
 
 model RepostLog {

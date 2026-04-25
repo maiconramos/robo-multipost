@@ -1,8 +1,27 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import {
+  BadRequestException,
+  Injectable,
+  NotFoundException,
+} from '@nestjs/common';
 import { TemporalService } from 'nestjs-temporal-core';
 import { TypedSearchAttributes } from '@temporalio/common';
+import {
+  RepostDestinationFormat,
+  RepostSourceType,
+} from '@prisma/client';
 import { organizationId as organizationIdKey } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
 import { RepostRepository } from '@gitroom/nestjs-libraries/database/prisma/repost/repost.repository';
+import {
+  PROVIDER_DESTINATION_FORMATS,
+  PROVIDER_SOURCE_TYPES,
+  REPOST_DESTINATION_PROVIDERS,
+  REPOST_SOURCE_PROVIDERS,
+  SOURCE_DESTINATION_MATRIX,
+  formatsForProvider,
+  formatsForSourceType,
+  isDestinationCompatible,
+  sourceTypesForProvider,
+} from '@gitroom/nestjs-libraries/database/prisma/repost/repost.matrix';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
@@ -10,26 +29,16 @@ import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/in
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import {
   CreateRepostRuleDto,
+  RepostDestinationDto,
   UpdateRepostRuleDto,
 } from '@gitroom/nestjs-libraries/dtos/repost/repost.rule.dto';
 
-export const REPOST_SOURCE_IDENTIFIERS = [
-  'instagram',
-  'instagram-standalone',
-] as const;
-
-export const REPOST_DESTINATION_IDENTIFIERS = [
-  'tiktok',
-  'zernio-tiktok',
-  'youtube',
-  'zernio-youtube',
-] as const;
-
-export type RepostDestinationIdentifier =
-  (typeof REPOST_DESTINATION_IDENTIFIERS)[number];
-
 const WORKFLOW_NAME = 'repostWorkflow';
 const workflowIdOf = (ruleId: string) => `repost-rule-${ruleId}`;
+
+// Re-export para compatibilidade com imports antigos no frontend/orchestrator.
+export const REPOST_SOURCE_IDENTIFIERS = REPOST_SOURCE_PROVIDERS;
+export const REPOST_DESTINATION_IDENTIFIERS = REPOST_DESTINATION_PROVIDERS;
 
 @Injectable()
 export class RepostService {
@@ -57,44 +66,85 @@ export class RepostService {
     return this._repostRepository.getRuleFresh(id);
   }
 
+  /**
+   * Candidatos de ORIGEM: cada integracao IG vira N entradas (uma por
+   * sourceType suportado). Frontend mostra "Instagram — Story" e
+   * "Instagram — Reel/Feed" como itens separados.
+   */
   async sourceCandidates(orgId: string, profileId?: string) {
     const integrations = await this._integrationService.getIntegrationsList(
       orgId,
       profileId
     );
-    return integrations
-      .filter((i) => !i.disabled && !i.deletedAt)
-      .filter((i) =>
-        (REPOST_SOURCE_IDENTIFIERS as readonly string[]).includes(
-          i.providerIdentifier
-        )
-      )
-      .map((i) => ({
-        id: i.id,
-        name: i.name,
-        picture: i.picture,
-        providerIdentifier: i.providerIdentifier,
-      }));
+    const options: Array<{
+      key: string;
+      integrationId: string;
+      sourceType: RepostSourceType;
+      name: string;
+      picture: string | null;
+      providerIdentifier: string;
+    }> = [];
+    for (const i of integrations) {
+      if (i.disabled || i.deletedAt) continue;
+      const types = sourceTypesForProvider(i.providerIdentifier);
+      for (const t of types) {
+        options.push({
+          key: `${i.id}:${t}`,
+          integrationId: i.id,
+          sourceType: t,
+          name: i.name,
+          picture: i.picture,
+          providerIdentifier: i.providerIdentifier,
+        });
+      }
+    }
+    return options;
   }
 
-  async destinationCandidates(orgId: string, profileId?: string) {
+  /**
+   * Candidatos de DESTINO, filtrados por sourceType. Cada integracao
+   * vira N entradas (uma por formato compativel). A interseccao
+   * PROVIDER_DESTINATION_FORMATS x SOURCE_DESTINATION_MATRIX garante
+   * que so formatos viaveis aparecam.
+   */
+  async destinationCandidates(
+    orgId: string,
+    sourceType?: RepostSourceType,
+    profileId?: string
+  ) {
     const integrations = await this._integrationService.getIntegrationsList(
       orgId,
       profileId
     );
-    return integrations
-      .filter((i) => !i.disabled && !i.deletedAt)
-      .filter((i) =>
-        (REPOST_DESTINATION_IDENTIFIERS as readonly string[]).includes(
-          i.providerIdentifier
-        )
-      )
-      .map((i) => ({
-        id: i.id,
-        name: i.name,
-        picture: i.picture,
-        providerIdentifier: i.providerIdentifier,
-      }));
+    const allowedBySource = sourceType
+      ? new Set(formatsForSourceType(sourceType))
+      : null;
+
+    const options: Array<{
+      key: string;
+      integrationId: string;
+      format: RepostDestinationFormat;
+      name: string;
+      picture: string | null;
+      providerIdentifier: string;
+    }> = [];
+
+    for (const i of integrations) {
+      if (i.disabled || i.deletedAt) continue;
+      const providerFormats = formatsForProvider(i.providerIdentifier);
+      for (const f of providerFormats) {
+        if (allowedBySource && !allowedBySource.has(f)) continue;
+        options.push({
+          key: `${i.id}:${f}`,
+          integrationId: i.id,
+          format: f,
+          name: i.name,
+          picture: i.picture,
+          providerIdentifier: i.providerIdentifier,
+        });
+      }
+    }
+    return options;
   }
 
   async createRule(
@@ -108,15 +158,17 @@ export class RepostService {
       );
     }
 
-    await this.assertSourceBelongsToProfile(
+    await this.assertValidSource(
       orgId,
       profileId,
-      body.sourceIntegrationId
+      body.sourceIntegrationId,
+      body.sourceType
     );
-    await this.assertDestinationsBelongToProfile(
+    await this.assertValidDestinations(
       orgId,
       profileId,
-      body.destinationIntegrationIds
+      body.sourceType,
+      body.destinations
     );
 
     const rule = await this._repostRepository.createRule(
@@ -126,8 +178,8 @@ export class RepostService {
     );
 
     // Bootstrap do checkpoint: sem isso, o primeiro ciclo pegaria todos os
-    // stories ativos (até 24h) como "novos". Com o bootstrap, só stories
-    // publicados apos a criacao da regra viram repostados.
+    // itens ativos como "novos". Com o bootstrap, so conteudo publicado
+    // apos a criacao da regra sera repostado.
     await this.bootstrapCheckpoint(rule.id);
 
     if (rule.enabled) {
@@ -145,18 +197,22 @@ export class RepostService {
   ) {
     const existing = await this.getRule(orgId, id, profileId);
 
-    if (body.sourceIntegrationId) {
-      await this.assertSourceBelongsToProfile(
+    const nextSourceType = body.sourceType ?? existing.sourceType;
+
+    if (body.sourceIntegrationId || body.sourceType) {
+      await this.assertValidSource(
         orgId,
         existing.profileId,
-        body.sourceIntegrationId
+        body.sourceIntegrationId ?? existing.sourceIntegrationId,
+        nextSourceType
       );
     }
-    if (body.destinationIntegrationIds) {
-      await this.assertDestinationsBelongToProfile(
+    if (body.destinations) {
+      await this.assertValidDestinations(
         orgId,
         existing.profileId,
-        body.destinationIntegrationIds
+        nextSourceType,
+        body.destinations
       );
     }
 
@@ -167,9 +223,6 @@ export class RepostService {
       profileId
     );
 
-    // Se alguma coisa sensivel mudou, recicla o workflow para pegar as
-    // mudancas na proxima execucao — sleep durable ja leria fresh da DB,
-    // entao reiniciar so eh necessario quando enabled mudou.
     if (body.enabled !== undefined) {
       await this.processCron(body.enabled, orgId, id);
     }
@@ -208,13 +261,17 @@ export class RepostService {
         'Enable the rule before running a manual cycle'
       );
     }
-    // Idempotent: start joga-se com mesmo workflowId -> Temporal ignora
-    // duplicacao. Se nao estiver rodando, arranca; se estiver, nada muda.
     await this.processCron(true, orgId, id);
     return { success: true };
   }
 
-  getLogs(orgId: string, id: string, page: number, size: number, profileId?: string) {
+  getLogs(
+    orgId: string,
+    id: string,
+    page: number,
+    size: number,
+    profileId?: string
+  ) {
     return this.getRule(orgId, id, profileId).then(async () => ({
       rows: await this._repostRepository.getLogs(id, page, size),
       total: await this._repostRepository.countLogs(id),
@@ -257,31 +314,43 @@ export class RepostService {
       ) as unknown as InstagramProvider | undefined;
       if (!provider) return;
 
-      const { stories } = await provider.getRecentStories(
-        integration.internalId,
-        route.token,
-        route.host
-      );
-      console.log(
-        `[repost] bootstrap rule=${ruleId} host=${route.host} ` +
-          `stories=${stories.length} ids=[${stories.map((s) => s.id).join(',')}]`
-      );
-      if (!stories.length) return;
+      let items: Array<{ id: string }> = [];
+      if (rule.sourceType === 'INSTAGRAM_STORY') {
+        const { stories } = await provider.getRecentStories(
+          integration.internalId,
+          route.token,
+          route.host
+        );
+        items = stories;
+      } else if (rule.sourceType === 'INSTAGRAM_POST') {
+        // getRecentMedia(igAccountId, accessToken, type, limit?, after?).
+        // `route.host` eh o 3o parametro (type), nao o 4o (limit).
+        const { posts } = await (provider as any).getRecentMedia(
+          integration.internalId,
+          route.token,
+          route.host
+        );
+        items = posts ?? [];
+      }
 
-      const latest = stories.reduce((acc, cur) =>
+      console.log(
+        `[repost] bootstrap rule=${ruleId} sourceType=${rule.sourceType} ` +
+          `host=${route.host} items=${items.length}`
+      );
+      if (!items.length) return;
+
+      const latest = items.reduce((acc, cur) =>
         (cur.id || '') > (acc.id || '') ? cur : acc
       );
       if (latest?.id) {
         console.log(
-          `[repost] bootstrap rule=${ruleId} checkpoint set to ${latest.id} — ` +
-            `only stories published AFTER this point will be reposted`
+          `[repost] bootstrap rule=${ruleId} checkpoint set to ${latest.id}`
         );
         await this._repostRepository.advanceCheckpoint(ruleId, latest.id);
       }
     } catch (err) {
       console.error(
-        `[repost] bootstrap rule=${ruleId} failed (rule will still work, first ` +
-          `cycle may include currently active stories):`,
+        `[repost] bootstrap rule=${ruleId} failed:`,
         (err as Error).message || err
       );
     }
@@ -304,7 +373,6 @@ export class RepostService {
             ]),
           });
       } catch (err) {
-        // Ja esta rodando (WorkflowExecutionAlreadyStarted) — ok.
         return null;
       }
     }
@@ -316,10 +384,11 @@ export class RepostService {
     }
   }
 
-  private async assertSourceBelongsToProfile(
+  private async assertValidSource(
     orgId: string,
     profileId: string,
-    integrationId: string
+    integrationId: string,
+    sourceType: RepostSourceType
   ) {
     const integrations = await this._integrationService.getIntegrationsList(
       orgId,
@@ -327,49 +396,54 @@ export class RepostService {
     );
     const found = integrations.find((i) => i.id === integrationId);
     if (!found) {
-      throw new BadRequestException('Source integration not found for this profile');
-    }
-    if (
-      !(REPOST_SOURCE_IDENTIFIERS as readonly string[]).includes(
-        found.providerIdentifier
-      )
-    ) {
       throw new BadRequestException(
-        'Source integration is not an Instagram Business account'
+        'Source integration not found for this profile'
+      );
+    }
+    const supported = sourceTypesForProvider(found.providerIdentifier);
+    if (!supported.includes(sourceType)) {
+      throw new BadRequestException(
+        `Provider ${found.providerIdentifier} cannot serve as source for ${sourceType}`
       );
     }
   }
 
-  private async assertDestinationsBelongToProfile(
+  private async assertValidDestinations(
     orgId: string,
     profileId: string,
-    ids: string[]
+    sourceType: RepostSourceType,
+    destinations: RepostDestinationDto[]
   ) {
     const integrations = await this._integrationService.getIntegrationsList(
       orgId,
       profileId
     );
-    const allowedIds = new Set(integrations.map((i) => i.id));
-    for (const id of ids) {
-      if (!allowedIds.has(id)) {
+    const byId = new Map(integrations.map((i) => [i.id, i]));
+    const allowedBySource = SOURCE_DESTINATION_MATRIX[sourceType] ?? [];
+
+    for (const dest of destinations) {
+      const integration = byId.get(dest.integrationId);
+      if (!integration) {
         throw new BadRequestException(
-          `Destination integration ${id} does not belong to this profile`
+          `Destination integration ${dest.integrationId} does not belong to this profile`
         );
       }
-    }
-    const chosen = integrations.filter((i) => ids.includes(i.id));
-    const invalid = chosen.filter(
-      (i) =>
-        !(REPOST_DESTINATION_IDENTIFIERS as readonly string[]).includes(
-          i.providerIdentifier
+      if (
+        !isDestinationCompatible(
+          sourceType,
+          integration.providerIdentifier,
+          dest.format
         )
-    );
-    if (invalid.length > 0) {
-      throw new BadRequestException(
-        `Unsupported destination channel: ${invalid
-          .map((i) => i.providerIdentifier)
-          .join(', ')}`
-      );
+      ) {
+        throw new BadRequestException(
+          `Destination ${integration.providerIdentifier} cannot publish ${dest.format} for source ${sourceType}`
+        );
+      }
+      if (!allowedBySource.includes(dest.format)) {
+        throw new BadRequestException(
+          `Format ${dest.format} is not allowed for source ${sourceType}`
+        );
+      }
     }
   }
 }

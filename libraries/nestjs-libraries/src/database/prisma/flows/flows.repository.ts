@@ -28,6 +28,11 @@ export class FlowsRepository {
         integration: {
           select: { id: true, name: true, picture: true, providerIdentifier: true },
         },
+        nodes: {
+          where: { type: 'TRIGGER' },
+          select: { id: true, type: true, data: true },
+          take: 1,
+        },
         _count: {
           select: { nodes: true, executions: true },
         },

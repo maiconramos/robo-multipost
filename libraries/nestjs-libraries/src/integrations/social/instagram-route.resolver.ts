@@ -9,10 +9,16 @@ import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integration
 export const IG_LOGIN_GRAPH = 'graph.instagram.com';
 export const FB_LOGIN_GRAPH = 'graph.facebook.com';
 
+export type IgRouteSource =
+  | 'standalone'
+  | 'ig-user-token'
+  | 'page-access-token';
+
 export interface IgRoute {
   token: string;
   host: string;
   useIgGraph: boolean;
+  source: IgRouteSource;
 }
 
 export interface IgRouteIntegrationInput {
@@ -48,6 +54,7 @@ export async function resolveIgRoute(
       token: integration.token,
       host: IG_LOGIN_GRAPH,
       useIgGraph: true,
+      source: 'standalone',
     };
   }
 
@@ -57,12 +64,18 @@ export async function resolveIgRoute(
     integration.internalId
   );
   if (igToken) {
-    return { token: igToken, host: IG_LOGIN_GRAPH, useIgGraph: true };
+    return {
+      token: igToken,
+      host: IG_LOGIN_GRAPH,
+      useIgGraph: true,
+      source: 'ig-user-token',
+    };
   }
 
   return {
     token: integration.token,
     host: FB_LOGIN_GRAPH,
     useIgGraph: false,
+    source: 'page-access-token',
   };
 }

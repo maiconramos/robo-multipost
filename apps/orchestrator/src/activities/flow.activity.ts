@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Activity, ActivityMethod } from 'nestjs-temporal-core';
 import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
@@ -17,6 +17,8 @@ const GATE_EXHAUSTED_MESSAGE =
 @Injectable()
 @Activity()
 export class FlowActivity {
+  private readonly _logger = new Logger(FlowActivity.name);
+
   constructor(
     private _flowsService: FlowsService,
     private _integrationService: IntegrationService,
@@ -60,9 +62,40 @@ export class FlowActivity {
       throw new Error('Instagram provider not found');
     }
 
-    const { token, host } = await this.resolveIgRoute(integration);
+    const route = await this.resolveIgRoute(integration);
+    this._logger.log(
+      `replyToComment: integration=${integrationId} provider=${integration.providerIdentifier} igAccount=${integration.internalId} commentId=${commentId} route.source=${route.source} route.host=${route.host}`
+    );
     // Threaded reply to the specific comment (not a new top-level comment on the media).
-    await provider.replyToComment(token, commentId, message, host);
+    try {
+      await provider.replyToComment(route.token, commentId, message, route.host);
+    } catch (e) {
+      // IG User Tokens cadastrados em Settings sao gerados pelo aluno com
+      // escopos de messaging em mente (instagram_business_manage_messages)
+      // e frequentemente nao incluem instagram_business_manage_comments.
+      // O endpoint /{comment-id}/replies devolve code=100 subcode=33
+      // quando o token nao tem esse escopo. Quando a integration veio do
+      // fluxo Facebook Login, o Page Access Token tem instagram_manage_comments
+      // com Standard Access para testers/admins do app — fallback funciona
+      // em dev mode sem App Review.
+      if (
+        route.source === 'ig-user-token' &&
+        integration.token &&
+        integration.token !== route.token
+      ) {
+        this._logger.warn(
+          `replyToComment: ig-user-token route failed (${(e as Error).message}); falling back to Page Access Token on graph.facebook.com`
+        );
+        await provider.replyToComment(
+          integration.token,
+          commentId,
+          message,
+          'graph.facebook.com'
+        );
+        return;
+      }
+      throw e;
+    }
   }
 
   @ActivityMethod()

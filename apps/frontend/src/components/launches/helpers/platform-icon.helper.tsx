@@ -24,10 +24,17 @@ export function getPlatformIconPath(identifier: string) {
 }
 
 // Small Zernio logo used as overlay badge on platform icons.
-const ZernioBadge: FC<{ size?: number }> = ({ size = 16 }) => (
+const ZernioBadge: FC<{ size?: number; borderRadius?: number }> = ({
+  size = 16,
+  borderRadius,
+}) => (
   <span
-    className="absolute z-20 top-[-3px] -end-[3px] flex items-center justify-center rounded-full bg-[#EB3514] border border-white/30"
-    style={{ width: size, height: size }}
+    className="absolute z-20 top-[-3px] -end-[3px] flex items-center justify-center bg-[#EB3514] border border-white/30"
+    style={{
+      width: size,
+      height: size,
+      borderRadius: borderRadius !== undefined ? borderRadius : '9999px',
+    }}
   >
     <img
       src="/icons/platforms/zernio-icon.svg"
@@ -41,13 +48,30 @@ const ZernioBadge: FC<{ size?: number }> = ({ size = 16 }) => (
  * Reusable platform icon badge component.
  * Renders the correct platform icon for both native and Zernio providers.
  * For Zernio providers, adds a small Zernio logo badge.
+ *
+ * `zernioBadgeSize` / `zernioBadgeRadius` override the default proportional
+ * sizing of the overlay badge for screens that render large platform icons
+ * (e.g. repost rules list) where the default 70% ratio ends up covering the
+ * underlying platform icon.
  */
 export const PlatformIconBadge: FC<{
   identifier: string;
   size?: number;
   className?: string;
-}> = ({ identifier, size = 18, className = '' }) => {
+  zernioBadgeSize?: number;
+  zernioBadgeRadius?: number;
+}> = ({
+  identifier,
+  size = 18,
+  className = '',
+  zernioBadgeSize,
+  zernioBadgeRadius,
+}) => {
   const { platform, isZernio } = getPlatformFromIdentifier(identifier);
+  const badgeSize =
+    zernioBadgeSize !== undefined
+      ? zernioBadgeSize
+      : Math.max(10, Math.round(size * 0.7));
   return (
     <>
       {platform === 'youtube' ? (
@@ -66,7 +90,9 @@ export const PlatformIconBadge: FC<{
           height={size}
         />
       )}
-      {isZernio && <ZernioBadge size={Math.max(10, Math.round(size * 0.7))} />}
+      {isZernio && (
+        <ZernioBadge size={badgeSize} borderRadius={zernioBadgeRadius} />
+      )}
     </>
   );
 };

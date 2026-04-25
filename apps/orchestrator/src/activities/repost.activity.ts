@@ -1,6 +1,10 @@
 import { Injectable } from '@nestjs/common';
 import { Activity, ActivityMethod } from 'nestjs-temporal-core';
 import dayjs from 'dayjs';
+import {
+  RepostDestinationFormat,
+  RepostSourceType,
+} from '@prisma/client';
 import { RepostService } from '@gitroom/nestjs-libraries/database/prisma/repost/repost.service';
 import {
   RepostRepository,
@@ -22,11 +26,31 @@ export interface RepostCycleResult {
 }
 
 const DEFAULT_INTERVAL_MINUTES = 15;
-
-// Limites conhecidos de destino. Mantidos aqui centralizados para
-// filtragem no ciclo antes de criar Posts desnecessarios.
 const YOUTUBE_SHORTS_MAX_SECONDS = 60;
 const TIKTOK_MIN_SECONDS = 3;
+
+interface FetchedItem {
+  id: string;
+  mediaType: string;
+  mediaUrl?: string;
+  thumbnailUrl?: string;
+  permalink?: string;
+  timestamp?: string;
+  caption?: string;
+}
+
+interface RuleDestinationWithIntegration {
+  integrationId: string;
+  format: RepostDestinationFormat;
+  integration: {
+    id: string;
+    name: string;
+    picture: string | null;
+    providerIdentifier: string;
+    disabled: boolean;
+    deletedAt: Date | null;
+  };
+}
 
 @Injectable()
 @Activity()
@@ -80,34 +104,37 @@ export class RepostActivity {
         return { intervalMinutes };
       }
 
-      const { stories } = await provider.getRecentStories(
+      const items = await this.fetchItems(
+        rule.sourceType,
+        provider,
         integration.internalId,
         route.token,
         route.host
       );
 
       const checkpoint = rule.lastSourceItemId ?? '';
-      const freshStories = stories
+      const fresh = items
         .filter((s) => !!s.id && s.id > checkpoint)
         .sort((a, b) => (a.id > b.id ? 1 : -1));
 
       console.log(
-        `[repost] rule=${ruleId} host=${route.host} returned=${stories.length} ` +
-          `checkpoint=${checkpoint || '(empty)'} fresh=${freshStories.length} ` +
-          `ids=[${stories.map((s) => s.id).join(',')}]`
+        `[repost] rule=${ruleId} sourceType=${rule.sourceType} ` +
+          `host=${route.host} returned=${items.length} ` +
+          `checkpoint=${checkpoint || '(empty)'} fresh=${fresh.length} ` +
+          `ids=[${items.map((s) => s.id).join(',')}]`
       );
 
-      if (freshStories.length === 0) {
+      if (fresh.length === 0) {
         await this._repostService.touchLastRun(ruleId);
         return { intervalMinutes };
       }
 
       let maxProcessedId = checkpoint;
 
-      for (const story of freshStories) {
-        await this.processStory(rule, story);
-        if (story.id && story.id > maxProcessedId) {
-          maxProcessedId = story.id;
+      for (const item of fresh) {
+        await this.processItem(rule, item);
+        if (item.id && item.id > maxProcessedId) {
+          maxProcessedId = item.id;
         }
       }
 
@@ -119,9 +146,6 @@ export class RepostActivity {
 
       return { intervalMinutes };
     } catch (err) {
-      // Falha global do ciclo (ex: Graph API indisponivel, credencial
-      // rotacionada). O workflow dorme e tenta de novo — nao desabilitamos
-      // a regra automaticamente no V1.
       console.error(
         `[repost] rule=${ruleId} cycle failed:`,
         (err as Error).stack || (err as Error).message || err
@@ -131,39 +155,76 @@ export class RepostActivity {
     }
   }
 
-  private async processStory(
-    rule: Awaited<ReturnType<RepostService['getRuleFresh']>>,
-    story: {
-      id: string;
-      mediaType: string;
-      mediaUrl?: string;
-      thumbnailUrl?: string;
-      permalink?: string;
-      timestamp?: string;
+  /**
+   * Dispatcher de fetching por sourceType. Cada tipo de origem chama o
+   * metodo apropriado do provider. Em V2 so Instagram suporta origem
+   * (Story ou Reel/Feed). V3 adicionara TikTok/YouTube.
+   */
+  private async fetchItems(
+    sourceType: RepostSourceType,
+    provider: InstagramProvider,
+    internalId: string,
+    token: string,
+    host: string
+  ): Promise<FetchedItem[]> {
+    if (sourceType === 'INSTAGRAM_STORY') {
+      const { stories } = await provider.getRecentStories(
+        internalId,
+        token,
+        host
+      );
+      return stories;
     }
-  ) {
-    if (!rule) return;
+    if (sourceType === 'INSTAGRAM_POST') {
+      // getRecentMedia(igAccountId, accessToken, type, limit?, after?)
+      // `host` vai no 3o parametro (type). Nao confundir com limit.
+      const result = await (provider as any).getRecentMedia(
+        internalId,
+        token,
+        host
+      );
+      const posts: FetchedItem[] = result?.posts ?? [];
+      // INSTAGRAM_POST aceita video (Reel), foto (Feed) e carousel.
+      return posts.filter((p) => {
+        const mt = (p.mediaType || '').toUpperCase();
+        return (
+          mt === 'VIDEO' ||
+          mt === 'REELS' ||
+          mt === 'IMAGE' ||
+          mt === 'CAROUSEL_ALBUM'
+        );
+      });
+    }
+    return [];
+  }
 
-    const mediaType = (story.mediaType || '').toUpperCase();
-    const isVideo = mediaType === 'VIDEO';
+  private async processItem(
+    rule: NonNullable<Awaited<ReturnType<RepostService['getRuleFresh']>>>,
+    item: FetchedItem
+  ) {
+    const mediaType = (item.mediaType || '').toUpperCase();
+    const isVideo = mediaType === 'VIDEO' || mediaType === 'REELS';
     const isImage = mediaType === 'IMAGE';
 
     const log = await this._repostRepository.createLog({
       ruleId: rule.id,
-      sourceItemId: story.id,
-      mediaType: isVideo ? 'VIDEO' : isImage ? 'IMAGE' : mediaType || 'UNKNOWN',
-      mediaUrlOriginal: story.mediaUrl || story.thumbnailUrl || '',
+      sourceItemId: item.id,
+      mediaType: isVideo
+        ? 'VIDEO'
+        : isImage
+        ? 'IMAGE'
+        : mediaType || 'UNKNOWN',
+      mediaUrlOriginal: item.mediaUrl || item.thumbnailUrl || '',
     });
 
-    // Log duplicado (ja processado em ciclo anterior) — idempotencia.
     if (!log) {
       console.log(
-        `[repost] rule=${rule.id} story=${story.id} already processed — skipping`
+        `[repost] rule=${rule.id} item=${item.id} already processed — skipping`
       );
       return;
     }
     console.log(
-      `[repost] rule=${rule.id} processing story=${story.id} mediaType=${mediaType}`
+      `[repost] rule=${rule.id} processing item=${item.id} mediaType=${mediaType}`
     );
 
     if (isImage && !rule.filterIncludeImages) {
@@ -174,14 +235,14 @@ export class RepostActivity {
       await this._repostRepository.markLogSkipped(log.id, 'UNSUPPORTED_MEDIA');
       return;
     }
-    if (!story.mediaUrl) {
+    if (!item.mediaUrl) {
       await this._repostRepository.markLogFailed(log.id, 'MEDIA_URL_MISSING');
       return;
     }
 
     let storedMedia: { id: string; path: string } | null = null;
     try {
-      const uploadedPath = await this.storage.uploadSimple(story.mediaUrl);
+      const uploadedPath = await this.storage.uploadSimple(item.mediaUrl);
       const fileName = (uploadedPath.split('/').pop() || 'repost').toString();
       const saved = await this._mediaService.saveFile(
         rule.organizationId,
@@ -209,7 +270,7 @@ export class RepostActivity {
       return;
     }
 
-    const caption = renderCaption(rule.captionTemplate, story);
+    const caption = renderCaption(rule.captionTemplate, item);
     const publishedPosts: RepostRulePublishedPost[] = [];
     let anySuccess = false;
     let anyFailure = false;
@@ -217,23 +278,25 @@ export class RepostActivity {
     for (const dest of destinations) {
       try {
         const skipReason = isVideo
-          ? skipByVideoLimits(dest.providerIdentifier, rule)
-          : null;
+          ? skipByVideoLimits(dest.format, rule)
+          : skipByImageFormat(dest.format);
         if (skipReason) {
           publishedPosts.push({
-            integrationId: dest.id,
+            integrationId: dest.integrationId,
             postId: '',
+            format: dest.format,
             error: skipReason,
           });
           anyFailure = true;
           continue;
         }
 
-        const settings = buildDestinationSettings({
-          providerIdentifier: dest.providerIdentifier,
+        const settings = buildSettingsForFormat({
+          format: dest.format,
+          providerIdentifier: dest.integration.providerIdentifier,
           caption,
-          storyId: story.id,
           ruleId: rule.id,
+          sourceItemId: item.id,
         });
 
         const created = await this._postsService.createPost(
@@ -246,8 +309,8 @@ export class RepostActivity {
             date: dayjs().add(1, 'minute').toISOString(),
             posts: [
               {
-                integration: { id: dest.id },
-                group: `repost-${story.id}`,
+                integration: { id: dest.integrationId },
+                group: `repost-${item.id}`,
                 value: [
                   {
                     id: makeId(10),
@@ -270,14 +333,16 @@ export class RepostActivity {
 
         const postId = created?.[0]?.postId || '';
         publishedPosts.push({
-          integrationId: dest.id,
+          integrationId: dest.integrationId,
           postId,
+          format: dest.format,
         });
         anySuccess = true;
       } catch (err) {
         publishedPosts.push({
-          integrationId: dest.id,
+          integrationId: dest.integrationId,
           postId: '',
+          format: dest.format,
           error: (err as Error).message || 'CREATE_POST_FAILED',
         });
         anyFailure = true;
@@ -299,94 +364,147 @@ export class RepostActivity {
     );
   }
 
+  /**
+   * Retorna destinos da regra com integration enriched. Pula destinos
+   * onde a integracao esta desabilitada ou deletada.
+   */
   private async loadDestinations(rule: {
     organizationId: string;
     profileId: string;
-    destinationIntegrationIds: string[];
-  }) {
-    const integrations = await this._integrationService.getIntegrationsList(
-      rule.organizationId,
-      rule.profileId
-    );
-    return integrations
-      .filter((i) => rule.destinationIntegrationIds.includes(i.id))
-      .filter((i) => !i.disabled && !i.deletedAt);
+    destinations?:
+      | Array<{
+          integrationId: string;
+          format: RepostDestinationFormat;
+          integration?: {
+            id: string;
+            name: string;
+            picture: string | null;
+            providerIdentifier: string;
+            disabled: boolean;
+            deletedAt: Date | null;
+          };
+        }>
+      | null;
+  }): Promise<RuleDestinationWithIntegration[]> {
+    const list = rule.destinations ?? [];
+    return list
+      .filter(
+        (d) => d.integration && !d.integration.disabled && !d.integration.deletedAt
+      )
+      .map((d) => ({
+        integrationId: d.integrationId,
+        format: d.format,
+        integration: d.integration!,
+      }));
   }
 }
 
 function renderCaption(
   template: string | null | undefined,
-  story: { timestamp?: string }
+  item: { timestamp?: string; caption?: string }
 ): string {
-  if (!template) return '';
-  return template.replace(/\{\{\s*timestamp\s*\}\}/g, story.timestamp || '');
+  if (!template) return item.caption ?? '';
+  return template
+    .replace(/\{\{\s*timestamp\s*\}\}/g, item.timestamp || '')
+    .replace(/\{\{\s*caption\s*\}\}/g, item.caption || '');
 }
 
 function skipByVideoLimits(
-  providerIdentifier: string,
+  format: RepostDestinationFormat,
   rule: { filterMaxDurationSeconds?: number | null }
 ): string | null {
-  // Nao temos duracao real da story antes de baixar (Graph API nao expoe).
-  // V1: deixa o filterMaxDurationSeconds como gate opcional do usuario,
-  // e confia que o provider rejeitara se ultrapassar limites reais.
+  if (!rule.filterMaxDurationSeconds) return null;
   if (
-    rule.filterMaxDurationSeconds &&
-    providerIdentifier.startsWith('youtube') &&
+    format === 'YOUTUBE_SHORT' &&
     rule.filterMaxDurationSeconds > YOUTUBE_SHORTS_MAX_SECONDS
   ) {
     return 'DURATION_EXCEEDED_YOUTUBE_SHORTS';
   }
   if (
-    rule.filterMaxDurationSeconds &&
-    rule.filterMaxDurationSeconds < TIKTOK_MIN_SECONDS &&
-    providerIdentifier.includes('tiktok')
+    format === 'TIKTOK_FEED' &&
+    rule.filterMaxDurationSeconds < TIKTOK_MIN_SECONDS
   ) {
     return 'DURATION_BELOW_TIKTOK_MIN';
   }
   return null;
 }
 
-function buildDestinationSettings(input: {
+function skipByImageFormat(format: RepostDestinationFormat): string | null {
+  // Formatos que exigem video: TikTok Feed, YouTube Short, Facebook Reel.
+  // Instagram Post/Story aceitam imagem.
+  if (
+    format === 'TIKTOK_FEED' ||
+    format === 'YOUTUBE_SHORT' ||
+    format === 'FACEBOOK_REEL'
+  ) {
+    return 'IMAGE_NOT_SUPPORTED_BY_FORMAT';
+  }
+  return null;
+}
+
+function buildSettingsForFormat(input: {
+  format: RepostDestinationFormat;
   providerIdentifier: string;
   caption: string;
-  storyId: string;
   ruleId: string;
+  sourceItemId: string;
 }) {
   const trace = {
     isRepost: true,
     ruleId: input.ruleId,
-    sourceItemId: input.storyId,
+    sourceItemId: input.sourceItemId,
   };
-  if (input.providerIdentifier === 'tiktok' || input.providerIdentifier === 'zernio-tiktok') {
-    return {
-      __type: input.providerIdentifier,
-      title: input.caption ? input.caption.slice(0, 90) : '',
-      privacy_level: 'PUBLIC_TO_EVERYONE',
-      duet: true,
-      stitch: true,
-      comment: true,
-      autoAddMusic: 'no',
-      brand_content_toggle: false,
-      brand_organic_toggle: false,
-      content_posting_method: 'DIRECT_POST',
-      ...trace,
-    };
+  switch (input.format) {
+    case 'INSTAGRAM_POST':
+      return {
+        __type: input.providerIdentifier,
+        post_type: 'post',
+        ...trace,
+      };
+    case 'INSTAGRAM_STORY':
+      return {
+        __type: input.providerIdentifier,
+        post_type: 'story',
+        ...trace,
+      };
+    case 'FACEBOOK_REEL':
+      return {
+        __type: 'facebook',
+        ...trace,
+      };
+    case 'TIKTOK_FEED':
+      return {
+        __type: input.providerIdentifier,
+        title: input.caption ? input.caption.slice(0, 90) : '',
+        privacy_level: 'PUBLIC_TO_EVERYONE',
+        duet: true,
+        stitch: true,
+        comment: true,
+        autoAddMusic: 'no',
+        brand_content_toggle: false,
+        brand_organic_toggle: false,
+        content_posting_method: 'DIRECT_POST',
+        ...trace,
+      };
+    case 'YOUTUBE_SHORT': {
+      const baseTitle = (input.caption || `Short ${new Date().toISOString().slice(0, 10)}`).trim();
+      const needsTag = !baseTitle.toLowerCase().includes('#shorts');
+      let title = needsTag ? `${baseTitle} #Shorts` : baseTitle;
+      if (title.length > 100) title = title.slice(0, 100);
+      if (title.length < 2) title = 'Short #Shorts';
+      return {
+        __type: input.providerIdentifier,
+        title,
+        type: 'public',
+        selfDeclaredMadeForKids: 'no',
+        tags: [] as { value: string; label: string }[],
+        ...trace,
+      };
+    }
+    default:
+      return {
+        __type: input.providerIdentifier,
+        ...trace,
+      };
   }
-  if (input.providerIdentifier === 'youtube' || input.providerIdentifier === 'zernio-youtube') {
-    const baseTitle = input.caption
-      ? input.caption.slice(0, 100)
-      : `Story ${new Date().toISOString().slice(0, 10)}`;
-    return {
-      __type: input.providerIdentifier,
-      title: baseTitle.length < 2 ? 'Story' : baseTitle,
-      type: 'public',
-      selfDeclaredMadeForKids: 'no',
-      tags: [] as { value: string; label: string }[],
-      ...trace,
-    };
-  }
-  return {
-    __type: input.providerIdentifier,
-    ...trace,
-  };
 }

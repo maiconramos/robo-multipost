@@ -1074,7 +1074,7 @@ export class InstagramProvider
   ): Promise<{ id: string }> {
     // Both flows support threaded replies at /{comment-id}/replies — route
     // depends on which token the integration holds (Page Access vs IG User).
-    const url = `https://${type}/v21.0/${commentId}/replies?access_token=${accessToken}`;
+    const url = `https://${type}/v25.0/${commentId}/replies?access_token=${accessToken}`;
     const response = await fetch(url, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -1082,10 +1082,17 @@ export class InstagramProvider
     });
     const body = await response.json();
     if (!response.ok || body.error) {
-      const errMsg =
-        body?.error?.message || JSON.stringify(body?.error || body);
+      const err = body?.error || {};
+      const parts = [
+        err.message ? `msg=${err.message}` : null,
+        err.code != null ? `code=${err.code}` : null,
+        err.error_subcode != null ? `subcode=${err.error_subcode}` : null,
+        err.type ? `type=${err.type}` : null,
+        err.fbtrace_id ? `trace=${err.fbtrace_id}` : null,
+      ].filter(Boolean);
+      const detail = parts.length ? parts.join(' ') : JSON.stringify(body);
       throw new Error(
-        `Instagram comment reply failed (${response.status}): ${errMsg}`
+        `Instagram comment reply failed (${response.status}) [host=${type} commentId=${commentId}]: ${detail}`
       );
     }
     return { id: body.id };

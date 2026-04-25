@@ -11,7 +11,7 @@ import {
 import { ApiTags } from '@nestjs/swagger';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
-import { Organization, Profile } from '@prisma/client';
+import { Organization, Profile, RepostSourceType } from '@prisma/client';
 import { RepostService } from '@gitroom/nestjs-libraries/database/prisma/repost/repost.service';
 import {
   CreateRepostRuleDto,
@@ -35,9 +35,19 @@ export class RepostController {
   @Get('/destination-candidates')
   destinationCandidates(
     @GetOrgFromRequest() org: Organization,
-    @GetProfileFromRequest() profile: Profile | null
+    @GetProfileFromRequest() profile: Profile | null,
+    @Query('sourceType') sourceType?: string
   ) {
-    return this._repostService.destinationCandidates(org.id, profile?.id);
+    const validated =
+      sourceType &&
+      (Object.values(RepostSourceType) as string[]).includes(sourceType)
+        ? (sourceType as RepostSourceType)
+        : undefined;
+    return this._repostService.destinationCandidates(
+      org.id,
+      validated,
+      profile?.id
+    );
   }
 
   @Get('/rules')

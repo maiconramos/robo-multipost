@@ -4,11 +4,49 @@ import useSWR from 'swr';
 import { useCallback } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 
-export interface RepostChannelCandidate {
-  id: string;
+export type RepostSourceType = 'INSTAGRAM_STORY' | 'INSTAGRAM_POST';
+
+export type RepostDestinationFormat =
+  | 'INSTAGRAM_POST'
+  | 'INSTAGRAM_STORY'
+  | 'FACEBOOK_REEL'
+  | 'TIKTOK_FEED'
+  | 'YOUTUBE_SHORT';
+
+export interface RepostDestination {
+  integrationId: string;
+  format: RepostDestinationFormat;
+}
+
+export interface RepostSourceOption {
+  key: string; // `${integrationId}:${sourceType}`
+  integrationId: string;
+  sourceType: RepostSourceType;
   name: string;
   picture: string | null;
   providerIdentifier: string;
+}
+
+export interface RepostChannelOption {
+  key: string; // `${integrationId}:${format}`
+  integrationId: string;
+  format: RepostDestinationFormat;
+  name: string;
+  picture: string | null;
+  providerIdentifier: string;
+}
+
+export interface RepostRuleDestinationRow {
+  id: string;
+  integrationId: string;
+  format: RepostDestinationFormat;
+  integration?: {
+    id: string;
+    name: string;
+    picture: string | null;
+    providerIdentifier: string;
+    disabled?: boolean;
+  };
 }
 
 export interface RepostRule {
@@ -18,8 +56,8 @@ export interface RepostRule {
   name: string;
   enabled: boolean;
   sourceIntegrationId: string;
-  sourceType: 'INSTAGRAM_STORY';
-  destinationIntegrationIds: string[];
+  sourceType: RepostSourceType;
+  destinations: RepostRuleDestinationRow[];
   intervalMinutes: number;
   filterIncludeVideos: boolean;
   filterIncludeImages: boolean;
@@ -29,6 +67,13 @@ export interface RepostRule {
   lastRunAt: string | null;
   createdAt: string;
   updatedAt: string;
+  sourceIntegration?: {
+    id: string;
+    name: string;
+    picture: string | null;
+    providerIdentifier: string;
+  };
+  _count?: { logs: number };
 }
 
 export interface RepostLogRow {
@@ -47,12 +92,15 @@ export interface RepostLogRow {
     | 'FAILED';
   skippedReason: string | null;
   errorMessage: string | null;
-  publishedPosts: {
-    integrationId: string;
-    postId: string;
-    releaseUrl?: string;
-    error?: string;
-  }[] | null;
+  publishedPosts:
+    | {
+        integrationId: string;
+        postId: string;
+        format?: RepostDestinationFormat;
+        releaseUrl?: string;
+        error?: string;
+      }[]
+    | null;
   discoveredAt: string;
   processedAt: string | null;
 }
@@ -97,18 +145,94 @@ export const useRepostSourceCandidates = () => {
   const fetchApi = useFetch();
   const load = useCallback(
     async (path: string) =>
-      (await fetchApi(path)).json() as Promise<RepostChannelCandidate[]>,
+      (await fetchApi(path)).json() as Promise<RepostSourceOption[]>,
     [fetchApi]
   );
   return useSWR('/repost/source-candidates', load);
 };
 
-export const useRepostDestinationCandidates = () => {
+export const useRepostDestinationCandidates = (sourceType?: RepostSourceType | null) => {
   const fetchApi = useFetch();
   const load = useCallback(
     async (path: string) =>
-      (await fetchApi(path)).json() as Promise<RepostChannelCandidate[]>,
+      (await fetchApi(path)).json() as Promise<RepostChannelOption[]>,
     [fetchApi]
   );
-  return useSWR('/repost/destination-candidates', load);
+  const url = sourceType
+    ? `/repost/destination-candidates?sourceType=${sourceType}`
+    : '/repost/destination-candidates';
+  return useSWR(url, load);
 };
+
+export const SOURCE_TYPE_LABEL: Record<RepostSourceType, string> = {
+  INSTAGRAM_STORY: 'Story',
+  INSTAGRAM_POST: 'Reel/Feed',
+};
+
+export const FORMAT_LABEL: Record<RepostDestinationFormat, string> = {
+  INSTAGRAM_POST: 'Reel/Feed',
+  INSTAGRAM_STORY: 'Story',
+  FACEBOOK_REEL: 'Reel',
+  TIKTOK_FEED: 'Feed',
+  YOUTUBE_SHORT: 'Short',
+};
+
+export interface GroupedSource {
+  integrationId: string;
+  name: string;
+  picture: string | null;
+  providerIdentifier: string;
+  sourceTypes: RepostSourceType[];
+}
+
+export interface GroupedDestination {
+  integrationId: string;
+  name: string;
+  picture: string | null;
+  providerIdentifier: string;
+  formats: RepostDestinationFormat[];
+}
+
+export function groupSources(options: RepostSourceOption[]): GroupedSource[] {
+  const byId = new Map<string, GroupedSource>();
+  for (const o of options) {
+    const existing = byId.get(o.integrationId);
+    if (existing) {
+      if (!existing.sourceTypes.includes(o.sourceType)) {
+        existing.sourceTypes.push(o.sourceType);
+      }
+    } else {
+      byId.set(o.integrationId, {
+        integrationId: o.integrationId,
+        name: o.name,
+        picture: o.picture,
+        providerIdentifier: o.providerIdentifier,
+        sourceTypes: [o.sourceType],
+      });
+    }
+  }
+  return Array.from(byId.values());
+}
+
+export function groupDestinations(
+  options: RepostChannelOption[]
+): GroupedDestination[] {
+  const byId = new Map<string, GroupedDestination>();
+  for (const o of options) {
+    const existing = byId.get(o.integrationId);
+    if (existing) {
+      if (!existing.formats.includes(o.format)) {
+        existing.formats.push(o.format);
+      }
+    } else {
+      byId.set(o.integrationId, {
+        integrationId: o.integrationId,
+        name: o.name,
+        picture: o.picture,
+        providerIdentifier: o.providerIdentifier,
+        formats: [o.format],
+      });
+    }
+  }
+  return Array.from(byId.values());
+}
