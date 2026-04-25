@@ -31,7 +31,6 @@ import { Autopost } from '@gitroom/frontend/components/autopost/autopost';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { SVGLine } from '@gitroom/frontend/components/launches/launches.component';
 import { GlobalSettings } from '@gitroom/frontend/components/settings/global.settings';
-import { ZernioSettingsSection } from '@gitroom/frontend/components/settings/zernio-settings.component';
 import { CredentialsSettingsSection } from '@gitroom/frontend/components/settings/credentials-settings.component';
 import { ProfilesSettingsComponent } from '@gitroom/frontend/components/settings/profiles.component';
 import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-apps/approved-apps.component';
@@ -242,8 +241,6 @@ export const SettingsPopup: FC<{
               {tab === 'credentials' && (
                 <div className="flex flex-col">
                   <CredentialsSettingsSection />
-                  <hr className="border-newTableBorder my-[24px]" />
-                  <ZernioSettingsSection />
                 </div>
               )}
 

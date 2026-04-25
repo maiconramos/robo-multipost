@@ -1,9 +1,12 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useCredentialsList } from '@gitroom/frontend/hooks/use-credentials.hook';
+import { useZernioSettings } from '@gitroom/frontend/hooks/use-zernio-settings.hook';
 import { ProviderCredentialForm } from '@gitroom/frontend/components/settings/provider-credential-form.component';
 import { MetaCredentialsCard } from '@gitroom/frontend/components/settings/meta-credentials.component';
+import { ZernioCredentialsCard } from '@gitroom/frontend/components/settings/zernio-settings.component';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import clsx from 'clsx';
 
 interface ProviderConfig {
@@ -12,6 +15,7 @@ interface ProviderConfig {
   iconUrl: string;
   fields: { key: string; label: string; placeholder: string }[];
   docsUrl: string;
+  callbackPath?: string;
 }
 
 const PROVIDERS: ProviderConfig[] = [
@@ -32,6 +36,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://developers.tiktok.com',
+    callbackPath: '/integrations/social/tiktok',
   },
   {
     provider: 'pinterest',
@@ -50,6 +55,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://developers.pinterest.com',
+    callbackPath: '/integrations/social/pinterest',
   },
   {
     provider: 'linkedin',
@@ -68,6 +74,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://www.linkedin.com/developers',
+    callbackPath: '/integrations/social/linkedin',
   },
   {
     provider: 'twitter',
@@ -86,6 +93,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://developer.twitter.com',
+    callbackPath: '/integrations/social/x',
   },
   {
     provider: 'youtube',
@@ -104,6 +112,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://console.cloud.google.com',
+    callbackPath: '/integrations/social/youtube',
   },
   {
     provider: 'reddit',
@@ -122,6 +131,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://www.reddit.com/prefs/apps',
+    callbackPath: '/integrations/social/reddit',
   },
   {
     provider: 'discord',
@@ -145,6 +155,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://discord.com/developers',
+    callbackPath: '/integrations/social/discord',
   },
   {
     provider: 'slack',
@@ -168,6 +179,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://api.slack.com',
+    callbackPath: '/integrations/social/slack',
   },
 ];
 
@@ -177,6 +189,16 @@ const ProviderCard: React.FC<{
   onMutate: () => void;
 }> = ({ config, configured, onMutate }) => {
   const [expanded, setExpanded] = useState(false);
+  const { frontEndUrl } = useVariables();
+
+  const callbackUrl = useMemo(() => {
+    if (!config.callbackPath) return undefined;
+    const base =
+      frontEndUrl ||
+      (typeof window !== 'undefined' ? window.location.origin : '');
+    if (!base) return undefined;
+    return `${base.replace(/\/$/, '')}${config.callbackPath}`;
+  }, [frontEndUrl, config.callbackPath]);
 
   const toggle = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -233,6 +255,7 @@ const ProviderCard: React.FC<{
             fields={config.fields}
             label={config.label}
             docsUrl={config.docsUrl}
+            callbackUrl={callbackUrl}
             onSaved={onMutate}
             onDeleted={onMutate}
           />
@@ -244,10 +267,12 @@ const ProviderCard: React.FC<{
 
 export const CredentialsSettingsSection: React.FC = () => {
   const { data, isLoading, mutate } = useCredentialsList();
+  const { data: zernio, mutate: mutateZernio } = useZernioSettings();
 
   const handleMutate = useCallback(() => {
     mutate();
-  }, [mutate]);
+    mutateZernio();
+  }, [mutate, mutateZernio]);
 
   if (isLoading) {
     return (
@@ -282,6 +307,10 @@ export const CredentialsSettingsSection: React.FC = () => {
             onMutate={handleMutate}
           />
         ))}
+        <ZernioCredentialsCard
+          configured={zernio?.configured ?? false}
+          onMutate={handleMutate}
+        />
       </div>
     </div>
   );

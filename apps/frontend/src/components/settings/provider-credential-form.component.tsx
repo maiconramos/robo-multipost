@@ -6,6 +6,7 @@ import { useCredential } from '@gitroom/frontend/hooks/use-credentials.hook';
 import { Button } from '@gitroom/react/form/button';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useDecisionModal } from '@gitroom/frontend/components/layout/new-modal';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const SENTINEL = '__REDACTED__';
 const MASK = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
@@ -24,6 +25,7 @@ interface ProviderCredentialFormProps {
   onSaved?: () => void;
   onDeleted?: () => void;
   extraActions?: React.ReactNode;
+  callbackUrl?: string;
 }
 
 export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
@@ -34,10 +36,12 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
   onSaved,
   onDeleted,
   extraActions,
+  callbackUrl,
 }) => {
   const fetch = useFetch();
   const toaster = useToaster();
   const decision = useDecisionModal();
+  const t = useT();
   const { data, isLoading, mutate } = useCredential(provider);
 
   const [editing, setEditing] = useState(false);
@@ -125,6 +129,46 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
     }
   }, [provider, fetch]);
 
+  const handleCopyCallback = useCallback(() => {
+    if (!callbackUrl) return;
+    navigator.clipboard.writeText(callbackUrl).then(() => {
+      toaster.show(
+        t('copied_to_clipboard', 'Copiado para a área de transferência'),
+        'success'
+      );
+    });
+  }, [callbackUrl, toaster, t]);
+
+  const callbackBlock = callbackUrl ? (
+    <div className="flex flex-col gap-[6px] border-t border-fifth pt-[12px]">
+      <div className="text-[13px] text-customColor18">
+        {t('callback_url', 'Callback URL')}
+      </div>
+      <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] flex items-center">
+        <input
+          className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px] min-w-0"
+          type="text"
+          value={callbackUrl}
+          readOnly
+          onFocus={(e) => e.currentTarget.select()}
+        />
+        <button
+          type="button"
+          onClick={handleCopyCallback}
+          className="text-[12px] text-btnPrimary hover:opacity-80 px-[12px] whitespace-nowrap"
+        >
+          {t('copy', 'Copiar')}
+        </button>
+      </div>
+      <div className="text-[12px] text-customColor18">
+        {t(
+          'callback_url_hint',
+          'Cole esta URL nas URIs de redirecionamento autorizadas no painel do provider.'
+        )}
+      </div>
+    </div>
+  ) : null;
+
   const handleDelete = useCallback(async () => {
     const approved = await decision.open({
       title: 'Remover credenciais?',
@@ -169,6 +213,8 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
             </div>
           ))}
         </div>
+
+        {callbackBlock}
 
         {testResult && (
           <div
@@ -224,6 +270,8 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
           </div>
         ))}
       </div>
+
+      {callbackBlock}
 
       <div className="flex items-center gap-[12px]">
         <Button onClick={handleSave} loading={saving}>

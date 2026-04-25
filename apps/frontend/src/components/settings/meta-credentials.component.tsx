@@ -8,6 +8,7 @@ import { Button } from '@gitroom/react/form/button';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useDecisionModal } from '@gitroom/frontend/components/layout/new-modal';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { MessagingTokensSection } from '@gitroom/frontend/components/settings/messaging-tokens-section.component';
 
 const PROVIDER = 'facebook';
@@ -326,7 +327,27 @@ export const MetaCredentialsCard: React.FC<Props> = ({
   const fetchApi = useFetch();
   const toaster = useToaster();
   const decision = useDecisionModal();
+  const { frontEndUrl } = useVariables();
   const { data, isLoading, mutate } = useCredential(PROVIDER);
+
+  const baseUrl = React.useMemo(() => {
+    const base =
+      frontEndUrl ||
+      (typeof window !== 'undefined' ? window.location.origin : '');
+    return base ? base.replace(/\/$/, '') : '';
+  }, [frontEndUrl]);
+  const facebookOauthUrl = baseUrl
+    ? `${baseUrl}/integrations/social/facebook`
+    : '';
+  const instagramOauthUrl = baseUrl
+    ? `${baseUrl}/integrations/social/instagram`
+    : '';
+  const instagramStandaloneOauthUrl = baseUrl
+    ? `${baseUrl}/integrations/social/instagram-standalone`
+    : '';
+  const threadsOauthUrl = baseUrl
+    ? `${baseUrl}/integrations/social/threads`
+    : '';
 
   const [expanded, setExpanded] = useState(false);
   const [editingSection, setEditingSection] = useState<SectionId | null>(null);
@@ -659,6 +680,18 @@ export const MetaCredentialsCard: React.FC<Props> = ({
                     onChange={(v) => handleField('clientSecret', v)}
                   />
                 </div>
+                {facebookOauthUrl && (
+                  <div className="border-t border-fifth pt-[12px]">
+                    <CopyRow
+                      label={t(
+                        'oauth_redirect_uri',
+                        'OAuth Redirect URI'
+                      )}
+                      value={facebookOauthUrl}
+                      onCopy={() => copyToClipboard(facebookOauthUrl)}
+                    />
+                  </div>
+                )}
               </ProductSection>
 
               <ProductSection
@@ -698,6 +731,38 @@ export const MetaCredentialsCard: React.FC<Props> = ({
                   onChange={(v) => handleField('webhookVerifyToken', v)}
                   onCopy={() => copyToClipboard(initialVerifyTokenValue)}
                 />
+                {(instagramOauthUrl || instagramStandaloneOauthUrl) && (
+                  <div className="border-t border-fifth pt-[12px] flex flex-col gap-[8px]">
+                    <div className="text-[12px] font-[600] text-textColor">
+                      {t(
+                        'oauth_redirect_uris',
+                        'OAuth Redirect URIs'
+                      )}
+                    </div>
+                    {instagramOauthUrl && (
+                      <CopyRow
+                        label={t(
+                          'meta_instagram_redirect_via_facebook',
+                          'Instagram (via Facebook Login)'
+                        )}
+                        value={instagramOauthUrl}
+                        onCopy={() => copyToClipboard(instagramOauthUrl)}
+                      />
+                    )}
+                    {instagramStandaloneOauthUrl && (
+                      <CopyRow
+                        label={t(
+                          'meta_instagram_redirect_standalone',
+                          'Instagram (Login direto)'
+                        )}
+                        value={instagramStandaloneOauthUrl}
+                        onCopy={() =>
+                          copyToClipboard(instagramStandaloneOauthUrl)
+                        }
+                      />
+                    )}
+                  </div>
+                )}
                 <div className="border-t border-fifth pt-[12px] flex flex-col gap-[8px]">
                   <div className="text-[12px] font-[600] text-textColor">
                     {t('meta_instagram_webhook', 'Webhook do Instagram')}
@@ -736,6 +801,18 @@ export const MetaCredentialsCard: React.FC<Props> = ({
                     onChange={(v) => handleField('threadsAppSecret', v)}
                   />
                 </div>
+                {threadsOauthUrl && (
+                  <div className="border-t border-fifth pt-[12px]">
+                    <CopyRow
+                      label={t(
+                        'oauth_redirect_uri',
+                        'OAuth Redirect URI'
+                      )}
+                      value={threadsOauthUrl}
+                      onCopy={() => copyToClipboard(threadsOauthUrl)}
+                    />
+                  </div>
+                )}
               </ProductSection>
 
               <div className="flex items-center gap-[12px]">
@@ -808,6 +885,15 @@ export const MetaCredentialsCard: React.FC<Props> = ({
                         'meta_facebook_app_secret',
                         'Facebook App Secret'
                       )}
+                    />
+                  </div>
+                )}
+                {facebookOauthUrl && (
+                  <div className="border-t border-fifth pt-[12px]">
+                    <CopyRow
+                      label={t('oauth_redirect_uri', 'OAuth Redirect URI')}
+                      value={facebookOauthUrl}
+                      onCopy={() => copyToClipboard(facebookOauthUrl)}
                     />
                   </div>
                 )}
@@ -934,6 +1020,35 @@ export const MetaCredentialsCard: React.FC<Props> = ({
                     </div>
                   </>
                 )}
+                {(instagramOauthUrl || instagramStandaloneOauthUrl) && (
+                  <div className="border-t border-fifth pt-[12px] flex flex-col gap-[8px]">
+                    <div className="text-[12px] font-[600] text-textColor">
+                      {t('oauth_redirect_uris', 'OAuth Redirect URIs')}
+                    </div>
+                    {instagramOauthUrl && (
+                      <CopyRow
+                        label={t(
+                          'meta_instagram_redirect_via_facebook',
+                          'Instagram (via Facebook Login)'
+                        )}
+                        value={instagramOauthUrl}
+                        onCopy={() => copyToClipboard(instagramOauthUrl)}
+                      />
+                    )}
+                    {instagramStandaloneOauthUrl && (
+                      <CopyRow
+                        label={t(
+                          'meta_instagram_redirect_standalone',
+                          'Instagram (Login direto)'
+                        )}
+                        value={instagramStandaloneOauthUrl}
+                        onCopy={() =>
+                          copyToClipboard(instagramStandaloneOauthUrl)
+                        }
+                      />
+                    )}
+                  </div>
+                )}
                 <div className="border-t border-fifth pt-[12px]">
                   <MessagingTokensSection />
                 </div>
@@ -987,6 +1102,15 @@ export const MetaCredentialsCard: React.FC<Props> = ({
                     />
                     <ReadOnlyRow
                       label={t('meta_threads_app_secret', 'Threads App Secret')}
+                    />
+                  </div>
+                )}
+                {threadsOauthUrl && (
+                  <div className="border-t border-fifth pt-[12px]">
+                    <CopyRow
+                      label={t('oauth_redirect_uri', 'OAuth Redirect URI')}
+                      value={threadsOauthUrl}
+                      onCopy={() => copyToClipboard(threadsOauthUrl)}
                     />
                   </div>
                 )}
