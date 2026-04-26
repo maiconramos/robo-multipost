@@ -83,13 +83,13 @@ const PROVIDERS: ProviderConfig[] = [
     fields: [
       {
         key: 'clientId',
-        label: 'API Key',
-        placeholder: 'Cole a API Key do Twitter',
+        label: 'Consumer Key',
+        placeholder: 'Cole a Consumer Key do X',
       },
       {
         key: 'clientSecret',
-        label: 'API Secret',
-        placeholder: 'Cole o API Secret do Twitter',
+        label: 'Access Token',
+        placeholder: 'Cole o Access Token do X',
       },
     ],
     docsUrl: 'https://developer.twitter.com',
