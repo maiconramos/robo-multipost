@@ -314,7 +314,7 @@ export class RepostService {
       ) as unknown as InstagramProvider | undefined;
       if (!provider) return;
 
-      let items: Array<{ id: string }> = [];
+      let items: Array<{ id: string; timestamp?: string }> = [];
       if (rule.sourceType === 'INSTAGRAM_STORY') {
         const { stories } = await provider.getRecentStories(
           integration.internalId,
@@ -339,14 +339,16 @@ export class RepostService {
       );
       if (!items.length) return;
 
+      // Checkpoint guarda timestamp (ISO 8601), nao id. Snowflakes do IG
+      // nao sao monotonicamente crescentes por tempo.
       const latest = items.reduce((acc, cur) =>
-        (cur.id || '') > (acc.id || '') ? cur : acc
+        (cur.timestamp || '') > (acc.timestamp || '') ? cur : acc
       );
-      if (latest?.id) {
+      if (latest?.timestamp) {
         console.log(
-          `[repost] bootstrap rule=${ruleId} checkpoint set to ${latest.id}`
+          `[repost] bootstrap rule=${ruleId} checkpoint set to ${latest.timestamp}`
         );
-        await this._repostRepository.advanceCheckpoint(ruleId, latest.id);
+        await this._repostRepository.advanceCheckpoint(ruleId, latest.timestamp);
       }
     } catch (err) {
       console.error(

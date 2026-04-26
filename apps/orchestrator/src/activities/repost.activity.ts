@@ -113,15 +113,41 @@ export class RepostActivity {
       );
 
       const checkpoint = rule.lastSourceItemId ?? '';
+
+      // V2: checkpoint passou a guardar `timestamp` (ISO 8601) em vez de
+      // `id` numerico. Snowflakes do IG nao sao monotonicamente crescentes
+      // por tempo, entao comparar por id pula posts validos. Timestamp ISO
+      // ordena lexicograficamente.
+      // Migracao: se checkpoint nao comeca com '2' (era um id legado),
+      // fazemos soft-bootstrap — gravamos o max(timestamp) atual como novo
+      // checkpoint e nao repostamos nada nesse ciclo.
+      const isLegacyCheckpoint = checkpoint.length > 0 && !checkpoint.startsWith('2');
+      if (isLegacyCheckpoint && items.length > 0) {
+        const newest = items.reduce((acc, cur) =>
+          (cur.timestamp || '') > (acc.timestamp || '') ? cur : acc
+        );
+        const newCheckpoint = newest.timestamp || '';
+        console.log(
+          `[repost] rule=${ruleId} migrating legacy id checkpoint to timestamp ` +
+            `(was=${checkpoint} new=${newCheckpoint})`
+        );
+        if (newCheckpoint) {
+          await this._repostService.advanceCheckpoint(ruleId, newCheckpoint);
+        } else {
+          await this._repostService.touchLastRun(ruleId);
+        }
+        return { intervalMinutes };
+      }
+
       const fresh = items
-        .filter((s) => !!s.id && s.id > checkpoint)
-        .sort((a, b) => (a.id > b.id ? 1 : -1));
+        .filter((s) => !!s.timestamp && (!checkpoint || s.timestamp > checkpoint))
+        .sort((a, b) => ((a.timestamp || '') > (b.timestamp || '') ? 1 : -1));
 
       console.log(
         `[repost] rule=${ruleId} sourceType=${rule.sourceType} ` +
           `host=${route.host} returned=${items.length} ` +
           `checkpoint=${checkpoint || '(empty)'} fresh=${fresh.length} ` +
-          `ids=[${items.map((s) => s.id).join(',')}]`
+          `timestamps=[${items.map((s) => s.timestamp).join(',')}]`
       );
 
       if (fresh.length === 0) {
@@ -129,17 +155,17 @@ export class RepostActivity {
         return { intervalMinutes };
       }
 
-      let maxProcessedId = checkpoint;
+      let maxProcessedTs = checkpoint;
 
       for (const item of fresh) {
         await this.processItem(rule, item);
-        if (item.id && item.id > maxProcessedId) {
-          maxProcessedId = item.id;
+        if (item.timestamp && item.timestamp > maxProcessedTs) {
+          maxProcessedTs = item.timestamp;
         }
       }
 
-      if (maxProcessedId && maxProcessedId !== checkpoint) {
-        await this._repostService.advanceCheckpoint(ruleId, maxProcessedId);
+      if (maxProcessedTs && maxProcessedTs !== checkpoint) {
+        await this._repostService.advanceCheckpoint(ruleId, maxProcessedTs);
       } else {
         await this._repostService.touchLastRun(ruleId);
       }
