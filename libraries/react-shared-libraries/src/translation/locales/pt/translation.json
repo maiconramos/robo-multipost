@@ -1558,5 +1558,7 @@
   "dm_button_text_hint": "Meta limita a 20 caracteres.",
   "dm_button_url_label": "URL do botão",
   "dm_button_url_hint": "Preencha os dois campos para exibir o botão. Deixe vazio para enviar apenas texto.",
-  "trigger_node_follow_gate_badge": "Pede para seguir"
+  "trigger_node_follow_gate_badge": "Pede para seguir",
+  "instagram_reel_cover_label": "Capa do Reel",
+  "instagram_reel_cover_description": "Imagem JPEG, 9:16, até 8MB. Aplicada apenas a Reels (vídeo único). Opcional."
 }

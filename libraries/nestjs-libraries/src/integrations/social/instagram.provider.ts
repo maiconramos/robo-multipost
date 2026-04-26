@@ -567,6 +567,11 @@ export class InstagramProvider
           (firstPost?.media?.length || 0) > 1 && !isStory
             ? `&is_carousel_item=true`
             : ``;
+        const isReel =
+          m.path.indexOf('.mp4') > -1 &&
+          firstPost?.media?.length === 1 &&
+          !isStory;
+
         const mediaType =
           m.path.indexOf('.mp4') > -1
             ? firstPost?.media?.length === 1
@@ -600,9 +605,14 @@ export class InstagramProvider
               )}`
             : ``;
 
+        const coverUrl =
+          isReel && firstPost?.settings?.cover?.path
+            ? `&cover_url=${encodeURIComponent(firstPost.settings.cover.path)}`
+            : ``;
+
         const { id: photoId } = await (
           await this.fetch(
-            `https://${type}/v25.0/${id}/media?${mediaType}${isCarousel}${collaborators}${trialParams}&access_token=${accessToken}${caption}`,
+            `https://${type}/v25.0/${id}/media?${mediaType}${isCarousel}${collaborators}${trialParams}${coverUrl}&access_token=${accessToken}${caption}`,
             {
               method: 'POST',
             }

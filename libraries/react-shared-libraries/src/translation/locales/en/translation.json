@@ -1560,5 +1560,7 @@
   "dm_button_text_hint": "Meta limits this to 20 characters.",
   "dm_button_url_label": "Button URL",
   "dm_button_url_hint": "Fill both fields to show the button. Leave blank to send text only.",
-  "trigger_node_follow_gate_badge": "Asks to follow"
+  "trigger_node_follow_gate_badge": "Asks to follow",
+  "instagram_reel_cover_label": "Reel Cover",
+  "instagram_reel_cover_description": "JPEG image, 9:16, up to 8MB. Applied only to Reels (single video). Optional."
 }

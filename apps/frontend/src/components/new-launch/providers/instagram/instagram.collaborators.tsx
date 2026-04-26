@@ -12,6 +12,7 @@ import { InstagramDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-set
 import { InstagramCollaboratorsTags } from '@gitroom/frontend/components/new-launch/providers/instagram/instagram.tags';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { InstagramPreview } from '@gitroom/frontend/components/new-launch/providers/instagram/instagram.preview';
+import { MediaComponent } from '@gitroom/frontend/components/media/media.component';
 const postType = [
   {
     value: 'post',
@@ -88,6 +89,18 @@ const InstagramCollaborators: FC<{
               ))}
             </Select>
           )}
+
+          <MediaComponent
+            type="image"
+            width={1080}
+            height={1920}
+            label={t('instagram_reel_cover_label', 'Capa do Reel')}
+            description={t(
+              'instagram_reel_cover_description',
+              'Imagem JPEG, 9:16, ate 8MB. Aplicada apenas a Reels (video unico). Opcional.'
+            )}
+            {...register('cover')}
+          />
         </div>
       )}
     </>
