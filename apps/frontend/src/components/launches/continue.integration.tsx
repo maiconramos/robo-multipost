@@ -193,7 +193,7 @@ export const ContinueIntegration: FC<{
       }
 
       navigateOrShow(
-        `/launches?added=${provider}&msg=Channel Updated${
+        `/launches?added=${provider}&msg=${t('channel_updated', 'Channel Updated')}${
           onboarding ? '&onboarding=true' : ''
         }`,
         returnURL,

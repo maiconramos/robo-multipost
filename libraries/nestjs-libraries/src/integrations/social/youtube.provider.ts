@@ -451,6 +451,7 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
 
       return acc;
     } catch (err) {
+      console.error('Error fetching YouTube analytics:', err);
       return [];
     }
   }

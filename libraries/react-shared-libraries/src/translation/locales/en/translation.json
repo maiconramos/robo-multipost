@@ -1491,6 +1491,7 @@
   "analytics_label_pin_clicks": "Pin Clicks",
   "analytics_label_engagement": "Engagement",
   "analytics_label_outbound_clicks": "Outbound Clicks",
+  "analytics_label_follower_count": "Follower Count",
   "please_refresh_integration_from_calendar": "Please refresh the integration from the calendar",
   "please_refresh_integration": "Please refresh the integration from the calendar",
   "auto_plug_post_title": "Auto plug post",

@@ -576,16 +576,16 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       ...(token ? { pagination_token: token } : {}),
     });
 
+    // X API v2 omite o campo "data" quando result_count === 0 — sem este guard
+    // o spread quebra com "tweets.data.data is not iterable" na primeira consulta
+    // a uma conta sem tweets na janela ou na ultima pagina vazia.
+    const items = tweets.data.data || [];
+    const nextToken = tweets.meta?.next_token;
+
     return [
-      ...tweets.data.data,
-      ...(tweets.data.data.length === 100
-        ? await this.loadAllTweets(
-            client,
-            id,
-            until,
-            since,
-            tweets.meta.next_token
-          )
+      ...items,
+      ...(items.length === 100 && nextToken
+        ? await this.loadAllTweets(client, id, until, since, nextToken)
         : []),
     ];
   };
