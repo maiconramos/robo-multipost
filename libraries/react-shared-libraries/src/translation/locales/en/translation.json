@@ -1448,6 +1448,7 @@
   "credentials_delete_cancel": "Cancel",
   "callback_url": "Callback URL",
   "callback_url_hint": "Paste this URL into the authorized redirect URIs in the provider's dashboard.",
+  "callback_urls_hint": "Paste these URLs into the authorized redirect URIs in the provider's dashboard.",
   "oauth_redirect_uri": "OAuth Redirect URI",
   "oauth_redirect_uris": "OAuth Redirect URIs",
   "meta_instagram_redirect_via_facebook": "Instagram (via Facebook Login)",

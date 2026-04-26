@@ -33,7 +33,9 @@ deveria ter seu próprio app OAuth isolado, mas todos compartilham o mesmo.
 | `instagram-standalone` | ✅ Corrigido | |
 | `threads` | ✅ Corrigido | `threads.provider.ts:80,101` |
 | `x` (Twitter) | ✅ Corrigido | |
-| `youtube` | ✅ Corrigido | Esta PR |
+| `youtube` | ✅ Corrigido | |
+| `linkedin` | ✅ Corrigido | |
+| `linkedin-page` | ✅ Corrigido | Compartilha credencial com `linkedin` (alias) |
 
 ## Pendentes — providers que precisam do fix
 
@@ -46,8 +48,6 @@ por **prioridade** (baseado em probabilidade de uso real pelo público do fork).
 |----------|---------|------------|
 | `tiktok` | `tiktok.provider.ts` | client_id/secret |
 | `pinterest` | `pinterest.provider.ts` | client_id/secret |
-| `linkedin` | `linkedin.provider.ts` | client_id/secret |
-| `linkedin-page` | `linkedin.page.provider.ts` | client_id/secret |
 | `reddit` | `reddit.provider.ts` | client_id/secret |
 | `discord` | `discord.provider.ts` | client_id/secret |
 | `slack` | `slack.provider.ts` | client_id/secret |
@@ -165,8 +165,8 @@ Para considerar o fix completo, validar end-to-end:
 
 **Não fazer tudo em uma PR.** Sugestão de agrupamento:
 
-- **PR 1 — Alta prioridade Bloco A**: TikTok, Pinterest, LinkedIn (página) +
-  Reddit (4 providers, todos com tráfego brasileiro alto)
+- **PR 1 — Alta prioridade Bloco A**: TikTok, Pinterest, Reddit (3 providers,
+  todos com tráfego brasileiro alto)
 - **PR 2 — Alta prioridade Bloco B**: Discord, Slack, GMB
 - **PR 3 — Média prioridade**: Mastodon, Twitch, VK, Farcaster, Dribbble,
   Whop, Kick, MeWe
@@ -185,3 +185,5 @@ Cada PR deve incluir:
   identificou 29 providers candidatos; após triagem, 21 são aplicáveis e
   precisam de fix (8 alta, 9 média, 4 baixa prioridade). Demais 8 não usam
   OAuth client_id/secret e ficam fora do escopo.
+- 2026-04-26 — Fix de `linkedin` e `linkedin-page` aplicado seguindo o mesmo
+  padrão. Restam 6 alta + 9 média + 4 baixa prioridade.

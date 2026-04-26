@@ -9,13 +9,18 @@ import { ZernioCredentialsCard } from '@gitroom/frontend/components/settings/zer
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import clsx from 'clsx';
 
+interface CallbackPathEntry {
+  label?: string;
+  path: string;
+}
+
 interface ProviderConfig {
   provider: string;
   label: string;
   iconUrl: string;
   fields: { key: string; label: string; placeholder: string }[];
   docsUrl: string;
-  callbackPath?: string;
+  callbackPaths?: CallbackPathEntry[];
 }
 
 const PROVIDERS: ProviderConfig[] = [
@@ -36,7 +41,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://developers.tiktok.com',
-    callbackPath: '/integrations/social/tiktok',
+    callbackPaths: [{ path: '/integrations/social/tiktok' }],
   },
   {
     provider: 'pinterest',
@@ -55,7 +60,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://developers.pinterest.com',
-    callbackPath: '/integrations/social/pinterest',
+    callbackPaths: [{ path: '/integrations/social/pinterest' }],
   },
   {
     provider: 'linkedin',
@@ -74,7 +79,10 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://www.linkedin.com/developers',
-    callbackPath: '/integrations/social/linkedin',
+    callbackPaths: [
+      { label: 'Perfil pessoal', path: '/integrations/social/linkedin' },
+      { label: 'Página da empresa', path: '/integrations/social/linkedin-page' },
+    ],
   },
   {
     provider: 'twitter',
@@ -93,7 +101,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://developer.twitter.com',
-    callbackPath: '/integrations/social/x',
+    callbackPaths: [{ path: '/integrations/social/x' }],
   },
   {
     provider: 'youtube',
@@ -112,7 +120,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://console.cloud.google.com',
-    callbackPath: '/integrations/social/youtube',
+    callbackPaths: [{ path: '/integrations/social/youtube' }],
   },
   {
     provider: 'reddit',
@@ -131,7 +139,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://www.reddit.com/prefs/apps',
-    callbackPath: '/integrations/social/reddit',
+    callbackPaths: [{ path: '/integrations/social/reddit' }],
   },
   {
     provider: 'discord',
@@ -155,7 +163,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://discord.com/developers',
-    callbackPath: '/integrations/social/discord',
+    callbackPaths: [{ path: '/integrations/social/discord' }],
   },
   {
     provider: 'slack',
@@ -179,7 +187,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://api.slack.com',
-    callbackPath: '/integrations/social/slack',
+    callbackPaths: [{ path: '/integrations/social/slack' }],
   },
 ];
 
@@ -191,14 +199,19 @@ const ProviderCard: React.FC<{
   const [expanded, setExpanded] = useState(false);
   const { frontEndUrl } = useVariables();
 
-  const callbackUrl = useMemo(() => {
-    if (!config.callbackPath) return undefined;
+  const callbacks = useMemo(() => {
+    if (!config.callbackPaths || config.callbackPaths.length === 0)
+      return undefined;
     const base =
       frontEndUrl ||
       (typeof window !== 'undefined' ? window.location.origin : '');
     if (!base) return undefined;
-    return `${base.replace(/\/$/, '')}${config.callbackPath}`;
-  }, [frontEndUrl, config.callbackPath]);
+    const trimmed = base.replace(/\/$/, '');
+    return config.callbackPaths.map((cb) => ({
+      label: cb.label,
+      url: `${trimmed}${cb.path}`,
+    }));
+  }, [frontEndUrl, config.callbackPaths]);
 
   const toggle = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -255,7 +268,7 @@ const ProviderCard: React.FC<{
             fields={config.fields}
             label={config.label}
             docsUrl={config.docsUrl}
-            callbackUrl={callbackUrl}
+            callbacks={callbacks}
             onSaved={onMutate}
             onDeleted={onMutate}
           />

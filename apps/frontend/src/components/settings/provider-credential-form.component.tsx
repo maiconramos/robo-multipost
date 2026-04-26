@@ -17,6 +17,11 @@ interface FieldDef {
   placeholder: string;
 }
 
+interface CallbackEntry {
+  label?: string;
+  url: string;
+}
+
 interface ProviderCredentialFormProps {
   provider: string;
   fields: FieldDef[];
@@ -25,7 +30,7 @@ interface ProviderCredentialFormProps {
   onSaved?: () => void;
   onDeleted?: () => void;
   extraActions?: React.ReactNode;
-  callbackUrl?: string;
+  callbacks?: CallbackEntry[];
 }
 
 export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
@@ -36,7 +41,7 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
   onSaved,
   onDeleted,
   extraActions,
-  callbackUrl,
+  callbacks,
 }) => {
   const fetch = useFetch();
   const toaster = useToaster();
@@ -129,42 +134,55 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
     }
   }, [provider, fetch]);
 
-  const handleCopyCallback = useCallback(() => {
-    if (!callbackUrl) return;
-    navigator.clipboard.writeText(callbackUrl).then(() => {
-      toaster.show(
-        t('copied_to_clipboard', 'Copiado para a área de transferência'),
-        'success'
-      );
-    });
-  }, [callbackUrl, toaster, t]);
+  const handleCopyCallback = useCallback(
+    (url: string) => {
+      navigator.clipboard.writeText(url).then(() => {
+        toaster.show(
+          t('copied_to_clipboard', 'Copiado para a área de transferência'),
+          'success'
+        );
+      });
+    },
+    [toaster, t]
+  );
 
-  const callbackBlock = callbackUrl ? (
-    <div className="flex flex-col gap-[6px] border-t border-fifth pt-[12px]">
-      <div className="text-[13px] text-customColor18">
-        {t('callback_url', 'Callback URL')}
-      </div>
-      <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] flex items-center">
-        <input
-          className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px] min-w-0"
-          type="text"
-          value={callbackUrl}
-          readOnly
-          onFocus={(e) => e.currentTarget.select()}
-        />
-        <button
-          type="button"
-          onClick={handleCopyCallback}
-          className="text-[12px] text-btnPrimary hover:opacity-80 px-[12px] whitespace-nowrap"
-        >
-          {t('copy', 'Copiar')}
-        </button>
-      </div>
+  const hasCallbacks = !!callbacks && callbacks.length > 0;
+  const callbackBlock = hasCallbacks ? (
+    <div className="flex flex-col gap-[12px] border-t border-fifth pt-[12px]">
+      {callbacks!.map((cb, idx) => (
+        <div key={idx} className="flex flex-col gap-[6px]">
+          <div className="text-[13px] text-customColor18">
+            {t('callback_url', 'Callback URL')}
+            {cb.label ? ` — ${cb.label}` : ''}
+          </div>
+          <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] flex items-center">
+            <input
+              className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px] min-w-0"
+              type="text"
+              value={cb.url}
+              readOnly
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <button
+              type="button"
+              onClick={() => handleCopyCallback(cb.url)}
+              className="text-[12px] text-btnPrimary hover:opacity-80 px-[12px] whitespace-nowrap"
+            >
+              {t('copy', 'Copiar')}
+            </button>
+          </div>
+        </div>
+      ))}
       <div className="text-[12px] text-customColor18">
-        {t(
-          'callback_url_hint',
-          'Cole esta URL nas URIs de redirecionamento autorizadas no painel do provider.'
-        )}
+        {callbacks!.length > 1
+          ? t(
+              'callback_urls_hint',
+              'Cole estas URLs nas URIs de redirecionamento autorizadas no painel do provider.'
+            )
+          : t(
+              'callback_url_hint',
+              'Cole esta URL nas URIs de redirecionamento autorizadas no painel do provider.'
+            )}
       </div>
     </div>
   ) : null;
