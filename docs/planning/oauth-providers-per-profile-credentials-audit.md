@@ -36,6 +36,7 @@ deveria ter seu próprio app OAuth isolado, mas todos compartilham o mesmo.
 | `youtube` | ✅ Corrigido | |
 | `linkedin` | ✅ Corrigido | |
 | `linkedin-page` | ✅ Corrigido | Compartilha credencial com `linkedin` (alias) |
+| `tiktok` | ✅ Corrigido | Mapeia `client_id` → `client_key` (naming TikTok) |
 
 ## Pendentes — providers que precisam do fix
 
@@ -46,7 +47,6 @@ por **prioridade** (baseado em probabilidade de uso real pelo público do fork).
 
 | Provider | Arquivo | Tipo OAuth |
 |----------|---------|------------|
-| `tiktok` | `tiktok.provider.ts` | client_id/secret |
 | `pinterest` | `pinterest.provider.ts` | client_id/secret |
 | `reddit` | `reddit.provider.ts` | client_id/secret |
 | `discord` | `discord.provider.ts` | client_id/secret |
@@ -165,8 +165,8 @@ Para considerar o fix completo, validar end-to-end:
 
 **Não fazer tudo em uma PR.** Sugestão de agrupamento:
 
-- **PR 1 — Alta prioridade Bloco A**: TikTok, Pinterest, Reddit (3 providers,
-  todos com tráfego brasileiro alto)
+- **PR 1 — Alta prioridade Bloco A**: Pinterest, Reddit (2 providers,
+  ambos com tráfego brasileiro alto)
 - **PR 2 — Alta prioridade Bloco B**: Discord, Slack, GMB
 - **PR 3 — Média prioridade**: Mastodon, Twitch, VK, Farcaster, Dribbble,
   Whop, Kick, MeWe
@@ -187,3 +187,7 @@ Cada PR deve incluir:
   OAuth client_id/secret e ficam fora do escopo.
 - 2026-04-26 — Fix de `linkedin` e `linkedin-page` aplicado seguindo o mesmo
   padrão. Restam 6 alta + 9 média + 4 baixa prioridade.
+- 2026-04-26 — Fix de `tiktok` aplicado. O OAuth do TikTok usa `client_key`
+  no lugar de `client_id` no payload — o provider mapeia
+  `clientInformation.client_id` para o param `client_key`. Restam 5 alta +
+  9 média + 4 baixa prioridade.

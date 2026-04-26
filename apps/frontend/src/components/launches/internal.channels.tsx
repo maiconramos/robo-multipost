@@ -80,25 +80,24 @@ const PlugField: FC<{
     validation?: RegExp;
   };
 }> = ({ plugIdentifier, field }) => {
+  const t = useT();
   const fieldName = `plug--${plugIdentifier}--${field.name}`;
+  const label = t(
+    `post_plug_${plugIdentifier}_field_${field.name}_description`,
+    field.description
+  );
+  const placeholder = t(
+    `post_plug_${plugIdentifier}_field_${field.name}_placeholder`,
+    field.placeholder
+  );
 
   if (field.type === 'textarea') {
     return (
-      <Textarea
-        label={field.description}
-        name={fieldName}
-        placeholder={field.placeholder}
-      />
+      <Textarea label={label} name={fieldName} placeholder={placeholder} />
     );
   }
 
-  return (
-    <Input
-      label={field.description}
-      name={fieldName}
-      placeholder={field.placeholder}
-    />
-  );
+  return <Input label={label} name={fieldName} placeholder={placeholder} />;
 };
 
 const Plug: FC<{
