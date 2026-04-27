@@ -162,7 +162,16 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     ).json();
 
     if (status === 'ERROR') {
-      throw new Error(id);
+      // Meta retorna `error_message` no mesmo objeto. O comportamento
+      // upstream descartava esse campo e jogava apenas o id do container,
+      // o que mascarava o motivo real (video too long / cover invalida /
+      // codec nao suportado / aspect ratio fora do range, etc.). Mantemos
+      // o id no inicio da mensagem pra continuar localizavel nos logs.
+      throw new Error(
+        error_message
+          ? `Threads container ${id} failed: ${error_message}`
+          : `Threads container ${id} failed: status=ERROR (no error_message returned by Meta)`
+      );
     }
 
     if (status === 'FINISHED') {
