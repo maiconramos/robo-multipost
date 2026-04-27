@@ -73,8 +73,25 @@ export class RefreshIntegrationService {
     socialProvider: SocialProvider,
     cause = ''
   ): Promise<AuthTokenDetails | false> {
+    // Resolve credenciais por workspace antes do refresh — o refresh_token
+    // foi emitido pelo client do workspace e tem que ser refrescado com o
+    // MESMO client_id/secret. Sem isso o Google rejeita com invalid_grant
+    // e a integracao entra em loop de "precisa reconectar".
+    const dbCredentials = await this._integrationManager.getProviderCredentials(
+      integration.providerIdentifier,
+      integration.organizationId,
+      integration.profileId || undefined
+    );
+    const clientInformation = dbCredentials
+      ? {
+          client_id: dbCredentials.clientId || '',
+          client_secret: dbCredentials.clientSecret || '',
+          instanceUrl: dbCredentials.instanceUrl || '',
+        }
+      : undefined;
+
     const refresh: false | AuthTokenDetails = await socialProvider
-      .refreshToken(integration.refreshToken)
+      .refreshToken(integration.refreshToken, clientInformation)
       .catch((err) => false);
 
     if (!refresh || !refresh.accessToken) {

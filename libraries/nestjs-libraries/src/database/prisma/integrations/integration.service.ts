@@ -175,10 +175,36 @@ export class IntegrationService {
     return this._integrationRepository.getIntegrationsByInternalId(internalId);
   }
 
-  async refreshToken(provider: SocialProvider, refresh: string) {
+  async refreshToken(
+    provider: SocialProvider,
+    refresh: string,
+    organizationId?: string,
+    profileId?: string | null
+  ) {
     try {
+      // Resolve credenciais por workspace antes do refresh — refresh_token
+      // foi emitido pelo client do workspace e tem que ser refrescado com o
+      // mesmo client_id/secret. Sem isso o Google rejeita com invalid_grant
+      // e a integracao entra em loop de "precisa reconectar".
+      let clientInformation;
+      if (organizationId) {
+        const dbCredentials =
+          await this._integrationManager.getProviderCredentials(
+            provider.identifier,
+            organizationId,
+            profileId || undefined
+          );
+        if (dbCredentials) {
+          clientInformation = {
+            client_id: dbCredentials.clientId || '',
+            client_secret: dbCredentials.clientSecret || '',
+            instanceUrl: dbCredentials.instanceUrl || '',
+          };
+        }
+      }
+
       const { refreshToken, accessToken, expiresIn } =
-        await provider.refreshToken(refresh);
+        await provider.refreshToken(refresh, clientInformation);
 
       if (!refreshToken || !accessToken || !expiresIn) {
         return false;
@@ -225,7 +251,12 @@ export class IntegrationService {
         integration.providerIdentifier
       );
 
-      const data = await this.refreshToken(provider, integration.refreshToken!);
+      const data = await this.refreshToken(
+        provider,
+        integration.refreshToken!,
+        integration.organizationId,
+        integration.profileId
+      );
 
       if (!data) {
         await this.informAboutRefreshError(

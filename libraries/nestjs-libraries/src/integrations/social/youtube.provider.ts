@@ -137,8 +137,18 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
     return undefined;
   }
 
-  async refreshToken(refresh_token: string): Promise<AuthTokenDetails> {
-    const { client, oauth2 } = clientAndYoutube();
+  async refreshToken(
+    refresh_token: string,
+    clientInformation?: ClientInformation
+  ): Promise<AuthTokenDetails> {
+    // Passar clientInformation aqui e critico: o refresh_token foi emitido
+    // pelo OAuth client do workspace (Settings > Credenciais > YouTube),
+    // entao o refresh tem que usar o MESMO client_id/client_secret. Caso
+    // contrario o Google retorna invalid_grant e o orchestrator marca a
+    // integracao como `refreshNeeded` num loop infinito (usuario reconecta,
+    // proximo cron quebra de novo). Sintoma anterior: refreshToken="" no
+    // banco e mensagem "you need to reconnect" repetindo a cada hora.
+    const { client, oauth2 } = clientAndYoutube(clientInformation);
     client.setCredentials({ refresh_token });
     const { credentials } = await client.refreshAccessToken();
     const user = oauth2(client);
