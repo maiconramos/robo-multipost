@@ -11,7 +11,11 @@ export type RepostDestinationFormat =
   | 'INSTAGRAM_STORY'
   | 'FACEBOOK_REEL'
   | 'TIKTOK_FEED'
-  | 'YOUTUBE_SHORT';
+  | 'YOUTUBE_SHORT'
+  | 'LINKEDIN_POST'
+  | 'X_POST'
+  | 'THREADS_POST'
+  | 'PINTEREST_PIN';
 
 export interface RepostDestination {
   integrationId: string;
@@ -175,6 +179,10 @@ export const FORMAT_LABEL: Record<RepostDestinationFormat, string> = {
   FACEBOOK_REEL: 'Reel',
   TIKTOK_FEED: 'Feed',
   YOUTUBE_SHORT: 'Short',
+  LINKEDIN_POST: 'Post',
+  X_POST: 'Tweet',
+  THREADS_POST: 'Thread',
+  PINTEREST_PIN: 'Pin',
 };
 
 export interface GroupedSource {

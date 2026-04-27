@@ -22,6 +22,12 @@ export const PROVIDER_DESTINATION_FORMATS: Record<
   'zernio-tiktok': ['TIKTOK_FEED'],
   youtube: ['YOUTUBE_SHORT'],
   'zernio-youtube': ['YOUTUBE_SHORT'],
+  linkedin: ['LINKEDIN_POST'],
+  'linkedin-page': ['LINKEDIN_POST'],
+  x: ['X_POST'],
+  threads: ['THREADS_POST'],
+  pinterest: ['PINTEREST_PIN'],
+  'zernio-pinterest': ['PINTEREST_PIN'],
 };
 
 /**
@@ -40,6 +46,10 @@ export const SOURCE_DESTINATION_MATRIX: Record<
     'FACEBOOK_REEL',
     'TIKTOK_FEED',
     'YOUTUBE_SHORT',
+    'LINKEDIN_POST',
+    'X_POST',
+    'THREADS_POST',
+    'PINTEREST_PIN',
   ],
   INSTAGRAM_POST: [
     'INSTAGRAM_POST',
@@ -47,6 +57,10 @@ export const SOURCE_DESTINATION_MATRIX: Record<
     'FACEBOOK_REEL',
     'TIKTOK_FEED',
     'YOUTUBE_SHORT',
+    'LINKEDIN_POST',
+    'X_POST',
+    'THREADS_POST',
+    'PINTEREST_PIN',
   ],
 };
 

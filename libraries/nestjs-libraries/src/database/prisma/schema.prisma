@@ -1353,6 +1353,10 @@ enum RepostDestinationFormat {
   FACEBOOK_REEL
   TIKTOK_FEED
   YOUTUBE_SHORT
+  LINKEDIN_POST
+  X_POST
+  THREADS_POST
+  PINTEREST_PIN
 }
 
 enum RepostLogStatus {

@@ -28,6 +28,8 @@ export interface RepostCycleResult {
 const DEFAULT_INTERVAL_MINUTES = 15;
 const YOUTUBE_SHORTS_MAX_SECONDS = 60;
 const TIKTOK_MIN_SECONDS = 3;
+const X_MAX_SECONDS = 140;
+const LINKEDIN_MAX_SECONDS = 600;
 
 interface FetchedItem {
   id: string;
@@ -317,13 +319,35 @@ export class RepostActivity {
           continue;
         }
 
+        let pinterestBoardId: string | null = null;
+        if (dest.format === 'PINTEREST_PIN') {
+          pinterestBoardId = await this.resolvePinterestBoard(
+            rule.organizationId,
+            dest.integrationId,
+            dest.integration.providerIdentifier
+          );
+          if (!pinterestBoardId) {
+            publishedPosts.push({
+              integrationId: dest.integrationId,
+              postId: '',
+              format: dest.format,
+              error: 'PINTEREST_NO_BOARD',
+            });
+            anyFailure = true;
+            continue;
+          }
+        }
+
         const settings = buildSettingsForFormat({
           format: dest.format,
           providerIdentifier: dest.integration.providerIdentifier,
           caption,
           ruleId: rule.id,
           sourceItemId: item.id,
+          pinterestBoardId,
         });
+
+        const captionForDest = captionForFormat(dest.format, caption);
 
         const created = await this._postsService.createPost(
           rule.organizationId,
@@ -341,7 +365,7 @@ export class RepostActivity {
                   {
                     id: makeId(10),
                     delay: 0,
-                    content: caption,
+                    content: captionForDest,
                     image: [
                       {
                         id: storedMedia.id,
@@ -388,6 +412,37 @@ export class RepostActivity {
       publishedPosts,
       anyFailure
     );
+  }
+
+  /**
+   * Pinterest exige `board` no settings. Como o Repost nao expoe seletor
+   * de board (yet), resolvemos automaticamente o primeiro board retornado
+   * pela conta no momento da publicacao. Customizacao manual fica para V4.
+   */
+  private async resolvePinterestBoard(
+    organizationId: string,
+    integrationId: string,
+    providerIdentifier: string
+  ): Promise<string | null> {
+    try {
+      const integration = await this._integrationService.getIntegrationById(
+        organizationId,
+        integrationId
+      );
+      if (!integration?.token) return null;
+      const provider = this._integrationManager.getSocialIntegration(
+        providerIdentifier
+      ) as any;
+      if (!provider || typeof provider.boards !== 'function') return null;
+      const list = await provider.boards(integration.token);
+      return list?.[0]?.id ?? null;
+    } catch (err) {
+      console.error(
+        `[repost] pinterest boards lookup failed for integration=${integrationId}: ` +
+          ((err as Error).message || 'unknown')
+      );
+      return null;
+    }
   }
 
   /**
@@ -452,7 +507,41 @@ function skipByVideoLimits(
   ) {
     return 'DURATION_BELOW_TIKTOK_MIN';
   }
+  if (
+    format === 'X_POST' &&
+    rule.filterMaxDurationSeconds > X_MAX_SECONDS
+  ) {
+    return 'DURATION_EXCEEDED_X';
+  }
+  if (
+    format === 'LINKEDIN_POST' &&
+    rule.filterMaxDurationSeconds > LINKEDIN_MAX_SECONDS
+  ) {
+    return 'DURATION_EXCEEDED_LINKEDIN';
+  }
   return null;
+}
+
+/**
+ * Trunca caption por limite de cada destino. Caption "padrao" (com mais de
+ * 280/500 chars) precisa ser cortada antes de mandar pra X/Threads/Pinterest;
+ * outros destinos toleram texto longo sem problema.
+ */
+function captionForFormat(
+  format: RepostDestinationFormat,
+  caption: string
+): string {
+  if (!caption) return caption;
+  switch (format) {
+    case 'X_POST':
+      return caption.slice(0, 280);
+    case 'THREADS_POST':
+      return caption.slice(0, 500);
+    case 'PINTEREST_PIN':
+      return caption.slice(0, 500);
+    default:
+      return caption;
+  }
 }
 
 function skipByImageFormat(format: RepostDestinationFormat): string | null {
@@ -474,6 +563,7 @@ function buildSettingsForFormat(input: {
   caption: string;
   ruleId: string;
   sourceItemId: string;
+  pinterestBoardId?: string | null;
 }) {
   const trace = {
     isRepost: true,
@@ -524,6 +614,37 @@ function buildSettingsForFormat(input: {
         type: 'public',
         selfDeclaredMadeForKids: 'no',
         tags: [] as { value: string; label: string }[],
+        ...trace,
+      };
+    }
+    case 'LINKEDIN_POST':
+      // providerIdentifier pode ser 'linkedin' ou 'linkedin-page'.
+      return {
+        __type: input.providerIdentifier,
+        post_as_images_carousel: false,
+        ...trace,
+      };
+    case 'X_POST':
+      return {
+        __type: 'x',
+        who_can_reply_post: 'everyone',
+        made_with_ai: false,
+        paid_partnership: false,
+        ...trace,
+      };
+    case 'THREADS_POST':
+      return {
+        __type: 'threads',
+        ...trace,
+      };
+    case 'PINTEREST_PIN': {
+      const title = (input.caption || '').slice(0, 100);
+      return {
+        __type: input.providerIdentifier,
+        board: input.pinterestBoardId || '',
+        title,
+        link: '',
+        dominant_color: '',
         ...trace,
       };
     }
