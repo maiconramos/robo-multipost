@@ -116,6 +116,7 @@ export class RepostRepository {
         filterIncludeVideos: body.filterIncludeVideos ?? true,
         filterIncludeImages: body.filterIncludeImages ?? false,
         filterMaxDurationSeconds: body.filterMaxDurationSeconds ?? null,
+        filterHashtag: body.filterHashtag ?? null,
         captionTemplate: body.captionTemplate ?? null,
         enabled: body.enabled ?? true,
         destinations: {
@@ -168,6 +169,9 @@ export class RepostRepository {
           : {}),
         ...(body.filterMaxDurationSeconds !== undefined
           ? { filterMaxDurationSeconds: body.filterMaxDurationSeconds }
+          : {}),
+        ...(body.filterHashtag !== undefined
+          ? { filterHashtag: body.filterHashtag }
           : {}),
         ...(body.captionTemplate !== undefined
           ? { captionTemplate: body.captionTemplate }

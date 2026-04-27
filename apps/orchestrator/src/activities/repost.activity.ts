@@ -256,6 +256,11 @@ export class RepostActivity {
       `[repost] rule=${rule.id} processing item=${item.id} mediaType=${mediaType}`
     );
 
+    if (rule.filterHashtag && !hashtagMatches(item.caption, rule.filterHashtag)) {
+      await this._repostRepository.markLogSkipped(log.id, 'FILTER_HASHTAG');
+      return;
+    }
+
     if (isImage && !rule.filterIncludeImages) {
       await this._repostRepository.markLogSkipped(log.id, 'FILTER_IMAGE');
       return;
@@ -517,6 +522,23 @@ function renderCaption(
   return template
     .replace(/\{\{\s*timestamp\s*\}\}/g, item.timestamp || '')
     .replace(/\{\{\s*caption\s*\}\}/g, item.caption || '');
+}
+
+// Caption normalmente vem null/undefined em Stories; para Reels/Feed contem o
+// texto digitado pelo usuario. Hashtag salva pode ou nao trazer '#'; aceitamos
+// ambos. Boundary explicito evita falso-positivo (#repost nao casa em
+// #repostagem).
+function hashtagMatches(
+  caption: string | null | undefined,
+  raw: string | null
+): boolean {
+  if (!raw) return true;
+  const tag = raw.trim().replace(/^#+/, '').toLowerCase();
+  if (!tag) return true;
+  if (!caption) return false;
+  const escaped = tag.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  const re = new RegExp(`(^|[^\\w#])#${escaped}(?![\\w])`, 'i');
+  return re.test(caption);
 }
 
 function skipByVideoLimits(

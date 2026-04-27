@@ -66,6 +66,7 @@ export interface RepostRule {
   filterIncludeVideos: boolean;
   filterIncludeImages: boolean;
   filterMaxDurationSeconds: number | null;
+  filterHashtag: string | null;
   captionTemplate: string | null;
   lastSourceItemId: string | null;
   lastRunAt: string | null;

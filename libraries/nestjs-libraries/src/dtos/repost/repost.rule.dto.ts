@@ -66,6 +66,11 @@ export class CreateRepostRuleDto {
 
   @IsString()
   @IsOptional()
+  @MaxLength(100)
+  filterHashtag?: string | null;
+
+  @IsString()
+  @IsOptional()
   @MaxLength(2200)
   captionTemplate?: string | null;
 
@@ -114,6 +119,11 @@ export class UpdateRepostRuleDto {
   @Max(900)
   @IsOptional()
   filterMaxDurationSeconds?: number | null;
+
+  @IsString()
+  @IsOptional()
+  @MaxLength(100)
+  filterHashtag?: string | null;
 
   @IsString()
   @IsOptional()
