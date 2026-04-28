@@ -1,6 +1,7 @@
 import {
   AnalyticsData,
   AuthTokenDetails,
+  ClientInformation,
   PostDetails,
   PostResponse,
   SocialProvider,
@@ -146,7 +147,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
       return {
         type: 'bad-body' as const,
         value:
-          'TikTok limit the maximum of pending posts to 5, please check your TikTok inbox at your TikTok mobile app',
+          'TikTok limit the maximum of pending posts to 5, TikTok limits you for now, please check your TikTok inbox at your TikTok mobile app and try again later',
       };
     }
 
@@ -222,7 +223,7 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     if (body.indexOf('picture_size_check_failed') > -1) {
       return {
         type: 'bad-body' as const,
-        value: 'Picture / Video size is invalid, must be at least 720p',
+        value: 'Video must be at least 720p, Picture must no exceed 1080p',
       };
     }
 
@@ -282,13 +283,15 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  async generateAuthUrl() {
+  async generateAuthUrl(clientInformation?: ClientInformation) {
     const state = Math.random().toString(36).substring(2);
+    const clientKey =
+      clientInformation?.client_id || process.env.TIKTOK_CLIENT_ID;
 
     return {
       url:
         'https://www.tiktok.com/v2/auth/authorize/' +
-        `?client_key=${process.env.TIKTOK_CLIENT_ID}` +
+        `?client_key=${clientKey}` +
         `&redirect_uri=${encodeURIComponent(
           `${
             process?.env?.FRONTEND_URL?.indexOf('https') === -1
@@ -304,14 +307,21 @@ export class TiktokProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  async authenticate(params: {
-    code: string;
-    codeVerifier: string;
-    refresh?: string;
-  }) {
+  async authenticate(
+    params: {
+      code: string;
+      codeVerifier: string;
+      refresh?: string;
+    },
+    clientInformation?: ClientInformation
+  ) {
+    const clientKey =
+      clientInformation?.client_id || process.env.TIKTOK_CLIENT_ID!;
+    const clientSecret =
+      clientInformation?.client_secret || process.env.TIKTOK_CLIENT_SECRET!;
     const value = {
-      client_key: process.env.TIKTOK_CLIENT_ID!,
-      client_secret: process.env.TIKTOK_CLIENT_SECRET!,
+      client_key: clientKey,
+      client_secret: clientSecret,
       code: params.code,
       grant_type: 'authorization_code',
       code_verifier: params.codeVerifier,

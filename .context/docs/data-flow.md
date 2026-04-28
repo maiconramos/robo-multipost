@@ -71,6 +71,17 @@ Modules collaborate via:
   | `LinkedInPageProvider` | Analytics (views/clicks) | OAuth scopes | `AnalyticsData` (e.g., `AllPageViews`) | 3 retries, dead-letter on failure |
   | `SkoolProvider`, `BeehiivProvider` | Community/newsletter posts | API keys | `PostDetails` | Workflow retries |
 
+- **Late** (via `LateIntegrationsController` & `late.base.provider.ts`):
+  | Flow | Endpoint | Auth | Description |
+  |------|----------|------|-------------|
+  | List profiles | `GET /integrations/late/profiles` | Bearer API key | Lists Late profiles via SDK |
+  | List accounts | `GET /integrations/late/accounts` | Bearer API key | Lists accounts in a Late profile via SDK |
+  | Connect account | `POST /integrations/late/connect-account` | Bearer API key | Registers a Late account as a Multipost integration |
+  | Platform invite | `POST /integrations/late/invite-link` | Bearer API key | Generates OAuth invite link via undocumented `POST https://getlate.dev/api/v1/platform-invites` (direct HTTP, not SDK) |
+  | New account URL | `GET /integrations/late/new-account-url` | Bearer API key | Gets OAuth URL via Late SDK `connect.getConnectUrl()` |
+
+  Late API keys resolve per-profile first (via `ProfileService.getDecryptedLateApiKey`), falling back to org-level if `shareLateWithProfiles` is enabled. The `platform-invites` endpoint returns `{ invite: { inviteUrl, token, expiresAt, ... } }`.
+
 - **Billing**: `StripeService` - Webhooks for subscriptions (`BillingSubscribeDto`); payouts via `Nowpayments`.
 - **Emails**: `EmailService` → `ResendProvider`/`NodeMailerProvider`; payloads: `{ to, subject, html }`; retry via Temporal.
 - **Uploads**: R2 uploader (`r2.uploader.ts`) - Multipart for large files; signed URLs.

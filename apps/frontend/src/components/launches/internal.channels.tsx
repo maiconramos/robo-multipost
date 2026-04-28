@@ -80,25 +80,24 @@ const PlugField: FC<{
     validation?: RegExp;
   };
 }> = ({ plugIdentifier, field }) => {
+  const t = useT();
   const fieldName = `plug--${plugIdentifier}--${field.name}`;
+  const label = t(
+    `post_plug_${plugIdentifier}_field_${field.name}_description`,
+    field.description
+  );
+  const placeholder = t(
+    `post_plug_${plugIdentifier}_field_${field.name}_placeholder`,
+    field.placeholder
+  );
 
   if (field.type === 'textarea') {
     return (
-      <Textarea
-        label={field.description}
-        name={fieldName}
-        placeholder={field.placeholder}
-      />
+      <Textarea label={label} name={fieldName} placeholder={placeholder} />
     );
   }
 
-  return (
-    <Input
-      label={field.description}
-      name={fieldName}
-      placeholder={field.placeholder}
-    />
-  );
+  return <Input label={label} name={fieldName} placeholder={placeholder} />;
 };
 
 const Plug: FC<{
@@ -151,7 +150,9 @@ const Plug: FC<{
       className="flex flex-col gap-[10px] border-tableBorder border p-[15px] rounded-lg"
     >
       <div className="flex items-center">
-        <div className="flex-1">{plug.title}</div>
+        <div className="flex-1">
+          {t(`post_plug_${plug.identifier}_title`, plug.title)}
+        </div>
         <div>
           <Slider
             value={active ? 'on' : 'off'}
@@ -164,7 +165,7 @@ const Plug: FC<{
       </div>
       <div className="w-full max-w-[600px] overflow-y-auto pb-[10px] text-[12px] flex flex-col gap-[10px]">
         {!allowedIntegrations.length ? (
-          'No available accounts'
+          t('no_available_accounts', 'No available accounts')
         ) : (
           <div
             className={clsx(
@@ -172,15 +173,23 @@ const Plug: FC<{
               !active && 'opacity-25 pointer-events-none'
             )}
           >
-            <div>{plug.description}</div>
+            <div>
+              {t(
+                `post_plug_${plug.identifier}_description`,
+                plug.description
+              )}
+            </div>
             <Select
-              label="Delay"
+              label={t('delay', 'Delay')}
               hideErrors={true}
               {...register(`plug--${plug.identifier}--delay`)}
             >
               {delayOptions.map((p) => (
                 <option key={p.name} value={p.value}>
-                  {p.name}
+                  {t(
+                    `delay_${p.name.toLowerCase().replace(/\s+/g, '_')}`,
+                    p.name
+                  )}
                 </option>
               ))}
             </Select>

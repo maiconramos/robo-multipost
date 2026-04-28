@@ -161,9 +161,22 @@ export class IntegrationRepository {
     });
 
     if (existing) {
-      await this._integration.model.integration.delete({
+      await this._posts.model.post.updateMany({
+        where: {
+          integrationId: id,
+        },
+        data: {
+          deletedAt: new Date(),
+        },
+      });
+
+      await this._integration.model.integration.update({
         where: {
           id,
+        },
+        data: {
+          internalId: `deleted_${params.internalId}_${makeId(10)}`,
+          deletedAt: new Date(),
         },
       });
     }
@@ -376,6 +389,16 @@ export class IntegrationRepository {
         organizationId: org,
         id,
         ...(profileId ? { OR: [{ profileId }, { profileId: null }] } : {}),
+      },
+    });
+  }
+
+  getIntegrationsByInternalId(internalId: string) {
+    return this._integration.model.integration.findMany({
+      where: {
+        internalId,
+        deletedAt: null,
+        disabled: false,
       },
     });
   }

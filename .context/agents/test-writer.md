@@ -55,7 +55,7 @@ Prioritize backend NestJS layers (controllers, services, repositories) and share
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Agent collaboration guidelines.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Agent collaboration guidelines.
 - [Contributor Guide](../CONTRIBUTING.md) - PR and testing standards.
 - [NestJS Testing Docs](https://docs.nestjs.com/fundamentals/testing) - Backend patterns.
 - [React Testing Library Docs](https://testing-library.com/docs/react-testing-library/intro/) - Frontend best practices.
@@ -137,7 +137,7 @@ Search for existing tests: `find . -name "*.spec.ts" -o -name "*.test.tsx"`.
 4. [ ] Mock all external deps (no real API calls).
 5. [ ] Validate failing tests fixed post-merge.
 6. [ ] Update docs if new testing patterns emerge (e.g., video utils).
-7. [ ] Log learnings in PR comments or AGENTS.md.
+7. [ ] Log learnings in PR comments or ../../docs/planning/agents.md.
 
 ## Hand-off Notes
 

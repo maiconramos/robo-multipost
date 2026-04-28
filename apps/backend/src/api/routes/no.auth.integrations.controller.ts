@@ -313,7 +313,7 @@ export class NoAuthIntegrationsController {
     };
   }
 
-  @Post('/provider/:id/connect')
+  @Post('/public/provider/:id/connect')
   async saveProviderPage(@Param('id') id: string, @Body() body: any) {
     if (!body.state) {
       throw new Error('Invalid state');
@@ -329,8 +329,8 @@ export class NoAuthIntegrationsController {
     return this._integrationService.saveProviderPage(org.id, id, body);
   }
 
-  @Get('/late/callback')
-  async lateCallback(
+  @Get('/zernio/callback')
+  async zernioCallback(
     @Query('accountId') accountId: string,
     @Query('profileId') profileId: string,
     @Query('platform') platform: string,
@@ -341,7 +341,7 @@ export class NoAuthIntegrationsController {
       throw new HttpException('Missing required parameters', 400);
     }
 
-    const provider = `late-${platform}`;
+    const provider = `zernio-${platform}`;
 
     // Redirect to frontend with the account data
     const redirectUrl = `${process.env.FRONTEND_URL}/integrations/social/${provider}?code=${encodeURIComponent(accountId)}&state=${encodeURIComponent(state)}`;

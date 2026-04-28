@@ -1,0 +1,212 @@
+import {
+  Body,
+  Controller,
+  Delete,
+  Get,
+  Param,
+  Post,
+  Put,
+  Query,
+} from '@nestjs/common';
+import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
+import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
+import { Organization, Profile } from '@prisma/client';
+import { ApiTags } from '@nestjs/swagger';
+import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
+import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
+import {
+  CreateFlowDto,
+  UpdateFlowDto,
+  UpdateFlowStatusDto,
+  SaveCanvasDto,
+  QuickCreateFlowDto,
+} from '@gitroom/nestjs-libraries/dtos/flows/flow.dto';
+
+@ApiTags('Flows')
+@Controller('/flows')
+export class FlowsController {
+  constructor(
+    private _flowsService: FlowsService,
+    private _credentialService: CredentialService
+  ) {}
+
+  @Get('/webhook-config')
+  async getWebhookConfig(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
+    const rawBase = (
+      process.env.WEBHOOK_BASE_URL ||
+      process.env.FRONTEND_URL ||
+      process.env.BACKEND_URL ||
+      ''
+    ).replace(/\/$/, '');
+    const needsApiPrefix = !process.env.WEBHOOK_BASE_URL;
+    const callbackPath = `${needsApiPrefix ? '/api' : ''}/public/ig-webhook`;
+
+    // Prefer per-profile verify token when the admin set a custom one in
+    // Settings > Credenciais > Facebook. Falls back to the platform default
+    // so that fresh installs keep working without any configuration.
+    const creds = await this._credentialService
+      .getRaw(org.id, 'facebook', profile?.id)
+      .catch(() => null);
+    const verifyToken = creds?.webhookVerifyToken || 'multipost';
+
+    return {
+      callbackUrl: rawBase ? `${rawBase}${callbackPath}` : callbackPath,
+      verifyToken,
+      subscribedFields: ['comments', 'messages'],
+      object: 'instagram',
+    };
+  }
+
+  @Get('/')
+  async getFlows(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
+    return this._flowsService.getFlows(org.id, profile?.id);
+  }
+
+  @Post('/')
+  async createFlow(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Body() body: CreateFlowDto
+  ) {
+    return this._flowsService.createFlow(org.id, body, profile?.id);
+  }
+
+  @Put('/:id/quick-update')
+  async quickUpdateFlow(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string,
+    @Body() body: QuickCreateFlowDto
+  ) {
+    return this._flowsService.quickUpdateFlow(org.id, id, body, profile?.id);
+  }
+
+  @Post('/quick-create')
+  async quickCreateFlow(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Body() body: QuickCreateFlowDto
+  ) {
+    return this._flowsService.quickCreateFlow(org.id, body, profile?.id);
+  }
+
+  @Get('/integrations/:integrationId/posts')
+  async getIntegrationPosts(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integrationId') integrationId: string,
+    @Query('cursor') cursor?: string,
+    @Query('limit') limit?: string
+  ) {
+    return this._flowsService.getInstagramPostsByIntegration(
+      org.id,
+      integrationId,
+      cursor,
+      limit ? parseInt(limit, 10) : 25
+    );
+  }
+
+  @Get('/integrations/:integrationId/stories')
+  async getIntegrationStories(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integrationId') integrationId: string
+  ) {
+    return this._flowsService.getInstagramStoriesByIntegration(
+      org.id,
+      integrationId
+    );
+  }
+
+  @Get('/:id')
+  async getFlow(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string
+  ) {
+    return this._flowsService.getFlow(org.id, id, profile?.id);
+  }
+
+  @Put('/:id')
+  async updateFlow(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string,
+    @Body() body: UpdateFlowDto
+  ) {
+    return this._flowsService.updateFlow(org.id, id, body, profile?.id);
+  }
+
+  @Delete('/:id')
+  async deleteFlow(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string
+  ) {
+    return this._flowsService.deleteFlow(org.id, id, profile?.id);
+  }
+
+  @Put('/:id/canvas')
+  async saveCanvas(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string,
+    @Body() body: SaveCanvasDto
+  ) {
+    return this._flowsService.saveCanvas(org.id, id, body, profile?.id);
+  }
+
+  @Post('/:id/status')
+  async updateFlowStatus(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string,
+    @Body() body: UpdateFlowStatusDto
+  ) {
+    return this._flowsService.updateFlowStatus(
+      org.id,
+      id,
+      body.status,
+      profile?.id
+    );
+  }
+
+  @Get('/integrations/:integrationId/webhook-status')
+  async checkIntegrationWebhook(
+    @GetOrgFromRequest() org: Organization,
+    @Param('integrationId') integrationId: string
+  ) {
+    return this._flowsService.checkIntegrationWebhook(org.id, integrationId);
+  }
+
+  @Get('/:id/posts')
+  async getInstagramPosts(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string
+  ) {
+    return this._flowsService.getInstagramPosts(org.id, id, profile?.id);
+  }
+
+  @Get('/:id/executions')
+  async getExecutions(
+    @Param('id') id: string,
+    @Query('page') page?: string,
+    @Query('limit') limit?: string
+  ) {
+    return this._flowsService.getExecutions(
+      id,
+      page ? parseInt(page, 10) : undefined,
+      limit ? parseInt(limit, 10) : undefined
+    );
+  }
+
+  @Get('/:id/executions/:executionId')
+  async getExecution(@Param('executionId') executionId: string) {
+    return this._flowsService.getExecution(executionId);
+  }
+}

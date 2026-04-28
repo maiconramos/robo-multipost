@@ -34,7 +34,7 @@ The Code Reviewer agent ensures code quality, adherence to project standards, an
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Overview of all agents and collaboration.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Overview of all agents and collaboration.
 - [Contributor Guide](https://github.com/postiz/robo-multipost/blob/main/CONTRIBUTING.md) - Onboarding and standards.
 - [Agent Handbook](../docs/AGENTS-HANDBOOK.md) - Detailed agent workflows.
 - [Architecture Docs](../docs/ARCHITECTURE.md) - Monorepo structure and layers.
@@ -116,7 +116,7 @@ The Code Reviewer agent ensures code quality, adherence to project standards, an
 6. [ ] Post threaded comments: One per category (e.g., "Security", "Performance").
 7. [ ] Approve if all checks pass; suggest re-review on addressals.
 8. [ ] Update docs: Flag missing JSDoc/DTOs; propose additions.
-9. [ ] Capture learnings: Log repeated issues to AGENTS.md.
+9. [ ] Capture learnings: Log repeated issues to ../../docs/planning/agents.md.
 
 ## Hand-off Notes
 

@@ -29,7 +29,7 @@ The Refactoring Specialist agent enhances codebase maintainability, performance,
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Agent collaboration guidelines.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Agent collaboration guidelines.
 - [CONTRIBUTING.md](../CONTRIBUTING.md) - Code style, PR process.
 - [Agent Handbook](https://github.com/postiz-ai/robo-multipost/wiki/Agents) - Role-specific workflows.
 - [NestJS Docs](https://docs.nestjs.com/) - Core framework reference.

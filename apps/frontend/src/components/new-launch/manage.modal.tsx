@@ -113,7 +113,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           <div className="relative">
             <SettingsIcon size={15} className="text-white" />
           </div>
-          <div>Settings</div>
+          <div>{t('settings', 'Settings')}</div>
         </div>
       );
     }
@@ -695,7 +695,7 @@ const Scrollable: FC<{
   scrollClasses: string;
   children: ReactNode;
 }> = ({ className, scrollClasses, children }) => {
-  const ref = useRef();
+  const ref = useRef(undefined);
   const hasScroll = useHasScroll(ref);
   return (
     <div className={clsx(className, hasScroll && scrollClasses)} ref={ref}>

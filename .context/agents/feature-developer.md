@@ -34,7 +34,7 @@ The Feature Developer agent implements new features across the monorepo, includi
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) – Agent roles and handoffs.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) – Agent roles and handoffs.
 - [Contributor Guide](../CONTRIBUTING.md) – Setup, linting, deployment.
 - [Agent Handbook](../docs/agents-handbook.md) – Collaboration protocols.
 - [Architecture Docs](../docs/architecture.md) – Monorepo structure, layers.
@@ -123,7 +123,7 @@ The Feature Developer agent implements new features across the monorepo, includi
 6. [ ] Create PR: Descriptive title/body, screenshots, spec compliance.
 7. [ ] Address feedback: Quick iterations.
 8. [ ] Update docs/handbook if patterns change.
-9. [ ] Capture learnings: Note in PR or AGENTS.md.
+9. [ ] Capture learnings: Note in PR or ../../docs/planning/agents.md.
 
 ## Hand-off Notes
 

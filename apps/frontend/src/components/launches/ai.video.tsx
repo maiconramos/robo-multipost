@@ -1,7 +1,7 @@
 import { Button } from '@gitroom/react/form/button';
 import React, { FC, useCallback, useState } from 'react';
 import clsx from 'clsx';
-import Loading from 'react-loading';
+import Loading from '@gitroom/frontend/components/layout/loading';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
@@ -82,7 +82,9 @@ export const Modal: FC<{
                   <div className="flex-1">
                     <TopTitle title={t('video_type', 'Video Type')}>
                       <div className="mr-[25px]">
-                        {data?.credits || 0} {t('credits_left', 'credits left')}
+                        {data?.credits !== undefined && data.credits < 999999 && data.credits > 0
+                          ? `${data.credits} ${t('credits_left', 'credits left')}`
+                          : ''}
                       </div>
                     </TopTitle>
                   </div>
@@ -132,10 +134,19 @@ export const Modal: FC<{
                     <VideoWrapper identifier={type.identifier} />
                   </div>
                 </div>
-                <div className="flex">
-                  <Button type="submit" className="flex-1">
+                <div className="flex flex-col gap-[4px]">
+                  <Button
+                    type="submit"
+                    className="flex-1"
+                    disabled={data?.credits !== undefined && data.credits <= 0 && data.credits < 999999}
+                  >
                     {t('generate', 'Generate')}
                   </Button>
+                  {data?.credits !== undefined && data.credits <= 0 && data.credits < 999999 && (
+                    <div className="text-[11px] text-customColor19 text-center">
+                      {t('ai_credits_exhausted', "You've reached the generation limit this month. Contact your administrator.")}
+                    </div>
+                  )}
                 </div>
               </div>
             </div>
@@ -157,6 +168,14 @@ export const AiVideo: FC<{
   const [modal, setModal] = useState(false);
   const fetch = useFetch();
   const { isTrailing } = useUser();
+
+  const loadVideoCredits = useCallback(async () => {
+    return (await fetch('/copilot/credits?type=ai_videos', { method: 'GET' })).json();
+  }, []);
+  const { data: creditData } = useSWR('video-credits-outer', loadVideoCredits);
+
+  const isUnlimited = !creditData || creditData.credits >= 999999;
+  const hasCredits = isUnlimited || creditData.credits > 0;
 
   const loadVideoList = useCallback(async () => {
     return (await (await fetch('/media/video-options')).json()).filter(
@@ -201,16 +220,17 @@ export const AiVideo: FC<{
       )}
       <div className="relative group">
         <div
-          {...(value.length < 30
+          {...(value.length < 30 || !hasCredits
             ? {
                 'data-tooltip-id': 'tooltip',
-                'data-tooltip-content':
-                  t('ai_video_min_chars', 'Please add at least 30 characters to generate AI video'),
+                'data-tooltip-content': !hasCredits
+                  ? t('ai_credits_limit_reached', 'Limit reached')
+                  : t('ai_video_min_chars', 'Please add at least 30 characters to generate AI video'),
               }
             : {})}
           className={clsx(
             'cursor-pointer h-[30px] rounded-[6px] justify-center items-center flex bg-newColColor px-[8px]',
-            value.length < 30 && 'opacity-50'
+            (value.length < 30 || !hasCredits) && 'opacity-50 pointer-events-none'
           )}
         >
           {loading && (
@@ -232,7 +252,7 @@ export const AiVideo: FC<{
                 viewBox="0 0 16 16"
                 fill="none"
               >
-                <g clip-path="url(#clip0_2352_53058)">
+                <g clipPath="url(#clip0_2352_53058)">
                   <path
                     d="M8.06916 14.1663V2.04134M4.97208 14.1663V11.1351M4.97208 5.07259V2.04134M11.1662 14.1663V11.1351M9.09973 2.02152L4.8482 2.04134C3.80748 2.04134 3.28712 2.04134 2.88962 2.23957C2.53997 2.41394 2.25569 2.69218 2.07754 3.0344C1.875 3.42345 1.875 3.93275 1.875 4.95134L1.875 11.2563C1.875 12.2749 1.875 12.7842 2.07754 13.1733C2.25569 13.5155 2.53997 13.7937 2.88962 13.9681C3.28712 14.1663 3.80748 14.1663 4.8482 14.1663H11.2901C12.3308 14.1663 12.8512 14.1663 13.2487 13.9681C13.5984 13.7937 13.8826 13.5155 14.0608 13.1733C14.2633 12.7842 14.2633 12.2749 14.2633 11.2563V7.61426M1.875 5.07259L9.09973 5.06116M1.875 11.1351H14.2633M12.8141 1.20801L12.3949 2.02152C12.253 2.29684 12.1821 2.4345 12.0873 2.55379C12.0032 2.65965 11.9054 2.75455 11.7963 2.83614C11.6734 2.92809 11.5315 2.99692 11.2478 3.13458L10.4094 3.54134L11.2478 3.9481C11.5315 4.08576 11.6734 4.15459 11.7963 4.24654C11.9054 4.32814 12.0032 4.42303 12.0873 4.52889C12.1821 4.64818 12.253 4.78584 12.3949 5.06116L12.8141 5.87467L13.2333 5.06116C13.3751 4.78584 13.4461 4.64818 13.5408 4.52889C13.6249 4.42303 13.7227 4.32814 13.8318 4.24654C13.9548 4.15459 14.0966 4.08576 14.3804 3.9481L15.2188 3.54134L14.3804 3.13458C14.0966 2.99692 13.9548 2.92809 13.8318 2.83614C13.7227 2.75455 13.6249 2.65965 13.5408 2.55379C13.4461 2.4345 13.3751 2.29684 13.2333 2.02152L12.8141 1.20801Z"
                     stroke="currentColor"
@@ -251,7 +271,7 @@ export const AiVideo: FC<{
             <div className="text-[10px] font-[600] iconBreak:hidden block">{t('ai', 'AI')} Video</div>
           </div>
         </div>
-        {value.length >= 30 && !loading && (
+        {value.length >= 30 && !loading && hasCredits && (
           <div className="text-[12px] -mt-[10px] w-[200px] absolute bottom-[100%] z-[500] start-0 hidden group-hover:block">
             <ul className="cursor-pointer rounded-[4px] border border-dashed border-newBgLineColor bg-newColColor mt-[3px] p-[5px]">
               {data.map((p: any) => (
@@ -260,10 +280,20 @@ export const AiVideo: FC<{
                   key={p.identifier}
                   className="hover:bg-sixth"
                 >
-                  {p.title}
+                  {String(t(`video_provider_${p.identifier}`, p.title))}
                 </li>
               ))}
             </ul>
+          </div>
+        )}
+        {!isUnlimited && creditData && creditData.credits > 0 && (
+          <div className="text-[10px] text-customColor18 mt-[2px] text-center">
+            {t('ai_credits_remaining', '{{count}} credits remaining this month').replace('{{count}}', String(creditData.credits))}
+          </div>
+        )}
+        {!hasCredits && (
+          <div className="text-[10px] text-customColor19 mt-[2px] text-center">
+            {t('ai_credits_limit_reached', 'Limit reached')}
           </div>
         )}
       </div>

@@ -6,6 +6,7 @@ import { useCredential } from '@gitroom/frontend/hooks/use-credentials.hook';
 import { Button } from '@gitroom/react/form/button';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useDecisionModal } from '@gitroom/frontend/components/layout/new-modal';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const SENTINEL = '__REDACTED__';
 const MASK = '\u2022\u2022\u2022\u2022\u2022\u2022\u2022\u2022';
@@ -16,6 +17,11 @@ interface FieldDef {
   placeholder: string;
 }
 
+interface CallbackEntry {
+  label?: string;
+  url: string;
+}
+
 interface ProviderCredentialFormProps {
   provider: string;
   fields: FieldDef[];
@@ -23,6 +29,8 @@ interface ProviderCredentialFormProps {
   docsUrl: string;
   onSaved?: () => void;
   onDeleted?: () => void;
+  extraActions?: React.ReactNode;
+  callbacks?: CallbackEntry[];
 }
 
 export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
@@ -32,10 +40,13 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
   docsUrl,
   onSaved,
   onDeleted,
+  extraActions,
+  callbacks,
 }) => {
   const fetch = useFetch();
   const toaster = useToaster();
   const decision = useDecisionModal();
+  const t = useT();
   const { data, isLoading, mutate } = useCredential(provider);
 
   const [editing, setEditing] = useState(false);
@@ -107,14 +118,74 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
       const res = await fetch(`/credentials/${provider}/test`, {
         method: 'POST',
       });
-      const result = await res.json();
+      const result = await res.json().catch((parseErr) => {
+        console.error('[credentials] test: resposta nao-JSON', parseErr);
+        return { ok: false, error: `HTTP ${res.status}` };
+      });
+      if (!result.ok) {
+        console.error('[credentials] test falhou:', result);
+      }
       setTestResult(result);
-    } catch {
+    } catch (err) {
+      console.error('[credentials] test exception:', err);
       setTestResult({ ok: false, error: 'Erro ao testar conexão' });
     } finally {
       setTesting(false);
     }
   }, [provider, fetch]);
+
+  const handleCopyCallback = useCallback(
+    (url: string) => {
+      navigator.clipboard.writeText(url).then(() => {
+        toaster.show(
+          t('copied_to_clipboard', 'Copiado para a área de transferência'),
+          'success'
+        );
+      });
+    },
+    [toaster, t]
+  );
+
+  const hasCallbacks = !!callbacks && callbacks.length > 0;
+  const callbackBlock = hasCallbacks ? (
+    <div className="flex flex-col gap-[12px] border-t border-fifth pt-[12px]">
+      {callbacks!.map((cb, idx) => (
+        <div key={idx} className="flex flex-col gap-[6px]">
+          <div className="text-[13px] text-customColor18">
+            {t('callback_url', 'Callback URL')}
+            {cb.label ? ` — ${cb.label}` : ''}
+          </div>
+          <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] flex items-center">
+            <input
+              className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px] min-w-0"
+              type="text"
+              value={cb.url}
+              readOnly
+              onFocus={(e) => e.currentTarget.select()}
+            />
+            <button
+              type="button"
+              onClick={() => handleCopyCallback(cb.url)}
+              className="text-[12px] text-btnPrimary hover:opacity-80 px-[12px] whitespace-nowrap"
+            >
+              {t('copy', 'Copiar')}
+            </button>
+          </div>
+        </div>
+      ))}
+      <div className="text-[12px] text-customColor18">
+        {callbacks!.length > 1
+          ? t(
+              'callback_urls_hint',
+              'Cole estas URLs nas URIs de redirecionamento autorizadas no painel do provider.'
+            )
+          : t(
+              'callback_url_hint',
+              'Cole esta URL nas URIs de redirecionamento autorizadas no painel do provider.'
+            )}
+      </div>
+    </div>
+  ) : null;
 
   const handleDelete = useCallback(async () => {
     const approved = await decision.open({
@@ -161,6 +232,8 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
           ))}
         </div>
 
+        {callbackBlock}
+
         {testResult && (
           <div
             className={`text-[13px] ${
@@ -182,6 +255,8 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
             Remover
           </Button>
         </div>
+
+        {extraActions && <div>{extraActions}</div>}
 
         <a
           href={docsUrl}
@@ -213,6 +288,8 @@ export const ProviderCredentialForm: React.FC<ProviderCredentialFormProps> = ({
           </div>
         ))}
       </div>
+
+      {callbackBlock}
 
       <div className="flex items-center gap-[12px]">
         <Button onClick={handleSave} loading={saving}>

@@ -36,7 +36,7 @@ The agent analyzes code patterns, suggests optimizations, and implements fixes w
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Agent coordination guidelines.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Agent coordination guidelines.
 - [Contributor Guide](CONTRIBUTING.md) - PR workflows, testing standards.
 - [Agent Handbook](docs/agents-handbook.md) - Cross-agent collaboration.
 - Documentation Index: `libraries/helpers/src/swagger` for API docs; `libraries/react-shared-libraries/src/translation` for i18n perf notes.

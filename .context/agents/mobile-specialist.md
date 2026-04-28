@@ -37,7 +37,7 @@ Engage this agent for:
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md): Agent collaboration guidelines.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md): Agent collaboration guidelines.
 - [Contributor Guide](../CONTRIBUTING.md): PR workflows, linting rules.
 - [Agent Handbook](../docs/agents-handbook.md): Role-specific playbooks.
 - [API Docs](../apps/backend/docs): Swagger from helpers/src/swagger.
@@ -101,7 +101,7 @@ Engage this agent for:
 3. Prototype UI with design team using Figma/Storybook from web components.
 4. Test integrations (e.g., auth providers) on physical devices/emulators.
 5. Submit PR with mobile screenshots, perf metrics; tag frontend for UI review.
-6. Update shared libs/docs; log learnings in AGENTS.md.
+6. Update shared libs/docs; log learnings in ../../docs/planning/agents.md.
 7. Verify PWA fallback if native not ready.
 
 ## Hand-off Notes

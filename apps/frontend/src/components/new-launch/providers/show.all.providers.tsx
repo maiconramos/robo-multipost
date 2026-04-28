@@ -38,6 +38,7 @@ import GmbProvider from '@gitroom/frontend/components/new-launch/providers/gmb/g
 import MoltbookProvider from '@gitroom/frontend/components/new-launch/providers/moltbook/moltbook.provider';
 import SkoolProvider from '@gitroom/frontend/components/new-launch/providers/skool/skool.provider';
 import WhopProvider from '@gitroom/frontend/components/new-launch/providers/whop/whop.provider';
+import MeweProvider from '@gitroom/frontend/components/new-launch/providers/mewe/mewe.provider';
 
 export const Empty: FC = () => {
   return null;
@@ -172,57 +173,61 @@ export const Providers = [
     identifier: 'whop',
     component: WhopProvider,
   },
-  // Late providers — reuse existing provider settings components
   {
-    identifier: 'late-twitter',
+    identifier: 'mewe',
+    component: MeweProvider,
+  },
+  // Zernio providers — reuse existing provider settings components
+  {
+    identifier: 'zernio-twitter',
     component: XProvider,
   },
   {
-    identifier: 'late-instagram',
+    identifier: 'zernio-instagram',
     component: InstagramProvider,
   },
   {
-    identifier: 'late-tiktok',
+    identifier: 'zernio-tiktok',
     component: TiktokProvider,
   },
   {
-    identifier: 'late-youtube',
+    identifier: 'zernio-youtube',
     component: YoutubeProvider,
   },
   {
-    identifier: 'late-facebook',
+    identifier: 'zernio-facebook',
     component: FacebookProvider,
   },
   {
-    identifier: 'late-linkedin',
+    identifier: 'zernio-linkedin',
     component: LinkedinProvider,
   },
   {
-    identifier: 'late-pinterest',
+    identifier: 'zernio-pinterest',
     component: PinterestProvider,
   },
   {
-    identifier: 'late-reddit',
+    identifier: 'zernio-reddit',
     component: RedditProvider,
   },
   {
-    identifier: 'late-bluesky',
+    identifier: 'zernio-bluesky',
     component: BlueskyProvider,
   },
   {
-    identifier: 'late-threads',
+    identifier: 'zernio-threads',
     component: ThreadsProvider,
   },
   {
-    identifier: 'late-telegram',
+    identifier: 'zernio-telegram',
     component: TelegramProvider,
   },
   {
-    identifier: 'late-googlebusiness',
+    identifier: 'zernio-googlebusiness',
     component: GmbProvider,
   },
   {
-    identifier: 'late-snapchat',
+    identifier: 'zernio-snapchat',
     component: Empty,
   },
 ];

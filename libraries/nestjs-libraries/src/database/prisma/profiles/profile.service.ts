@@ -1,8 +1,11 @@
 import { HttpException, Injectable } from '@nestjs/common';
-import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
+import {
+  ProfileRepository,
+  ProfilePersonaData,
+} from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
 import { ProfileRole, ShortLinkPreference } from '@prisma/client';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
-import Late from '@getlatedev/node';
+import Zernio from '@zernio/node';
 
 @Injectable()
 export class ProfileService {
@@ -83,9 +86,9 @@ export class ProfileService {
     return this._profileRepository.getMembers(profileId);
   }
 
-  private async fetchLateUsage(apiKey: string) {
-    const late = new Late({ apiKey });
-    const result = await late.usage.getUsageStats();
+  private async fetchZernioUsage(apiKey: string) {
+    const zernio = new Zernio({ apiKey });
+    const result = await zernio.usage.getUsageStats();
     const stats = (result as any)?.data ?? result;
     return {
       planName: stats?.planName ?? null,
@@ -101,47 +104,47 @@ export class ProfileService {
     };
   }
 
-  async getLateSettings(profileId: string) {
-    const profile = await this._profileRepository.getLateApiKey(profileId);
-    if (!profile?.lateApiKey) {
+  async getZernioSettings(profileId: string) {
+    const profile = await this._profileRepository.getZernioApiKey(profileId);
+    if (!profile?.zernioApiKey) {
       return { configured: false, usage: null };
     }
 
     try {
-      const apiKey = AuthService.fixedDecryption(profile.lateApiKey);
-      const usage = await this.fetchLateUsage(apiKey);
+      const apiKey = AuthService.fixedDecryption(profile.zernioApiKey);
+      const usage = await this.fetchZernioUsage(apiKey);
       return { configured: true, usage };
     } catch {
       return { configured: true, usage: null };
     }
   }
 
-  async saveLateApiKey(profileId: string, apiKey: string) {
+  async saveZernioApiKey(profileId: string, apiKey: string) {
     if (!apiKey.startsWith('sk_')) {
-      throw new HttpException('Invalid Late API key format. Key must start with "sk_".', 400);
+      throw new HttpException('Invalid Zernio API key format. Key must start with "sk_".', 400);
     }
 
     try {
-      const usage = await this.fetchLateUsage(apiKey);
+      const usage = await this.fetchZernioUsage(apiKey);
       const encrypted = AuthService.fixedEncryption(apiKey);
-      await this._profileRepository.saveLateApiKey(profileId, encrypted);
+      await this._profileRepository.saveZernioApiKey(profileId, encrypted);
       return { configured: true, usage };
     } catch {
-      throw new HttpException('Invalid Late API key. Could not connect to Late.', 400);
+      throw new HttpException('Invalid Zernio API key. Could not connect to Zernio.', 400);
     }
   }
 
-  async removeLateApiKey(profileId: string) {
-    await this._profileRepository.removeLateApiKey(profileId);
+  async removeZernioApiKey(profileId: string) {
+    await this._profileRepository.removeZernioApiKey(profileId);
     return { configured: false };
   }
 
-  async getDecryptedLateApiKey(profileId: string): Promise<string | null> {
-    const profile = await this._profileRepository.getLateApiKey(profileId);
-    if (!profile?.lateApiKey) {
+  async getDecryptedZernioApiKey(profileId: string): Promise<string | null> {
+    const profile = await this._profileRepository.getZernioApiKey(profileId);
+    if (!profile?.zernioApiKey) {
       return null;
     }
-    return AuthService.fixedDecryption(profile.lateApiKey);
+    return AuthService.fixedDecryption(profile.zernioApiKey);
   }
 
   getShortlinkPreference(profileId: string) {
@@ -150,5 +153,56 @@ export class ProfileService {
 
   updateShortlinkPreference(profileId: string, shortlink: ShortLinkPreference) {
     return this._profileRepository.updateShortlinkPreference(profileId, shortlink);
+  }
+
+  getAiCredits(orgId: string, profileId: string) {
+    return this._profileRepository.getAiCredits(orgId, profileId);
+  }
+
+  async updateAiCredits(
+    orgId: string,
+    profileId: string,
+    data: { aiImageCredits?: number | null; aiVideoCredits?: number | null }
+  ) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    if (profile.isDefault) {
+      throw new HttpException('Cannot set credit limits on the default profile', 400);
+    }
+    return this._profileRepository.updateAiCredits(orgId, profileId, data);
+  }
+
+  getAllProfilesWithCredits(orgId: string) {
+    return this._profileRepository.getAllProfilesWithCredits(orgId);
+  }
+
+  async getPersona(orgId: string, profileId: string) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    return this._profileRepository.getPersona(profileId);
+  }
+
+  getPersonaForAgent(profileId: string) {
+    return this._profileRepository.getPersona(profileId);
+  }
+
+  async upsertPersona(orgId: string, profileId: string, data: ProfilePersonaData) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    return this._profileRepository.upsertPersona(profileId, data);
+  }
+
+  async deletePersona(orgId: string, profileId: string) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    return this._profileRepository.deletePersona(profileId);
   }
 }

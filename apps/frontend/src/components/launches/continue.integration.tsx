@@ -41,11 +41,7 @@ export const ContinueIntegration: FC<{
 
   // Helper to handle navigation - redirects if logged or returnURL exists, otherwise shows inline
   const navigateOrShow = useCallback(
-    (
-      path: string,
-      returnURL: string | undefined,
-      successMessage: string
-    ) => {
+    (path: string, returnURL: string | undefined, successMessage: string) => {
       if (returnURL) {
         // If returnURL exists, always redirect to it with the path params
         const params = path.includes('?') ? path.split('?')[1] : '';
@@ -61,6 +57,13 @@ export const ContinueIntegration: FC<{
     [logged, push]
   );
   const modifiedParams = useMemo(() => {
+    if (provider === 'mewe') {
+      return {
+        state: searchParams.state || '',
+        code: searchParams.loginRequestToken || '',
+        refresh: searchParams.refresh || '',
+      };
+    }
     if (provider === 'x') {
       return {
         state: searchParams.oauth_token || '',
@@ -74,6 +77,17 @@ export const ContinueIntegration: FC<{
         ...searchParams,
         state: searchParams.state || '',
         code: searchParams.code + '&&&&' + searchParams.device_id,
+      };
+    }
+
+    if (provider === 'mewe') {
+      const hash =
+        typeof window !== 'undefined' ? window.location.hash.substring(1) : '';
+      const hashParams = new URLSearchParams(hash);
+      return {
+        state: hashParams.get('state') || searchParams.state || '',
+        code: hashParams.get('loginRequestToken') || '',
+        refresh: searchParams.refresh || '',
       };
     }
 
@@ -110,7 +124,7 @@ export const ContinueIntegration: FC<{
         navigateOrShow(
           `/launches?precondition=true`,
           returnURL,
-          'Precondition failed'
+          t('precondition_failed', 'Precondition failed')
         );
         return;
       }
@@ -126,7 +140,9 @@ export const ContinueIntegration: FC<{
         data.status !== HttpStatusCode.Created
       ) {
         const errorData = await data.json().catch(() => ({}));
-        setErrorMessage(errorData.message || errorData.msg || 'Could not add provider');
+        setErrorMessage(
+          errorData.message || errorData.msg || 'Could not add provider'
+        );
         setError(true);
         return;
       }
@@ -177,7 +193,7 @@ export const ContinueIntegration: FC<{
       }
 
       navigateOrShow(
-        `/launches?added=${provider}&msg=Channel Updated${
+        `/launches?added=${provider}&msg=${t('channel_updated', 'Channel Updated')}${
           onboarding ? '&onboarding=true' : ''
         }`,
         returnURL,
@@ -194,7 +210,9 @@ export const ContinueIntegration: FC<{
 
       try {
         // Use public or authenticated endpoint based on the flow
-        const endpoint = `/integrations/provider/${twoStepState.integrationId}/connect`;
+        const endpoint = logged
+          ? `/integrations/provider/${twoStepState.integrationId}/connect`
+          : `/integrations/public/provider/${twoStepState.integrationId}/connect`;
 
         const response = await fetch(endpoint, {
           method: 'POST',
@@ -207,18 +225,18 @@ export const ContinueIntegration: FC<{
         ) {
           const errorData = await response.json().catch(() => ({}));
           setErrorMessage(
-            errorData.message || 'Failed to save channel configuration'
+            errorData.message || t('failed_to_save_channel', 'Failed to save channel configuration')
           );
           setError(true);
           return;
         }
 
         navigateOrShow(
-          `/launches?added=${provider}&msg=Channel Added${
+          `/launches?added=${provider}&msg=${t('channel_added', 'Channel Added')}${
             twoStepState.onboarding ? '&onboarding=true' : ''
           }`,
           twoStepState.returnURL,
-          'Channel Added'
+          t('channel_added', 'Channel Added')
         );
       } finally {
         setIsSaving(false);
@@ -297,7 +315,7 @@ export const ContinueIntegration: FC<{
 
         {/* Content */}
         <div className="relative z-10 w-full max-w-[550px] mx-auto px-[20px]">
-          <div className="bg-[#1A1919] rounded-[16px] p-[32px] flex flex-col gap-[24px]">
+          <div className="bg-[#1A1919] rounded-[16px] p-[32px] flex flex-col gap-[24px] max-h-[80vh] overflow-hidden">
             <div className="flex flex-col gap-[8px] text-center">
               <h1 className="text-[24px] font-semibold">
                 {t('configure_your_channel', 'Configure Your Channel')}

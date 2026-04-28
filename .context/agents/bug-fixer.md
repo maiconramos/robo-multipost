@@ -35,7 +35,7 @@ Prioritize fixes that maintain architectural patterns like service-repository se
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Agent collaboration guidelines.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Agent collaboration guidelines.
 - [Contributor Guide](../CONTRIBUTING.md) - PR/review processes.
 - [NestJS Docs](https://docs.nestjs.com/) - Core framework reference.
 - [Prisma Docs](https://www.prisma.io/docs/) - DB patterns used in repositories.
@@ -155,7 +155,7 @@ Prioritize fixes that maintain architectural patterns like service-repository se
 5. [ ] Validate cross-app impact (backend → frontend/CLI).
 6. [ ] Update docs/exceptions if pattern change.
 7. [ ] Tag related agents (e.g., Tester for new tests).
-8. [ ] Capture learning: Add to AGENTS.md or wiki.
+8. [ ] Capture learning: Add to ../../docs/planning/agents.md or wiki.
 
 ## Hand-off Notes
 

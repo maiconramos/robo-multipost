@@ -22,6 +22,8 @@ import {
   organizationId,
   postId as postIdSearchParam,
 } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
+import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
+import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
 
 @Injectable()
 @Activity()
@@ -33,7 +35,9 @@ export class PostActivity {
     private _integrationService: IntegrationService,
     private _refreshIntegrationService: RefreshIntegrationService,
     private _webhookService: WebhooksService,
-    private _temporalService: TemporalService
+    private _temporalService: TemporalService,
+    private _subscriptionService: SubscriptionService,
+    private _flowsService: FlowsService
   ) {}
 
   @ActivityMethod()
@@ -47,7 +51,7 @@ export class PostActivity {
     for (const post of list) {
       await this._temporalService.client
         .getRawClient()
-        .workflow.signalWithStart('postWorkflowV101', {
+        .workflow.signalWithStart('postWorkflowV102', {
           workflowId: `post_${post.id}`,
           taskQueue: 'main',
           signal: 'poke',
@@ -55,9 +59,11 @@ export class PostActivity {
           signalArgs: [],
           args: [
             {
-              taskQueue: post.integration.providerIdentifier
-                .split('-')[0]
-                .toLowerCase(),
+              taskQueue: post.integration.providerIdentifier.startsWith('zernio-')
+                ? 'main'
+                : post.integration.providerIdentifier
+                    .split('-')[0]
+                    .toLowerCase(),
               postId: post.id,
               organizationId: post.organizationId,
             },
@@ -78,11 +84,43 @@ export class PostActivity {
 
   @ActivityMethod()
   async updatePost(id: string, postId: string, releaseURL: string) {
-    return this._postService.updatePost(id, postId, releaseURL);
+    const result = await this._postService.updatePost(id, postId, releaseURL);
+
+    // Bind any pending "next_publication" flows to this freshly published
+    // media. Stories are excluded. Failures must never break the publish.
+    try {
+      if (!postId) return result;
+      const post = await this._postService.getPostById(id);
+      if (!post || post.integration?.providerIdentifier !== 'instagram') {
+        return result;
+      }
+      let settings: any = {};
+      try {
+        settings = JSON.parse(post.settings || '{}');
+      } catch {
+        settings = {};
+      }
+      if (settings?.post_type === 'story') return result;
+      await this._flowsService.bindPendingFlowsToPost(
+        post.integrationId,
+        postId
+      );
+    } catch {
+      // ignore — bind errors must not fail the post publish
+    }
+
+    return result;
   }
 
   @ActivityMethod()
   async getPostsList(orgId: string, postId: string) {
+    if (process.env.STRIPE_SECRET_KEY) {
+      const subscription = await this._subscriptionService.getSubscription(orgId);
+      if (!subscription) {
+        return [];
+      }
+    }
+
     const getPosts = await this._postService.getPostsRecursively(
       postId,
       true,
@@ -320,6 +358,38 @@ export class PostActivity {
       return refresh;
     } catch (err) {
       await this._refreshIntegrationService.setBetweenSteps(integration);
+      return false;
+    }
+  }
+
+  @ActivityMethod()
+  async refreshTokenWithCause(
+    integration: Integration,
+    cause: string
+  ): Promise<false | AuthTokenDetails> {
+    const getIntegration = this._integrationManager.getSocialIntegration(
+      integration.providerIdentifier
+    );
+
+    try {
+      const refresh = await this._refreshIntegrationService.refresh(
+        integration,
+        cause
+      );
+      if (!refresh) {
+        return false;
+      }
+
+      if (getIntegration.refreshWait) {
+        await timer(10000);
+      }
+
+      return refresh;
+    } catch (err) {
+      await this._refreshIntegrationService.setBetweenSteps(
+        integration,
+        cause
+      );
       return false;
     }
   }

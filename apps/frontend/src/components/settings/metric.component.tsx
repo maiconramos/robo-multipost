@@ -32,18 +32,16 @@ const MetricComponent = () => {
   return (
     <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px] flex flex-col gap-[24px]">
       <div className="mt-[4px]">{t('date_metrics', 'Date Metrics')}</div>
-      <Select name="metric" disableForm={true} label="" onChange={changeMetric}>
+      <Select name="metric" disableForm={true} label="" onChange={changeMetric} value={currentMetric ? 'US' : 'GLOBAL'}>
         <option
           key="US"
           value="US"
-          selected={currentMetric === true}
         >
           {t('time_format_ampm', 'AM:PM')}
         </option>
         <option
           key="GLOBAL"
           value="GLOBAL"
-          selected={currentMetric === false}
         >
           {t('time_format_24h', '24 hours')}
         </option>

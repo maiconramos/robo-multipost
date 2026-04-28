@@ -42,6 +42,20 @@ import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.s
 import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { StartupMigrationService } from '@gitroom/nestjs-libraries/database/prisma/startup-migration.service';
+import { VectorInitService } from '@gitroom/nestjs-libraries/chat/vector/vector.init.service';
+import { KnowledgeRepository } from '@gitroom/nestjs-libraries/database/prisma/knowledge/knowledge.repository';
+import { KnowledgeService } from '@gitroom/nestjs-libraries/database/prisma/knowledge/knowledge.service';
+import { OAuthRepository } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.repository';
+import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
+import { AnnouncementsRepository } from '@gitroom/nestjs-libraries/database/prisma/announcements/announcements.repository';
+import { AnnouncementsService } from '@gitroom/nestjs-libraries/database/prisma/announcements/announcements.service';
+import { FlowsRepository } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.repository';
+import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
+import { ReviewLinksRepository } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.repository';
+import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
+import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
+import { RepostRepository } from '@gitroom/nestjs-libraries/database/prisma/repost/repost.repository';
+import { RepostService } from '@gitroom/nestjs-libraries/database/prisma/repost/repost.service';
 
 @Global()
 @Module({
@@ -86,6 +100,8 @@ import { StartupMigrationService } from '@gitroom/nestjs-libraries/database/pris
     SetsRepository,
     ThirdPartyRepository,
     ThirdPartyService,
+    OAuthRepository,
+    OAuthService,
     VideoManager,
     CredentialRepository,
     CredentialService,
@@ -93,6 +109,18 @@ import { StartupMigrationService } from '@gitroom/nestjs-libraries/database/pris
     ProfileRepository,
     ProfileService,
     StartupMigrationService,
+    VectorInitService,
+    KnowledgeRepository,
+    KnowledgeService,
+    AnnouncementsRepository,
+    AnnouncementsService,
+    FlowsRepository,
+    FlowsService,
+    ReviewLinksRepository,
+    ReviewLinksService,
+    InstagramMessagingService,
+    RepostRepository,
+    RepostService,
   ],
   get exports() {
     return this.providers;

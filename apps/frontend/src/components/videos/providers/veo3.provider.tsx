@@ -4,6 +4,7 @@ import { useFormContext } from 'react-hook-form';
 import { useVideo } from '@gitroom/frontend/components/videos/video.context.wrapper';
 import { Textarea } from '@gitroom/react/form/textarea';
 import { MultiMediaComponent } from '@gitroom/frontend/components/media/media.component';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 export interface Voice {
   id: string;
@@ -14,6 +15,7 @@ export interface Voice {
 const VEO3Settings: FC = () => {
   const { register, watch, setValue, formState } = useFormContext();
   const { value } = useVideo();
+  const t = useT();
 
   const media = register('media', {
     value: [],
@@ -33,7 +35,7 @@ const VEO3Settings: FC = () => {
         })}
         error={formState?.errors?.prompt?.message}
       />
-      <div className="mb-[6px]">Images (max 3)</div>
+      <div className="mb-[6px]">{t('images_max_3', 'Images (max 3)')}</div>
       <MultiMediaComponent
         allData={[]}
         dummy={true}

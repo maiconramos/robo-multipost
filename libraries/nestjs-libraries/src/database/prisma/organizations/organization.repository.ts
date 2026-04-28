@@ -106,25 +106,34 @@ export class OrganizationRepository {
   getImpersonateUser(name: string) {
     return this._userOrg.model.userOrganization.findMany({
       where: {
-        user: {
-          OR: [
-            {
-              name: {
-                contains: name,
-              },
+        OR: [
+          {
+            organizationId: {
+              contains: name,
             },
-            {
-              email: {
-                contains: name,
-              },
+          },
+          {
+            user: {
+              OR: [
+                {
+                  name: {
+                    contains: name,
+                  },
+                },
+                {
+                  email: {
+                    contains: name,
+                  },
+                },
+                {
+                  id: {
+                    contains: name,
+                  },
+                },
+              ],
             },
-            {
-              id: {
-                contains: name,
-              },
-            },
-          ],
-        },
+          },
+        ],
       },
       select: {
         id: true,
@@ -411,24 +420,38 @@ export class OrganizationRepository {
     });
   }
 
-  getLateApiKey(orgId: string) {
+  getZernioApiKey(orgId: string) {
     return this._organization.model.organization.findUnique({
       where: { id: orgId },
-      select: { lateApiKey: true },
+      select: { zernioApiKey: true },
     });
   }
 
-  saveLateApiKey(orgId: string, encryptedKey: string) {
+  saveZernioApiKey(orgId: string, encryptedKey: string) {
     return this._organization.model.organization.update({
       where: { id: orgId },
-      data: { lateApiKey: encryptedKey },
+      data: { zernioApiKey: encryptedKey },
     });
   }
 
-  removeLateApiKey(orgId: string) {
+  removeZernioApiKey(orgId: string) {
     return this._organization.model.organization.update({
       where: { id: orgId },
-      data: { lateApiKey: null },
+      data: { zernioApiKey: null },
+    });
+  }
+
+  getShareZernioWithProfiles(orgId: string) {
+    return this._organization.model.organization.findUnique({
+      where: { id: orgId },
+      select: { shareZernioWithProfiles: true },
+    });
+  }
+
+  updateShareZernioWithProfiles(orgId: string, enabled: boolean) {
+    return this._organization.model.organization.update({
+      where: { id: orgId },
+      data: { shareZernioWithProfiles: enabled },
     });
   }
 }

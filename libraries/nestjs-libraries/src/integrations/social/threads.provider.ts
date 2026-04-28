@@ -1,6 +1,7 @@
 import {
   AnalyticsData,
   AuthTokenDetails,
+  ClientInformation,
   PostDetails,
   PostResponse,
   SocialProvider,
@@ -39,8 +40,16 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
         value: string;
       }
     | undefined {
+    console.log(body);
     if (body.includes('Error validating access token')) {
       return { type: 'refresh-token', value: 'Threads access token expired' };
+    }
+
+    if (body.includes('text must be at most 500 characters')) {
+      return {
+        type: 'bad-body',
+        value: 'Post text exceeds 500 characters limit',
+      };
     }
 
     return undefined;
@@ -68,12 +77,13 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  async generateAuthUrl() {
+  async generateAuthUrl(clientInformation?: ClientInformation) {
+    const clientId = clientInformation?.client_id || process.env.THREADS_APP_ID;
     const state = makeId(6);
     return {
       url:
         'https://www.threads.net/oauth/authorize' +
-        `?client_id=${process.env.THREADS_APP_ID}` +
+        `?client_id=${clientId}` +
         `&redirect_uri=${encodeURIComponent(
           `${
             process?.env.FRONTEND_URL?.indexOf('https') == -1
@@ -88,15 +98,22 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  async authenticate(params: {
-    code: string;
-    codeVerifier: string;
-    refresh?: string;
-  }) {
+  async authenticate(
+    params: {
+      code: string;
+      codeVerifier: string;
+      refresh?: string;
+    },
+    clientInformation?: ClientInformation
+  ) {
+    const clientId = clientInformation?.client_id || process.env.THREADS_APP_ID;
+    const clientSecret =
+      clientInformation?.client_secret || process.env.THREADS_APP_SECRET;
+
     const getAccessToken = await (
       await this.fetch(
         'https://graph.threads.net/oauth/access_token' +
-          `?client_id=${process.env.THREADS_APP_ID}` +
+          `?client_id=${clientId}` +
           `&redirect_uri=${encodeURIComponent(
             `${
               process?.env.FRONTEND_URL?.indexOf('https') == -1
@@ -105,7 +122,7 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
             }/integrations/social/threads`
           )}` +
           `&grant_type=authorization_code` +
-          `&client_secret=${process.env.THREADS_APP_SECRET}` +
+          `&client_secret=${clientSecret}` +
           `&code=${params.code}`
       )
     ).json();
@@ -114,7 +131,7 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
       await this.fetch(
         'https://graph.threads.net/access_token' +
           '?grant_type=th_exchange_token' +
-          `&client_secret=${process.env.THREADS_APP_SECRET}` +
+          `&client_secret=${clientSecret}` +
           `&access_token=${getAccessToken.access_token}`
       )
     ).json();
@@ -145,7 +162,16 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     ).json();
 
     if (status === 'ERROR') {
-      throw new Error(id);
+      // Meta retorna `error_message` no mesmo objeto. O comportamento
+      // upstream descartava esse campo e jogava apenas o id do container,
+      // o que mascarava o motivo real (video too long / cover invalida /
+      // codec nao suportado / aspect ratio fora do range, etc.). Mantemos
+      // o id no inicio da mensagem pra continuar localizavel nos logs.
+      throw new Error(
+        error_message
+          ? `Threads container ${id} failed: ${error_message}`
+          : `Threads container ${id} failed: status=ERROR (no error_message returned by Meta)`
+      );
     }
 
     if (status === 'FINISHED') {
@@ -270,7 +296,7 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
       form.append('quote_post_id', quoteId);
     }
 
-    const { id: contentId } = await (
+    const { id: contentId, ...all } = await (
       await this.fetch(`https://graph.threads.net/v1.0/${userId}/threads`, {
         method: 'POST',
         body: form,

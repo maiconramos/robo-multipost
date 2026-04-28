@@ -73,4 +73,4 @@ Key CLIs: `pnpm install`, `pnpm dev` (concurrent apps), `pnpm build`, `pnpm test
 
 ## Next Steps
 
-Dive into [architecture.md](./architecture.md) for layers (Controllers → Services → Utils). Check product specs in `AGENTS.md` or `CLAUDE.md` for AI features. Stakeholders: content teams at agencies. External: Stripe docs for billing, Temporal UI for monitoring. Contribute via [CONTRIBUTING.md](../CONTRIBUTING.md)!
+Dive into [architecture.md](./architecture.md) for layers (Controllers → Services → Utils). Check product specs in `../../docs/planning/agents.md` or `CLAUDE.md` for AI features. Stakeholders: content teams at agencies. External: Stripe docs for billing, Temporal UI for monitoring. Contribute via [CONTRIBUTING.md](../CONTRIBUTING.md)!

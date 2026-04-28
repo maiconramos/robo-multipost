@@ -1,38 +1,33 @@
 'use client';
 
-import React, { useCallback, useState } from 'react';
+import React, { useCallback, useMemo, useState } from 'react';
 import { useCredentialsList } from '@gitroom/frontend/hooks/use-credentials.hook';
+import { useZernioSettings } from '@gitroom/frontend/hooks/use-zernio-settings.hook';
 import { ProviderCredentialForm } from '@gitroom/frontend/components/settings/provider-credential-form.component';
+import { MetaCredentialsCard } from '@gitroom/frontend/components/settings/meta-credentials.component';
+import { ZernioCredentialsCard } from '@gitroom/frontend/components/settings/zernio-settings.component';
+import { useVariables } from '@gitroom/react/helpers/variable.context';
 import clsx from 'clsx';
+
+interface CallbackPathEntry {
+  label?: string;
+  path: string;
+}
 
 interface ProviderConfig {
   provider: string;
   label: string;
+  iconUrl: string;
   fields: { key: string; label: string; placeholder: string }[];
   docsUrl: string;
+  callbackPaths?: CallbackPathEntry[];
 }
 
 const PROVIDERS: ProviderConfig[] = [
   {
-    provider: 'facebook',
-    label: 'Facebook / Instagram / Threads',
-    fields: [
-      {
-        key: 'clientId',
-        label: 'Client ID',
-        placeholder: 'Cole o App ID do Facebook',
-      },
-      {
-        key: 'clientSecret',
-        label: 'Client Secret',
-        placeholder: 'Cole o App Secret do Facebook',
-      },
-    ],
-    docsUrl: 'https://developers.facebook.com',
-  },
-  {
     provider: 'tiktok',
     label: 'TikTok',
+    iconUrl: '/icons/platforms/tiktok.png',
     fields: [
       {
         key: 'clientId',
@@ -46,10 +41,12 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://developers.tiktok.com',
+    callbackPaths: [{ path: '/integrations/social/tiktok' }],
   },
   {
     provider: 'pinterest',
     label: 'Pinterest',
+    iconUrl: '/icons/platforms/pinterest.png',
     fields: [
       {
         key: 'clientId',
@@ -63,10 +60,12 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://developers.pinterest.com',
+    callbackPaths: [{ path: '/integrations/social/pinterest' }],
   },
   {
     provider: 'linkedin',
     label: 'LinkedIn',
+    iconUrl: '/icons/platforms/linkedin.png',
     fields: [
       {
         key: 'clientId',
@@ -80,27 +79,34 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://www.linkedin.com/developers',
+    callbackPaths: [
+      { label: 'Perfil pessoal', path: '/integrations/social/linkedin' },
+      { label: 'Página da empresa', path: '/integrations/social/linkedin-page' },
+    ],
   },
   {
     provider: 'twitter',
     label: 'Twitter / X',
+    iconUrl: '/icons/platforms/x.png',
     fields: [
       {
         key: 'clientId',
-        label: 'API Key',
-        placeholder: 'Cole a API Key do Twitter',
+        label: 'Consumer Key',
+        placeholder: 'Cole a Consumer Key do X',
       },
       {
         key: 'clientSecret',
-        label: 'API Secret',
-        placeholder: 'Cole o API Secret do Twitter',
+        label: 'Access Token',
+        placeholder: 'Cole o Access Token do X',
       },
     ],
     docsUrl: 'https://developer.twitter.com',
+    callbackPaths: [{ path: '/integrations/social/x' }],
   },
   {
     provider: 'youtube',
     label: 'YouTube / Google',
+    iconUrl: '/icons/platforms/youtube.png',
     fields: [
       {
         key: 'clientId',
@@ -114,10 +120,12 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://console.cloud.google.com',
+    callbackPaths: [{ path: '/integrations/social/youtube' }],
   },
   {
     provider: 'reddit',
     label: 'Reddit',
+    iconUrl: '/icons/platforms/reddit.png',
     fields: [
       {
         key: 'clientId',
@@ -131,10 +139,12 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://www.reddit.com/prefs/apps',
+    callbackPaths: [{ path: '/integrations/social/reddit' }],
   },
   {
     provider: 'discord',
     label: 'Discord',
+    iconUrl: '/icons/platforms/discord.png',
     fields: [
       {
         key: 'clientId',
@@ -153,10 +163,12 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://discord.com/developers',
+    callbackPaths: [{ path: '/integrations/social/discord' }],
   },
   {
     provider: 'slack',
     label: 'Slack',
+    iconUrl: '/icons/platforms/slack.png',
     fields: [
       {
         key: 'clientId',
@@ -175,6 +187,7 @@ const PROVIDERS: ProviderConfig[] = [
       },
     ],
     docsUrl: 'https://api.slack.com',
+    callbackPaths: [{ path: '/integrations/social/slack' }],
   },
 ];
 
@@ -184,6 +197,21 @@ const ProviderCard: React.FC<{
   onMutate: () => void;
 }> = ({ config, configured, onMutate }) => {
   const [expanded, setExpanded] = useState(false);
+  const { frontEndUrl } = useVariables();
+
+  const callbacks = useMemo(() => {
+    if (!config.callbackPaths || config.callbackPaths.length === 0)
+      return undefined;
+    const base =
+      frontEndUrl ||
+      (typeof window !== 'undefined' ? window.location.origin : '');
+    if (!base) return undefined;
+    const trimmed = base.replace(/\/$/, '');
+    return config.callbackPaths.map((cb) => ({
+      label: cb.label,
+      url: `${trimmed}${cb.path}`,
+    }));
+  }, [frontEndUrl, config.callbackPaths]);
 
   const toggle = useCallback(() => {
     setExpanded((prev) => !prev);
@@ -196,6 +224,11 @@ const ProviderCard: React.FC<{
         onClick={toggle}
       >
         <div className="flex items-center gap-[12px]">
+          <img
+            src={config.iconUrl}
+            alt={config.label}
+            className="w-[24px] h-[24px] object-contain"
+          />
           <div className="text-[15px] font-[500]">{config.label}</div>
           {configured ? (
             <span className="inline-flex items-center gap-[6px] rounded-full bg-customColor42/20 text-customColor42 px-[10px] py-[2px] text-[12px]">
@@ -235,6 +268,7 @@ const ProviderCard: React.FC<{
             fields={config.fields}
             label={config.label}
             docsUrl={config.docsUrl}
+            callbacks={callbacks}
             onSaved={onMutate}
             onDeleted={onMutate}
           />
@@ -246,10 +280,12 @@ const ProviderCard: React.FC<{
 
 export const CredentialsSettingsSection: React.FC = () => {
   const { data, isLoading, mutate } = useCredentialsList();
+  const { data: zernio, mutate: mutateZernio } = useZernioSettings();
 
   const handleMutate = useCallback(() => {
     mutate();
-  }, [mutate]);
+    mutateZernio();
+  }, [mutate, mutateZernio]);
 
   if (isLoading) {
     return (
@@ -272,6 +308,10 @@ export const CredentialsSettingsSection: React.FC = () => {
         variáveis de ambiente globais.
       </div>
       <div className="my-[16px] mt-[16px] flex flex-col gap-[8px]">
+        <MetaCredentialsCard
+          configured={configuredMap.get('facebook') || false}
+          onMutate={handleMutate}
+        />
         {PROVIDERS.map((config) => (
           <ProviderCard
             key={config.provider}
@@ -280,6 +320,10 @@ export const CredentialsSettingsSection: React.FC = () => {
             onMutate={handleMutate}
           />
         ))}
+        <ZernioCredentialsCard
+          configured={zernio?.configured ?? false}
+          onMutate={handleMutate}
+        />
       </div>
     </div>
   );

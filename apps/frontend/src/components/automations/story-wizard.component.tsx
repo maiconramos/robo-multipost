@@ -1,0 +1,712 @@
+'use client';
+
+import { FC, useCallback, useEffect, useMemo, useState } from 'react';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
+import { useIntegrationStories } from '@gitroom/frontend/components/automations/hooks/use-flows';
+import { useRouter } from 'next/navigation';
+import { useToaster } from '@gitroom/react/toaster/toaster';
+import { WizardPhonePreview } from '@gitroom/frontend/components/automations/wizard-phone-preview.component';
+import { AddLinkModal } from '@gitroom/frontend/components/automations/add-link-modal.component';
+
+interface Props {
+  flowId?: string;
+  initialFlow?: any;
+}
+
+const FOLLOW_GATE_DEFAULT_PT =
+  'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
+
+function safeJson(data?: string): Record<string, any> {
+  if (!data) return {};
+  try {
+    return JSON.parse(data);
+  } catch {
+    return {};
+  }
+}
+
+const RadioDot: FC<{ active: boolean }> = ({ active }) => (
+  <div
+    className={`w-[16px] h-[16px] rounded-full border-2 flex items-center justify-center flex-shrink-0 ${
+      active ? 'border-btnPrimary' : 'border-customColor18'
+    }`}
+  >
+    {active && <div className="w-[8px] h-[8px] rounded-full bg-btnPrimary" />}
+  </div>
+);
+
+export const StoryWizardComponent: FC<Props> = ({ flowId, initialFlow }) => {
+  const t = useT();
+  const fetchApi = useFetch();
+  const router = useRouter();
+  const toaster = useToaster();
+  const { data: integrations } = useIntegrationList();
+  const isEditing = !!flowId;
+
+  const [name, setName] = useState('');
+  const [integrationId, setIntegrationId] = useState('');
+  const [storyMode, setStoryMode] = useState<'all' | 'specific' | 'next_publication'>('all');
+  const [selectedStoryIds, setSelectedStoryIds] = useState<string[]>([]);
+  const [keywordMode, setKeywordMode] = useState<'any_word_or_reaction' | 'specific'>('any_word_or_reaction');
+  const [keywords, setKeywords] = useState<string[]>([]);
+  const [keywordInput, setKeywordInput] = useState('');
+  const [requireFollow, setRequireFollow] = useState(false);
+  const [followGateMessage, setFollowGateMessage] = useState(
+    FOLLOW_GATE_DEFAULT_PT
+  );
+  const [dmMessage, setDmMessage] = useState('');
+  const [dmButtonText, setDmButtonText] = useState('');
+  const [dmButtonUrl, setDmButtonUrl] = useState('');
+  const [showAddLink, setShowAddLink] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [activePreviewTab, setActivePreviewTab] = useState<
+    'post' | 'comments' | 'dm' | 'story'
+  >('story');
+  const [messagingState, setMessagingState] = useState<{
+    hasSystemToken: boolean;
+    instagramTokens: Array<{ igUserId: string; username?: string }>;
+  } | null>(null);
+
+  // Fetch messaging tokens once to know if the selected integration can DM.
+  useEffect(() => {
+    let cancelled = false;
+    fetchApi('/credentials/facebook/messaging-tokens')
+      .then((res) => (res.ok ? res.json() : null))
+      .then((data) => {
+        if (cancelled) return;
+        if (data) {
+          setMessagingState({
+            hasSystemToken: !!data.hasSystemToken,
+            instagramTokens: Array.isArray(data.instagramTokens)
+              ? data.instagramTokens
+              : [],
+          });
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setMessagingState(null);
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [fetchApi]);
+
+  useEffect(() => {
+    if (!initialFlow) return;
+    setName(initialFlow.name || '');
+    setIntegrationId(initialFlow.integrationId || initialFlow.integration?.id || '');
+    const triggerNode = initialFlow.nodes?.find((n: any) => n.type === 'TRIGGER');
+    const dmNode = initialFlow.nodes?.find((n: any) => n.type === 'SEND_DM');
+    const triggerCfg = safeJson(triggerNode?.data);
+    const dmCfg = safeJson(dmNode?.data);
+
+    if (triggerCfg.mode === 'next_publication') {
+      setStoryMode('next_publication');
+    } else if (triggerCfg.storyIds?.length) {
+      setStoryMode('specific');
+      setSelectedStoryIds(triggerCfg.storyIds);
+    } else {
+      setStoryMode('all');
+    }
+    if (triggerCfg.keywords?.length) {
+      setKeywordMode('specific');
+      setKeywords(triggerCfg.keywords);
+    }
+    if (typeof triggerCfg.requireFollow === 'boolean') {
+      setRequireFollow(triggerCfg.requireFollow);
+    }
+    if (typeof triggerCfg.followGateMessage === 'string') {
+      setFollowGateMessage(triggerCfg.followGateMessage);
+    }
+    if (dmCfg.message) setDmMessage(dmCfg.message);
+    if (dmCfg.buttonText) setDmButtonText(dmCfg.buttonText);
+    if (dmCfg.buttonUrl) setDmButtonUrl(dmCfg.buttonUrl);
+  }, [initialFlow]);
+
+  useEffect(() => {
+    if (dmMessage) {
+      setActivePreviewTab('dm');
+    } else {
+      setActivePreviewTab('story');
+    }
+  }, [dmMessage]);
+
+  const instagramIntegrations = useMemo(() => {
+    if (!Array.isArray(integrations)) return [];
+    return integrations.filter((i: any) => i.identifier === 'instagram');
+  }, [integrations]);
+
+  const selectedIntegration = useMemo(
+    () => instagramIntegrations.find((ig: any) => ig.id === integrationId) || null,
+    [instagramIntegrations, integrationId]
+  );
+
+  const { data: stories, isLoading: storiesLoading } = useIntegrationStories(
+    storyMode === 'specific' ? integrationId || null : null
+  );
+
+  const selectedStory = useMemo(() => {
+    if (!Array.isArray(stories) || selectedStoryIds.length === 0) return null;
+    return stories.find((s: any) => s.id === selectedStoryIds[0]) || null;
+  }, [stories, selectedStoryIds]);
+
+  const toggleStory = (id: string) => {
+    setSelectedStoryIds((prev) =>
+      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+    );
+  };
+
+  const addKeyword = () => {
+    const v = keywordInput.trim();
+    if (!v) return;
+    if (!keywords.includes(v)) setKeywords([...keywords, v]);
+    setKeywordInput('');
+  };
+
+  const removeKeyword = (k: string) => setKeywords(keywords.filter((x) => x !== k));
+
+  const canSave =
+    !!name.trim() && !!integrationId && dmMessage.trim().length > 0;
+
+  const handleSave = useCallback(async () => {
+    if (!canSave) return;
+    setSaving(true);
+    try {
+      const body: Record<string, any> = {
+        name: name.trim(),
+        integrationId,
+        triggerType: 'story_reply',
+        postMode: storyMode,
+        matchReactions: keywordMode === 'any_word_or_reaction',
+        requireFollow,
+      };
+      if (requireFollow && followGateMessage.trim()) {
+        body.followGateMessage = followGateMessage.trim();
+      }
+      if (storyMode === 'specific' && selectedStoryIds.length > 0) {
+        body.storyIds = selectedStoryIds;
+      }
+      if (keywordMode === 'specific' && keywords.length > 0) {
+        body.keywords = keywords;
+      }
+      if (dmMessage.trim()) {
+        body.dmMessage = dmMessage.trim();
+        if (dmButtonText.trim() && dmButtonUrl.trim()) {
+          body.dmButtonText = dmButtonText.trim();
+          body.dmButtonUrl = dmButtonUrl.trim();
+        }
+      }
+
+      const url = isEditing
+        ? `/flows/${flowId}/quick-update`
+        : '/flows/quick-create';
+      const method = isEditing ? 'PUT' : 'POST';
+      const res = await fetchApi(url, { method, body: JSON.stringify(body) });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        toaster.show(
+          data.message || t('failed_to_create_flow', 'Falha ao criar automacao'),
+          'warning'
+        );
+        return;
+      }
+      const flow = await res.json();
+      toaster.show(
+        isEditing
+          ? t('flow_updated', 'Automacao atualizada com sucesso')
+          : t('flow_created', 'Automacao criada com sucesso'),
+        'success'
+      );
+      router.push(`/automacoes/${flow.id}`);
+    } catch {
+      toaster.show(
+        t('failed_to_create_flow', 'Falha ao criar automacao'),
+        'warning'
+      );
+    } finally {
+      setSaving(false);
+    }
+  }, [
+    canSave,
+    name,
+    integrationId,
+    storyMode,
+    selectedStoryIds,
+    keywordMode,
+    keywords,
+    requireFollow,
+    followGateMessage,
+    dmMessage,
+    dmButtonText,
+    dmButtonUrl,
+    isEditing,
+    flowId,
+    fetchApi,
+    router,
+    toaster,
+    t,
+  ]);
+
+  const sectionClass = 'flex flex-col gap-[12px]';
+  const sectionTitleClass = 'text-[13px] font-semibold text-textColor';
+  const radioRowClass =
+    'flex items-start gap-[10px] p-[12px] rounded-[6px] border border-fifth cursor-pointer hover:bg-boxHover';
+
+  // Check if the selected integration is covered by an available messaging
+  // token (either System User Token OR a per-account entry). Shows a banner
+  // when not configured. Only renders the banner after we've fetched state
+  // and an integration is selected, to avoid flashing a false warning.
+  const needsMessagingConfig = (() => {
+    if (!messagingState || !selectedIntegration) return false;
+    if (messagingState.hasSystemToken) return false;
+    const internalId = (selectedIntegration as any)?.internalId;
+    if (!internalId) return true;
+    return !messagingState.instagramTokens.some(
+      (t) => t.igUserId === internalId
+    );
+  })();
+
+  return (
+    <div className="flex flex-1 min-h-0">
+      {/* Left: form (internal scroll) */}
+      <div className="flex-1 overflow-y-auto p-[24px] max-w-[600px] flex flex-col gap-[24px]">
+        {/* Header */}
+        <div>
+          <h1 className="text-[20px] font-semibold text-textColor">
+            {isEditing
+              ? t('story_wizard_title_edit', 'Editar automacao de story')
+              : t('story_wizard_title', 'Nova automacao de story')}
+          </h1>
+          <p className="text-[12px] text-customColor18 mt-[4px]">
+            {t(
+              'story_wizard_subtitle',
+              'Responda automaticamente via DM quando alguem responder seu story'
+            )}
+          </p>
+        </div>
+
+        {/* Messaging token banner */}
+        {needsMessagingConfig && (
+          <div className="flex items-start gap-[10px] rounded-[6px] border border-customColor13/40 bg-customColor13/10 px-[14px] py-[12px]">
+            <svg
+              width="18"
+              height="18"
+              viewBox="0 0 24 24"
+              fill="none"
+              stroke="currentColor"
+              strokeWidth="2"
+              className="text-customColor13 flex-shrink-0 mt-[1px]"
+            >
+              <path d="M12 9v4M12 17h.01M10.29 3.86L1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0z" />
+            </svg>
+            <div className="flex-1">
+              <div className="text-[12px] text-textColor font-[500]">
+                {t(
+                  'story_wizard_messaging_banner',
+                  'Para responder via DM a stories, configure um token de messaging em Settings > Credenciais.'
+                )}
+              </div>
+              <button
+                type="button"
+                onClick={() => window.open('/settings', '_blank')}
+                className="mt-[6px] text-[11px] text-btnPrimary hover:opacity-80"
+              >
+                {t('story_wizard_messaging_configure', 'Configurar agora →')}
+              </button>
+            </div>
+          </div>
+        )}
+
+        {/* Name + integration */}
+        <div className={sectionClass}>
+          <label className="text-[12px] text-customColor18">
+            {t('flow_name', 'Nome')}
+          </label>
+          <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] flex items-center">
+            <input
+              type="text"
+              className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px]"
+              placeholder={t(
+                'story_flow_name_placeholder',
+                'Minha automacao de story'
+              )}
+              value={name}
+              onChange={(e) => setName(e.target.value)}
+            />
+          </div>
+
+          {!isEditing && (
+            <>
+              <label className="text-[12px] text-customColor18 mt-[6px]">
+                {t('select_instagram_account', 'Conta do Instagram')}
+              </label>
+              <div className="bg-newBgColorInner h-[42px] border-newTableBorder border rounded-[8px] flex items-center">
+                <select
+                  className="h-full bg-transparent outline-none flex-1 text-[14px] text-textColor px-[16px] appearance-none"
+                  value={integrationId}
+                  onChange={(e) => setIntegrationId(e.target.value)}
+                >
+                  <option value="">
+                    {t('select_account', 'Selecione uma conta...')}
+                  </option>
+                  {instagramIntegrations.map((ig: any) => (
+                    <option key={ig.id} value={ig.id}>
+                      {ig.name || ig.display || ig.id}
+                    </option>
+                  ))}
+                </select>
+              </div>
+            </>
+          )}
+        </div>
+
+        {/* Story mode */}
+        <div className={sectionClass}>
+          <h3 className={sectionTitleClass}>
+            {t('story_section_when', 'Quando alguem responder')}
+          </h3>
+          <label
+            className={radioRowClass}
+            onClick={() => setStoryMode('all')}
+          >
+            <RadioDot active={storyMode === 'all'} />
+            <div>
+              <div className="text-[13px] text-textColor">
+                {t('story_mode_all', 'Qualquer story')}
+              </div>
+              <div className="text-[11px] text-customColor18 mt-[2px]">
+                {t(
+                  'story_mode_all_hint',
+                  'A automacao vai reagir a qualquer story publicado'
+                )}
+              </div>
+            </div>
+          </label>
+          <label
+            className={radioRowClass}
+            onClick={() => setStoryMode('next_publication')}
+          >
+            <RadioDot active={storyMode === 'next_publication'} />
+            <div>
+              <div className="text-[13px] text-textColor">
+                {t('story_mode_next', 'Proximo story')}
+              </div>
+              <div className="text-[11px] text-customColor18 mt-[2px]">
+                {t(
+                  'story_mode_next_hint',
+                  'Vincula ao proximo story publicado nesta conta'
+                )}
+              </div>
+            </div>
+          </label>
+          <label
+            className={radioRowClass}
+            onClick={() => setStoryMode('specific')}
+          >
+            <RadioDot active={storyMode === 'specific'} />
+            <div>
+              <div className="text-[13px] text-textColor">
+                {t('story_mode_specific', 'Story especifico')}
+              </div>
+              <div className="text-[11px] text-customColor18 mt-[2px]">
+                {t(
+                  'story_mode_specific_hint',
+                  'Informe o ID do story (visivel no Meta Business Suite)'
+                )}
+              </div>
+              {storyMode === 'specific' && (
+                <div onClick={(e) => e.stopPropagation()} className="mt-[10px]">
+                  {!integrationId ? (
+                    <p className="text-[11px] text-customColor18">
+                      {t(
+                        'story_select_account_first',
+                        'Selecione uma conta do Instagram primeiro'
+                      )}
+                    </p>
+                  ) : storiesLoading ? (
+                    <p className="text-[11px] text-customColor18">
+                      {t('loading_stories', 'Carregando stories...')}
+                    </p>
+                  ) : !stories?.length ? (
+                    <p className="text-[11px] text-customColor18">
+                      {t(
+                        'no_active_stories',
+                        'Nenhum story ativo nas ultimas 24h nesta conta.'
+                      )}
+                    </p>
+                  ) : (
+                    <div className="grid grid-cols-4 gap-[6px]">
+                      {(stories as any[]).map((s: any) => {
+                        const isSelected = selectedStoryIds.includes(s.id);
+                        const thumb = s.thumbnailUrl || s.mediaUrl;
+                        return (
+                          <div
+                            key={s.id}
+                            onClick={() => toggleStory(s.id)}
+                            className={`relative aspect-[9/16] rounded-[6px] overflow-hidden cursor-pointer border-2 ${
+                              isSelected ? 'border-btnPrimary' : 'border-transparent'
+                            }`}
+                          >
+                            {thumb ? (
+                              // eslint-disable-next-line @next/next/no-img-element
+                              <img
+                                src={thumb}
+                                alt=""
+                                className="w-full h-full object-cover"
+                              />
+                            ) : (
+                              <div className="w-full h-full bg-sixth" />
+                            )}
+                            {s.mediaType === 'VIDEO' && (
+                              <div className="absolute top-[4px] right-[4px]">
+                                <svg
+                                  width="12"
+                                  height="12"
+                                  viewBox="0 0 24 24"
+                                  fill="white"
+                                >
+                                  <rect x="2" y="2" width="20" height="20" rx="3" />
+                                  <polygon
+                                    points="10,8 16,12 10,16"
+                                    fill="#000"
+                                  />
+                                </svg>
+                              </div>
+                            )}
+                            {isSelected && (
+                              <div className="absolute inset-0 bg-btnPrimary/20 flex items-center justify-center">
+                                <svg
+                                  width="16"
+                                  height="16"
+                                  viewBox="0 0 24 24"
+                                  fill="none"
+                                  stroke="white"
+                                  strokeWidth="3"
+                                >
+                                  <polyline points="20 6 9 17 4 12" />
+                                </svg>
+                              </div>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </label>
+        </div>
+
+        {/* Keyword mode */}
+        <div className={sectionClass}>
+          <h3 className={sectionTitleClass}>
+            {t('story_section_contains', 'E essa resposta contem')}
+          </h3>
+          <label
+            className={radioRowClass}
+            onClick={() => setKeywordMode('any_word_or_reaction')}
+          >
+            <RadioDot active={keywordMode === 'any_word_or_reaction'} />
+            <div className="text-[13px] text-textColor">
+              {t(
+                'story_keyword_mode_any',
+                'Qualquer palavra-chave ou reacao'
+              )}
+            </div>
+          </label>
+          <label
+            className={radioRowClass}
+            onClick={() => setKeywordMode('specific')}
+          >
+            <RadioDot active={keywordMode === 'specific'} />
+            <div className="w-full">
+              <div className="text-[13px] text-textColor">
+                {t(
+                  'story_keyword_mode_specific',
+                  'Palavras ou reacoes especificas'
+                )}
+              </div>
+              {keywordMode === 'specific' && (
+                <div onClick={(e) => e.stopPropagation()}>
+                  <div className="flex gap-[6px] mt-[8px]">
+                    <input
+                      type="text"
+                      value={keywordInput}
+                      onChange={(e) => setKeywordInput(e.target.value)}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') {
+                          e.preventDefault();
+                          addKeyword();
+                        }
+                      }}
+                      className="flex-1 bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[6px] outline-none"
+                      placeholder={t(
+                        'story_keywords_placeholder',
+                        'Adicionar palavra-chave'
+                      )}
+                    />
+                    <button
+                      type="button"
+                      onClick={addKeyword}
+                      className="rounded-[4px] bg-btnPrimary text-white text-[11px] px-[10px] py-[6px]"
+                    >
+                      {t('add', 'Adicionar')}
+                    </button>
+                  </div>
+                  <div className="flex flex-wrap gap-[6px] mt-[8px]">
+                    {keywords.map((k) => (
+                      <span
+                        key={k}
+                        className="inline-flex items-center gap-[6px] rounded-[12px] bg-btnSimple border border-fifth px-[8px] py-[2px] text-[11px] text-textColor"
+                      >
+                        {k}
+                        <button
+                          type="button"
+                          onClick={() => removeKeyword(k)}
+                          className="text-customColor18 hover:text-textColor"
+                        >
+                          ×
+                        </button>
+                      </span>
+                    ))}
+                  </div>
+                </div>
+              )}
+            </div>
+          </label>
+        </div>
+
+        {/* DM section */}
+        <div className={sectionClass}>
+          <h3 className={sectionTitleClass}>
+            {t('story_section_dm', 'A DM com o link sera enviada')}
+          </h3>
+          <textarea
+            value={dmMessage}
+            onChange={(e) => setDmMessage(e.target.value)}
+            rows={4}
+            placeholder={t(
+              'story_dm_placeholder',
+              'Escreva uma mensagem...'
+            )}
+            className="w-full bg-newBgColorInner border border-newTableBorder rounded-[8px] text-[13px] text-textColor px-[14px] py-[10px] outline-none resize-none"
+          />
+          <button
+            type="button"
+            onClick={() => setShowAddLink(true)}
+            className="self-start rounded-[4px] border border-dashed border-fifth text-[12px] text-textColor px-[14px] py-[8px] hover:bg-boxHover"
+          >
+            {dmButtonText && dmButtonUrl
+              ? `${dmButtonText} · ${dmButtonUrl}`
+              : `+ ${t('story_add_link', 'Adicionar um link')}`}
+          </button>
+        </div>
+
+        {/* Extras */}
+        <div className={sectionClass}>
+          <h3 className={sectionTitleClass}>
+            {t('story_section_extras', 'Outros recursos para automatizar')}
+          </h3>
+          <div className="rounded-[6px] border border-fifth">
+            <label className="flex items-center justify-between gap-[12px] p-[10px] cursor-pointer">
+              <div>
+                <div className="text-[13px] text-textColor">
+                  {t(
+                    'story_require_follow',
+                    'Pedir para seguir antes de enviar'
+                  )}
+                </div>
+                <div className="text-[11px] text-customColor18 mt-[2px]">
+                  {t(
+                    'story_require_follow_hint',
+                    'Quando o remetente não seguir a conta, responde com uma mensagem pedindo para seguir.'
+                  )}
+                </div>
+              </div>
+              <input
+                type="checkbox"
+                checked={requireFollow}
+                onChange={(e) => setRequireFollow(e.target.checked)}
+                className="h-[18px] w-[18px] accent-btnPrimary cursor-pointer"
+              />
+            </label>
+            {requireFollow && (
+              <div className="border-t border-fifth p-[10px] flex flex-col gap-[6px]">
+                <label className="text-[11px] text-customColor18">
+                  {t(
+                    'story_follow_gate_label',
+                    'Mensagem enviada para quem ainda não segue'
+                  )}
+                </label>
+                <textarea
+                  value={followGateMessage}
+                  onChange={(e) => setFollowGateMessage(e.target.value)}
+                  rows={3}
+                  placeholder={t(
+                    'story_follow_gate_placeholder',
+                    FOLLOW_GATE_DEFAULT_PT
+                  )}
+                  className="w-full bg-newBgColorInner border border-newTableBorder rounded-[6px] text-[12px] text-textColor px-[10px] py-[8px] outline-none resize-none"
+                />
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Save */}
+        <div className="flex gap-[8px] pt-[8px]">
+          <button
+            type="button"
+            onClick={handleSave}
+            disabled={!canSave || saving}
+            className="rounded-[4px] bg-btnPrimary px-[16px] py-[10px] text-[13px] text-white hover:opacity-80 disabled:opacity-50"
+          >
+            {saving
+              ? t('saving', 'Salvando...')
+              : isEditing
+              ? t('save', 'Salvar')
+              : t('create', 'Criar')}
+          </button>
+          <button
+            type="button"
+            onClick={() => router.push('/automacoes')}
+            className="rounded-[4px] border border-fifth bg-btnSimple px-[16px] py-[10px] text-[13px] text-textColor hover:opacity-80"
+          >
+            {t('cancel', 'Cancelar')}
+          </button>
+        </div>
+      </div>
+
+      {/* Right: preview (fixed; the left column scrolls internally) */}
+      <div className="hidden lg:flex flex-1 items-center justify-center bg-newBgColor border-l border-fifth p-[24px]">
+        <WizardPhonePreview
+          variant="story"
+          storyMode={storyMode}
+          storyThumb={selectedStory?.thumbnailUrl || selectedStory?.mediaUrl}
+          dmMessage={dmMessage}
+          dmButtonText={dmButtonText}
+          dmButtonUrl={dmButtonUrl}
+          commenterName="usuario"
+          integrationPicture={(selectedIntegration as any)?.picture}
+          integrationName={(selectedIntegration as any)?.name}
+          activeTab={activePreviewTab}
+          onTabChange={(t) => setActivePreviewTab(t)}
+        />
+      </div>
+
+      <AddLinkModal
+        open={showAddLink}
+        initialText={dmButtonText}
+        initialUrl={dmButtonUrl}
+        onClose={() => setShowAddLink(false)}
+        onSave={(text, url) => {
+          setDmButtonText(text);
+          setDmButtonUrl(url);
+        }}
+      />
+    </div>
+  );
+};

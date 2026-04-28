@@ -48,6 +48,16 @@ export class IntegrationsController {
     private _profileService: ProfileService
   ) {}
 
+  @Post('/provider/:id/connect')
+  @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
+  async saveProviderPage(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string,
+    @Body() body: any
+  ) {
+    return this._integrationService.saveProviderPage(org.id, id, body);
+  }
+
   @Get('/:identifier/internal-plugs')
   getInternalPlugs(@Param('identifier') identifier: string) {
     return this._integrationManager.getInternalPlugs(identifier);
@@ -212,31 +222,38 @@ export class IntegrationsController {
     const integrationProvider =
       this._integrationManager.getSocialIntegration(integration);
 
-    const isLateProvider = integration.startsWith('late-');
+    const isZernioProvider = integration.startsWith('zernio-');
 
-    if (integrationProvider.externalUrl && !externalUrl && !isLateProvider) {
+    if (integrationProvider.externalUrl && !externalUrl && !isZernioProvider) {
       throw new Error('Missing external url');
     }
 
     try {
       let getExternalUrl: { client_id: string; client_secret: string; instanceUrl: string } | undefined;
 
-      if (isLateProvider) {
-        let lateApiKey: string | null = null;
+      if (isZernioProvider) {
+        let zernioApiKey: string | null = null;
         if (profile?.id) {
-          // When a profile is active, only use that profile's key — no fallback to org
-          lateApiKey = await this._profileService.getDecryptedLateApiKey(profile.id);
+          zernioApiKey = await this._profileService.getDecryptedZernioApiKey(profile.id);
+          // If profile has no key, check if org shares Zernio with profiles
+          if (!zernioApiKey) {
+            const shareSettings =
+              await this._organizationService.getShareZernioWithProfiles(org.id);
+            if (shareSettings?.shareZernioWithProfiles) {
+              zernioApiKey = await this._organizationService.getDecryptedZernioApiKey(org.id);
+            }
+          }
         } else {
           // No active profile — use org-level key
-          lateApiKey = await this._organizationService.getDecryptedLateApiKey(org.id);
+          zernioApiKey = await this._organizationService.getDecryptedZernioApiKey(org.id);
         }
-        if (!lateApiKey) {
-          throw new Error('Late API key not configured. Go to Settings > Late to configure it.');
+        if (!zernioApiKey) {
+          throw new Error('Zernio API key not configured. Go to Settings > Zernio to configure it.');
         }
         getExternalUrl = {
           client_id: '',
           client_secret: '',
-          instanceUrl: lateApiKey,
+          instanceUrl: zernioApiKey,
         };
       } else if (integrationProvider.externalUrl) {
         getExternalUrl = {
@@ -253,11 +270,35 @@ export class IntegrationsController {
           profile?.id
         );
         if (dbCreds) {
-          getExternalUrl = {
-            client_id: dbCreds.clientId || '',
-            client_secret: dbCreds.clientSecret || '',
-            instanceUrl: '',
-          };
+          // Threads uses a separate Meta app (Threads App) with its own
+          // ID/Secret, stored under the Threads section of the Meta
+          // credentials form. Fall back to the Facebook App pair only when
+          // the workspace hasn't filled in the Threads-specific fields.
+          if (integration === 'threads') {
+            getExternalUrl = {
+              client_id: dbCreds.threadsAppId || dbCreds.clientId || '',
+              client_secret:
+                dbCreds.threadsAppSecret || dbCreds.clientSecret || '',
+              instanceUrl: '',
+            };
+          } else if (integration === 'instagram-standalone') {
+            // Instagram Login API usa o App do produto "Instagram" (Instagram
+            // App ID/Secret). Se o workspace nao preencheu os campos dedicados,
+            // cai nos campos gerais (clientId/clientSecret do Facebook) como
+            // fallback — mesmo App Meta serve se tiver os dois produtos.
+            getExternalUrl = {
+              client_id: dbCreds.instagramAppId || dbCreds.clientId || '',
+              client_secret:
+                dbCreds.instagramAppSecret || dbCreds.clientSecret || '',
+              instanceUrl: '',
+            };
+          } else {
+            getExternalUrl = {
+              client_id: dbCreds.clientId || '',
+              client_secret: dbCreds.clientSecret || '',
+              instanceUrl: '',
+            };
+          }
         }
       }
 

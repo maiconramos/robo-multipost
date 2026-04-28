@@ -11,7 +11,7 @@ The Documentation Writer agent ensures the codebase remains accessible, maintain
 - **Maintain architecture docs**: Update overviews of patterns (Factory, Repository, Service Layer, Controller) and layer-specific docs.
 - **Document configurations**: For NestJS modules, Prisma schemas, environment vars, and deployment setups.
 - **Review PRs for doc completeness**: Flag missing docs on new symbols, endpoints, or breaking changes.
-- **Onboard with contributor guides**: Update AGENTS.md, CONTRIBUTING.md with agent-specific workflows.
+- **Onboard with contributor guides**: Update ../../docs/planning/agents.md, CONTRIBUTING.md with agent-specific workflows.
 
 ## Best Practices
 
@@ -27,7 +27,7 @@ The Documentation Writer agent ensures the codebase remains accessible, maintain
 
 ## Key Project Resources
 
-- **[AGENTS.md](AGENTS.md)**: Agent handbook and collaboration protocols.
+- **[../../docs/planning/agents.md](../../docs/planning/agents.md)**: Agent handbook and collaboration protocols.
 - **[CONTRIBUTING.md](CONTRIBUTING.md)**: Onboarding and PR guidelines (update as needed).
 - **[README.md](README.md)**: Root project overview.
 - **Architecture Docs**: Propose `docs/architecture/` folder for layer diagrams.
@@ -112,7 +112,7 @@ The Documentation Writer agent ensures the codebase remains accessible, maintain
 3. **Draft docs**: Fill README templates; add JSDoc; generate Swagger previews.
 4. **Validate**: Check examples compile/run; ensure links resolve.
 5. **Review**: Ping code-owner agents (e.g., backend-dev); iterate on feedback.
-6. **Update index**: Link new docs in root README/AGENTS.md.
+6. **Update index**: Link new docs in root README/../../docs/planning/agents.md.
 7. **Commit/PR**: Use conventional commits (e.g., `docs(api): add webhook endpoints`).
 
 ## Hand-off Notes

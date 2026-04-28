@@ -6,7 +6,7 @@ import {
   useLaunchStore,
 } from '@gitroom/frontend/components/new-launch/store';
 import clsx from 'clsx';
-import Image from 'next/image';
+import SafeImage from '@gitroom/react/helpers/safe.image';
 import { PlatformIconBadge } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import { useShallow } from 'zustand/react/shallow';
 import { GlobalIcon } from '@gitroom/frontend/components/ui/icons';
@@ -17,7 +17,7 @@ import {
   useModals,
 } from '@gitroom/frontend/components/layout/new-modal';
 
-export function useHasScroll(ref: RefObject<HTMLElement>): boolean {
+export function useHasScroll(ref: RefObject<HTMLElement | null>): boolean {
   const [hasHorizontalScroll, setHasHorizontalScroll] = useState(false);
 
   useEffect(() => {
@@ -149,7 +149,7 @@ export const SelectCurrent: FC = () => {
                   'relative w-full h-full rounded-full flex justify-center items-center filter transition-all duration-500'
                 )}
               >
-                <Image
+                <SafeImage
                   src={integration.picture || '/no-picture.jpg'}
                   className="rounded-full min-w-[26px]"
                   alt={integration.identifier}

@@ -45,7 +45,7 @@ Derive from codebase: Factory-like HOCs for providers; interface-driven props; h
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) - Agent collaboration guidelines.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) - Agent collaboration guidelines.
 - [Contributor Guide](../CONTRIBUTING.md) - Onboarding and standards.
 - [Agent Handbook](../docs/agents-handbook.md) - Multi-agent workflows.
 - [Frontend Docs](../docs/frontend.md) - Next.js setup, env vars (if exists; create if missing).
@@ -119,7 +119,7 @@ No strict MVC; component-centric with backend integration via services (import f
 5. [ ] Request review from Designer/Backend; address feedback.
 6. [ ] Update stories/docs; add tests.
 7. [ ] Merge and monitor (Sentry errors).
-8. [ ] Capture learnings in `AGENTS.md`.
+8. [ ] Capture learnings in `../../docs/planning/agents.md`.
 
 ## Hand-off Notes
 

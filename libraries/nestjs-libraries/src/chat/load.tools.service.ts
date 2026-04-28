@@ -6,6 +6,7 @@ import { pStore } from '@gitroom/nestjs-libraries/chat/mastra.store';
 import { array, object, string } from 'zod';
 import { ModuleRef } from '@nestjs/core';
 import { toolList } from '@gitroom/nestjs-libraries/chat/tools/tool.list';
+import { renderPersonaPrompt } from '@gitroom/nestjs-libraries/chat/helpers/persona.prompt';
 import dayjs from 'dayjs';
 
 export const AgentState = object({
@@ -43,10 +44,21 @@ export class LoadToolsService {
   async agent() {
     const tools = await this.loadTools();
     return new Agent({
+      id: 'postiz',
       name: 'postiz',
       description: 'Agent that helps manage and schedule social media posts for users',
-      instructions: ({ runtimeContext }) => {
-        const ui: string = runtimeContext.get('ui' as never);
+      instructions: ({ requestContext }) => {
+        const ui: string = requestContext.get('ui' as never);
+        const personaRaw: string = requestContext.get('persona' as never);
+        let personaBlock = '';
+        if (personaRaw) {
+          try {
+            const parsed = JSON.parse(personaRaw);
+            personaBlock = renderPersonaPrompt(parsed);
+          } catch {
+            personaBlock = '';
+          }
+        }
         return `
       Global information:
         - Date (UTC): ${dayjs().format('YYYY-MM-DD HH:mm:ss')}
@@ -58,7 +70,7 @@ export class LoadToolsService {
         - Generate text for posts
         - Show global analytics about socials
         - List integrations (channels)
-      
+
       - We schedule posts to different integration like facebook, instagram, etc. but to the user we don't say integrations we say channels as integration is the technical name
       - When scheduling a post, you must follow the social media rules and best practices.
       - When scheduling a post, you can pass an array for list of posts for a social media platform, But it has different behavior depending on the platform.
@@ -67,7 +79,7 @@ export class LoadToolsService {
         - If the social media platform has the concept of "threads", we need to ask the user if they want to create a thread or one long post.
         - For X, if you don't have Premium, don't suggest a long post because it won't work.
         - Platform format will also be passed can be "normal", "markdown", "html", make sure you use the correct format for each platform.
-      
+
       - Sometimes 'integrationSchema' will return rules, make sure you follow them (these rules are set in stone, even if the user asks to ignore them)
       - Each socials media platform has different settings and rules, you can get them by using the integrationSchema tool.
       - Always make sure you use this tool before you schedule any post.
@@ -77,12 +89,15 @@ export class LoadToolsService {
       - Between tools, we will reference things like: [output:name] and [input:name] to set the information right.
       - When outputting a date for the user, make sure it's human readable with time
       - The content of the post, HTML, Each line must be wrapped in <p> here is the possible tags: h1, h2, h3, u, strong, li, ul, p (you can\'t have u and strong together), don't use a "code" box
+      - Before writing any post that references specific products, prices, features or factual claims about the brand, ALWAYS call 'knowledgeBaseQuery' first to retrieve relevant facts from the uploaded documents. If it returns no results, proceed without citing specifics.
       ${renderArray(
         [
           'If the user confirm, ask if they would like to get a modal with populated content without scheduling the post yet or if they want to schedule it right away.',
         ],
         !!ui
       )}
+
+      ${personaBlock}
 `;
       },
       model: openai('gpt-5.2'),
@@ -90,9 +105,7 @@ export class LoadToolsService {
       memory: new Memory({
         storage: pStore,
         options: {
-          threads: {
-            generateTitle: true,
-          },
+          generateTitle: true,
           workingMemory: {
             enabled: true,
             schema: AgentState,

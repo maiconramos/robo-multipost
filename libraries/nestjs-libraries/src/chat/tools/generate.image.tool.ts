@@ -32,8 +32,21 @@ export class GenerateImageTool implements AgentToolInterface {
         checkAuth(args, options);
         // @ts-ignore
         const org = JSON.parse(runtimeContext.get('organization') as string);
+        // @ts-ignore
+        const personaRaw = runtimeContext.get('persona') as string;
+        let styledPrompt = context.prompt;
+        if (personaRaw) {
+          try {
+            const persona = JSON.parse(personaRaw);
+            if (persona?.imageStyle) {
+              styledPrompt = `Style: ${persona.imageStyle}. ${context.prompt}`;
+            }
+          } catch {
+            // ignore persona parse errors
+          }
+        }
         const image = await this._mediaService.generateImage(
-          context.prompt,
+          styledPrompt,
           org
         );
 

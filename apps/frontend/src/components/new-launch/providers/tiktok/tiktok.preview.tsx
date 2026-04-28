@@ -62,7 +62,7 @@ export const TiktokPreview: FC<{
     <div className="p-[15px] absolute left-0 top-0 w-full h-full flex justify-center bg-newBgColorInner">
       <div className="relative">
         <SliderComponent
-          list={renderContent?.[0]?.images.map((image, index) => (
+          list={(renderContent?.[0]?.images ?? []).map((image, index) => (
             <a
               key={`image_${index}`}
               className="flex-1"

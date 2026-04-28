@@ -177,6 +177,7 @@ export const PlugItem: FC<{
   useEffect(() => {
     setActivated(!!data?.activated);
   }, [data?.activated]);
+  const t = useT();
   const fetch = useFetch();
   const changeActivated = useCallback(
     async (status: 'on' | 'off') => {
@@ -201,7 +202,7 @@ export const PlugItem: FC<{
     >
       <div key={plug.title} className="p-[16px] h-full flex flex-col flex-1">
         <div className="flex">
-          <div className="text-[20px] mb-[8px] flex-1">{plug.title}</div>
+          <div className="text-[20px] mb-[8px] flex-1">{t('auto_plug_post_title', plug.title)}</div>
           {!!data && (
             <div onClick={(e) => e.stopPropagation()}>
               <Slider
@@ -212,8 +213,8 @@ export const PlugItem: FC<{
             </div>
           )}
         </div>
-        <div className="flex-1">{plug.description}</div>
-        <Button>{!data ? 'Set Plug' : 'Edit Plug'}</Button>
+        <div className="flex-1">{t('auto_plug_post_description', plug.description)}</div>
+        <Button>{!data ? t('set_plug', 'Set Plug') : t('edit_plug', 'Edit Plug')}</Button>
       </div>
     </div>
   );
@@ -221,6 +222,7 @@ export const PlugItem: FC<{
 export const Plug = () => {
   const plug = usePlugs();
   const modals = useModals();
+  const t = useT();
   const fetch = useFetch();
   const load = useCallback(async () => {
     return (await fetch(`/integrations/${plug.providerId}/plugs`)).json();

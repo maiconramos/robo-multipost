@@ -269,11 +269,121 @@ pnpm lint
 
 - **Idioma padrão:** pt-BR (arquivo de tradução `pt` já existe em `react-shared-libraries/src/translation/locales/`)
 - **Branding:** "Robô MultiPost" (fork do Postiz, créditos mantidos por exigência da AGPL)
-- **Integração Late:** TikTok e Pinterest via [Late API](https://docs.getlate.dev/llms-full.txt) como provedor alternativo
+- **Integração Zernio:** TikTok e Pinterest via [Zernio API](https://docs.zernio.com/llms-full.txt) como provedor alternativo (ex-Late/getlate.dev — mesma empresa, nova marca)
 - **Billing:** desabilitado por padrão para self-hosted (`DISABLE_BILLING=true`)
 - **Marketplace:** desabilitado por padrão (`DISABLE_MARKETPLACE=true`)
 - **Storage:** local por padrão, Cloudflare R2 como opção avançada
 - **IA:** infraestrutura Mastra + MCP já existe — trabalho é configurar providers por workspace
+
+## Sistema de Creditos de IA
+
+O sistema de creditos controla quantas imagens e videos cada perfil pode gerar por mes.
+
+### Modos de operacao (`AI_CREDITS_MODE`)
+
+| Modo | Comportamento |
+|------|--------------|
+| `unlimited` (default) | Todos os perfis geram sem limite. Uso registrado para analytics |
+| `managed` | Creditos gerenciados por perfil. Perfil default (admin) sempre ilimitado |
+
+### Cadeia de precedencia (modo managed)
+
+```
+1. AI_CREDITS_MODE=unlimited → SEMPRE ilimitado, ignora tudo
+2. Perfil default (isDefault=true) → sempre ilimitado
+3. Config do perfil (aiImageCredits/aiVideoCredits) → se preenchido, usa
+4. Config default (AI_CREDITS_DEFAULT_IMAGES/AI_CREDITS_DEFAULT_VIDEOS) → se preenchido, usa
+5. Fallback → ilimitado (-1)
+```
+
+### Valores especiais nos campos de creditos
+
+| Valor | Significado |
+|-------|-------------|
+| `null` | Usar padrao da env var ou fallback ilimitado |
+| `-1` | Ilimitado para este perfil |
+| `0` | Bloqueado (sem creditos de IA) |
+| `N > 0` | N creditos por mes |
+
+### Env vars relacionadas
+
+```env
+AI_CREDITS_MODE="unlimited"        # "unlimited" ou "managed"
+# AI_CREDITS_DEFAULT_IMAGES=50     # default para novos perfis (modo managed)
+# AI_CREDITS_DEFAULT_VIDEOS=10     # default para novos perfis (modo managed)
+```
+
+### Endpoints REST
+
+```
+GET  /copilot/credits?type=ai_images|ai_videos  → { credits: number }
+GET  /settings/profiles/:id/ai-credits          → config + uso do perfil (ADMIN)
+PUT  /settings/profiles/:id/ai-credits          → atualiza config (ADMIN, nao edita default)
+GET  /settings/ai-credits/summary               → lista perfis com creditos e uso (ADMIN)
+```
+
+### Arquivos principais
+
+- **Service:** `libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.service.ts`
+- **Repository:** `libraries/nestjs-libraries/src/database/prisma/subscriptions/subscription.repository.ts`
+- **Schema:** `schema.prisma` → campos `aiImageCredits`/`aiVideoCredits` em Profile, `profileId` em Credits
+- **Frontend settings:** `apps/frontend/src/components/settings/ai-credits.settings.component.tsx`
+- **Frontend badges:** `apps/frontend/src/components/launches/ai.image.tsx`, `ai.video.tsx`
+- **Testes:** `__tests__/subscription.service.spec.ts`, `subscription.repository.spec.ts`
+
+## Automacoes Instagram (follow gate, DMs, webhooks)
+
+Subsistema crítico — antes de mexer, ler:
+
+- **Referência de agente:** `docs/architecture/instagram-automations.md`
+  (mapa de arquivos, camadas de credenciais, roteamento de tokens,
+  follow-gate 2 etapas, armadilhas).
+- **Guia de usuário:** `docs/automacoes-instagram.md`.
+
+### Regras de ouro
+
+1. **Três camadas de credenciais Meta** (nunca misturar):
+   - Credenciais do App (workspace) — `Credentials.clientId/clientSecret`,
+     `instagramAppId/instagramAppSecret`, `threadsAppId/threadsAppSecret`.
+     Usadas em OAuth e validação HMAC.
+   - Token da Integration — `Integration.token` é Page Access Token
+     (providerIdentifier=`instagram`) OU IG User Token
+     (providerIdentifier=`instagram-standalone`).
+   - Messaging Tokens (cadastrados em Settings > Credenciais > Instagram)
+     — Meta System User Token + IG User Tokens por conta, em
+     `Credentials.metaSystemUserToken` / `Credentials.instagramTokens`.
+
+2. **Decisão única de host/token** para activities de comentário:
+   `FlowActivity.resolveIgRoute(integration)` em
+   `apps/orchestrator/src/activities/flow.activity.ts`.
+   Prioridade: standalone → IG User Token cadastrado → Page Access Token.
+
+3. **Propagação de `ClientInformation`** é obrigatória em providers OAuth
+   — veja `memory/feedback_per_profile_credentials.md`.
+
+4. **Follow-gate em `comment_on_post`** usa fluxo de 2 etapas com
+   `PendingPostback` + botão postback. `sendPrivateReply` só pode ser
+   usado UMA vez por comentário. Workflow:
+   `flow.execution.workflow.ts` cria o pending,
+   `follow-gate-resolve.workflow.ts` resolve quando o clique chega.
+
+5. **HMAC do webhook IG** deve ser validado com `FACEBOOK_APP_SECRET` E
+   `INSTAGRAM_APP_SECRET` (quando ambos os produtos estão no mesmo app
+   Meta). Ver `ig-webhook.controller.ts`.
+
+## Persona de IA e Knowledge Base por Perfil
+
+Cada perfil pode ter:
+
+- **Persona** (texto): tom de voz, publico-alvo, CTAs preferidos, restricoes,
+  estilo de imagem. Injetada automaticamente no agente Mastra, no Generator
+  LangGraph e nos prompts DALL-E. Ver `docs/architecture/profile-ai-persona.md`.
+- **Knowledge Base** (RAG vetorial): upload de PDF/TXT/MD, chunking + embeddings,
+  consultado pela tool `knowledgeBaseQuery` antes do agente gerar fatos
+  especificos. Requer `pgvector/pgvector:pg17`. Ver
+  `docs/architecture/knowledge-base-rag.md`.
+
+Feature flag: `ENABLE_KNOWLEDGE_BASE` (default `true`).
 
 ## Serviços Obrigatórios em Produção
 

@@ -3,6 +3,7 @@ import {
   Controller,
   Delete,
   Get,
+  HttpException,
   Param,
   Post,
   Put,
@@ -24,6 +25,7 @@ import { Response } from 'express';
 import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
 import { ShortLinkService } from '@gitroom/nestjs-libraries/short-linking/short.link.service';
 import { CreateTagDto } from '@gitroom/nestjs-libraries/dtos/posts/create.tag.dto';
+import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
 import {
   AuthorizationActions,
   Sections,
@@ -35,7 +37,8 @@ export class PostsController {
   constructor(
     private _postsService: PostsService,
     private _agentGraphService: AgentGraphService,
-    private _shortLinkService: ShortLinkService
+    private _shortLinkService: ShortLinkService,
+    private _reviewLinksService: ReviewLinksService
   ) {}
 
   @Get('/:id/statistics')
@@ -76,6 +79,46 @@ export class PostsController {
     @Body() body: { comment: string }
   ) {
     return this._postsService.createComment(org.id, user.id, id, body.comment);
+  }
+
+  @Post('/:id/review-links')
+  async createReviewLink(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body()
+    body: {
+      expiresInDays?: number;
+      allowComment?: boolean;
+      allowApprove?: boolean;
+    }
+  ) {
+    return this._reviewLinksService.createForPost({
+      postId: id,
+      orgId: org.id,
+      userId: user.id,
+      expiresInDays: body?.expiresInDays,
+      allowComment: body?.allowComment,
+      allowApprove: body?.allowApprove,
+    });
+  }
+
+  @Get('/:id/review-links')
+  async listReviewLinks(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return {
+      reviewLinks: await this._reviewLinksService.listForPost(id, org.id),
+    };
+  }
+
+  @Delete('/:id/review-links/:linkId')
+  async revokeReviewLink(
+    @GetOrgFromRequest() org: Organization,
+    @Param('linkId') linkId: string
+  ) {
+    return this._reviewLinksService.revoke(linkId, org.id);
   }
 
   @Get('/tags')
@@ -157,6 +200,18 @@ export class PostsController {
     return this._postsService.getOldPosts(org.id, date);
   }
 
+  @Get('/group/:group/debug-export')
+  async getPostGroupDebugExport(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('group') group: string
+  ) {
+    if (!user.isSuperAdmin) {
+      throw new HttpException('Forbidden', 403);
+    }
+    return this._postsService.getPostGroupDebugExport(org.id, group);
+  }
+
   @Get('/group/:group')
   getPostsByGroup(@GetOrgFromRequest() org: Organization, @Param('group') group: string) {
     return this._postsService.getPostsByGroup(org.id, group);
@@ -198,7 +253,8 @@ export class PostsController {
     @Res({ passthrough: false }) res: Response
   ) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
-    for await (const event of this._agentGraphService.start(org.id, body, profile?.id)) {
+    const stream = await this._agentGraphService.start(org.id, body, profile?.id);
+    for await (const event of stream) {
       res.write(JSON.stringify(event) + '\n');
     }
 

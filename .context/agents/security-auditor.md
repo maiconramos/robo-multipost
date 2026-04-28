@@ -29,7 +29,7 @@ The Security Auditor agent proactively identifies, analyzes, and recommends fixe
 
 ## Key Project Resources
 
-- [AGENTS.md](../AGENTS.md) – Agent collaboration guidelines.
+- [../../docs/planning/agents.md](../../docs/planning/agents.md) – Agent collaboration guidelines.
 - [Contributor Guide](../CONTRIBUTING.md) – PR review process.
 - [Agent Handbook](../docs/agents-handbook.md) – Multi-agent workflows.
 - [Security Checklist](../docs/SECURITY.md) – Custom vuln categories.

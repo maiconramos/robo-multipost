@@ -5,7 +5,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { capitalize, orderBy } from 'lodash';
 import clsx from 'clsx';
 import ImageWithFallback from '@gitroom/react/helpers/image.with.fallback';
-import Image from 'next/image';
+import SafeImage from '@gitroom/react/helpers/safe.image';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { Select } from '@gitroom/react/form/select';
 import { Button } from '@gitroom/react/form/button';
@@ -159,7 +159,7 @@ export const Plugs = () => {
               onClick={() => {
                 if (integration.refreshNeeded) {
                   toaster.show(
-                    'Please refresh the integration from the calendar',
+                    t('please_refresh_integration', 'Please refresh the integration from the calendar'),
                     'warning'
                   );
                   return;
@@ -201,7 +201,7 @@ export const Plugs = () => {
                   width={36}
                   height={36}
                 />
-                <Image
+                <SafeImage
                   src={getPlatformIconPath(integration.identifier)}
                   className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
                   alt={integration.identifier}

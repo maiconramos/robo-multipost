@@ -31,9 +31,12 @@ import { Autopost } from '@gitroom/frontend/components/autopost/autopost';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { SVGLine } from '@gitroom/frontend/components/launches/launches.component';
 import { GlobalSettings } from '@gitroom/frontend/components/settings/global.settings';
-import { LateSettingsSection } from '@gitroom/frontend/components/settings/late-settings.component';
 import { CredentialsSettingsSection } from '@gitroom/frontend/components/settings/credentials-settings.component';
 import { ProfilesSettingsComponent } from '@gitroom/frontend/components/settings/profiles.component';
+import { ApprovedAppsComponent } from '@gitroom/frontend/components/approved-apps/approved-apps.component';
+import { AiCreditsSettingsSection } from '@gitroom/frontend/components/settings/ai-credits.settings.component';
+import { ProfilePersonaSettingsSection } from '@gitroom/frontend/components/settings/profile-persona.settings.component';
+import { KnowledgeBaseSettingsSection } from '@gitroom/frontend/components/settings/knowledge-base.settings.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -89,9 +92,18 @@ export const SettingsPopup: FC<{
   const list = useMemo(() => {
     const arr = [];
     arr.push({ tab: 'global_settings', label: t('global_settings', 'Global Settings') });
-    // Populate tabs based on user permissions
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'profiles', label: t('profiles_tab', 'Perfis') });
+    }
     if (user?.tier?.team_members && isGeneral) {
       arr.push({ tab: 'teams', label: t('teams', 'Teams') });
+    }
+    arr.push({ tab: 'credentials', label: t('credentials_tab', 'Credenciais') });
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Agente de IA') });
+    }
+    if (user?.role !== 'USER') {
+      arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'AI Credits') });
     }
     if (user?.tier?.webhooks) {
       arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });
@@ -106,13 +118,9 @@ export const SettingsPopup: FC<{
       arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
     }
     if (user?.tier?.public_api && isGeneral && showLogout) {
-      arr.push({ tab: 'api', label: t('public_api', 'Public API') });
+      arr.push({ tab: 'api', label: t('developers', 'Developers') });
     }
-    if (user?.role !== 'USER') {
-      arr.push({ tab: 'profiles', label: 'Perfis' });
-    }
-    arr.push({ tab: 'late', label: 'Late' });
-    arr.push({ tab: 'credentials', label: 'Credenciais' });
+    arr.push({ tab: 'approved_apps', label: t('approved_apps', 'Approved Apps') });
 
     return arr;
   }, [user, isGeneral, showLogout, t]);
@@ -210,9 +218,17 @@ export const SettingsPopup: FC<{
                   </div>
                 )}
 
-              {tab === 'late' && (
+              {tab === 'ai_credits' && user?.role !== 'USER' && (
                 <div>
-                  <LateSettingsSection />
+                  <AiCreditsSettingsSection />
+                </div>
+              )}
+
+              {tab === 'ai_agent' && user?.role !== 'USER' && (
+                <div className="flex flex-col gap-[0px]">
+                  <ProfilePersonaSettingsSection />
+                  <hr className="border-newTableBorder my-[24px]" />
+                  <KnowledgeBaseSettingsSection />
                 </div>
               )}
 
@@ -223,8 +239,14 @@ export const SettingsPopup: FC<{
               )}
 
               {tab === 'credentials' && (
-                <div>
+                <div className="flex flex-col">
                   <CredentialsSettingsSection />
+                </div>
+              )}
+
+              {tab === 'approved_apps' && (
+                <div>
+                  <ApprovedAppsComponent />
                 </div>
               )}
             </div>

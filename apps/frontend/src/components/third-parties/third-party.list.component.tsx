@@ -116,7 +116,7 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
   const addApiKey = useCallback(
     (title: string, identifier: string) => () => {
       modals.openModal({
-        title: `Add API key for ${title}`,
+        title: t('top_title_add_api_key_for', 'Add API key for {{name}}', { name: title }),
         withCloseButton: false,
         children: (
           <ApiModal identifier={identifier} title={title} update={reload} />
@@ -141,7 +141,7 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
             />
           </div>
           <div className="whitespace-pre-wrap text-left text-lg">{p.title}</div>
-          <div className="whitespace-pre-wrap text-left">{p.description}</div>
+          <div className="whitespace-pre-wrap text-left">{String(t(`thirdparty_desc_${p.identifier}`, p.description))}</div>
           <div className="w-full flex">
             <Button className="w-full">{t('add', 'Add')}</Button>
           </div>

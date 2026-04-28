@@ -422,6 +422,15 @@ export class PostsRepository {
     return update;
   }
 
+  getErrorsByPostIds(postIds: string[]) {
+    return this._errors.model.errors.findMany({
+      where: {
+        postId: { in: postIds },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
   async changeDate(
     orgId: string,
     id: string,
@@ -763,9 +772,18 @@ export class PostsRepository {
     return this._comments.model.comments.findMany({
       where: {
         postId,
+        deletedAt: null,
       },
       orderBy: {
         createdAt: 'asc',
+      },
+      select: {
+        id: true,
+        content: true,
+        userId: true,
+        guestName: true,
+        kind: true,
+        createdAt: true,
       },
     });
   }

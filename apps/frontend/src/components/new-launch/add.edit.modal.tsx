@@ -77,7 +77,9 @@ export const AddEditModalInner: FC<AddEditModalProps> = (props) => {
           const integration = integrations.find(
             (i) => i.id === post.integration.id
           );
-          addOrRemoveSelectedIntegration(integration, post.settings);
+          if (integration) {
+            addOrRemoveSelectedIntegration(integration, post.settings);
+          }
         }
       }
     }
@@ -86,7 +88,9 @@ export const AddEditModalInner: FC<AddEditModalProps> = (props) => {
       const integration = integrations.find(
         (i) => i.id === existingData.integration
       );
-      addOrRemoveSelectedIntegration(integration, existingData.settings);
+      if (integration) {
+        addOrRemoveSelectedIntegration(integration, existingData.settings);
+      }
     }
 
     if (props?.selectedChannels?.length) {
@@ -187,10 +191,13 @@ export const AddEditModalInnerInner: FC<AddEditModalProps> = (props) => {
         : props.set?.posts?.length
         ? props.set.posts[0].value.map((p: any) => ({
             id: makeId(10),
-            content: p.content
-              .split('\n')
-              .map((line: string) => `<p>${line}</p>`)
-              .join(''),
+            content:
+              p.content.indexOf('<p>') > -1
+                ? p.content
+                : p.content
+                    .split('\n')
+                    .map((line: string) => `<p>${line}</p>`)
+                    .join(''),
             // @ts-ignore
             media: p.media,
           }))
