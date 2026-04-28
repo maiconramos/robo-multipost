@@ -1236,6 +1236,7 @@ export class InstagramProvider
   ): Promise<{
     stories: Array<{
       id: string;
+      caption?: string;
       mediaType: string;
       mediaUrl?: string;
       thumbnailUrl?: string;
@@ -1244,7 +1245,8 @@ export class InstagramProvider
     }>;
   }> {
     // Instagram Graph API only exposes active stories (last 24h) via this edge.
-    const fields = 'id,media_type,media_url,thumbnail_url,permalink,timestamp';
+    const fields =
+      'id,caption,media_type,media_url,thumbnail_url,permalink,timestamp';
     const response = await fetch(
       `https://${type}/v25.0/${igAccountId}/stories?fields=${fields}&access_token=${accessToken}`
     );
@@ -1255,6 +1257,7 @@ export class InstagramProvider
     return {
       stories: body.data.map((m: any) => ({
         id: m.id,
+        caption: m.caption,
         mediaType: m.media_type,
         mediaUrl: m.media_url,
         thumbnailUrl: m.thumbnail_url,

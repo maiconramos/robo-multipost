@@ -90,6 +90,9 @@ export const RepostRuleForm: FC<Props> = ({
   const [captionTemplate, setCaptionTemplate] = useState(
     initial?.captionTemplate ?? ''
   );
+  const [filterHashtag, setFilterHashtag] = useState(
+    initial?.filterHashtag ?? ''
+  );
   const [enabled, setEnabled] = useState(initial?.enabled ?? true);
   const [saving, setSaving] = useState(false);
 
@@ -109,6 +112,7 @@ export const RepostRuleForm: FC<Props> = ({
     );
     setIntervalMinutes(initial.intervalMinutes);
     setCaptionTemplate(initial.captionTemplate ?? '');
+    setFilterHashtag(initial.filterHashtag ?? '');
     setEnabled(initial.enabled);
   }, [initial]);
 
@@ -136,6 +140,7 @@ export const RepostRuleForm: FC<Props> = ({
           destinations,
           intervalMinutes,
           captionTemplate: captionTemplate.trim() || null,
+          filterHashtag: filterHashtag.trim() || null,
           enabled,
         }),
       });
@@ -387,6 +392,32 @@ export const RepostRuleForm: FC<Props> = ({
               onChange={(e) => setCaptionTemplate(e.target.value)}
               maxLength={2200}
             />
+          </div>
+
+          <div className="flex flex-col gap-[6px]">
+            <label className="text-[12px] text-textColor">
+              {t(
+                'repost_filter_hashtag_label',
+                'Hashtag de ativação (opcional)'
+              )}
+            </label>
+            <input
+              type="text"
+              className="h-[40px] bg-newBgColorInner border border-newTableBorder rounded-[8px] px-[12px] text-[13px] text-textColor"
+              placeholder={t(
+                'repost_filter_hashtag_placeholder',
+                'Ex.: #repost'
+              )}
+              value={filterHashtag}
+              onChange={(e) => setFilterHashtag(e.target.value)}
+              maxLength={100}
+            />
+            <span className="text-[11px] text-customColor18">
+              {t(
+                'repost_filter_hashtag_hint',
+                'Se preenchido, só posts com essa hashtag na legenda serão repostados. Em branco reposta tudo. (Stories normalmente não têm legenda.)'
+              )}
+            </span>
           </div>
 
           <label className="flex items-center gap-[8px] text-[13px] text-textColor cursor-pointer">

@@ -1383,6 +1383,7 @@ model RepostRule {
   filterIncludeVideos       Boolean          @default(true)
   filterIncludeImages       Boolean          @default(false)
   filterMaxDurationSeconds  Int?
+  filterHashtag             String?
   captionTemplate           String?
   lastSourceItemId          String?
   lastRunAt                 DateTime?
