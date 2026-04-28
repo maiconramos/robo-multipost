@@ -17,7 +17,6 @@ import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/in
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
-import { ensureAacLcAudio } from '@gitroom/nestjs-libraries/upload/video.aaclc';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 
@@ -271,35 +270,7 @@ export class RepostActivity {
 
     let storedMedia: { id: string; path: string } | null = null;
     try {
-      let uploadedPath: string;
-      if (isVideo) {
-        // IG-CDN re-encoda audio para HE-AAC, que Threads/Reels rejeitam
-        // com error_message=UNKNOWN. Baixa o buffer, transcoda audio para
-        // AAC-LC se necessario (mantem video em -c:v copy), e faz upload
-        // do resultado limpo. Detalhes em libraries/.../upload/video.aaclc.ts.
-        const fetched = await fetch(item.mediaUrl);
-        if (!fetched.ok) {
-          throw new Error(
-            `fetch ${item.mediaUrl} returned ${fetched.status}`
-          );
-        }
-        const original = Buffer.from(await fetched.arrayBuffer());
-        const cleaned = await ensureAacLcAudio(original);
-        const uploaded = await this.storage.uploadFile({
-          fieldname: 'file',
-          originalname: 'repost.mp4',
-          encoding: '7bit',
-          mimetype: 'video/mp4',
-          size: cleaned.length,
-          buffer: cleaned,
-        } as any);
-        uploadedPath = uploaded?.path || uploaded?.destination || '';
-        if (!uploadedPath) {
-          throw new Error('storage.uploadFile returned empty path');
-        }
-      } else {
-        uploadedPath = await this.storage.uploadSimple(item.mediaUrl);
-      }
+      const uploadedPath = await this.storage.uploadSimple(item.mediaUrl);
       const fileName = (uploadedPath.split('/').pop() || 'repost').toString();
       const saved = await this._mediaService.saveFile(
         rule.organizationId,
