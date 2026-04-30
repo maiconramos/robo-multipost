@@ -7,6 +7,9 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado
+- Niveis de acesso por perfil com guard de membership (OWNER/MANAGER/EDITOR/VIEWER): novo decorator `@RequireProfileMember(role)` aplicado em `profiles.controller` (membros, edicao, exclusao); ADMIN/SUPERADMIN da organizacao bypassam o check. Listagem `GET /profiles` passa a retornar apenas perfis acessiveis ao usuario nao-admin via novo `ProfileService.getAccessibleProfiles`. Middleware de auth expoe `req.isOrgAdmin` e `req.accessibleProfileIds` para reuso por repositories. Comportamento sai apenas com a env `PROFILE_MEMBERSHIP_ENFORCED=true` ligada — sem ela tudo permanece como hoje, permitindo deploy seguro antes da atribuicao de membros.
+
 ## [0.5.2] - 2026-04-29
 
 ### Corrigido

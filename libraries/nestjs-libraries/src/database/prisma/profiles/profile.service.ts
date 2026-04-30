@@ -15,6 +15,16 @@ export class ProfileService {
     return this._profileRepository.getProfilesByOrgId(orgId);
   }
 
+  async getAccessibleProfiles(orgId: string, userId: string, isOrgAdmin: boolean) {
+    const profiles = await this._profileRepository.getProfilesByOrgId(orgId);
+    if (isOrgAdmin) {
+      return profiles;
+    }
+    const memberships = await this._profileRepository.getUserProfileIds(userId, orgId);
+    const allowed = new Set(memberships.map((m) => m.profileId));
+    return profiles.filter((p) => allowed.has(p.id));
+  }
+
   getProfileById(orgId: string, profileId: string) {
     return this._profileRepository.getProfileById(orgId, profileId);
   }

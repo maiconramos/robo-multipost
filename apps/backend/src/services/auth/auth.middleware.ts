@@ -102,20 +102,34 @@ export class AuthMiddleware implements NestMiddleware {
 
       // Resolve profile context
       const profileHeader = req.cookies.showprofile || req.headers.showprofile;
-      const userProfileIds = await this._profileService.getUserProfileIds(user.id, setOrg.id);
+      const orgRole = setOrg.users[0]?.role;
+      const isOrgAdmin =
+        !!user.isSuperAdmin || orgRole === 'ADMIN' || orgRole === 'SUPERADMIN';
 
-      if (userProfileIds.length > 0) {
-        const profiles = await this._profileService.getProfilesByOrgId(setOrg.id);
-        const accessibleProfiles = profiles.filter((p) => userProfileIds.includes(p.id));
-        const setProfile = profileHeader
-          ? accessibleProfiles.find((p) => p.id === profileHeader)
-          : accessibleProfiles.find((p) => p.isDefault) || accessibleProfiles[0];
-        // @ts-expect-error
-        req.profile = setProfile || null;
-      } else {
-        // @ts-expect-error
-        req.profile = null;
+      const allProfiles = await this._profileService.getProfilesByOrgId(setOrg.id);
+      let accessibleProfiles = allProfiles;
+      if (!isOrgAdmin) {
+        const userProfileIds = await this._profileService.getUserProfileIds(
+          user.id,
+          setOrg.id
+        );
+        const allowed = new Set(userProfileIds);
+        accessibleProfiles = allProfiles.filter((p) => allowed.has(p.id));
       }
+
+      const setProfile = profileHeader
+        ? accessibleProfiles.find((p) => p.id === profileHeader)
+        : accessibleProfiles.find((p) => p.isDefault) || accessibleProfiles[0];
+
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      req.profile = setProfile || null;
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      req.isOrgAdmin = isOrgAdmin;
+      // eslint-disable-next-line @typescript-eslint/ban-ts-comment
+      // @ts-expect-error
+      req.accessibleProfileIds = accessibleProfiles.map((p) => p.id);
     } catch (err) {
       throw new HttpForbiddenException();
     }
