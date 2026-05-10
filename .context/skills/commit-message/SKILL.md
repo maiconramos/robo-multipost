@@ -95,7 +95,7 @@ Before staging the message, verify:
 2. `git diff --staged` — nothing left from a debugging session (`console.log`, commented code).
 3. `pnpm lint` passes from repo root.
 4. If touched code under `*.service.ts` / `*.repository.ts` / `*.provider.ts` / `*.factory.ts`, the matching `*.spec.ts` is in the same commit (TDD hook in `.claude/hooks/tdd-check.sh` may block otherwise).
-5. If user-visible behavior changed, add a line under `## [Unreleased]` in `CHANGELOG.md` (pt-BR sem acentos, Keep a Changelog sections).
+5. If user-visible behavior changed, add a line under `## [Unreleased]` in `CHANGELOG.md` (pt-BR com acentos completos, Keep a Changelog sections). Note: accents apply to CHANGELOG entries only — commit subjects and branch names continue without accents per the convention above.
 
 ## Examples (taken from this repo's history)
 
