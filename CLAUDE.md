@@ -69,6 +69,69 @@
 - **`test-completer`** — auto-invoked PROACTIVELY before commit when the TDD hook (`.claude/hooks/tdd-check.sh`) would block due to a staged `*.service.ts`, `*.repository.ts`, or `*.provider.ts` without a co-located `*.spec.ts`. Tools: `Read, Edit, Write, Glob, Grep, Bash(pnpm test:*)` — `Edit`/`Write` are restricted to `*.spec.ts` / `*.spec.tsx` files only, enforced as MUST NOT in the system prompt because tools alone cannot restrict file paths; `Bash` is restricted to `pnpm test:*` via the tools whitelist (no `pnpm install`, no `git`, no MCP). Generates specs following the repo's canonical TDD conventions (`createMock<T>()`, `createTestModule({ service, mocks })`, Red-Green-Refactor, `describe`/`it` strings in pt-BR sem acentos), validated with `pnpm test --filter <package>`. Reports findings as 🟢 CREATED / 🟡 UPDATED / 🔴 FAILED / ⏭️ SKIPPED. Conservative posture: never generates placeholder specs just to bypass the hook (reports SKIPPED with justification instead), never modifies production code to make tests pass (reports FAILED and stops — likely a real bug), never generates frontend `.spec.tsx` by default. Canonical content lives in [`.context/skills/test-generation/SKILL.md`](.context/skills/test-generation/SKILL.md). Fifth and last subagent of the pipeline.
 - **`doc-maintainer`** — auto-invoked at the end of every feature or non-trivial bugfix. Reads the diff, locates affected `CLAUDE.md` files, and **proposes** targeted updates (drift, new pitfalls, file-map gaps, `📁 NEW SUBAREA CANDIDATE` flags). Tools restricted to `Read, Glob, Grep, Edit`; edits scoped to `CLAUDE.md`/`AGENTS.md` only. Never applies changes without human approval. Scope registered in [`docs/planning/claude-md-maintainer-agent.md`](docs/planning/claude-md-maintainer-agent.md).
 
+## Browser Validation (Claude in Chrome)
+
+Claude in Chrome is enabled in this project. When invoked via
+`claude --chrome` or `/chrome`, the main agent gains
+`mcp__claude-in-chrome__*` tools to control the user's real Chrome
+browser — navigate, click, fill forms, read DOM, read console errors,
+inspect network requests, screenshot — reusing the user's existing
+logged-in session and connected branches.
+
+### When to use
+
+The main agent SHOULD invoke browser tools to validate features
+end-to-end after `code-reviewer` and `security-auditor` pass, and
+before opening the PR, when:
+
+- Implementing or modifying frontend flows that affect visible behavior
+  (forms, buttons, navigation, modals, new screens, visible state
+  changes, dashboards, settings).
+- Fixing bugs reported as visual or interaction issues.
+- Touching `apps/frontend/` in ways that materially change UX.
+
+### When to skip
+
+Skip browser validation when:
+
+- Backend-only changes (no frontend impact).
+- Refactor without observable behavior change.
+- Test-only or documentation-only changes.
+- Type-only changes that do not affect rendering.
+
+### How to behave
+
+1. Assume the user has the local app running (`pnpm dev:dev`) and is
+   already logged in to the relevant environment in Chrome.
+2. Use the smallest set of browser tool calls needed to verify the
+   feature behavior. Do not over-explore.
+3. Read console output and key network calls related to the change;
+   surface unexpected errors.
+4. Capture a screenshot only when it helps the PR description (visual
+   diff, new screen, fixed visual bug). Do not screenshot every step.
+5. If the session has expired or login is needed, **ASK the user to log
+   in**. Do not attempt automated authentication.
+6. Report findings as part of the implementation summary in the PR body
+   under a `### Browser Validation` section.
+
+### Hard constraints
+
+- Browser tools are for validation, not for implementing features.
+  Do not use them to bypass the normal implementation pipeline.
+- Do not run browser validation in cloud sessions (the local app and
+  logged-in Chrome live on the user's machine).
+- Do not perform destructive actions (delete account, cancel
+  subscription) during validation. If the test scenario requires it,
+  ask the user first.
+
+### Reference
+
+- Setup: `claude --chrome` (one-off) or `/chrome` followed by "Enabled
+  by default" (persistent).
+- Requires Claude Code CLI ≥ v2.0.73 and Claude for Chrome extension
+  ≥ v1.0.36.
+- Available in beta on Pro / Max / Team / Enterprise plans.
+
 ## Product Context
 
 - **Default language:** pt-BR (`react-shared-libraries/src/translation/locales/pt`). User-facing text uses full pt-BR accents.
