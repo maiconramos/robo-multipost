@@ -44,6 +44,11 @@
             "type": "command",
             "command": ".claude/hooks/tdd-check.sh",
             "statusMessage": "Verificando TDD compliance..."
+          },
+          {
+            "type": "command",
+            "command": ".claude/hooks/gh-pr-fork-guard.sh",
+            "statusMessage": "Verificando --repo no gh pr..."
           }
         ]
       }
