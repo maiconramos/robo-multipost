@@ -57,6 +57,7 @@
 - **Never** hardcode `graph.facebook.com` in Instagram comment activities — use `FlowActivity.resolveIgRoute` (see [`apps/orchestrator/CLAUDE.md`](apps/orchestrator/CLAUDE.md)).
 - **Never** hardcode `process.env` in OAuth providers — propagate `ClientInformation` (see [`libraries/nestjs-libraries/src/integrations/social/CLAUDE.md`](libraries/nestjs-libraries/src/integrations/social/CLAUDE.md)).
 - **Never** touch `.context/` — managed by dotcontext via MCP, has its own lifecycle.
+- **Never** run `gh pr <create|edit|merge|close|ready|review|comment|reopen>` without `--repo maiconramos/robo-multipost` — this repo is a fork of `gitroomhq/postiz-app`, and `gh` defaults to the upstream public repo. Enforced by hook `.claude/hooks/gh-pr-fork-guard.sh` (blocks the command with exit 2). Always use `gh pr <subcommand> --repo maiconramos/robo-multipost --base main --head <branch> ...`. Read-only `gh pr view|list|diff|checks|status` are not blocked.
 - Linting runs **only from the repo root** with `pnpm lint`.
 - Project skills live in `.claude/skills/`; per-session auto-memory in `~/.claude/projects/.../memory/`.
 
