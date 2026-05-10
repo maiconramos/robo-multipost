@@ -62,6 +62,7 @@
 
 ## Subagents (.claude/agents/)
 
+- **`code-reviewer`** — auto-invoked after every batch of code edits, in parallel with `security-auditor` when security surfaces are touched. Read-only (`Read`, `Glob`, `Grep`) review against repo standards: layer architecture (Controller → Service → Repository), TDD compliance, i18n with `useT()`, SWR rules-of-hooks, provider/credential contracts (`AiProviderResolverService`, `ClientInformation`, 412 vs 402, `FlowActivity.resolveIgRoute`), style (`eslint-disable` ban, native UI primitives, `pnpm` only), branch hygiene, and Wizard ↔ Flow Builder parity. Reports findings as 🚫 MUST FIX / 🟡 SHOULD FIX / 💭 NIT. Escalates to `security-auditor` (`→ SECURITY-AUDITOR` marker) when HMAC, OAuth, JWT, secrets, encryption, raw SQL, or SSRF-risky surfaces appear — never audits them itself. Canonical rule content lives in [`.context/skills/code-review/SKILL.md`](.context/skills/code-review/SKILL.md).
 - **`doc-maintainer`** — auto-invoked at the end of every feature or non-trivial bugfix. Reads the diff, locates affected `CLAUDE.md` files, and **proposes** targeted updates (drift, new pitfalls, file-map gaps, `📁 NEW SUBAREA CANDIDATE` flags). Tools restricted to `Read, Glob, Grep, Edit`; edits scoped to `CLAUDE.md`/`AGENTS.md` only. Never applies changes without human approval. Scope registered in [`docs/planning/claude-md-maintainer-agent.md`](docs/planning/claude-md-maintainer-agent.md).
 
 ## Product Context
