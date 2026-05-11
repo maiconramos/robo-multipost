@@ -15,6 +15,8 @@ docs/, translations) stay in pt-BR per project convention.
 
 - **Browser validation**: Claude in Chrome enabled — see
   [`CLAUDE.md > Browser Validation`](CLAUDE.md#browser-validation-claude-in-chrome).
+- **Code graph**: `graphify-out/` indexes the monorepo as a queryable knowledge graph — see
+  [`CLAUDE.md > Code Graph (Graphify)`](CLAUDE.md#code-graph-graphify).
 
 Product and architecture documentation lives in [`docs/`](docs/),
 referenced by the `CLAUDE.md` files but not the same thing.

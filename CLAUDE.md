@@ -132,6 +132,55 @@ Skip browser validation when:
   ≥ v1.0.36.
 - Available in beta on Pro / Max / Team / Enterprise plans.
 
+## Code Graph (Graphify)
+
+This repo is indexed as a knowledge graph by [Graphify](https://github.com/safishamsi/graphify). The graph maps symbols, call sites, dependencies, god nodes, and surprising connections across all 25 supported languages. Outputs live in `graphify-out/`:
+
+- `GRAPH_REPORT.md` — top-level findings (god nodes, surprising connections, why-comments, suggested questions).
+- `graph.json` — full queryable graph.
+
+### When to consult the graph
+
+The main agent and reviewers SHOULD prefer querying the graph over recursive Grep when:
+
+- Investigating cross-cutting code ("who calls X?", "what depends on Y?").
+- Estimating blast radius of a change (god nodes have many consumers).
+- Understanding architectural relationships in unfamiliar areas.
+- Finding implicit coupling between modules (`libraries/nestjs-libraries/src/integrations/social/` providers, for instance).
+
+Read `graphify-out/GRAPH_REPORT.md` first as a starting point; query `graphify-out/graph.json` for specifics.
+
+### When NOT to use the graph
+
+Skip graph consultation for:
+
+- Localized changes within a single file.
+- Style/formatting changes.
+- Documentation-only changes.
+- Trivial bug fixes with obvious scope.
+
+### Auto-rebuild
+
+Git hooks (`graphify hook install` was run) rebuild the graph automatically on `post-commit` and `post-checkout`. This is tree-sitter only — zero API cost recurring. The graph stays in sync with the codebase without manual intervention.
+
+### Manual rebuild
+
+When docs, PDFs, or images change (which DO use the LLM API), run:
+
+```
+graphify update .    # re-extract only changed files
+```
+
+To rebuild fully:
+
+```
+graphify .
+```
+
+### MCP server
+
+The `.mcp.json` in this repo registers a Graphify MCP server providing `mcp__graphify__query_graph`, `get_node`, `get_neighbors`, `shortest_path` tools. Requires Python 3.10+ and `graphifyy[mcp]` installed locally (via `uv tool install 'graphifyy[mcp]'` or `pipx install 'graphifyy[mcp]'`). The server is invoked through `uvx --from 'graphifyy[mcp]' python -m graphify.serve graphify-out/graph.json`. The `plan-reviewer` subagent is configured to use these tools when available. If the MCP server fails to initialize, it falls back to reading `GRAPH_REPORT.md` and using Grep — no hard dependency.
+
 ## Product Context
 
 - **Default language:** pt-BR (`react-shared-libraries/src/translation/locales/pt`). User-facing text uses full pt-BR accents.

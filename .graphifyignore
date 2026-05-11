@@ -1,0 +1,33 @@
+# Build/dependency directories
+node_modules/
+dist/
+build/
+.next/
+.turbo/
+coverage/
+
+# Generated files
+*.generated.ts
+*.generated.tsx
+*.d.ts.map
+
+# Lockfiles (informação binária, sem valor pro grafo)
+pnpm-lock.yaml
+package-lock.json
+yarn.lock
+
+# Locale data (são dados, não código)
+**/locales/*.json
+**/translation/locales/*.json
+i18n.lock
+
+# Reports e var
+reports/
+var/
+dynamicconfig/
+
+# .context é gerenciado pelo dotcontext
+.context/
+
+# graphify-out auto-referência
+graphify-out/

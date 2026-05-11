@@ -65,3 +65,9 @@ i18n.cache
 /apps/backend/undefined/
 node-compile-cache/
 .playwright-mcp/
+
+# Graphify ephemeral files (mtime-based; broken after `git clone`).
+# Not produced by graphifyy 0.7.13 today but harmless to gitignore preemptively.
+graphify-out/manifest.json
+graphify-out/cost.json
+
