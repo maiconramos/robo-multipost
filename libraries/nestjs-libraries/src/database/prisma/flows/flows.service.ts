@@ -968,10 +968,22 @@ export class FlowsService {
         commentText: payload.commentText,
       });
 
+      const temporalClient = this._temporalService.client.getRawClient();
+      if (!temporalClient) {
+        this._logger.error(
+          `Temporal client unavailable — orchestrator offline? Marking execution ${execution.id} (flow=${flow.id}) as FAILED`
+        );
+        await this._flowsRepository.updateExecution(execution.id, {
+          status: FlowExecutionStatus.FAILED,
+          error: 'Temporal client unavailable (orchestrator offline)',
+          completedAt: new Date(),
+        });
+        results.push(execution);
+        continue;
+      }
+
       try {
-        await this._temporalService.client
-          .getRawClient()
-          ?.workflow.start('flowExecutionWorkflow', {
+        await temporalClient.workflow.start('flowExecutionWorkflow', {
             workflowId,
             taskQueue: 'main',
             args: [
@@ -1108,10 +1120,22 @@ export class FlowsService {
         commentText: payload.messageText || payload.reaction || '',
       });
 
+      const temporalClient = this._temporalService.client.getRawClient();
+      if (!temporalClient) {
+        this._logger.error(
+          `Temporal client unavailable — orchestrator offline? Marking execution ${execution.id} (flow=${flow.id}) as FAILED`
+        );
+        await this._flowsRepository.updateExecution(execution.id, {
+          status: FlowExecutionStatus.FAILED,
+          error: 'Temporal client unavailable (orchestrator offline)',
+          completedAt: new Date(),
+        });
+        results.push(execution);
+        continue;
+      }
+
       try {
-        await this._temporalService.client
-          .getRawClient()
-          ?.workflow.start('flowExecutionWorkflow', {
+        await temporalClient.workflow.start('flowExecutionWorkflow', {
             workflowId,
             taskQueue: 'main',
             args: [
@@ -1325,10 +1349,15 @@ export class FlowsService {
     }
 
     const workflowId = `follow-gate-resolve-${pending.id}`;
+    const temporalClient = this._temporalService.client.getRawClient();
+    if (!temporalClient) {
+      this._logger.error(
+        `Temporal client unavailable — orchestrator offline? Postback ${pending.id} not dispatched`
+      );
+      return;
+    }
     try {
-      await this._temporalService.client
-        .getRawClient()
-        ?.workflow.start('followGateResolveWorkflow', {
+      await temporalClient.workflow.start('followGateResolveWorkflow', {
           workflowId,
           taskQueue: 'main',
           args: [{ pendingPostbackId: pending.id }],

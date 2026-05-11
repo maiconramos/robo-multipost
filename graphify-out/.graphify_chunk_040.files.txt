@@ -1,0 +1,16 @@
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/helpers/use.prevent.window.unload.tsx
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/helpers/use.state.callback.ts
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/helpers/use.track.tsx
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/helpers/utc.date.render.tsx
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/helpers/variable.context.tsx
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/helpers/video.frame.tsx
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/helpers/video.or.image.tsx
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/sentry/initialize.sentry.client.ts
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/sentry/initialize.sentry.next.basic.ts
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/sentry/initialize.sentry.server.ts
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/toaster/toaster.tsx
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/translation/get.transation.service.client.ts
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/translation/get.translation.service.backend.ts
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/translation/i18n.config.ts
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/translation/i18next.ts
+/Users/maiconramos/Documents/workspace/robo-multipost/libraries/react-shared-libraries/src/translation/translated-label.tsx

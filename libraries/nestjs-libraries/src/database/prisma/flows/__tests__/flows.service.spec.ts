@@ -469,6 +469,65 @@ describe('FlowsService', () => {
       expect(mockRepository.createExecution).not.toHaveBeenCalled();
       expect(results).toHaveLength(0);
     });
+
+    it('marks execution as FAILED when Temporal client is null (orchestrator offline)', async () => {
+      const flow = makeFlow();
+      mockRepository.getActiveFlowsForIntegration.mockResolvedValue([flow]);
+      mockRepository.findExistingExecution.mockResolvedValue(null);
+      mockRepository.createExecution.mockResolvedValue({ id: 'exec-offline' });
+      mockTemporalService.client.getRawClient.mockReturnValue(null);
+
+      const results = await service.handleIncomingComment(commentPayload);
+
+      expect(mockRepository.updateExecution).toHaveBeenCalledWith('exec-offline', {
+        status: FlowExecutionStatus.FAILED,
+        error: 'Temporal client unavailable (orchestrator offline)',
+        completedAt: expect.any(Date),
+      });
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+    });
+  });
+
+  // --- handleIncomingStoryReply ---
+
+  describe('handleIncomingStoryReply', () => {
+    const storyPayload = {
+      integrationId: 'int-1',
+      organizationId: 'org-1',
+      igMessageId: 'msg-1',
+      igSenderId: 'user-1',
+      igSenderName: 'jane',
+      igStoryId: 'story-1',
+      messageText: 'reply text',
+    };
+
+    it('marks execution as FAILED when Temporal client is null (orchestrator offline)', async () => {
+      const storyFlow = makeFlow({
+        nodes: [
+          {
+            id: 'trig-1',
+            type: FlowNodeType.TRIGGER,
+            label: 'story_reply',
+            data: JSON.stringify({ triggerType: 'story_reply' }),
+          },
+        ],
+      });
+      mockRepository.getActiveFlowsForIntegration.mockResolvedValue([storyFlow]);
+      mockRepository.findExistingExecutionByMessage = jest.fn().mockResolvedValue(null);
+      mockRepository.createExecution.mockResolvedValue({ id: 'exec-story-offline' });
+      mockTemporalService.client.getRawClient.mockReturnValue(null);
+
+      const results = await service.handleIncomingStoryReply(storyPayload);
+
+      expect(mockRepository.updateExecution).toHaveBeenCalledWith('exec-story-offline', {
+        status: FlowExecutionStatus.FAILED,
+        error: 'Temporal client unavailable (orchestrator offline)',
+        completedAt: expect.any(Date),
+      });
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+    });
   });
 
   // --- bindPendingFlowsToPost ---
@@ -763,6 +822,28 @@ describe('FlowsService', () => {
           igAccountId: 'acct-1',
         })
       ).resolves.toBeUndefined();
+    });
+
+    it('logs and exits without dispatching when Temporal client is null (orchestrator offline)', async () => {
+      const payload = makeValidPayload();
+      mockRepository.findPostbackByPayload.mockResolvedValue({
+        id: 'pb-offline',
+        status: PendingPostbackStatus.PENDING,
+        expiresAt: new Date(Date.now() + 60_000),
+        organizationId: 'org-1',
+        originExecutionId: 'exec-1',
+      } as any);
+      mockRepository.markMetaMidIfUnconsumed.mockResolvedValue(true);
+      mockTemporalService.client.getRawClient.mockReturnValue(null);
+
+      await service.handlePostbackClick({
+        payload,
+        metaMid: 'mid-offline',
+        senderIgsid: 'sender-1',
+        igAccountId: 'acct-1',
+      });
+
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
     });
   });
 
