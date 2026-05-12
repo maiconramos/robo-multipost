@@ -1,0 +1,36 @@
+# Temporários do processo de extração (deletados pelo Step 9 do pipeline)
+.graphify_chunk_*.json
+.graphify_chunk_*.files.txt
+.graphify_detect.json
+.graphify_extract.json
+.graphify_ast.json
+.graphify_semantic.json
+.graphify_semantic_new.json
+.graphify_cached.json
+.graphify_uncached.txt
+.graphify_analysis.json
+.graphify_old.json
+.graphify_incremental.json
+.graphify_transcripts.json
+.graphify_prompt.md
+.graphify_chunk_manifest.json
+.rebuild.lock
+graph_merged_semantic.json
+
+# Específico da máquina local
+.graphify_python
+
+# Gerado automaticamente (pode ser regenerado com `graphify export html`)
+graph.html
+graph.svg
+graph.graphml
+cypher.txt
+
+# Mantidos (commitar):
+# graph.json           — grafo principal
+# GRAPH_REPORT.md      — relatório arquitetural
+# cache/               — cache AST incremental
+# cost.json            — rastreador de tokens
+# manifest.json        — manifesto para `graphify update`
+# .graphify_root       — path raiz para `--update`
+# .graphify_labels.json — labels das comunidades
