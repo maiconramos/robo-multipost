@@ -137,6 +137,16 @@ export const FlowListComponent: FC = () => {
         </div>
         <div className="flex items-center gap-[8px]">
           <button
+            onClick={() => router.push('/automacoes/logs')}
+            className="rounded-[4px] border border-fifth bg-sixth px-[16px] py-[8px] text-[14px] text-textColor hover:border-btnPrimary/50 transition-colors"
+            title={t(
+              'logs_button_tooltip',
+              'Comments on posts not monitored (ad dark posts)'
+            )}
+          >
+            {t('logs_button', 'Logs')}
+          </button>
+          <button
             onClick={() => setShowNovaModal(true)}
             className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80"
           >

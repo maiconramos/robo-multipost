@@ -1,6 +1,7 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { Activity, ActivityMethod } from 'nestjs-temporal-core';
 import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
+import { UnmatchedCommentService } from '@gitroom/nestjs-libraries/database/prisma/flows/unmatched-comment.service';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
@@ -23,7 +24,8 @@ export class FlowActivity {
     private _flowsService: FlowsService,
     private _integrationService: IntegrationService,
     private _integrationManager: IntegrationManager,
-    private _instagramMessagingService: InstagramMessagingService
+    private _instagramMessagingService: InstagramMessagingService,
+    private _unmatchedCommentService: UnmatchedCommentService
   ) {}
 
   private resolveIgRoute(integration: {
@@ -539,5 +541,15 @@ export class FlowActivity {
       button,
       integrationName: integration.name || undefined,
     });
+  }
+
+  // Enriquece metadata de um UnmatchedComment (thumbnail, legenda, badge "Anuncio").
+  // Service ja trata try/catch interno — activity nunca propaga erro fatal.
+  @ActivityMethod()
+  async enrichUnmatchedComment(unmatchedCommentId: string) {
+    this._logger.log(
+      `enrichUnmatchedComment: iniciando id=${unmatchedCommentId}`
+    );
+    await this._unmatchedCommentService.enrich(unmatchedCommentId);
   }
 }

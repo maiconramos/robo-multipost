@@ -9,6 +9,7 @@ import { useRouter } from 'next/navigation';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { WizardPhonePreview } from '@gitroom/frontend/components/automations/wizard-phone-preview.component';
 import { AddLinkModal } from '@gitroom/frontend/components/automations/add-link-modal.component';
+import { AdAliasesField } from '@gitroom/frontend/components/automations/ad-aliases-field.component';
 
 const FOLLOW_GATE_DEFAULT_PT =
   'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
@@ -493,6 +494,14 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
                 <p className="text-[11px] text-customColor18 mt-[6px] ml-[24px]">
                   {t('wizard_next_publication_hint', 'A automação será vinculada automaticamente ao próximo feed ou reel publicado nesta conta. Stories não são suportados.')}
                 </p>
+              </div>
+
+              {/* Aliases de dark posts (anuncios) — aditivo a qualquer modo */}
+              <div className="mt-[16px]">
+                <AdAliasesField
+                  flowId={flowId ?? null}
+                  integrationId={integrationId ?? null}
+                />
               </div>
             </div>
 

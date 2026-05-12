@@ -181,8 +181,16 @@ export const ContinueIntegration: FC<{
         }
       }
 
-      // If it's a two-step provider, show the selection UI inline
+      // If it's a two-step provider, show the selection UI inline.
+      // Replace the URL to remove OAuth params (code/state) from the address
+      // bar so a page refresh during step-2 selection doesn't replay the
+      // already-consumed state and trigger "Invalid state".
       if (inBetweenSteps && !searchParams.refresh) {
+        window.history.replaceState(
+          {},
+          '',
+          `/integrations/social/${provider}?step=2`
+        );
         setTwoStepState({
           integrationId: id,
           onboarding,

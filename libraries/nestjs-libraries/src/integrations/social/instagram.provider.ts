@@ -1187,6 +1187,75 @@ export class InstagramProvider
     return this.subscribeToWebhooks(igAccountId, pageAccessToken, type);
   }
 
+  async getMediaMetadata(
+    mediaId: string,
+    accessToken: string,
+    type = 'graph.facebook.com'
+  ): Promise<{
+    id: string;
+    permalink?: string;
+    caption?: string;
+    thumbnailUrl?: string;
+    mediaType?: string;
+    isAd?: boolean;
+  }> {
+    // boost_eligibility_info so existe em "Instagram API with Facebook Login"
+    // (host graph.facebook.com). "Instagram API with Instagram Login"
+    // (host graph.instagram.com / standalone) NAO expoe esse campo —
+    // documentado em https://developers.facebook.com/docs/instagram-platform/reference/instagram-media
+    // Quando sabemos pelo host que nao vai funcionar, pulamos o campo direto.
+    // Caso o host nao seja reconhecido, o retry abaixo cobre como safety net.
+    const baseFields =
+      'id,caption,media_type,media_url,thumbnail_url,permalink';
+    const supportsBoostField = type.includes('graph.facebook.com');
+    const withBoost = `${baseFields},boost_eligibility_info`;
+    const initialFields = supportsBoostField ? withBoost : baseFields;
+
+    const tryFetch = async (fields: string) => {
+      const response = await fetch(
+        `https://${type}/v25.0/${mediaId}?fields=${fields}&access_token=${accessToken}`
+      );
+      const body = await response.json();
+      return { response, body };
+    };
+
+    let { response, body } = await tryFetch(initialFields);
+    if (
+      supportsBoostField &&
+      (!response.ok || body?.error)
+    ) {
+      const message: string = body?.error?.message ?? '';
+      const isNonexistingField =
+        /nonexisting field/i.test(message) &&
+        /boost_eligibility_info/i.test(message);
+      if (isNonexistingField) {
+        // Defensive: host eh facebook mas o app type nao suporta o campo.
+        ({ response, body } = await tryFetch(baseFields));
+      }
+    }
+
+    if (!response.ok || body?.error) {
+      throw new Error(
+        `IG getMediaMetadata failed (HTTP ${response.status}): ${
+          body?.error?.message ?? JSON.stringify(body).slice(0, 200)
+        }`
+      );
+    }
+
+    const eligibleToBoost = body?.boost_eligibility_info?.eligible_to_boost;
+    const isAd =
+      typeof eligibleToBoost === 'boolean' ? !eligibleToBoost : undefined;
+
+    return {
+      id: body.id,
+      permalink: body.permalink,
+      caption: body.caption,
+      thumbnailUrl: body.thumbnail_url ?? body.media_url,
+      mediaType: body.media_type,
+      isAd,
+    };
+  }
+
   async getRecentMedia(
     igAccountId: string,
     accessToken: string,

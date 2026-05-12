@@ -99,7 +99,7 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 |---|---|
 | `../social.abstract.ts` | Base class + error classes (`RefreshToken`, `BadBody`, `NotEnoughScopes`) |
 | `social.integrations.interface.ts` | Interfaces (`SocialProvider`, `ClientInformation`, `AuthTokenDetails`, `PostDetails`, `PostResponse`) |
-| `instagram.provider.ts` | IG via Facebook Login (Page Access Token, host `graph.facebook.com`) |
+| `instagram.provider.ts` | IG via Facebook Login (Page Access Token, host `graph.facebook.com`); includes `getMediaMetadata(mediaId, token, host?)` for inbox/dark-post enrichment |
 | `instagram.standalone.provider.ts` | IG via Instagram Login (IG User Token, host `graph.instagram.com`) — preferred for self-hosted |
 | `instagram-route.resolver.ts` | `resolveIgRoute` — picks the correct host/token |
 | `instagram-messaging.service.ts` | Registered tokens (Meta System User Token + per-account IG User Tokens) |
@@ -142,6 +142,7 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 4. **Symptom:** Zernio returns "API key invalid" → **Cause:** `clientInformation.instanceUrl` (which carries the key) is not being read. **Fix:** check the `generateAuthUrl` flow of `ZernioBaseProvider` — the key resolves per-profile first, then org with `shareZernioWithProfiles`.
 5. **Symptom:** Trying to import `late.*.provider` → **Cause:** Late was removed (rebranded to Zernio). **Fix:** use `zernio-<platform>.provider.ts`.
 6. **Symptom:** Token refresh in an infinite loop → **Cause:** `RefreshToken` thrown even after a successful refresh. **Fix:** ensure the new token updates `Integration.token` and the original call is retried with the new token.
+7. **Symptom:** `GET /{mediaId}?fields=...,boost_eligibility_info` returns `"(#100) Tried accessing nonexisting field"` → **Cause:** `boost_eligibility_info` only exists on the Facebook Login Graph (`graph.facebook.com`); the Instagram Login Graph (`graph.instagram.com` / standalone) does not expose it. Per [Meta docs](https://developers.facebook.com/docs/instagram-platform/reference/instagram-media), only "Instagram API with Facebook Login" supports it. **Fix:** check `host.includes('graph.facebook.com')` before including the field. `InstagramProvider.getMediaMetadata` already implements this guard with a retry-without-field safety net — reuse it instead of writing a new Graph API call for media metadata.
 
 ## Commands
 

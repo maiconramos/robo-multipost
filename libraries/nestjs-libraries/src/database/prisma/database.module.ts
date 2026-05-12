@@ -51,6 +51,8 @@ import { AnnouncementsRepository } from '@gitroom/nestjs-libraries/database/pris
 import { AnnouncementsService } from '@gitroom/nestjs-libraries/database/prisma/announcements/announcements.service';
 import { FlowsRepository } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.repository';
 import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
+import { UnmatchedCommentService } from '@gitroom/nestjs-libraries/database/prisma/flows/unmatched-comment.service';
+import { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import { ReviewLinksRepository } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.repository';
 import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
@@ -117,6 +119,8 @@ import { AiModule } from '@gitroom/nestjs-libraries/ai/ai.module';
     AnnouncementsService,
     FlowsRepository,
     FlowsService,
+    UnmatchedCommentService,
+    InstagramProvider,
     ReviewLinksRepository,
     ReviewLinksService,
     InstagramMessagingService,

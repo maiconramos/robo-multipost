@@ -35,6 +35,28 @@ const useCommunity = () => ({
 });
 ```
 
+For **mutation helpers** that need both `fetch` and one or more `mutate` callbacks from sibling hooks, use the **factory pattern** instead of embedding hooks in a returned object. The factory receives `fetch` and `mutate` **by parameter** — no hook is called inside it, so `rules-of-hooks` is satisfied. Canonical example: `createInboxActions` in `src/components/automations/hooks/use-unmatched-comments.ts`:
+
+```typescript
+export const createInboxActions = (
+  fetchApi: ReturnType<typeof useFetch>,
+  mutators: { mutateInbox?: () => Promise<unknown>; mutateAliases?: () => Promise<unknown> } = {}
+) => ({
+  bind: async (id: string, flowId: string) => {
+    await fetchApi('/automations/inbox/bind', { method: 'POST', body: ... });
+    await mutators.mutateInbox?.();
+    await mutators.mutateAliases?.();
+  },
+  // ignore, createAlias, deleteAlias...
+});
+
+// In the component:
+const { data, mutate: mutateInbox } = useInbox(integrationId);
+const actions = createInboxActions(fetchApi, { mutateInbox });
+```
+
+Use this when a page mixes SWR reads with mutations that need to invalidate multiple caches — the alternative (object-of-hooks) breaks `rules-of-hooks`.
+
 ### Translations — `useT()` is mandatory
 
 Every user-visible string goes through the `useT()` hook:
@@ -77,6 +99,9 @@ The `--color-custom*` variables are **deprecated**. Use `--new-*` tokens and Tai
 | `src/components/launches/` | Largest surface — composer, calendar, AI modals (~60 components) |
 | `src/components/launches/helpers/mode.tab.component.tsx` | Shared `ModeTab` for T2X/I2X tabs in AI modals (image, video) |
 | `src/components/launches/helpers/reference.image.dropzone.component.tsx` | Shared dropzone for I2I/I2V reference image (drag-drop + URL fallback, POSTs to `/media/upload-server`). Reuse instead of inlining file-upload logic in new modals |
+| `src/components/automations/logs/logs.component.tsx` | Unbound IG comment inbox (Dark Posts / Logs page at `/automacoes/logs`) — destino dos comentários em mídias não monitoradas por nenhuma automação |
+| `src/components/automations/ad-aliases-field.component.tsx` | Shared `<AdAliasesField />` used in both the Wizard and Flow Builder — parity component for "Dark Post IDs" trigger config |
+| `src/components/automations/hooks/use-unmatched-comments.ts` | SWR hooks (`useInbox`, `useAliases`, `useAliasLookup`) + `createInboxActions(fetch, mutators)` mutation factory (mutate-as-parameter pattern — see SWR section above) |
 | `src/components/launches/ai.image.tsx` / `ai.video.tsx` / `ai.search.tsx` | AI generation modals — all 700px width, sticky header without `-mt`/`pt` quirks, X inside same flex row as `TopTitle` |
 | `src/components/settings/` | Settings panels (AI Provider, Credentials, Profiles, etc.) |
 | `src/components/new-layout/` | Current sidebar + topbar |

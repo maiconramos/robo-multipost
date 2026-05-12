@@ -67,6 +67,7 @@ Local wrapper: `FlowActivity.resolveIgRoute(integration)` in `src/activities/flo
 | `src/workflows/post-workflows/` | Real publishing pipeline per channel |
 | `src/workflows/flow.execution.workflow.ts` | Flow engine (Instagram automations) — step 1 of follow-gate |
 | `src/workflows/follow-gate-resolve.workflow.ts` | Step 2 of follow-gate (resolves postback) |
+| `src/workflows/enrich-unmatched-comment.workflow.ts` | Fire-and-forget enrichment of `UnmatchedComment` with IG media metadata (thumbnail, caption, `isAd` badge); no signal, no PendingPostback |
 | `src/workflows/refresh.token.workflow.ts` | Periodic OAuth token refresh |
 | `src/workflows/repost.workflow.ts` | Scheduled repost |
 | `src/workflows/missing.post.workflow.ts` | Failed-post detector + retry |
@@ -105,6 +106,7 @@ Every Flow step that touches Meta endpoints must go through `resolveIgRoute`. Se
 4. **Symptom:** non-deterministic workflow on replay (`Workflow execution had errors`) → **Cause:** direct API/DB/`Date.now()` call inside the workflow. **Fix:** move the call to an activity.
 5. **Symptom:** new Flow field does not appear in the visual Flow Builder → **Cause:** only the wizard was updated. **Fix:** also update the `node-config-panel` of the Flow Builder — both consume the same `triggerConfig` (parity rule).
 6. **Symptom:** IG webhook delivers the postback but `follow-gate-resolve` does not fire → **Cause:** invalid HMAC or `PendingPostback` was not created/has expired. **Fix:** see [`libraries/nestjs-libraries/src/chat/CLAUDE.md`](../../libraries/nestjs-libraries/src/chat/CLAUDE.md) for webhook validation (FACEBOOK_APP_SECRET + INSTAGRAM_APP_SECRET).
+7. **Symptom:** enrichment workflow hangs or someone added a signal wait "to know when enrichment completes" → **Cause:** confusion with the two-step follow-gate pattern. **Fix:** `enrichUnmatchedCommentWorkflow` is fire-and-forget — caller (`FlowsService.handleIncomingComment`) dispatches it and moves on. There is no signal, no `PendingPostback`, no second workflow step. The activity retries up to 5× with exponential back-off; the Redis 24h cache (`ig:media:{id}:metadata`) prevents redundant Graph API calls.
 
 ## Commands
 

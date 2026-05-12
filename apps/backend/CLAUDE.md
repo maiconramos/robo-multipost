@@ -39,7 +39,7 @@ Controller >> Manager >> Service >> Repository
 | `src/main.ts` | NestJS bootstrap, `initializeSentry()`, port listen |
 | `src/app.module.ts` | Root module — registers `SentryModule`, global `FILTER`, api/public-api modules |
 | `src/api/api.module.ts` | HTTP module for the private API (controllers requiring auth) |
-| `src/api/routes/` | 30+ REST controllers (auth, posts, integrations, ai-*, copilot, flows, ig-webhook, etc.) |
+| `src/api/routes/` | 30+ REST controllers (auth, posts, integrations, ai-*, copilot, flows, ig-webhook, automations-inbox, etc.) |
 | `src/public-api/` | Versioned public API (`/v1/`) — authenticated by API key |
 | `src/services/` | Small utility layer for the HTTP app (do not confuse with domain services in libraries) |
 
@@ -87,6 +87,7 @@ import { FILTER } from '@gitroom/nestjs-libraries/sentry/sentry.exception';
 4. **Symptom:** imported from `@gitroom/backend/...` inside a library → **Cause:** circular dependency. **Fix:** libraries **never** import from the backend; only the backend imports from libraries.
 5. **Symptom:** new endpoint does not appear in Swagger → **Cause:** controller not registered in `api.module.ts`. **Fix:** add it to the `controllers:` array.
 6. **Symptom:** TS error `'createTestModule' does not exist` in a new spec → **Cause:** wrong import path. **Fix:** `import { createTestModule } from '@gitroom/nestjs-libraries/test'`.
+7. **Symptom:** `GET /automations/aliases/lookup` returns flows from other orgs → **Cause:** `lookupAliasFlows` (and any new service method that searches by external ID like `aliasMediaId`) was called without passing `orgId`. **Fix:** all service methods that accept an externally-supplied identifier (media ID, comment ID, etc.) MUST also accept and enforce `orgId` — closes cross-tenant info leak. See `FlowsService.lookupAliasFlows`.
 
 ## Commands
 
