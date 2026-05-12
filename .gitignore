@@ -71,4 +71,6 @@ node-compile-cache/
 graphify-out/manifest.json
 graphify-out/cost.json
 graphify-out/.rebuild.lock
+# Graphify intermediate build artifacts (efêmeros, regenerados em todo rebuild)
+graphify-out/.graphify_*
 
