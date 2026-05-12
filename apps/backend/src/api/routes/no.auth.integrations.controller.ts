@@ -74,7 +74,11 @@ export class NoAuthIntegrationsController {
 
     const org = await this._organizationService.getOrgById(organization);
 
-    if (!integrationProvider.customFields) {
+    // For two-step providers (isBetweenSteps), keep the login state alive so
+    // that a page refresh during step-2 selection doesn't cause "Invalid state".
+    // The key expires naturally after 1 hour; the auth code itself is one-time
+    // and will be rejected by the provider on any subsequent authenticate() call.
+    if (!integrationProvider.customFields && !integrationProvider.isBetweenSteps) {
       await ioRedis.del(`login:${body.state}`);
     }
 
