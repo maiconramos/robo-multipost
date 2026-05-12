@@ -1,1 +1,0 @@
-/Users/maiconramos/Documents/workspace/robo-multipost/apps/frontend/public/auth/login-box.png
