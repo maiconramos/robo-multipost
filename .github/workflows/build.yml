@@ -49,7 +49,14 @@ jobs:
         run: pnpm install
 
       - name: Run tests
+        env:
+          # Suite cresceu (~150+ tests adicionados em features recentes);
+          # heap default de 4GB do Node nao basta no runner ubuntu-latest
+          # (7GB RAM). Subir para 6GB previne JS heap OOM no jest.
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm test
 
       - name: Build
+        env:
+          NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm run build
