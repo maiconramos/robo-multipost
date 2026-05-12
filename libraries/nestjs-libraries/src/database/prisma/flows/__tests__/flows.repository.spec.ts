@@ -4,6 +4,8 @@ import {
   FlowNodeType,
   FlowExecutionStatus,
   PendingPostbackStatus,
+  AliasSource,
+  UnmatchedStatus,
 } from '@prisma/client';
 
 const mockFlowModel = {
@@ -39,11 +41,35 @@ const mockPendingPostbackModel = {
   updateMany: jest.fn(),
 };
 
+const mockFlowMediaAliasModel = {
+  findMany: jest.fn(),
+  findFirst: jest.fn(),
+  create: jest.fn(),
+  delete: jest.fn(),
+};
+
+const mockUnmatchedCommentModel = {
+  upsert: jest.fn(),
+  findFirst: jest.fn(),
+  findMany: jest.fn(),
+  count: jest.fn(),
+  update: jest.fn(),
+  deleteMany: jest.fn(),
+};
+
+const mockIgnoredMediaModel = {
+  findUnique: jest.fn(),
+  upsert: jest.fn(),
+};
+
 const mockFlowPrisma = { model: { flow: mockFlowModel } } as any;
 const mockFlowNodePrisma = { model: { flowNode: mockFlowNodeModel } } as any;
 const mockFlowEdgePrisma = { model: { flowEdge: mockFlowEdgeModel } } as any;
 const mockFlowExecutionPrisma = { model: { flowExecution: mockFlowExecutionModel } } as any;
 const mockPendingPostbackPrisma = { model: { pendingPostback: mockPendingPostbackModel } } as any;
+const mockFlowMediaAliasPrisma = { model: { flowMediaAlias: mockFlowMediaAliasModel } } as any;
+const mockUnmatchedCommentPrisma = { model: { unmatchedComment: mockUnmatchedCommentModel } } as any;
+const mockIgnoredMediaPrisma = { model: { ignoredMedia: mockIgnoredMediaModel } } as any;
 
 describe('FlowsRepository', () => {
   let repository: FlowsRepository;
@@ -55,7 +81,10 @@ describe('FlowsRepository', () => {
       mockFlowNodePrisma,
       mockFlowEdgePrisma,
       mockFlowExecutionPrisma,
-      mockPendingPostbackPrisma
+      mockPendingPostbackPrisma,
+      mockFlowMediaAliasPrisma,
+      mockUnmatchedCommentPrisma,
+      mockIgnoredMediaPrisma
     );
   });
 
@@ -74,6 +103,11 @@ describe('FlowsRepository', () => {
         include: {
           integration: {
             select: { id: true, name: true, picture: true, providerIdentifier: true },
+          },
+          nodes: {
+            where: { type: 'TRIGGER' },
+            select: { id: true, type: true, data: true },
+            take: 1,
           },
           _count: {
             select: { nodes: true, executions: true },
@@ -486,6 +520,313 @@ describe('FlowsRepository', () => {
         });
         expect(result).toBe(3);
       });
+    });
+  });
+
+  describe('findAliasesByIntegrationAndMedia', () => {
+    it('deve buscar aliases pela combinacao integracao + media', async () => {
+      const aliases = [{ id: 'a-1', flowId: 'f-1' }];
+      mockFlowMediaAliasModel.findMany.mockResolvedValue(aliases);
+
+      const result = await repository.findAliasesByIntegrationAndMedia(
+        'int-1',
+        'media-X'
+      );
+
+      expect(mockFlowMediaAliasModel.findMany).toHaveBeenCalledWith({
+        where: { integrationId: 'int-1', aliasMediaId: 'media-X' },
+        select: { id: true, flowId: true },
+      });
+      expect(result).toEqual(aliases);
+    });
+  });
+
+  describe('findFlowsByAlias', () => {
+    it('deve listar flows ativos ligados a um media alias', async () => {
+      mockFlowMediaAliasModel.findMany.mockResolvedValue([
+        { id: 'a-1', flowId: 'f-1', flow: { id: 'f-1', name: 'Flow A' } },
+      ]);
+
+      const result = await repository.findFlowsByAlias(
+        'org-1',
+        'int-1',
+        'media-X'
+      );
+
+      expect(mockFlowMediaAliasModel.findMany).toHaveBeenCalledWith({
+        where: {
+          integrationId: 'int-1',
+          aliasMediaId: 'media-X',
+          flow: { organizationId: 'org-1', deletedAt: null },
+        },
+        select: {
+          id: true,
+          flowId: true,
+          flow: { select: { id: true, name: true } },
+        },
+      });
+      expect(result).toHaveLength(1);
+    });
+  });
+
+  describe('createAlias', () => {
+    it('deve criar um alias com source MANUAL', async () => {
+      mockFlowMediaAliasModel.create.mockResolvedValue({ id: 'a-1' });
+
+      const result = await repository.createAlias({
+        flowId: 'f-1',
+        integrationId: 'int-1',
+        aliasMediaId: 'media-X',
+        source: AliasSource.MANUAL,
+        boundBy: 'u-1',
+      });
+
+      expect(mockFlowMediaAliasModel.create).toHaveBeenCalledWith({
+        data: {
+          flowId: 'f-1',
+          integrationId: 'int-1',
+          aliasMediaId: 'media-X',
+          source: AliasSource.MANUAL,
+          boundBy: 'u-1',
+        },
+      });
+      expect(result).toEqual({ id: 'a-1' });
+    });
+  });
+
+  describe('deleteAliasForOrg', () => {
+    it('deve retornar false quando alias nao pertence a org', async () => {
+      mockFlowMediaAliasModel.findFirst.mockResolvedValue(null);
+
+      const result = await repository.deleteAliasForOrg('org-1', 'a-1');
+
+      expect(result).toBe(false);
+      expect(mockFlowMediaAliasModel.delete).not.toHaveBeenCalled();
+    });
+
+    it('deve deletar quando alias pertence a org', async () => {
+      mockFlowMediaAliasModel.findFirst.mockResolvedValue({ id: 'a-1' });
+      mockFlowMediaAliasModel.delete.mockResolvedValue({ id: 'a-1' });
+
+      const result = await repository.deleteAliasForOrg('org-1', 'a-1');
+
+      expect(mockFlowMediaAliasModel.delete).toHaveBeenCalledWith({
+        where: { id: 'a-1' },
+      });
+      expect(result).toBe(true);
+    });
+  });
+
+  describe('listAliasesByFlow', () => {
+    it('deve listar aliases de um flow filtrando pela org', async () => {
+      mockFlowMediaAliasModel.findMany.mockResolvedValue([{ id: 'a-1' }]);
+
+      await repository.listAliasesByFlow('org-1', 'f-1');
+
+      expect(mockFlowMediaAliasModel.findMany).toHaveBeenCalledWith({
+        where: {
+          flowId: 'f-1',
+          flow: { organizationId: 'org-1', deletedAt: null },
+        },
+        orderBy: { createdAt: 'desc' },
+      });
+    });
+  });
+
+  describe('findIgnoredMedia', () => {
+    it('deve buscar pela chave composta integracao + media', async () => {
+      mockIgnoredMediaModel.findUnique.mockResolvedValue({ id: 'im-1' });
+
+      const result = await repository.findIgnoredMedia('int-1', 'media-X');
+
+      expect(mockIgnoredMediaModel.findUnique).toHaveBeenCalledWith({
+        where: {
+          integrationId_igMediaId: {
+            integrationId: 'int-1',
+            igMediaId: 'media-X',
+          },
+        },
+      });
+      expect(result).toEqual({ id: 'im-1' });
+    });
+  });
+
+  describe('upsertIgnoredMedia', () => {
+    it('deve criar ou atualizar idempotente', async () => {
+      mockIgnoredMediaModel.upsert.mockResolvedValue({ id: 'im-1' });
+
+      await repository.upsertIgnoredMedia({
+        integrationId: 'int-1',
+        organizationId: 'org-1',
+        igMediaId: 'media-X',
+        reason: 'spam',
+      });
+
+      expect(mockIgnoredMediaModel.upsert).toHaveBeenCalledWith({
+        where: {
+          integrationId_igMediaId: {
+            integrationId: 'int-1',
+            igMediaId: 'media-X',
+          },
+        },
+        create: {
+          integrationId: 'int-1',
+          organizationId: 'org-1',
+          igMediaId: 'media-X',
+          reason: 'spam',
+        },
+        update: { reason: 'spam', ignoredBy: undefined },
+      });
+    });
+  });
+
+  describe('upsertUnmatchedComment', () => {
+    it('deve fazer upsert pela chave composta integracao + igCommentId', async () => {
+      mockUnmatchedCommentModel.upsert.mockResolvedValue({ id: 'uc-1' });
+
+      const data = {
+        integrationId: 'int-1',
+        organizationId: 'org-1',
+        igMediaId: 'media-X',
+        igCommentId: 'c-1',
+        igCommenterId: 'user-99',
+        igCommenterName: 'jose',
+        commentText: 'GOSTEI',
+      };
+
+      await repository.upsertUnmatchedComment(data);
+
+      expect(mockUnmatchedCommentModel.upsert).toHaveBeenCalledWith({
+        where: {
+          integrationId_igCommentId: {
+            integrationId: 'int-1',
+            igCommentId: 'c-1',
+          },
+        },
+        create: data,
+        update: {
+          commentText: 'GOSTEI',
+          igCommenterName: 'jose',
+        },
+      });
+    });
+  });
+
+  describe('listUnmatchedByIntegration', () => {
+    it('deve paginar e retornar total', async () => {
+      mockUnmatchedCommentModel.findMany.mockResolvedValue([{ id: 'uc-1' }]);
+      mockUnmatchedCommentModel.count.mockResolvedValue(15);
+
+      const result = await repository.listUnmatchedByIntegration(
+        'org-1',
+        'int-1',
+        { status: UnmatchedStatus.PENDING, page: 2, limit: 5 }
+      );
+
+      expect(mockUnmatchedCommentModel.findMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          integrationId: 'int-1',
+          status: UnmatchedStatus.PENDING,
+        },
+        orderBy: { createdAt: 'desc' },
+        skip: 5,
+        take: 5,
+      });
+      expect(result).toEqual({
+        items: [{ id: 'uc-1' }],
+        total: 15,
+        page: 2,
+        limit: 5,
+      });
+    });
+
+    it('deve usar defaults quando page/limit nao passados', async () => {
+      mockUnmatchedCommentModel.findMany.mockResolvedValue([]);
+      mockUnmatchedCommentModel.count.mockResolvedValue(0);
+
+      const result = await repository.listUnmatchedByIntegration(
+        'org-1',
+        'int-1',
+        {}
+      );
+
+      expect(result.page).toBe(1);
+      expect(result.limit).toBe(20);
+    });
+  });
+
+  describe('updateUnmatchedMetadata', () => {
+    it('deve gravar metadata enriquecida', async () => {
+      mockUnmatchedCommentModel.update.mockResolvedValue({});
+
+      const enrichedAt = new Date();
+      await repository.updateUnmatchedMetadata('uc-1', {
+        permalink: 'https://...',
+        thumbnailUrl: 'https://thumb',
+        isAd: true,
+        enrichedAt,
+      });
+
+      expect(mockUnmatchedCommentModel.update).toHaveBeenCalledWith({
+        where: { id: 'uc-1' },
+        data: {
+          permalink: 'https://...',
+          thumbnailUrl: 'https://thumb',
+          isAd: true,
+          enrichedAt,
+        },
+      });
+    });
+  });
+
+  describe('markUnmatchedBound', () => {
+    it('deve mudar status para BOUND e setar boundFlowId/boundAt', async () => {
+      mockUnmatchedCommentModel.update.mockResolvedValue({});
+
+      await repository.markUnmatchedBound('uc-1', 'f-1');
+
+      expect(mockUnmatchedCommentModel.update).toHaveBeenCalledWith({
+        where: { id: 'uc-1' },
+        data: expect.objectContaining({
+          status: UnmatchedStatus.BOUND,
+          boundFlowId: 'f-1',
+          boundAt: expect.any(Date),
+        }),
+      });
+    });
+  });
+
+  describe('markUnmatchedIgnored', () => {
+    it('deve mudar status para IGNORED e setar ignoredAt', async () => {
+      mockUnmatchedCommentModel.update.mockResolvedValue({});
+
+      await repository.markUnmatchedIgnored('uc-1');
+
+      expect(mockUnmatchedCommentModel.update).toHaveBeenCalledWith({
+        where: { id: 'uc-1' },
+        data: expect.objectContaining({
+          status: UnmatchedStatus.IGNORED,
+          ignoredAt: expect.any(Date),
+        }),
+      });
+    });
+  });
+
+  describe('deleteUnmatchedOlderThan', () => {
+    it('deve apagar so PENDING anteriores ao cutoff', async () => {
+      mockUnmatchedCommentModel.deleteMany.mockResolvedValue({ count: 7 });
+      const cutoff = new Date('2026-04-12T00:00:00Z');
+
+      const result = await repository.deleteUnmatchedOlderThan(cutoff);
+
+      expect(mockUnmatchedCommentModel.deleteMany).toHaveBeenCalledWith({
+        where: {
+          status: UnmatchedStatus.PENDING,
+          createdAt: { lt: cutoff },
+        },
+      });
+      expect(result).toBe(7);
     });
   });
 });

@@ -4,6 +4,7 @@ import { FC, useCallback, useState, useEffect } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { AdAliasesField } from '@gitroom/frontend/components/automations/ad-aliases-field.component';
 
 interface NodeConfigPanelProps {
   node: any;
@@ -146,6 +147,12 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
   const { data: posts, isLoading: postsLoading } = useFlowPosts(
     flowId,
     node.type === 'trigger'
+  );
+
+  const fetchApi = useFetch();
+  const { data: flowSummary } = useSWR<{ integrationId: string }>(
+    flowId && node.type === 'trigger' ? `/flows/${flowId}` : null,
+    (path: string) => fetchApi(path).then((r) => r.json())
   );
 
   const selectedPostIds: string[] = config.postIds || [];
@@ -374,6 +381,16 @@ export const NodeConfigPanel: FC<NodeConfigPanelProps> = ({
                     }
                   />
                 </div>
+              </div>
+            )}
+
+            {/* Aliases de dark posts (anuncios) — apenas comment_on_post */}
+            {triggerType === 'comment_on_post' && (
+              <div className="mt-[16px]">
+                <AdAliasesField
+                  flowId={flowId}
+                  integrationId={flowSummary?.integrationId ?? null}
+                />
               </div>
             )}
 

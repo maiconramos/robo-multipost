@@ -122,6 +122,7 @@ For encrypting sensitive values (OAuth tokens, AI keys, messaging tokens): use t
 | `src/database/prisma/prisma.service.ts` | Root `PrismaService`; inject **only** in repositories |
 | `src/database/prisma/<table>/<table>.repository.ts` | Per-table repositories (`PrismaRepository<T>` pattern) |
 | `src/database/prisma/startup-migration.service.ts` | **Code-level data migrations** that run on every app startup (idempotent backfills, not schema changes — see pitfall below) |
+| `src/database/prisma/flows/unmatched-comment.service.ts` | Inbox operations for unbound IG comments: `listInbox`, `bindToFlow`, `ignore`, `enrich`, `cleanupExpired` (30d PENDING retention, registered in `StartupMigrationService`), `getMediaMetadataCached` (Redis 24h), `listAliasesEnriched` |
 | `src/database/prisma/migrations/` | **Schema-level Prisma migrations** (DDL applied via `pnpm prisma-db-push`) |
 | `src/test/mock.factory.ts` | `createMock`, `createPrismaRepositoryMock` |
 | `src/test/create-testing-module.ts` | `createTestModule({ service, mocks })` |
@@ -157,6 +158,7 @@ For encrypting sensitive values (OAuth tokens, AI keys, messaging tokens): use t
 4. **Symptom:** AES decryption returning garbage after a deploy change → **Cause:** `ENCRYPTION_KEY` changed between environments. **Fix:** preserve the key (it's the same one for OAuth and AI keys); rotating it requires a re-encrypt migration.
 5. **Symptom:** spec passes locally but fails in CI → **Cause:** test ordering (shared state, global mock). **Fix:** isolate state in `beforeEach`/`afterEach`; never use `--bail` to mask the issue.
 6. **Symptom:** App starts cleanly after deploy but data looks wrong (rows with stale `lateApiKey`, `providerIdentifier='late-X'` instead of `zernio-X`, missing `RepostRuleDestination` rows, etc.) → **Cause:** `StartupMigrationService` (`OnModuleInit`) runs every startup with three idempotent migrations (`migrateProfileScope`, `migrateLateToZernio`, `backfillRepostDestinations`), but it **swallows errors** — failures are only logged, the app keeps running. **Fix:** tail the backend logs on deploy for `Late->Zernio migration failed:` / `Profile scope migration failed:` / `Backfill RepostRuleDestination falhou:`. Each method begins with a `count()` guard that skips when no rows need work, so re-running is safe — just fix the underlying issue and restart the backend. New data migrations belong here when they need application-level logic (joins, format mapping, conditional updates) — pure DDL still goes through Prisma migrations.
+7. **Symptom:** `PENDING UnmatchedComment` rows accumulate indefinitely after adding a new inbox-like feature → **Cause:** time-windowed cleanup must be registered in `StartupMigrationService.onModuleInit`, not as a standalone `@Cron` service. The canonical example is `cleanupExpiredUnmatchedComments` (30-day retention) — count-guard idempotent, swallows errors per existing pattern. **Fix:** add an idempotent cleanup method to `StartupMigrationService` and call it from `onModuleInit`. Do NOT create a separate cron service.
 
 ## Commands
 

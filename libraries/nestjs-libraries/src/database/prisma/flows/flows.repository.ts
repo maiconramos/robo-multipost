@@ -4,6 +4,8 @@ import {
   FlowStatus,
   FlowExecutionStatus,
   PendingPostbackStatus,
+  AliasSource,
+  UnmatchedStatus,
 } from '@prisma/client';
 import { FlowNodeDto, FlowEdgeDto } from '@gitroom/nestjs-libraries/dtos/flows/flow.dto';
 
@@ -14,7 +16,10 @@ export class FlowsRepository {
     private _flowNode: PrismaRepository<'flowNode'>,
     private _flowEdge: PrismaRepository<'flowEdge'>,
     private _flowExecution: PrismaRepository<'flowExecution'>,
-    private _pendingPostback: PrismaRepository<'pendingPostback'>
+    private _pendingPostback: PrismaRepository<'pendingPostback'>,
+    private _flowMediaAlias: PrismaRepository<'flowMediaAlias'>,
+    private _unmatchedComment: PrismaRepository<'unmatchedComment'>,
+    private _ignoredMedia: PrismaRepository<'ignoredMedia'>
   ) {}
 
   getFlows(orgId: string, profileId?: string) {
@@ -490,6 +495,214 @@ export class FlowsRepository {
         data: {
           status: PendingPostbackStatus.EXPIRED,
           consumedAt: now,
+        },
+      }
+    );
+    return result.count;
+  }
+
+  // ─── FlowMediaAlias ──────────────────────────────────────────────────
+
+  findAliasesByIntegrationAndMedia(
+    integrationId: string,
+    aliasMediaId: string
+  ) {
+    return this._flowMediaAlias.model.flowMediaAlias.findMany({
+      where: { integrationId, aliasMediaId },
+      select: { id: true, flowId: true },
+    });
+  }
+
+  findFlowsByAlias(
+    orgId: string,
+    integrationId: string,
+    aliasMediaId: string
+  ) {
+    return this._flowMediaAlias.model.flowMediaAlias.findMany({
+      where: {
+        integrationId,
+        aliasMediaId,
+        flow: { organizationId: orgId, deletedAt: null },
+      },
+      select: {
+        id: true,
+        flowId: true,
+        flow: { select: { id: true, name: true } },
+      },
+    });
+  }
+
+  createAlias(data: {
+    flowId: string;
+    integrationId: string;
+    aliasMediaId: string;
+    source: AliasSource;
+    note?: string;
+    boundBy?: string;
+  }) {
+    return this._flowMediaAlias.model.flowMediaAlias.create({ data });
+  }
+
+  async deleteAliasForOrg(orgId: string, aliasId: string) {
+    const existing =
+      await this._flowMediaAlias.model.flowMediaAlias.findFirst({
+        where: { id: aliasId, flow: { organizationId: orgId } },
+        select: { id: true },
+      });
+    if (!existing) return false;
+    await this._flowMediaAlias.model.flowMediaAlias.delete({
+      where: { id: aliasId },
+    });
+    return true;
+  }
+
+  listAliasesByFlow(orgId: string, flowId: string) {
+    return this._flowMediaAlias.model.flowMediaAlias.findMany({
+      where: {
+        flowId,
+        flow: { organizationId: orgId, deletedAt: null },
+      },
+      orderBy: { createdAt: 'desc' },
+    });
+  }
+
+  // ─── IgnoredMedia ────────────────────────────────────────────────────
+
+  findIgnoredMedia(integrationId: string, igMediaId: string) {
+    return this._ignoredMedia.model.ignoredMedia.findUnique({
+      where: { integrationId_igMediaId: { integrationId, igMediaId } },
+    });
+  }
+
+  upsertIgnoredMedia(data: {
+    integrationId: string;
+    organizationId: string;
+    igMediaId: string;
+    reason?: string;
+    ignoredBy?: string;
+  }) {
+    return this._ignoredMedia.model.ignoredMedia.upsert({
+      where: {
+        integrationId_igMediaId: {
+          integrationId: data.integrationId,
+          igMediaId: data.igMediaId,
+        },
+      },
+      create: data,
+      update: { reason: data.reason, ignoredBy: data.ignoredBy },
+    });
+  }
+
+  // ─── UnmatchedComment ────────────────────────────────────────────────
+
+  upsertUnmatchedComment(data: {
+    integrationId: string;
+    organizationId: string;
+    igMediaId: string;
+    igCommentId: string;
+    igCommenterId: string;
+    igCommenterName?: string;
+    commentText: string;
+  }) {
+    return this._unmatchedComment.model.unmatchedComment.upsert({
+      where: {
+        integrationId_igCommentId: {
+          integrationId: data.integrationId,
+          igCommentId: data.igCommentId,
+        },
+      },
+      create: data,
+      update: {
+        // Atualiza so o texto/nome caso Meta tenha reenviado com versao mais recente
+        commentText: data.commentText,
+        igCommenterName: data.igCommenterName,
+      },
+    });
+  }
+
+  findUnmatchedById(orgId: string, id: string) {
+    return this._unmatchedComment.model.unmatchedComment.findFirst({
+      where: { id, organizationId: orgId },
+    });
+  }
+
+  /**
+   * Lookup sem org guard — usado SOMENTE pela activity Temporal que
+   * recebe o id de um dispatch interno do proprio backend.
+   */
+  findUnmatchedByIdInternal(id: string) {
+    return this._unmatchedComment.model.unmatchedComment.findUnique({
+      where: { id },
+    });
+  }
+
+  async listUnmatchedByIntegration(
+    orgId: string,
+    integrationId: string,
+    options: { status?: UnmatchedStatus; page?: number; limit?: number }
+  ) {
+    const page = options.page ?? 1;
+    const limit = options.limit ?? 20;
+    const skip = (page - 1) * limit;
+    const where = {
+      organizationId: orgId,
+      integrationId,
+      ...(options.status ? { status: options.status } : {}),
+    };
+    const [items, total] = await Promise.all([
+      this._unmatchedComment.model.unmatchedComment.findMany({
+        where,
+        orderBy: { createdAt: 'desc' },
+        skip,
+        take: limit,
+      }),
+      this._unmatchedComment.model.unmatchedComment.count({ where }),
+    ]);
+    return { items, total, page, limit };
+  }
+
+  updateUnmatchedMetadata(
+    id: string,
+    data: {
+      permalink?: string | null;
+      caption?: string | null;
+      thumbnailUrl?: string | null;
+      mediaType?: string | null;
+      isAd?: boolean | null;
+      enrichedAt?: Date | null;
+      enrichmentError?: string | null;
+    }
+  ) {
+    return this._unmatchedComment.model.unmatchedComment.update({
+      where: { id },
+      data,
+    });
+  }
+
+  markUnmatchedBound(id: string, flowId: string) {
+    return this._unmatchedComment.model.unmatchedComment.update({
+      where: { id },
+      data: {
+        status: UnmatchedStatus.BOUND,
+        boundFlowId: flowId,
+        boundAt: new Date(),
+      },
+    });
+  }
+
+  markUnmatchedIgnored(id: string) {
+    return this._unmatchedComment.model.unmatchedComment.update({
+      where: { id },
+      data: { status: UnmatchedStatus.IGNORED, ignoredAt: new Date() },
+    });
+  }
+
+  async deleteUnmatchedOlderThan(cutoff: Date) {
+    const result = await this._unmatchedComment.model.unmatchedComment.deleteMany(
+      {
+        where: {
+          status: UnmatchedStatus.PENDING,
+          createdAt: { lt: cutoff },
         },
       }
     );

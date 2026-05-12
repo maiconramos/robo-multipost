@@ -11,6 +11,37 @@ export class StartupMigrationService implements OnModuleInit {
     await this.migrateProfileScope();
     await this.migrateLateToZernio();
     await this.backfillRepostDestinations();
+    await this.cleanupExpiredUnmatchedComments();
+  }
+
+  /**
+   * Remove UnmatchedComment PENDING com mais de 30 dias. Mantem registros
+   * BOUND/IGNORED como audit trail. Idempotente via count guard.
+   *
+   * Roda em backend e orchestrator (DatabaseModule eh @Global). Como eh
+   * idempotente, a 2a execucao apenas vira no-op via count guard.
+   */
+  private async cleanupExpiredUnmatchedComments() {
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 30);
+
+      const count = await this.prisma.unmatchedComment.count({
+        where: { status: 'PENDING', createdAt: { lt: cutoff } },
+      });
+      if (count === 0) {
+        return;
+      }
+
+      const result = await this.prisma.unmatchedComment.deleteMany({
+        where: { status: 'PENDING', createdAt: { lt: cutoff } },
+      });
+      this.logger.log(
+        `cleanupExpiredUnmatchedComments: ${result.count} comentarios PENDING > 30d removidos`
+      );
+    } catch (error) {
+      this.logger.error('cleanupExpiredUnmatchedComments falhou:', error);
+    }
   }
 
   /**

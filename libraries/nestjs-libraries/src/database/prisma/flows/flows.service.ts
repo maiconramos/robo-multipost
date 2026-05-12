@@ -6,6 +6,7 @@ import {
   FlowExecutionStatus,
   PendingPostback,
   PendingPostbackStatus,
+  AliasSource,
 } from '@prisma/client';
 import {
   CreateFlowDto,
@@ -933,7 +934,7 @@ export class FlowsService {
     }
 
     // Filter flows that monitor this specific media (or all posts)
-    const matchingFlows = activeFlows.filter((flow) => {
+    let matchingFlows = activeFlows.filter((flow) => {
       // Defense-in-depth: a flow still pending in next_publication must NOT
       // fire as "all posts" — skip it entirely if the bind didn't take.
       if (this.isPendingNextPublication(flow, 'comment_on_post')) return false;
@@ -945,6 +946,29 @@ export class FlowsService {
         return true;
       }
     });
+
+    // Match adicional via FlowMediaAlias — cobre dark posts/aliases manuais.
+    // Decisao explicita: NAO chamar bindPendingFlowsToPost aqui. Flow em
+    // next_publication permanece unbound aguardando comentario no post
+    // organico real. Match via alias dispara o flow sem bindar.
+    const aliasMatches =
+      await this._flowsRepository.findAliasesByIntegrationAndMedia(
+        payload.integrationId,
+        payload.igMediaId
+      );
+    if (aliasMatches.length > 0) {
+      const aliasedFlowIds = new Set(aliasMatches.map((a) => a.flowId));
+      const fromAlias = activeFlows.filter(
+        (f) => aliasedFlowIds.has(f.id) && !matchingFlows.includes(f)
+      );
+      matchingFlows = matchingFlows.concat(fromAlias);
+    }
+
+    // Sem flows que matcham: persistir UnmatchedComment + dispatch enrichment
+    if (matchingFlows.length === 0) {
+      await this.persistUnmatchedComment(payload);
+      return [];
+    }
 
     const results = [];
     for (const flow of matchingFlows) {
@@ -1018,6 +1042,138 @@ export class FlowsService {
     }
 
     return results;
+  }
+
+  private async persistUnmatchedComment(payload: {
+    integrationId: string;
+    organizationId: string;
+    igMediaId: string;
+    igCommentId: string;
+    igCommenterId: string;
+    igCommenterName?: string;
+    commentText: string;
+  }) {
+    // Se a media esta na lista de ignorados, descarta silenciosamente.
+    const ignored = await this._flowsRepository.findIgnoredMedia(
+      payload.integrationId,
+      payload.igMediaId
+    );
+    if (ignored) {
+      this._logger.log(
+        `Comment ${payload.igCommentId} dropped: media ${payload.igMediaId} is ignored`
+      );
+      return;
+    }
+
+    const unmatched = await this._flowsRepository.upsertUnmatchedComment({
+      integrationId: payload.integrationId,
+      organizationId: payload.organizationId,
+      igMediaId: payload.igMediaId,
+      igCommentId: payload.igCommentId,
+      igCommenterId: payload.igCommenterId,
+      igCommenterName: payload.igCommenterName,
+      commentText: payload.commentText,
+    });
+
+    this._logger.log(
+      `UnmatchedComment ${unmatched.id} persistido para media=${payload.igMediaId} (comment=${payload.igCommentId})`
+    );
+
+    // Dispatch enrichment workflow — fire and forget. Se Temporal offline,
+    // o comentario ainda eh visivel no Inbox sem metadata.
+    const temporalClient = this._temporalService.client.getRawClient();
+    if (!temporalClient) {
+      this._logger.warn(
+        `Temporal client unavailable — enrichment de UnmatchedComment ${unmatched.id} adiada`
+      );
+      await this._flowsRepository.updateUnmatchedMetadata(unmatched.id, {
+        enrichmentError: 'orchestrator offline (sera retentado na proxima chamada)',
+      });
+      return;
+    }
+
+    try {
+      await temporalClient.workflow.start('enrichUnmatchedCommentWorkflow', {
+        workflowId: `enrich-unmatched-${unmatched.id}`,
+        taskQueue: 'main',
+        args: [unmatched.id],
+        typedSearchAttributes: new TypedSearchAttributes([
+          { key: orgSearchAttr, value: payload.organizationId },
+        ]),
+      });
+    } catch (err) {
+      // WorkflowAlreadyStarted: webhook duplicado disparou enrichment 2x — ignora.
+      const msg = err instanceof Error ? err.message : 'Unknown error';
+      if (
+        !msg.includes('WorkflowAlreadyStarted') &&
+        !msg.includes('already started')
+      ) {
+        this._logger.warn(
+          `Falha ao iniciar enrichUnmatchedCommentWorkflow para ${unmatched.id}: ${msg}`
+        );
+        await this._flowsRepository.updateUnmatchedMetadata(unmatched.id, {
+          enrichmentError: msg.slice(0, 500),
+        });
+      }
+    }
+  }
+
+  // ─── Aliases manuais (campo "IDs de Anuncios" do trigger) ────────────
+
+  async addManualAlias(
+    orgId: string,
+    flowId: string,
+    aliasMediaId: string,
+    addedBy?: string
+  ) {
+    const flow = await this._flowsRepository.getFlow(orgId, flowId);
+    if (!flow) {
+      throw new BadRequestException('Flow not found');
+    }
+    try {
+      return await this._flowsRepository.createAlias({
+        flowId,
+        integrationId: flow.integrationId,
+        aliasMediaId,
+        source: AliasSource.MANUAL,
+        boundBy: addedBy,
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        // Idempotente: ja existe — retorna o alias existente
+        const existing =
+          await this._flowsRepository.findAliasesByIntegrationAndMedia(
+            flow.integrationId,
+            aliasMediaId
+          );
+        return existing.find((a) => a.flowId === flowId);
+      }
+      throw err;
+    }
+  }
+
+  async removeAlias(orgId: string, aliasId: string) {
+    const ok = await this._flowsRepository.deleteAliasForOrg(orgId, aliasId);
+    if (!ok) {
+      throw new BadRequestException('Alias not found or not in this org');
+    }
+    return { deleted: true };
+  }
+
+  listAliases(orgId: string, flowId: string) {
+    return this._flowsRepository.listAliasesByFlow(orgId, flowId);
+  }
+
+  lookupAliasFlows(
+    orgId: string,
+    integrationId: string,
+    aliasMediaId: string
+  ) {
+    return this._flowsRepository.findFlowsByAlias(
+      orgId,
+      integrationId,
+      aliasMediaId
+    );
   }
 
   async handleIncomingStoryReply(payload: {

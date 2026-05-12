@@ -37,6 +37,22 @@ const mockRepository = {
   incrementPostbackAttempt: jest.fn(),
   markMetaMidIfUnconsumed: jest.fn(),
   expirePendingPostbacks: jest.fn(),
+  // alias + inbox
+  findAliasesByIntegrationAndMedia: jest.fn().mockResolvedValue([]),
+  findFlowsByAlias: jest.fn().mockResolvedValue([]),
+  createAlias: jest.fn(),
+  deleteAliasForOrg: jest.fn(),
+  listAliasesByFlow: jest.fn(),
+  findIgnoredMedia: jest.fn().mockResolvedValue(null),
+  upsertIgnoredMedia: jest.fn(),
+  upsertUnmatchedComment: jest.fn().mockResolvedValue({ id: 'uc-1' }),
+  findUnmatchedById: jest.fn(),
+  findUnmatchedByIdInternal: jest.fn(),
+  listUnmatchedByIntegration: jest.fn(),
+  updateUnmatchedMetadata: jest.fn(),
+  markUnmatchedBound: jest.fn(),
+  markUnmatchedIgnored: jest.fn(),
+  deleteUnmatchedOlderThan: jest.fn(),
 } as any;
 
 const mockWorkflowStart = jest.fn().mockResolvedValue({ workflowId: 'wf-1' });
@@ -109,6 +125,10 @@ describe('FlowsService', () => {
       ensureWebhookSubscription: mockEnsureWebhookSubscription,
     });
     mockCredentialService.getRaw.mockResolvedValue(null);
+    // Defaults para alias/inbox (alguns specs sobrescrevem)
+    mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([]);
+    mockRepository.findIgnoredMedia.mockResolvedValue(null);
+    mockRepository.upsertUnmatchedComment.mockResolvedValue({ id: 'uc-1' });
     service = new FlowsService(
       mockRepository,
       mockTemporalService,
@@ -1242,6 +1262,201 @@ describe('FlowsService', () => {
       expect(url).toContain(
         'graph.instagram.com/v25.0/2882877478718411/subscriptions'
       );
+    });
+  });
+
+  // --- handleIncomingComment: alias + unmatched persistence -----------
+
+  describe('handleIncomingComment alias + UnmatchedComment', () => {
+    const commentPayload = {
+      integrationId: 'int-1',
+      igCommentId: 'comment-99',
+      igCommenterId: 'user-77',
+      igCommenterName: 'jose',
+      igMediaId: 'media-DARK',
+      commentText: 'GOSTEI',
+      organizationId: 'org-1',
+    };
+
+    it('deve disparar flow via alias (sem triggerPostIds match)', async () => {
+      const flow = makeFlow({
+        id: 'flow-alias',
+        triggerPostIds: JSON.stringify(['media-OTHER']),
+        nodes: [
+          {
+            id: 'n-1',
+            type: FlowNodeType.TRIGGER,
+            label: null,
+            data: JSON.stringify({ mode: 'specific' }),
+          },
+        ],
+      });
+      mockRepository.getActiveFlowsForIntegration.mockResolvedValue([flow]);
+      mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([
+        { id: 'a-1', flowId: 'flow-alias' },
+      ]);
+      mockRepository.findExistingExecution.mockResolvedValue(null);
+      mockRepository.createExecution.mockResolvedValue({ id: 'exec-1' });
+
+      const results = await service.handleIncomingComment(commentPayload);
+
+      expect(mockRepository.findAliasesByIntegrationAndMedia).toHaveBeenCalledWith(
+        'int-1',
+        'media-DARK'
+      );
+      expect(mockRepository.upsertUnmatchedComment).not.toHaveBeenCalled();
+      expect(mockRepository.createExecution).toHaveBeenCalled();
+      expect(results).toHaveLength(1);
+    });
+
+    it('deve persistir UnmatchedComment quando nenhum flow matcha (nem por trigger, nem por alias)', async () => {
+      mockRepository.getActiveFlowsForIntegration.mockResolvedValue([]);
+      mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([]);
+
+      const results = await service.handleIncomingComment(commentPayload);
+
+      expect(mockRepository.upsertUnmatchedComment).toHaveBeenCalledWith(
+        expect.objectContaining({
+          integrationId: 'int-1',
+          organizationId: 'org-1',
+          igMediaId: 'media-DARK',
+          igCommentId: 'comment-99',
+          commentText: 'GOSTEI',
+        })
+      );
+      expect(mockWorkflowStart).toHaveBeenCalledWith(
+        'enrichUnmatchedCommentWorkflow',
+        expect.objectContaining({
+          workflowId: 'enrich-unmatched-uc-1',
+          taskQueue: 'main',
+          args: ['uc-1'],
+        })
+      );
+      expect(results).toEqual([]);
+    });
+
+    it('NAO deve persistir UnmatchedComment quando media esta em IgnoredMedia', async () => {
+      mockRepository.getActiveFlowsForIntegration.mockResolvedValue([]);
+      mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([]);
+      mockRepository.findIgnoredMedia.mockResolvedValue({
+        id: 'im-1',
+        igMediaId: 'media-DARK',
+      });
+
+      const results = await service.handleIncomingComment(commentPayload);
+
+      expect(mockRepository.upsertUnmatchedComment).not.toHaveBeenCalled();
+      expect(mockWorkflowStart).not.toHaveBeenCalled();
+      expect(results).toEqual([]);
+    });
+
+    it('deve gravar enrichmentError quando orchestrator offline', async () => {
+      mockRepository.getActiveFlowsForIntegration.mockResolvedValue([]);
+      mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([]);
+      mockTemporalService.client.getRawClient.mockReturnValueOnce(null);
+
+      await service.handleIncomingComment(commentPayload);
+
+      expect(mockRepository.upsertUnmatchedComment).toHaveBeenCalled();
+      expect(mockRepository.updateUnmatchedMetadata).toHaveBeenCalledWith(
+        'uc-1',
+        expect.objectContaining({
+          enrichmentError: expect.stringContaining('orchestrator offline'),
+        })
+      );
+    });
+
+    it('webhook duplicado faz upsert idempotente — sem criar 2 unmatched', async () => {
+      mockRepository.getActiveFlowsForIntegration.mockResolvedValue([]);
+      mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([]);
+
+      await service.handleIncomingComment(commentPayload);
+      await service.handleIncomingComment(commentPayload);
+
+      expect(mockRepository.upsertUnmatchedComment).toHaveBeenCalledTimes(2);
+      // Como eh upsert, a 2a chamada nao explode, e o DB nao duplica
+      // (validado pelo repositorio com @@unique(integrationId, igCommentId))
+    });
+  });
+
+  describe('addManualAlias', () => {
+    it('deve criar alias MANUAL', async () => {
+      mockRepository.getFlow.mockResolvedValue({
+        id: 'f-1',
+        integrationId: 'int-1',
+      });
+      mockRepository.createAlias.mockResolvedValue({ id: 'a-1' });
+
+      const result = await service.addManualAlias('org-1', 'f-1', 'media-X', 'u-1');
+
+      expect(mockRepository.createAlias).toHaveBeenCalledWith({
+        flowId: 'f-1',
+        integrationId: 'int-1',
+        aliasMediaId: 'media-X',
+        source: 'MANUAL',
+        boundBy: 'u-1',
+      });
+      expect(result).toEqual({ id: 'a-1' });
+    });
+
+    it('deve ser idempotente em P2002', async () => {
+      mockRepository.getFlow.mockResolvedValue({
+        id: 'f-1',
+        integrationId: 'int-1',
+      });
+      const p2002 = new Error('Unique') as any;
+      p2002.code = 'P2002';
+      mockRepository.createAlias.mockRejectedValue(p2002);
+      mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([
+        { id: 'a-existing', flowId: 'f-1' },
+      ]);
+
+      const result = await service.addManualAlias('org-1', 'f-1', 'media-X');
+
+      expect(result).toEqual({ id: 'a-existing', flowId: 'f-1' });
+    });
+  });
+
+  describe('removeAlias', () => {
+    it('deve retornar deleted=true quando alias existe na org', async () => {
+      mockRepository.deleteAliasForOrg = jest.fn().mockResolvedValue(true);
+
+      const result = await service.removeAlias('org-1', 'a-1');
+
+      expect(mockRepository.deleteAliasForOrg).toHaveBeenCalledWith(
+        'org-1',
+        'a-1'
+      );
+      expect(result).toEqual({ deleted: true });
+    });
+
+    it('deve lancar BadRequest quando alias nao pertence a org', async () => {
+      mockRepository.deleteAliasForOrg = jest.fn().mockResolvedValue(false);
+
+      await expect(
+        service.removeAlias('org-1', 'a-other-org')
+      ).rejects.toBeInstanceOf(BadRequestException);
+    });
+  });
+
+  describe('lookupAliasFlows', () => {
+    it('deve propagar orgId para o repo (org guard)', async () => {
+      mockRepository.findFlowsByAlias = jest.fn().mockResolvedValue([
+        { id: 'a-1', flowId: 'f-1', flow: { id: 'f-1', name: 'Flow A' } },
+      ]);
+
+      const result = await service.lookupAliasFlows(
+        'org-1',
+        'int-1',
+        'media-X'
+      );
+
+      expect(mockRepository.findFlowsByAlias).toHaveBeenCalledWith(
+        'org-1',
+        'int-1',
+        'media-X'
+      );
+      expect(result).toHaveLength(1);
     });
   });
 });

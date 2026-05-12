@@ -47,6 +47,7 @@ import { ApprovedAppsController } from '@gitroom/backend/api/routes/approved-app
 import { OAuthController, OAuthAuthorizedController } from '@gitroom/backend/api/routes/oauth.controller';
 import { AnnouncementsController } from '@gitroom/backend/api/routes/announcements.controller';
 import { FlowsController } from '@gitroom/backend/api/routes/flows.controller';
+import { AutomationsInboxController } from '@gitroom/backend/api/routes/automations-inbox.controller';
 import { RepostController } from '@gitroom/backend/api/routes/repost.controller';
 import { IgWebhookController } from '@gitroom/backend/api/routes/ig-webhook.controller';
 import { AuthProviderManager } from '@gitroom/backend/services/auth/providers/providers.manager';
@@ -84,6 +85,7 @@ const authenticatedController = [
   OAuthAuthorizedController,
   AnnouncementsController,
   FlowsController,
+  AutomationsInboxController,
   RepostController,
 ];
 @Module({

@@ -53,6 +53,8 @@ model Organization {
   flows                   Flow[]
   reviewLinks             ReviewLink[]
   repostRules             RepostRule[]
+  unmatchedComments       UnmatchedComment[]
+  ignoredMedias           IgnoredMedia[]
 
   @@index([apiKey])
   @@index([streakSince])
@@ -128,6 +130,8 @@ model User {
   sendStreakEmails      Boolean              @default(true)
   oauthAuthorizations   OAuthAuthorization[]
   reviewLinksCreated    ReviewLink[]         @relation("reviewLinkCreatedBy")
+  boundAliases          FlowMediaAlias[]
+  ignoredMedias         IgnoredMedia[]
 
   @@unique([email, providerName])
   @@index([lastReadNotifications])
@@ -368,6 +372,9 @@ model Integration {
   flows                 Flow[]
   repostRulesAsSource   RepostRule[] @relation("RepostRuleSource")
   repostRuleDestinations RepostRuleDestination[] @relation("RepostRuleDestination")
+  flowMediaAliases      FlowMediaAlias[]
+  unmatchedComments     UnmatchedComment[]
+  ignoredMedias         IgnoredMedia[]
 
   @@unique([organizationId, internalId])
   @@index([rootInternalId])
@@ -1253,6 +1260,8 @@ model Flow {
   edges            FlowEdge[]
   executions       FlowExecution[]
   pendingPostbacks PendingPostback[]
+  mediaAliases     FlowMediaAlias[]
+  boundUnmatchedComments UnmatchedComment[] @relation("BoundFlow")
 
   @@index([organizationId])
   @@index([profileId])
@@ -1377,6 +1386,101 @@ model PendingPostback {
   @@index([expiresAt])
   @@index([status])
   @@index([igSenderId])
+}
+
+// ─── Inbox de Comentarios e Aliases de Midia ─────────────────────────
+// Dark posts do Meta Ads recebem media IDs diferentes do post organico.
+// Comentarios neles chegam pelo webhook em mediaId desconhecida — viram
+// UnmatchedComment para o user vincular manualmente ou ignorar.
+
+enum AliasSource {
+  MANUAL         // user colou ID no campo "IDs de Anuncios" do trigger
+  WEBHOOK_INBOX  // user vinculou um UnmatchedComment a um flow no Inbox
+}
+
+enum UnmatchedStatus {
+  PENDING   // visivel no Inbox aguardando acao do user
+  BOUND     // user vinculou a um flow (criou FlowMediaAlias)
+  IGNORED   // user ignorou — IgnoredMedia tambem criado
+}
+
+model FlowMediaAlias {
+  id             String      @id @default(uuid())
+  flowId         String
+  integrationId  String       // desnormalizado: hot path do matcher
+  aliasMediaId   String       // media ID que sera matchada no webhook
+  source         AliasSource  @default(MANUAL)
+  note           String?
+  boundBy        String?      // userId
+  boundAt        DateTime     @default(now())
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+
+  flow           Flow         @relation(fields: [flowId], references: [id], onDelete: Cascade)
+  integration    Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  user           User?        @relation(fields: [boundBy], references: [id], onDelete: SetNull)
+
+  @@unique([flowId, aliasMediaId])
+  @@index([integrationId, aliasMediaId])
+  @@index([flowId])
+  @@index([aliasMediaId])
+}
+
+model UnmatchedComment {
+  id               String           @id @default(uuid())
+  integrationId    String
+  organizationId   String
+
+  igMediaId        String
+  igCommentId      String
+  igCommenterId    String
+  igCommenterName  String?
+  commentText      String           @db.Text
+
+  status           UnmatchedStatus  @default(PENDING)
+
+  // Metadata enriquecida via workflow Temporal (lazy, nullable)
+  permalink        String?
+  caption          String?          @db.Text
+  thumbnailUrl     String?
+  mediaType        String?
+  isAd             Boolean?         // boost_eligibility_info.eligible_to_boost === false
+  enrichedAt       DateTime?
+  enrichmentError  String?
+
+  // Audit
+  boundFlowId      String?
+  boundAt          DateTime?
+  ignoredAt        DateTime?
+
+  createdAt        DateTime         @default(now())
+  updatedAt        DateTime         @updatedAt
+
+  integration      Integration      @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  organization     Organization     @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  boundFlow        Flow?            @relation("BoundFlow", fields: [boundFlowId], references: [id], onDelete: SetNull)
+
+  @@unique([integrationId, igCommentId])
+  @@index([integrationId, status, createdAt])
+  @@index([organizationId])
+  @@index([igMediaId])
+  @@index([createdAt])
+}
+
+model IgnoredMedia {
+  id              String       @id @default(uuid())
+  integrationId   String
+  organizationId  String
+  igMediaId       String
+  reason          String?
+  ignoredBy       String?
+  ignoredAt       DateTime     @default(now())
+
+  integration     Integration  @relation(fields: [integrationId], references: [id], onDelete: Cascade)
+  organization    Organization @relation(fields: [organizationId], references: [id], onDelete: Cascade)
+  user            User?        @relation(fields: [ignoredBy], references: [id], onDelete: SetNull)
+
+  @@unique([integrationId, igMediaId])
 }
 
 // ─── Repost de Stories do Instagram ──────────────────────────────────
