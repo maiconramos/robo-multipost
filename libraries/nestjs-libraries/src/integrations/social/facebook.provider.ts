@@ -13,6 +13,22 @@ import { FacebookDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-sett
 import { DribbbleDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/dribbble.dto';
 import { Integration } from '@prisma/client';
 
+// Aborta a chamada Graph API se passar de `timeoutMs` ms. Evita que uma
+// chamada lenta a graph.facebook.com (comum em agencias com muitas pages
+// via Business Manager) trave o OAuth callback inteiro e cause 504 do Nginx.
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs = 15000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 export class FacebookProvider extends SocialAbstract implements SocialProvider {
   identifier = 'facebook';
   name = 'Facebook Page';
@@ -282,10 +298,17 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     const seenIds = new Set<string>();
     const allPages: any[] = [];
 
+    // Orcamento total de 90s para o pages() inteiro. Se ultrapassar, retornamos
+    // os resultados parciais ja coletados — evita 504 do Nginx em agencias com
+    // muitas pages via Business Manager.
+    const overallDeadline = Date.now() + 90000;
+    const budgetExceeded = () => Date.now() > overallDeadline;
+
     const fetchPaginated = async (startUrl: string) => {
       let nextUrl: string | undefined = startUrl;
       while (nextUrl) {
-        const response = await (await fetch(nextUrl)).json();
+        if (budgetExceeded()) return;
+        const response = await (await fetchWithTimeout(nextUrl)).json();
         if (response.data) {
           for (const page of response.data) {
             if (!seenIds.has(page.id)) {
@@ -299,42 +322,56 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     };
 
     // Fetch pages the user explicitly shared during the OAuth dialog
-    await fetchPaginated(
-      `https://graph.facebook.com/v20.0/me/accounts?fields=id,username,name,access_token,picture.type(large)&limit=100&access_token=${accessToken}`
-    );
+    try {
+      await fetchPaginated(
+        `https://graph.facebook.com/v20.0/me/accounts?fields=id,username,name,access_token,picture.type(large)&limit=100&access_token=${accessToken}`
+      );
+    } catch (err) {
+      console.warn('[Facebook.pages] /me/accounts failed:', (err as Error)?.message);
+    }
 
     // Also fetch pages via Business Manager API to discover pages
     // not selected during the OAuth page selection step
-    try {
-      let bizUrl:
-        | string
-        | undefined = `https://graph.facebook.com/v20.0/me/businesses?access_token=${accessToken}`;
+    if (!budgetExceeded()) {
+      try {
+        let bizUrl:
+          | string
+          | undefined = `https://graph.facebook.com/v20.0/me/businesses?access_token=${accessToken}`;
 
-      while (bizUrl) {
-        const bizResponse = await (await fetch(bizUrl)).json();
-        if (bizResponse.data) {
-          for (const business of bizResponse.data) {
-            try {
-              await fetchPaginated(
-                `https://graph.facebook.com/v20.0/${business.id}/owned_pages?fields=id,username,name,access_token,picture.type(large)&limit=100&access_token=${accessToken}`
-              );
-            } catch {
-              // Continue with other businesses
-            }
+        while (bizUrl && !budgetExceeded()) {
+          const bizResponse = await (await fetchWithTimeout(bizUrl)).json();
+          if (bizResponse.data) {
+            for (const business of bizResponse.data) {
+              if (budgetExceeded()) break;
+              try {
+                await fetchPaginated(
+                  `https://graph.facebook.com/v20.0/${business.id}/owned_pages?fields=id,username,name,access_token,picture.type(large)&limit=100&access_token=${accessToken}`
+                );
+              } catch {
+                // Continue with other businesses
+              }
 
-            try {
-              await fetchPaginated(
-                `https://graph.facebook.com/v20.0/${business.id}/client_pages?fields=id,username,name,access_token,picture.type(large)&limit=100&access_token=${accessToken}`
-              );
-            } catch {
-              // Continue with other businesses
+              if (budgetExceeded()) break;
+              try {
+                await fetchPaginated(
+                  `https://graph.facebook.com/v20.0/${business.id}/client_pages?fields=id,username,name,access_token,picture.type(large)&limit=100&access_token=${accessToken}`
+                );
+              } catch {
+                // Continue with other businesses
+              }
             }
           }
+          bizUrl = bizResponse.paging?.next;
         }
-        bizUrl = bizResponse.paging?.next;
+      } catch {
+        // Business Manager API not available for all users
       }
-    } catch {
-      // Business Manager API not available for all users
+    }
+
+    if (budgetExceeded()) {
+      console.warn(
+        `[Facebook.pages] budget de 90s estourado — retornando ${allPages.length} paginas coletadas ate agora`
+      );
     }
 
     return allPages;

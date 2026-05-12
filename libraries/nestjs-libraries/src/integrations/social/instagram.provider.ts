@@ -15,6 +15,22 @@ import { Integration } from '@prisma/client';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
 import { InstagramDmButton } from '@gitroom/nestjs-libraries/integrations/social/instagram-dm-button.type';
 
+// Aborta a chamada Graph API se passar de `timeoutMs` ms. Evita que uma
+// chamada lenta a graph.facebook.com (comum em agencias com muitas pages
+// via Business Manager) trave o OAuth callback inteiro e cause 504 do Nginx.
+async function fetchWithTimeout(
+  url: string,
+  timeoutMs = 15000
+): Promise<Response> {
+  const controller = new AbortController();
+  const timeout = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    return await fetch(url, { signal: controller.signal });
+  } finally {
+    clearTimeout(timeout);
+  }
+}
+
 // Traduz o botao interno para o formato de botao da Meta Messenger API.
 // Meta limita o title do botao a 20 chars; trimming garante envio valido.
 function buildButton(button: InstagramDmButton) {
@@ -388,7 +404,7 @@ export class InstagramProvider
     const clientSecret = clientInformation?.client_secret || process.env.FACEBOOK_APP_SECRET;
 
     const getAccessToken = await (
-      await fetch(
+      await fetchWithTimeout(
         'https://graph.facebook.com/v25.0/oauth/access_token' +
           `?client_id=${clientId}` +
           `&redirect_uri=${encodeURIComponent(
@@ -402,7 +418,7 @@ export class InstagramProvider
     ).json();
 
     const { access_token, expires_in, ...all } = await (
-      await fetch(
+      await fetchWithTimeout(
         'https://graph.facebook.com/v25.0/oauth/access_token' +
           '?grant_type=fb_exchange_token' +
           `&client_id=${clientId}` +
@@ -412,7 +428,7 @@ export class InstagramProvider
     ).json();
 
     const { data } = await (
-      await fetch(
+      await fetchWithTimeout(
         `https://graph.facebook.com/v25.0/me/permissions?access_token=${access_token}`
       )
     ).json();
@@ -423,7 +439,7 @@ export class InstagramProvider
     this.checkScopes(this.scopes, permissions);
 
     const { id, name, picture } = await (
-      await fetch(
+      await fetchWithTimeout(
         `https://graph.facebook.com/v25.0/me?fields=id,name,picture&access_token=${access_token}`
       )
     ).json();
@@ -443,10 +459,17 @@ export class InstagramProvider
     const seenPageIds = new Set<string>();
     const allFacebookPages: any[] = [];
 
+    // Orcamento total de 90s para o pages() inteiro. Se ultrapassar, retornamos
+    // os resultados parciais ja coletados — evita 504 do Nginx em agencias com
+    // muitas pages via Business Manager.
+    const overallDeadline = Date.now() + 90000;
+    const budgetExceeded = () => Date.now() > overallDeadline;
+
     const fetchPaginated = async (startUrl: string) => {
       let nextUrl: string | undefined = startUrl;
       while (nextUrl) {
-        const response = await (await fetch(nextUrl)).json();
+        if (budgetExceeded()) return;
+        const response = await (await fetchWithTimeout(nextUrl)).json();
         if (response.data) {
           for (const page of response.data) {
             if (!seenPageIds.has(page.id)) {
@@ -460,65 +483,86 @@ export class InstagramProvider
     };
 
     // Fetch pages the user explicitly shared during the OAuth dialog
-    await fetchPaginated(
-      `https://graph.facebook.com/v25.0/me/accounts?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
-    );
+    try {
+      await fetchPaginated(
+        `https://graph.facebook.com/v25.0/me/accounts?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
+      );
+    } catch (err) {
+      console.warn('[Instagram.pages] /me/accounts failed:', (err as Error)?.message);
+    }
 
     // Also fetch pages via Business Manager API to discover pages
     // not selected during the OAuth page selection step
-    try {
-      let bizUrl: string | undefined =
-        `https://graph.facebook.com/v25.0/me/businesses?access_token=${accessToken}`;
+    if (!budgetExceeded()) {
+      try {
+        let bizUrl: string | undefined =
+          `https://graph.facebook.com/v25.0/me/businesses?access_token=${accessToken}`;
 
-      while (bizUrl) {
-        const bizResponse = await (await fetch(bizUrl)).json();
-        if (bizResponse.data) {
-          for (const business of bizResponse.data) {
-            try {
-              await fetchPaginated(
-                `https://graph.facebook.com/v25.0/${business.id}/owned_pages?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
-              );
-            } catch {
-              // Continue with other businesses
-            }
+        while (bizUrl && !budgetExceeded()) {
+          const bizResponse = await (await fetchWithTimeout(bizUrl)).json();
+          if (bizResponse.data) {
+            for (const business of bizResponse.data) {
+              if (budgetExceeded()) break;
+              try {
+                await fetchPaginated(
+                  `https://graph.facebook.com/v25.0/${business.id}/owned_pages?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
+                );
+              } catch {
+                // Continue with other businesses
+              }
 
-            try {
-              await fetchPaginated(
-                `https://graph.facebook.com/v25.0/${business.id}/client_pages?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
-              );
-            } catch {
-              // Continue with other businesses
+              if (budgetExceeded()) break;
+              try {
+                await fetchPaginated(
+                  `https://graph.facebook.com/v25.0/${business.id}/client_pages?fields=id,instagram_business_account,username,name,picture.type(large)&limit=100&access_token=${accessToken}`
+                );
+              } catch {
+                // Continue with other businesses
+              }
             }
           }
+          bizUrl = bizResponse.paging?.next;
         }
-        bizUrl = bizResponse.paging?.next;
+      } catch {
+        // Business Manager API not available for all users
       }
-    } catch {
-      // Business Manager API not available for all users
+    }
+
+    if (budgetExceeded()) {
+      console.warn(
+        `[Instagram.pages] budget de 90s estourado — retornando ${allFacebookPages.length} paginas coletadas ate agora`
+      );
     }
 
     const onlyConnectedAccounts = await Promise.all(
       allFacebookPages
         .filter((f: any) => f.instagram_business_account)
         .map(async (p: any) => {
-          return {
-            pageId: p.id,
-            ...(await (
-              await fetch(
-                `https://graph.facebook.com/v25.0/${p.instagram_business_account.id}?fields=name,profile_picture_url&access_token=${accessToken}`
-              )
-            ).json()),
-            id: p.instagram_business_account.id,
-          };
+          try {
+            return {
+              pageId: p.id,
+              ...(await (
+                await fetchWithTimeout(
+                  `https://graph.facebook.com/v25.0/${p.instagram_business_account.id}?fields=name,profile_picture_url&access_token=${accessToken}`
+                )
+              ).json()),
+              id: p.instagram_business_account.id,
+            };
+          } catch (err) {
+            // Pagina individual com timeout: ignora ao inves de quebrar tudo
+            return null;
+          }
         })
     );
 
-    return onlyConnectedAccounts.map((p: any) => ({
-      pageId: p.pageId,
-      id: p.id,
-      name: p.name,
-      picture: { data: { url: p.profile_picture_url } },
-    }));
+    return onlyConnectedAccounts
+      .filter((p): p is NonNullable<typeof p> => p !== null)
+      .map((p: any) => ({
+        pageId: p.pageId,
+        id: p.id,
+        name: p.name,
+        picture: { data: { url: p.profile_picture_url } },
+      }));
   }
 
   async fetchPageInformation(

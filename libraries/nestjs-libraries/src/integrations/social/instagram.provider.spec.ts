@@ -212,4 +212,16 @@ describe('InstagramProvider.getMediaMetadata', () => {
 
     expect(fetchMock).toHaveBeenCalledTimes(1);
   });
+
+  // Smoke test apenas para garantir que pages() nao lanca quando fetch falha
+  // (rede caida ou timeout). Garante que o catch global cobre a falha do
+  // primeiro fetch para /me/accounts. Cobertura completa do budget de 90s e
+  // dos timeouts individuais fica como divida tecnica.
+  it('pages() retorna array (mesmo vazio) sem lancar quando fetch falha', async () => {
+    const fetchMock = jest.fn().mockRejectedValue(new Error('Network down'));
+    global.fetch = fetchMock as any;
+
+    const result = await provider.pages('TOK');
+    expect(Array.isArray(result)).toBe(true);
+  });
 });
