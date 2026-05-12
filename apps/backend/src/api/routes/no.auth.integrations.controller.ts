@@ -184,6 +184,19 @@ export class NoAuthIntegrationsController {
           });
         }
 
+        // Log full error so we can diagnose silent failures in OAuth
+        // (token-exchange errors from Meta, JSON parse failures, missing
+        // credentials, etc.) instead of swallowing them as "Authentication failed".
+        console.error(
+          `[connectSocialMedia] ${integration} authenticate() failed:`,
+          {
+            name: (err as Error)?.name,
+            message: (err as Error)?.message,
+            stack: (err as Error)?.stack,
+            cause: (err as any)?.cause,
+          }
+        );
+
         return res({
           error: 'Authentication failed',
           accessToken: '',
