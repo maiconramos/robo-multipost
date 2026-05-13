@@ -6,7 +6,7 @@
     "dev": "dotenv -e ../../.env -- nest start --watch --entryFile=./apps/orchestrator/src/main",
     "build": "cross-env NODE_ENV=production nest build",
     "start": "dotenv -e ../../.env -- node --experimental-require-module ./dist/apps/orchestrator/src/main.js",
-    "pm2": "pm2 start pnpm --name orchestrator --max-memory-restart 2G --max-restarts 10 --restart-delay 5000 -- start"
+    "pm2": "pm2 start pnpm --name orchestrator --max-memory-restart ${PM2_ORCHESTRATOR_MAX_MEMORY:-2G} --max-restarts 10 --restart-delay 5000 --min-uptime 60000 -- start"
   },
   "keywords": [],
   "author": "",

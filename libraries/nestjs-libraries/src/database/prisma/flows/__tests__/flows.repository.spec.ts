@@ -51,9 +51,11 @@ const mockFlowMediaAliasModel = {
 const mockUnmatchedCommentModel = {
   upsert: jest.fn(),
   findFirst: jest.fn(),
+  findUnique: jest.fn(),
   findMany: jest.fn(),
   count: jest.fn(),
   update: jest.fn(),
+  updateMany: jest.fn(),
   deleteMany: jest.fn(),
 };
 
@@ -810,6 +812,76 @@ describe('FlowsRepository', () => {
           ignoredAt: expect.any(Date),
         }),
       });
+    });
+  });
+
+  describe('markAllPendingBoundForMedia', () => {
+    it('deve atualizar em massa PENDING do mesmo media excluindo o id passado', async () => {
+      mockUnmatchedCommentModel.updateMany = jest
+        .fn()
+        .mockResolvedValue({ count: 2 });
+
+      const result = await repository.markAllPendingBoundForMedia(
+        'int-1',
+        'media-X',
+        'f-1',
+        'uc-1'
+      );
+
+      expect(mockUnmatchedCommentModel.updateMany).toHaveBeenCalledWith({
+        where: {
+          integrationId: 'int-1',
+          igMediaId: 'media-X',
+          status: UnmatchedStatus.PENDING,
+          id: { not: 'uc-1' },
+        },
+        data: expect.objectContaining({
+          status: UnmatchedStatus.BOUND,
+          boundFlowId: 'f-1',
+          boundAt: expect.any(Date),
+        }),
+      });
+      expect(result).toBe(2);
+    });
+
+    it('sem excludeId atualiza todos os PENDING', async () => {
+      mockUnmatchedCommentModel.updateMany = jest
+        .fn()
+        .mockResolvedValue({ count: 5 });
+
+      await repository.markAllPendingBoundForMedia('int-1', 'media-X', 'f-1');
+
+      const call = (mockUnmatchedCommentModel.updateMany as jest.Mock).mock
+        .calls[0][0];
+      expect(call.where).not.toHaveProperty('id');
+    });
+  });
+
+  describe('markAllPendingIgnoredForMedia', () => {
+    it('deve atualizar em massa PENDING do mesmo media para IGNORED', async () => {
+      mockUnmatchedCommentModel.updateMany = jest
+        .fn()
+        .mockResolvedValue({ count: 3 });
+
+      const result = await repository.markAllPendingIgnoredForMedia(
+        'int-1',
+        'media-X',
+        'uc-1'
+      );
+
+      expect(mockUnmatchedCommentModel.updateMany).toHaveBeenCalledWith({
+        where: {
+          integrationId: 'int-1',
+          igMediaId: 'media-X',
+          status: UnmatchedStatus.PENDING,
+          id: { not: 'uc-1' },
+        },
+        data: expect.objectContaining({
+          status: UnmatchedStatus.IGNORED,
+          ignoredAt: expect.any(Date),
+        }),
+      });
+      expect(result).toBe(3);
     });
   });
 
