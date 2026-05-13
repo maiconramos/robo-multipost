@@ -528,14 +528,13 @@ export class InstagramProvider
       console.warn('[Instagram.pages] /me/accounts failed:', (err as Error)?.message);
     }
 
-    // Business Manager iteration (owned_pages/client_pages) e MUITO caro para
-    // agencias com varios businesses — uma unica conexao OAuth pode disparar
-    // centenas de chamadas Graph API e estourar o rate limit do App (codigo
-    // Meta #4 "Application request limit reached"). Default desligada.
-    // Habilitar via META_INCLUDE_BUSINESS_PAGES=true apenas em apps dedicados
-    // com pouco volume e cota suficiente. As paginas que aparecem no OAuth
-    // dialog (que o user concedeu acesso) ja vem via /me/accounts acima.
-    if (process.env.META_INCLUDE_BUSINESS_PAGES === 'true' && !budgetExceeded()) {
+    // Also fetch pages via Business Manager API to discover pages not selected
+    // during the OAuth page selection step. Atencao: o custo escala com o
+    // numero de BMs selecionados no Meta App — apps com muitos BMs podem
+    // estourar o rate limit (#4 "Application request limit reached"). Controle
+    // no painel do Meta App selecionando apenas os BMs necessarios. O budget
+    // de 90s + timeouts individuais garantem que nunca pendura indefinido.
+    if (!budgetExceeded()) {
       try {
         let bizUrl: string | undefined =
           `https://graph.facebook.com/v25.0/me/businesses?access_token=${accessToken}`;

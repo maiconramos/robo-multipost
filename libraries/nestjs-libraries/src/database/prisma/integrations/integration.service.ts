@@ -361,6 +361,28 @@ export class IntegrationService {
       data
     );
 
+    // Antes de salvar, verifica se o canal ja existe em outro perfil da mesma
+    // org. Sem essa checagem, o updateIntegration faria upsert silencioso na
+    // integracao existente, mantendo o profileId antigo e deixando o user
+    // achando que adicionou no perfil X quando na verdade ficou no perfil Y.
+    const conflicting =
+      await this._integrationRepository.findActiveByOrgAndInternalIdWithProfile(
+        org,
+        String(getIntegrationInformation.id)
+      );
+    if (
+      conflicting &&
+      conflicting.id !== id &&
+      conflicting.profileId !== getIntegration.profileId
+    ) {
+      const profileName =
+        (conflicting as any).clientProfile?.name || 'outro perfil';
+      throw new HttpException(
+        `Canal ja conectado no perfil "${profileName}". Remova de la antes de conectar aqui.`,
+        HttpStatus.CONFLICT
+      );
+    }
+
     await this.checkForDeletedOnceAndUpdate(
       org,
       String(getIntegrationInformation.id)

@@ -403,6 +403,24 @@ export class IntegrationRepository {
     });
   }
 
+  // Usado em saveProviderPage para detectar quando o user esta tentando
+  // conectar um canal que ja existe em outro perfil da mesma org.
+  // Retorna a integracao ativa (nao soft-deleted) com profile incluido.
+  findActiveByOrgAndInternalIdWithProfile(org: string, internalId: string) {
+    return this._integration.model.integration.findFirst({
+      where: {
+        organizationId: org,
+        internalId,
+        deletedAt: null,
+      },
+      include: {
+        clientProfile: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+  }
+
   async getIntegrationForOrder(
     id: string,
     order: string,

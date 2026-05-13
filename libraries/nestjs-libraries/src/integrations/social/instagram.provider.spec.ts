@@ -246,28 +246,4 @@ describe('InstagramProvider.getMediaMetadata', () => {
     ).rejects.toThrow(/Meta token exchange failed/);
   });
 
-  // Garante que a iteracao do Business Manager esta desligada por padrao
-  // (META_INCLUDE_BUSINESS_PAGES nao definido). Critico para evitar burn
-  // de cota do App quando o user conecta uma conta em uma agencia com varios
-  // businesses (originalmente 904 chamadas em 1 OAuth — ver historico).
-  it('pages() nao itera Business Manager quando META_INCLUDE_BUSINESS_PAGES nao esta setado', async () => {
-    const originalEnv = process.env.META_INCLUDE_BUSINESS_PAGES;
-    delete process.env.META_INCLUDE_BUSINESS_PAGES;
-
-    const fetchMock = jest.fn().mockResolvedValue({
-      json: async () => ({ data: [], paging: {} }),
-    });
-    global.fetch = fetchMock as any;
-
-    await provider.pages('TOK');
-
-    const urls = fetchMock.mock.calls.map((c: any) => c[0] as string);
-    expect(urls.some((u) => u.includes('/me/businesses'))).toBe(false);
-    expect(urls.some((u) => u.includes('owned_pages'))).toBe(false);
-    expect(urls.some((u) => u.includes('client_pages'))).toBe(false);
-
-    if (originalEnv !== undefined) {
-      process.env.META_INCLUDE_BUSINESS_PAGES = originalEnv;
-    }
-  });
 });
