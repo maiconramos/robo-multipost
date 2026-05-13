@@ -224,4 +224,25 @@ describe('InstagramProvider.getMediaMetadata', () => {
     const result = await provider.pages('TOK');
     expect(Array.isArray(result)).toBe(true);
   });
+
+  // Garante que erros do Meta no token exchange virem mensagens explicitas
+  // em vez de TypeError obscuro ("Cannot read properties of undefined").
+  it('authenticate() lanca mensagem explicita quando token exchange retorna erro', async () => {
+    const fetchMock = jest.fn().mockResolvedValueOnce({
+      json: async () => ({
+        error: {
+          message: 'Application request limit reached',
+          type: 'OAuthException',
+          code: 4,
+        },
+      }),
+    });
+    global.fetch = fetchMock as any;
+
+    await expect(
+      provider.authenticate(
+        { code: 'CODE', codeVerifier: 'CV', refresh: '' }
+      )
+    ).rejects.toThrow(/Meta token exchange failed/);
+  });
 });
