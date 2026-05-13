@@ -362,9 +362,14 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
       console.warn('[Facebook.pages] /me/accounts failed:', (err as Error)?.message);
     }
 
-    // Also fetch pages via Business Manager API to discover pages
-    // not selected during the OAuth page selection step
-    if (!budgetExceeded()) {
+    // Business Manager iteration (owned_pages/client_pages) e MUITO caro para
+    // agencias com varios businesses — uma unica conexao OAuth pode disparar
+    // centenas de chamadas Graph API e estourar o rate limit do App (codigo
+    // Meta #4 "Application request limit reached"). Default desligada.
+    // Habilitar via META_INCLUDE_BUSINESS_PAGES=true apenas em apps dedicados
+    // com pouco volume e cota suficiente. As paginas que aparecem no OAuth
+    // dialog (que o user concedeu acesso) ja vem via /me/accounts acima.
+    if (process.env.META_INCLUDE_BUSINESS_PAGES === 'true' && !budgetExceeded()) {
       try {
         let bizUrl:
           | string
@@ -416,7 +421,7 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     const searchPaginated = async (startUrl: string) => {
       let url: string | undefined = startUrl;
       while (url) {
-        const response = await (await fetch(url)).json();
+        const response = await (await fetchWithTimeout(url)).json();
         if (response.data) {
           const page = response.data.find(
             (p: any) => String(p.id) === String(pageId)
@@ -442,39 +447,43 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     );
     if (fromAccounts) return fromAccounts;
 
-    // 2. Check Business Manager owned_pages and client_pages
-    try {
-      let bizUrl:
-        | string
-        | undefined = `https://graph.facebook.com/v20.0/me/businesses?access_token=${accessToken}`;
+    // 2. Business Manager iteration: caro como `pages()` — default desligada
+    // por causa do rate limit do App. Habilitar via META_INCLUDE_BUSINESS_PAGES
+    // apenas em apps com pouco trafego.
+    if (process.env.META_INCLUDE_BUSINESS_PAGES === 'true') {
+      try {
+        let bizUrl:
+          | string
+          | undefined = `https://graph.facebook.com/v20.0/me/businesses?access_token=${accessToken}`;
 
-      while (bizUrl) {
-        const bizResponse = await (await fetch(bizUrl)).json();
-        if (bizResponse.data) {
-          for (const business of bizResponse.data) {
-            try {
-              const fromOwned = await searchPaginated(
-                `https://graph.facebook.com/v20.0/${business.id}/owned_pages?fields=${fields}&limit=100&access_token=${accessToken}`
-              );
-              if (fromOwned) return fromOwned;
-            } catch {
-              // Continue with other businesses
-            }
+        while (bizUrl) {
+          const bizResponse = await (await fetchWithTimeout(bizUrl)).json();
+          if (bizResponse.data) {
+            for (const business of bizResponse.data) {
+              try {
+                const fromOwned = await searchPaginated(
+                  `https://graph.facebook.com/v20.0/${business.id}/owned_pages?fields=${fields}&limit=100&access_token=${accessToken}`
+                );
+                if (fromOwned) return fromOwned;
+              } catch {
+                // Continue with other businesses
+              }
 
-            try {
-              const fromClient = await searchPaginated(
-                `https://graph.facebook.com/v20.0/${business.id}/client_pages?fields=${fields}&limit=100&access_token=${accessToken}`
-              );
-              if (fromClient) return fromClient;
-            } catch {
-              // Continue with other businesses
+              try {
+                const fromClient = await searchPaginated(
+                  `https://graph.facebook.com/v20.0/${business.id}/client_pages?fields=${fields}&limit=100&access_token=${accessToken}`
+                );
+                if (fromClient) return fromClient;
+              } catch {
+                // Continue with other businesses
+              }
             }
           }
+          bizUrl = bizResponse.paging?.next;
         }
-        bizUrl = bizResponse.paging?.next;
+      } catch {
+        // Business Manager API not available for all users
       }
-    } catch {
-      // Business Manager API not available for all users
     }
 
     throw new Error('Page not found in your accounts');
