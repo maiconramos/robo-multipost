@@ -697,6 +697,58 @@ export class FlowsRepository {
     });
   }
 
+  /**
+   * Atualiza em massa todos os UnmatchedComment PENDING do mesmo media para
+   * BOUND quando o user vincula UM comentario daquele media. Evita itens
+   * "orfaos" aparecendo como pendentes depois que ja foi resolvido pra
+   * aquela midia. Retorna count para o caller logar.
+   */
+  async markAllPendingBoundForMedia(
+    integrationId: string,
+    igMediaId: string,
+    flowId: string,
+    excludeId?: string
+  ) {
+    const result = await this._unmatchedComment.model.unmatchedComment.updateMany(
+      {
+        where: {
+          integrationId,
+          igMediaId,
+          status: UnmatchedStatus.PENDING,
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        data: {
+          status: UnmatchedStatus.BOUND,
+          boundFlowId: flowId,
+          boundAt: new Date(),
+        },
+      }
+    );
+    return result.count;
+  }
+
+  async markAllPendingIgnoredForMedia(
+    integrationId: string,
+    igMediaId: string,
+    excludeId?: string
+  ) {
+    const result = await this._unmatchedComment.model.unmatchedComment.updateMany(
+      {
+        where: {
+          integrationId,
+          igMediaId,
+          status: UnmatchedStatus.PENDING,
+          ...(excludeId ? { id: { not: excludeId } } : {}),
+        },
+        data: {
+          status: UnmatchedStatus.IGNORED,
+          ignoredAt: new Date(),
+        },
+      }
+    );
+    return result.count;
+  }
+
   async deleteUnmatchedOlderThan(cutoff: Date) {
     const result = await this._unmatchedComment.model.unmatchedComment.deleteMany(
       {

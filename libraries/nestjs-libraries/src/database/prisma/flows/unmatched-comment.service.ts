@@ -76,7 +76,30 @@ export class UnmatchedCommentService {
     }
 
     await this._flowsRepository.markUnmatchedBound(unmatchedCommentId, flowId);
-    return { alias, unmatchedCommentId, status: UnmatchedStatus.BOUND };
+
+    // Bulk move: outros UnmatchedComment PENDING do MESMO media nao podem
+    // continuar como "pendentes" — o media ja foi resolvido. Movemos para
+    // BOUND com o mesmo flowId. Evita item orfao na aba Pendentes apos
+    // o user vincular um deles. Idempotente: se ja foram BOUND/IGNORED,
+    // o updateMany simplesmente ignora (where status=PENDING).
+    const bulkCount = await this._flowsRepository.markAllPendingBoundForMedia(
+      unmatched.integrationId,
+      unmatched.igMediaId,
+      flowId,
+      unmatchedCommentId
+    );
+    if (bulkCount > 0) {
+      this._logger.log(
+        `bindToFlow: ${bulkCount} outro(s) UnmatchedComment PENDING do media ${unmatched.igMediaId} tambem foram marcados como BOUND`
+      );
+    }
+
+    return {
+      alias,
+      unmatchedCommentId,
+      status: UnmatchedStatus.BOUND,
+      bulkBoundCount: bulkCount,
+    };
   }
 
   async ignore(
@@ -102,7 +125,27 @@ export class UnmatchedCommentService {
     });
 
     await this._flowsRepository.markUnmatchedIgnored(unmatchedCommentId);
-    return { unmatchedCommentId, status: UnmatchedStatus.IGNORED };
+
+    // Bulk: outros UnmatchedComment PENDING do MESMO media tambem viram
+    // IGNORED — o user "ignorou esse post para sempre", entao outros
+    // comentarios pendentes do mesmo post devem desaparecer da aba PENDING.
+    const bulkCount =
+      await this._flowsRepository.markAllPendingIgnoredForMedia(
+        unmatched.integrationId,
+        unmatched.igMediaId,
+        unmatchedCommentId
+      );
+    if (bulkCount > 0) {
+      this._logger.log(
+        `ignore: ${bulkCount} outro(s) UnmatchedComment PENDING do media ${unmatched.igMediaId} tambem foram marcados como IGNORED`
+      );
+    }
+
+    return {
+      unmatchedCommentId,
+      status: UnmatchedStatus.IGNORED,
+      bulkIgnoredCount: bulkCount,
+    };
   }
 
   async enrich(unmatchedCommentId: string): Promise<void> {

@@ -66,6 +66,8 @@ describe('UnmatchedCommentService', () => {
       findAliasesByIntegrationAndMedia: jest.fn(),
       markUnmatchedBound: jest.fn(),
       markUnmatchedIgnored: jest.fn(),
+      markAllPendingBoundForMedia: jest.fn().mockResolvedValue(0),
+      markAllPendingIgnoredForMedia: jest.fn().mockResolvedValue(0),
       upsertIgnoredMedia: jest.fn(),
       updateUnmatchedMetadata: jest.fn(),
       deleteUnmatchedOlderThan: jest.fn(),
@@ -164,6 +166,31 @@ describe('UnmatchedCommentService', () => {
       expect(result.status).toBe(UnmatchedStatus.BOUND);
     });
 
+    it('deve marcar em massa outros UnmatchedComment do mesmo media como BOUND', async () => {
+      repo.findUnmatchedById.mockResolvedValue({
+        id: 'uc-1',
+        integrationId: 'int-1',
+        organizationId: 'org-1',
+        igMediaId: 'media-X',
+      } as any);
+      repo.getFlow.mockResolvedValue({
+        id: 'f-1',
+        integrationId: 'int-1',
+      } as any);
+      repo.createAlias.mockResolvedValue({ id: 'a-1' } as any);
+      (repo.markAllPendingBoundForMedia as jest.Mock).mockResolvedValue(2);
+
+      const result = await service.bindToFlow('org-1', 'uc-1', 'f-1', 'u-1');
+
+      expect(repo.markAllPendingBoundForMedia).toHaveBeenCalledWith(
+        'int-1',
+        'media-X',
+        'f-1',
+        'uc-1'
+      );
+      expect(result.bulkBoundCount).toBe(2);
+    });
+
     it('deve ser idempotente em P2002 (alias ja existe)', async () => {
       repo.findUnmatchedById.mockResolvedValue({
         id: 'uc-1',
@@ -223,6 +250,25 @@ describe('UnmatchedCommentService', () => {
       });
       expect(repo.markUnmatchedIgnored).toHaveBeenCalledWith('uc-1');
       expect(result.status).toBe(UnmatchedStatus.IGNORED);
+    });
+
+    it('deve marcar em massa outros UnmatchedComment do mesmo media como IGNORED', async () => {
+      repo.findUnmatchedById.mockResolvedValue({
+        id: 'uc-1',
+        integrationId: 'int-1',
+        organizationId: 'org-1',
+        igMediaId: 'media-X',
+      } as any);
+      (repo.markAllPendingIgnoredForMedia as jest.Mock).mockResolvedValue(3);
+
+      const result = await service.ignore('org-1', 'uc-1', 'spam', 'u-1');
+
+      expect(repo.markAllPendingIgnoredForMedia).toHaveBeenCalledWith(
+        'int-1',
+        'media-X',
+        'uc-1'
+      );
+      expect(result.bulkIgnoredCount).toBe(3);
     });
   });
 
