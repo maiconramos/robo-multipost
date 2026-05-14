@@ -85,7 +85,13 @@ export class PublicIntegrationsController {
     });
 
     const buffer = Buffer.from(response.data);
-    const responseMime = response.headers?.['content-type']?.split(';')[0]?.trim();
+    // AxiosHeaderValue agora é union (string | string[] | number | boolean);
+    // só fazemos split em string.
+    const contentTypeHeader = response.headers?.['content-type'];
+    const responseMime =
+      typeof contentTypeHeader === 'string'
+        ? contentTypeHeader.split(';')[0]?.trim()
+        : undefined;
     const urlMime = lookup(body?.url?.split?.('?')?.[0]);
     const mimetype = (urlMime || responseMime || 'image/jpeg') as string;
     const ext = extension(mimetype) || 'jpg';
