@@ -24,6 +24,7 @@ import { createMock } from '@gitroom/nestjs-libraries/test';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { AiImageService } from '@gitroom/nestjs-libraries/ai/ai-image.service';
 import { AiTextService } from '@gitroom/nestjs-libraries/ai/ai-text.service';
+import { AiVideoService } from '@gitroom/nestjs-libraries/ai/ai-video.service';
 import { Organization } from '@prisma/client';
 
 const buildOrg = (): Organization => ({
@@ -53,7 +54,8 @@ describe('MediaService.generateImage', () => {
       subscription,
       null as any, // videoManager
       aiImage,
-      aiText
+      aiText,
+      createMock<AiVideoService>()
     );
 
     const result = await service.generateImage('um gato', buildOrg());
@@ -67,7 +69,7 @@ describe('MediaService.generateImage', () => {
       'org-1',
       'um gato',
       undefined,
-      undefined
+      {}
     );
     expect(aiText.generatePromptForPicture).not.toHaveBeenCalled();
     expect(result).toBe('BASE64_DATA');
@@ -95,7 +97,8 @@ describe('MediaService.generateImage', () => {
       subscription,
       null as any,
       aiImage,
-      aiText
+      aiText,
+      createMock<AiVideoService>()
     );
 
     await service.generateImage('gato', buildOrg(), true);
@@ -109,7 +112,7 @@ describe('MediaService.generateImage', () => {
       'org-1',
       'prompt enriquecido com camera, iluminacao etc',
       undefined,
-      undefined
+      {}
     );
   });
 
@@ -139,7 +142,8 @@ describe('MediaService.generateImage', () => {
       subscription,
       null as any,
       aiImage,
-      aiText
+      aiText,
+      createMock<AiVideoService>()
     );
 
     const result = await service.generateImage('gato', buildOrg(), true);
@@ -150,7 +154,7 @@ describe('MediaService.generateImage', () => {
       'org-1',
       'gato',
       undefined,
-      undefined
+      {}
     );
     expect(result).toBe('fallback-ok');
   });
@@ -171,7 +175,8 @@ describe('MediaService.generateImage', () => {
       subscription,
       null as any,
       aiImage,
-      aiText
+      aiText,
+      createMock<AiVideoService>()
     );
 
     await expect(
@@ -199,7 +204,8 @@ describe('MediaService.generateImage', () => {
       subscription,
       null as any,
       aiImage,
-      aiText
+      aiText,
+      createMock<AiVideoService>()
     );
 
     await service.generateImage('prompt', buildOrg(), false, 'profile-9');
@@ -208,7 +214,7 @@ describe('MediaService.generateImage', () => {
       'org-1',
       'prompt',
       'profile-9',
-      undefined
+      {}
     );
   });
 
@@ -231,7 +237,8 @@ describe('MediaService.generateImage', () => {
       subscription,
       null as any,
       aiImage,
-      aiText
+      aiText,
+      createMock<AiVideoService>()
     );
 
     await service.generateImage('prompt', buildOrg(), false, undefined, '9:16');
