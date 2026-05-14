@@ -21,6 +21,28 @@ function countCharacters(text: string, type: string): number {
   return weightedLength(text);
 }
 
+// Settings values chegam do agent sempre como string (schema compatibility com
+// Gemini). Tentamos reidratar via JSON.parse — se for "true", "42", "[...]",
+// "{...}" volta o tipo nativo. Strings cruas ("video-id-xyz") nao sao JSON
+// validas e ficam intactas. Numeros como "42" sao parseaveis e voltam number.
+function tryParseJson(value: string): unknown {
+  if (typeof value !== 'string') return value;
+  const trimmed = value.trim();
+  if (
+    trimmed === '' ||
+    (!/^[\[{]/.test(trimmed) &&
+      !/^(true|false|null)$/i.test(trimmed) &&
+      !/^-?\d/.test(trimmed))
+  ) {
+    return value;
+  }
+  try {
+    return JSON.parse(trimmed);
+  } catch {
+    return value;
+  }
+}
+
 @Injectable()
 export class IntegrationSchedulePostTool implements AgentToolInterface {
   constructor(
@@ -92,9 +114,9 @@ If the tools return errors, you would need to rerun it with the right parameters
                       .string()
                       .describe('Name of the settings key to pass'),
                     value: z
-                      .any()
+                      .string()
                       .describe(
-                        'Value of the key, always prefer the id then label if possible'
+                        'Value of the key as a string. For complex values (objects, arrays, numbers, booleans) send a JSON-stringified representation — the backend will JSON.parse it transparently. For simple ids/labels, send the raw string. Always prefer the id then label if possible.'
                       ),
                   })
                 )
@@ -206,7 +228,10 @@ If the tools return errors, you would need to rerun it with the right parameters
                 settings: post.settings.reduce(
                   (acc, s) => ({
                     ...acc,
-                    [s.key]: s.value,
+                    // Schema declara value como string (compatibilidade Gemini);
+                    // tentamos JSON.parse para reidratar arrays/objects/numbers/booleans.
+                    // Falha de parse → mantemos como string crua.
+                    [s.key]: tryParseJson(s.value),
                   }),
                   {
                     __type: integration.providerIdentifier,
