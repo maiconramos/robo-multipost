@@ -119,7 +119,7 @@ describe('IgWebhookController - logic', () => {
       for (const entry of payload.entry) {
         for (const change of entry.changes) {
           if (change.field !== 'comments' && change.field !== 'feed') continue;
-          const value = change.value;
+          const value: any = change.value;
           if (!value || value.item !== 'comment') continue;
 
           results.push({
@@ -167,7 +167,7 @@ describe('IgWebhookController - logic', () => {
       for (const entry of payload.entry) {
         for (const change of entry.changes) {
           if (change.field !== 'comments' && change.field !== 'feed') continue;
-          const value = change.value;
+          const value: any = change.value;
           if (!value || value.item !== 'comment') continue;
           results.push(value);
         }
@@ -177,7 +177,7 @@ describe('IgWebhookController - logic', () => {
     });
 
     it('should handle empty payload gracefully', () => {
-      const payload = { entry: [] };
+      const payload: { entry: any[] } = { entry: [] };
       expect(payload.entry).toHaveLength(0);
     });
   });
