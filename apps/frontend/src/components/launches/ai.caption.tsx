@@ -80,7 +80,7 @@ export const AiCaption: FC<{
             backendMessage ||
               t(
                 'ai_caption_not_configured',
-                'Configure suas chaves em Settings > AI Provider'
+                'Configure suas chaves em Configurações > Modelos de IA'
               ),
             'warning'
           );

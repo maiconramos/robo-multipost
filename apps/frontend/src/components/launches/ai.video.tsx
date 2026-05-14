@@ -118,7 +118,7 @@ const VideoModal: FC<VideoModalProps> = ({ close, setLoading, onChange }) => {
           backendMessage ||
             t(
               'ai_video_not_configured',
-              'Configure suas chaves em Settings > AI Provider > Vídeo'
+              'Configure suas chaves em Configurações > Modelos de IA > Vídeo'
             ),
           'warning'
         );
@@ -254,7 +254,7 @@ const VideoModal: FC<VideoModalProps> = ({ close, setLoading, onChange }) => {
             <div className="bg-newColColor border border-customColor19 rounded-[6px] px-[12px] py-[8px] text-[13px] text-customColor19">
               {t(
                 'ai_video_no_credential',
-                'Nenhum modelo de vídeo configurado. Vá em Settings > AI Provider > Vídeo para configurar.'
+                'Nenhum modelo de vídeo configurado. Vá em Configurações > Modelos de IA > Vídeo para configurar.'
               )}
             </div>
           )}

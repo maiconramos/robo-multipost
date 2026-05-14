@@ -242,9 +242,9 @@ Estado atual: 14 agents preenchidos em `.context/agents/`, 10 docs preenchidos e
 - **Storage:** local por padrão, Cloudflare R2 como opção avançada
 - **IA:** infraestrutura Mastra + MCP já existe — trabalho é configurar providers por workspace
 
-## Sistema de Creditos de IA
+## Sistema de Créditos de IA
 
-O sistema de creditos controla quantas imagens e videos cada perfil pode gerar por mes.
+O sistema de créditos controla quantas imagens e vídeos cada perfil pode gerar por mês.
 
 ### Modos de operacao (`AI_CREDITS_MODE`)
 

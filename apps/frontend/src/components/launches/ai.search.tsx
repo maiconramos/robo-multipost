@@ -73,7 +73,7 @@ const SearchModal: FC<ModalProps> = ({ editor, platform, close }) => {
           detail?.message ||
             t(
               'ai_search_not_configured',
-              'Configure suas chaves em Settings > AI Provider > Web Search'
+              'Configure suas chaves em Configurações > Modelos de IA > Web Search'
             ),
           'warning'
         );

@@ -101,13 +101,13 @@ export const SettingsPopup: FC<{
     }
     arr.push({ tab: 'credentials', label: t('credentials_tab', 'Credenciais') });
     if (user?.role !== 'USER') {
-      arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Agente de IA') });
+      arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Persona de IA') });
     }
     if (user?.role !== 'USER') {
-      arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'AI Credits') });
+      arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'Créditos de IA') });
     }
     if (user?.role !== 'USER') {
-      arr.push({ tab: 'ai_provider', label: t('ai_provider_title', 'AI Provider') });
+      arr.push({ tab: 'ai_provider', label: t('ai_provider_title', 'Modelos de IA') });
     }
     if (user?.tier?.webhooks) {
       arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });

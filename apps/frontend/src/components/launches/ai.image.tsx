@@ -131,7 +131,7 @@ const ImageModal: FC<ModalProps> = ({ value, close, onChange }) => {
             backendMessage ||
               t(
                 'ai_image_not_configured',
-                'Configure suas chaves em Settings > AI Provider'
+                'Configure suas chaves em Configurações > Modelos de IA'
               ),
             'warning'
           );

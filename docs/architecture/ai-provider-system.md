@@ -5,7 +5,7 @@ engenharia para **entender rapidamente** como o sistema de provedores de
 IA do Robo MultiPost funciona, onde cada credencial e usada, e quais sao
 os pontos de entrada mais comuns para mudancas.
 
-> Usuarios finais: nao ha doc dedicado ainda — ver Settings > AI Provider
+> Usuarios finais: nao ha doc dedicado ainda — ver Settings > AI Models
 > na propria UI (cada card tem helper text).
 
 ---
@@ -301,7 +301,7 @@ sobrescreve o default global (30/h) para 30/min por usuario.
 
 ---
 
-## 5. UI — Settings > AI Provider
+## 5. UI — Settings > AI Models
 
 Localizacao: `apps/frontend/src/components/settings/ai-provider/`.
 
@@ -413,7 +413,7 @@ AiImage component faz upload via /uploads e adiciona ao post
 **Pegadinha**: o componente `AiImage` (legado upstream) **nao trata
 HTTP 412**. Se o admin nao configurou credencial de imagem, o request
 falha mas o componente nao mostra feedback claro. Item de melhoria —
-nao critico se admin configurou Settings > AI Provider > Imagem antes
+nao critico se admin configurou Settings > AI Models > Imagem antes
 de usar.
 
 ---
@@ -464,7 +464,7 @@ Exemplo: adicionar Anthropic como provider de TEXT.
 |---|---|---|
 | 400 | Payload invalido (ZodError) ou kind/options incompativel | `{ message: "Campo \`X\`: ..."}` — toast no frontend |
 | 402 | **Nao usado pelo AI** — reservado para o billing global do Postiz que abre modal de cobranca | — |
-| 412 | Credencial nao configurada no scope efetivo | Toast amarelo "Configure em Settings > AI Provider" |
+| 412 | Credencial nao configurada no scope efetivo | Toast amarelo "Configure em Settings > AI Models" |
 | 429 | Rate limit do `/ai/text/caption` (30/min) | Toast amarelo "Aguarde um instante" |
 | 502 | Provider externo retornou erro (ex: OpenRouter 500) | Toast generico no frontend |
 | 503 | Antigo guard `OPENAI_API_KEY` — **removido**, nao usar mais | — |
@@ -515,7 +515,7 @@ Atualizar quando lancar modelo novo.
 # Obrigatoria — chave para encriptar/decriptar todas as credenciais
 ENCRYPTION_KEY=$(openssl rand -base64 32)
 
-# Opcional — AI agora respeita Settings > AI Provider, OPENAI_API_KEY
+# Opcional — AI agora respeita Settings > AI Models, OPENAI_API_KEY
 # nao e mais usado diretamente pelo agente nem pela geracao de imagem.
 # Mantido para HeyGen e ImageSlides (dormentes) e para Mastra fallback.
 OPENAI_API_KEY="sk-..."
@@ -528,7 +528,7 @@ TAVILY_API_KEY="..."
 ```
 
 **A configuracao de IA agora e per-workspace via UI** — nao depende de
-env vars. O admin configura em Settings > AI Provider depois do primeiro
+env vars. O admin configura em Settings > AI Models depois do primeiro
 boot.
 
 ---

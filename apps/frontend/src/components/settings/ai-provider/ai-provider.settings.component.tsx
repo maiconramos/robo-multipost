@@ -88,7 +88,7 @@ export const AiProviderSettingsSection: React.FC = () => {
     <div className="flex flex-col gap-[16px]">
       <div className="flex flex-col gap-[6px]">
         <h3 className="text-[20px] font-semibold">
-          {t('ai_provider_title', 'AI Provider')}
+          {t('ai_provider_title', 'Modelos de IA')}
         </h3>
         <p className="text-[14px] text-customColor18">
           {t(
@@ -104,7 +104,7 @@ export const AiProviderSettingsSection: React.FC = () => {
           title={t('ai_provider_text_title', 'Geração de texto')}
           description={t(
             'ai_provider_text_desc',
-            'Modelo de LLM para geração de texto, utilizado pelo Agent.'
+            'Modelo de LLM para geração de texto, utilizado pela Persona de IA.'
           )}
           icon={<TextIcon />}
           providers={[

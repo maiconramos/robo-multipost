@@ -597,7 +597,7 @@ describe('AiVideoService', () => {
       } catch (e: any) {
         const msg = e.response?.message ?? e.message;
         expect(msg).toContain('Chave kie.ai invalida ou expirada');
-        expect(msg).toContain('Settings > AI Provider > Video');
+        expect(msg).toContain('Configurações > Modelos de IA > Vídeo');
       }
     });
 

@@ -30,7 +30,7 @@ The conversational agent layer (Mastra) + MCP tools the agent can invoke + infra
 
 The Mastra Agent **must not** hold a `LanguageModel` in a field. The model is resolved on each call via `factory.textForMastra(orgId, profileId)` (see [`src/ai/CLAUDE.md`](../ai/CLAUDE.md), rule 4).
 
-If the admin changes the provider in `Settings > AI Provider`, the next agent call already reflects the change — no restart needed.
+If the admin changes the provider in `Settings > AI Models`, the next agent call already reflects the change — no restart needed.
 
 ### Every tool follows `AgentToolInterface`
 

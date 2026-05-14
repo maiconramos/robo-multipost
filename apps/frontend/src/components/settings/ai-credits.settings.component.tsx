@@ -188,7 +188,7 @@ export const AiCreditsSettingsSection: React.FC = () => {
   if (!data || data.mode !== 'managed') {
     return (
       <div className="flex flex-col">
-        <h3 className="text-[20px]">{t('ai_credits_title', 'AI Credits')}</h3>
+        <h3 className="text-[20px]">{t('ai_credits_title', 'Créditos de IA')}</h3>
         <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px]">
           <div className="text-customColor18 text-[14px]">
             {t('ai_credits_unlimited_mode_info', 'Unlimited mode is active. All profiles have unlimited AI credits. To manage credits per profile, set AI_CREDITS_MODE=managed.')}
@@ -202,7 +202,7 @@ export const AiCreditsSettingsSection: React.FC = () => {
 
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">{t('ai_credits_title', 'AI Credits')}</h3>
+      <h3 className="text-[20px]">{t('ai_credits_title', 'Créditos de IA')}</h3>
       <div className="text-customColor18 mt-[4px]">
         {t('ai_credits_per_month', 'per month')}
       </div>

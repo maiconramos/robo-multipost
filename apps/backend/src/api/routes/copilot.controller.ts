@@ -89,7 +89,7 @@ export class CopilotController {
 
     // Per-profile credenciais e persona — sem isso o agente usa apenas
     // o default workspace e ignora a persona configurada em
-    // Settings > Agente de IA, fazendo o tom de voz, restricoes e CTAs
+    // Settings > Persona de IA, fazendo o tom de voz, restricoes e CTAs
     // sumirem mesmo quando o usuario preencheu tudo.
     if (profile?.id) {
       requestContext.set('profileId', profile.id);

@@ -26,9 +26,6 @@ const SeparatedPostsSchema = z.object({
 
 const SinglePostSchema = z.object({ post: z.string() });
 
-const PicturePromptSchema = z.object({ prompt: z.string() });
-const VideoPromptSchema = z.object({ prompt: z.string() });
-
 const SlidesSchema = z.object({
   slides: z.array(
     z.object({
@@ -116,19 +113,23 @@ export class AiTextService {
     profileId?: string
   ): Promise<string> {
     const client = await this._factory.text(organizationId, profileId);
+    // Usamos generateText (texto livre) ao inves de generateObject porque
+    // muitos modelos free do OpenRouter (Nemotron, Gemma, Mistral 7B free,
+    // etc) nao suportam structured output / JSON mode confiavelmente.
+    // O schema { prompt: string } e trivial — basta usar o texto bruto
+    // retornado como o prompt enriquecido.
     const result = await this.callWithFallback(client, (model) =>
-      generateObject({
+      generateText({
         model,
-        schema: PicturePromptSchema,
         system:
-          'You receive a description and style and generate a detailed prompt for an image-generation model. Write a long, descriptive explanation including style details (camera, lighting, atmosphere, mood, composition) when applicable. Always respond in ENGLISH, regardless of the input language — image-generation models perform significantly better with English prompts.',
+          'You receive a description and style and generate a detailed prompt for an image-generation model. Write a long, descriptive explanation including style details (camera, lighting, atmosphere, mood, composition) when applicable. Always respond in ENGLISH, regardless of the input language — image-generation models perform significantly better with English prompts. Return ONLY the enriched prompt, no preface, no markdown, no labels.',
         prompt: `prompt: ${prompt}`,
         ...(isReasoningModel(client.modelId)
           ? {}
           : { temperature: client.options.temperature }),
       })
     );
-    return result.object.prompt;
+    return result.text.trim();
   }
 
   /**
@@ -145,19 +146,20 @@ export class AiTextService {
     profileId?: string
   ): Promise<string> {
     const client = await this._factory.text(organizationId, profileId);
+    // Mesma motivacao do generatePromptForPicture: free models do OpenRouter
+    // quebram em JSON mode. Texto livre e mais resiliente.
     const result = await this.callWithFallback(client, (model) =>
-      generateObject({
+      generateText({
         model,
-        schema: VideoPromptSchema,
         system:
-          'You receive a short description for a video and generate a detailed prompt for a text-to-video model. Include: camera movement (pan, zoom, dolly, tracking), lighting (golden hour, soft, dramatic), cinematography (close-up, wide shot, aerial), pacing (slow, dynamic) and atmosphere. Keep it between 50-200 words. Always respond in ENGLISH, regardless of the input language — video-generation models perform significantly better with English prompts. Return ONLY the enriched prompt, no preface.',
+          'You receive a short description for a video and generate a detailed prompt for a text-to-video model. Include: camera movement (pan, zoom, dolly, tracking), lighting (golden hour, soft, dramatic), cinematography (close-up, wide shot, aerial), pacing (slow, dynamic) and atmosphere. Keep it between 50-200 words. Always respond in ENGLISH, regardless of the input language — video-generation models perform significantly better with English prompts. Return ONLY the enriched prompt, no preface, no markdown, no labels.',
         prompt: `User prompt: ${prompt}`,
         ...(isReasoningModel(client.modelId)
           ? {}
           : { temperature: client.options.temperature ?? 0.8 }),
       })
     );
-    return result.object.prompt;
+    return result.text.trim();
   }
 
   async separatePosts(

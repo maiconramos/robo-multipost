@@ -98,7 +98,7 @@ describe('ClassName', () => {
 
 - Simple service: `database/prisma/sets/sets.service.spec.ts`
 - Repository: `database/prisma/sets/sets.repository.spec.ts`
-- AI provider system: run `pnpm jest libraries/nestjs-libraries/src/ai/ --no-coverage` (56 specs)
+- AI provider system: run `pnpm jest libraries/nestjs-libraries/src/ai/ --no-coverage` (118 specs)
 
 ## Library-Specific Patterns
 

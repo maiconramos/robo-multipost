@@ -15,7 +15,7 @@ export class GenerateVideoTool implements AgentToolInterface {
     return createTool({
       id: 'generateVideoTool',
       description: `Generate a video to attach to a post via the configured Kie.ai provider (Seedance 2.0 / Veo 3.1).
-The model itself is fixed in Settings > AI Provider > Video; you only choose mode + aspect ratio + (optionally) the reference image.
+The model itself is fixed in Settings > AI Models > Video; you only choose mode + aspect ratio + (optionally) the reference image.
 
 When to use:
 - The user explicitly asks for a video.

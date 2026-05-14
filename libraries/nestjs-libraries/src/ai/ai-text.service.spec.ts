@@ -204,6 +204,64 @@ describe('AiTextService', () => {
     });
   });
 
+  describe('generatePromptForPicture', () => {
+    it('deve chamar generateText (nao generateObject) com system em ingles e retornar texto trimado', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockResolvedValue({
+        text: '  A cinematic close-up of a cat on a rooftop, golden hour lighting...  \n',
+      });
+
+      const result = await service.generatePromptForPicture(
+        'org-1',
+        'gato no telhado'
+      );
+
+      expect(result).toBe(
+        'A cinematic close-up of a cat on a rooftop, golden hour lighting...'
+      );
+      expect(generateObjectMock).not.toHaveBeenCalled();
+      expect(generateTextMock).toHaveBeenCalledTimes(1);
+      const callArg = generateTextMock.mock.calls[0][0];
+      expect(callArg.system).toContain('ENGLISH');
+      expect(callArg.system).toContain('image-generation model');
+      expect(callArg.prompt).toContain('gato no telhado');
+    });
+
+    it('deve omitir temperature em reasoning model (gpt-5.5)', async () => {
+      factory.text.mockResolvedValue(buildClient({ modelId: 'openai/gpt-5.5' }));
+      generateTextMock.mockResolvedValue({ text: 'ok' });
+
+      await service.generatePromptForPicture('org-1', 'qualquer');
+
+      const callArg = generateTextMock.mock.calls[0][0];
+      expect(callArg.temperature).toBeUndefined();
+    });
+  });
+
+  describe('generatePromptForVideo', () => {
+    it('deve chamar generateText (nao generateObject) com system em ingles e retornar texto trimado', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockResolvedValue({
+        text: ' A dolly shot of a cat walking across a rooftop at sunset.\n',
+      });
+
+      const result = await service.generatePromptForVideo(
+        'org-1',
+        'gato andando no telhado'
+      );
+
+      expect(result).toBe(
+        'A dolly shot of a cat walking across a rooftop at sunset.'
+      );
+      expect(generateObjectMock).not.toHaveBeenCalled();
+      expect(generateTextMock).toHaveBeenCalledTimes(1);
+      const callArg = generateTextMock.mock.calls[0][0];
+      expect(callArg.system).toContain('ENGLISH');
+      expect(callArg.system).toContain('text-to-video');
+      expect(callArg.prompt).toContain('gato andando no telhado');
+    });
+  });
+
   describe('callWithFallback', () => {
     it('deve cair pro fallbackModel quando o principal falhar', async () => {
       const principal = { id: 'gpt-5.5' } as any;

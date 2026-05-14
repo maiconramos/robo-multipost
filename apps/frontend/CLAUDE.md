@@ -103,7 +103,7 @@ The `--color-custom*` variables are **deprecated**. Use `--new-*` tokens and Tai
 | `src/components/automations/ad-aliases-field.component.tsx` | Shared `<AdAliasesField />` used in both the Wizard and Flow Builder — parity component for "Dark Post IDs" trigger config |
 | `src/components/automations/hooks/use-unmatched-comments.ts` | SWR hooks (`useInbox`, `useAliases`, `useAliasLookup`) + `createInboxActions(fetch, mutators)` mutation factory (mutate-as-parameter pattern — see SWR section above) |
 | `src/components/launches/ai.image.tsx` / `ai.video.tsx` / `ai.search.tsx` | AI generation modals — all 700px width, sticky header without `-mt`/`pt` quirks, X inside same flex row as `TopTitle` |
-| `src/components/settings/` | Settings panels (AI Provider, Credentials, Profiles, etc.) |
+| `src/components/settings/` | Settings panels (AI Models, AI Persona, AI Credits, Credentials, Profiles, etc.) |
 | `src/components/new-layout/` | Current sidebar + topbar |
 | `src/components/new-layout/sentry.feedback.component.tsx` | Sentry feedback widget |
 | `src/sentry.server.config.ts` / `sentry.edge.config.ts` | Sentry config for SSR/edge |
@@ -191,4 +191,4 @@ pnpm lint                 # Always from repo root
 
 - [`libraries/react-shared-libraries/CLAUDE.md`](../../libraries/react-shared-libraries/CLAUDE.md) — UI primitives and translation patterns
 - [`apps/backend/CLAUDE.md`](../backend/CLAUDE.md) — API contracts consumed
-- [`docs/architecture/ai-provider-system.md`](../../docs/architecture/ai-provider-system.md) — Settings > AI Provider UI
+- [`docs/architecture/ai-provider-system.md`](../../docs/architecture/ai-provider-system.md) — Settings > AI Models UI

@@ -61,7 +61,7 @@ export class MediaService {
         let finalPrompt = prompt;
         // Enrichment do prompt e best-effort: se a credencial de TEXT
         // nao estiver configurada (412), seguimos com o prompt original.
-        // Sem isso, configurar so IMAGE em Settings > AI Provider quebrava
+        // Sem isso, configurar so IMAGE em Settings > AI Models quebrava
         // a geracao com erro 412 mesmo a chave de imagem estando OK.
         if (generatePromptFirst) {
           try {

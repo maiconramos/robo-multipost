@@ -11,7 +11,7 @@
 
 ## What lives here
 
-The Robô MultiPost central AI provider system. Configuration is **per-workspace via UI** (`Settings > AI Provider`), not via env var. Each `kind` (TEXT, IMAGE, VIDEO, WEB_SEARCH) is configurable with provider (OpenRouter or OpenAI direct), API key, model, fallback, and options. Also includes:
+The Robô MultiPost central AI provider system. Configuration is **per-workspace via UI** (`Settings > AI Models`), not via env var. Each `kind` (TEXT, IMAGE, VIDEO, WEB_SEARCH) is configurable with provider (OpenRouter or OpenAI direct), API key, model, fallback, and options. Also includes:
 
 - **AI Credits System** — controls how many images/videos each profile can generate per month.
 - **Per-profile persona** — voice tone, target audience, preferred CTAs, restrictions, image style.
@@ -21,7 +21,7 @@ The Robô MultiPost central AI provider system. Configuration is **per-workspace
 
 ### 1. Configuration is per-workspace via the UI
 
-Admin goes to `Settings > AI Provider` and configures each kind. **There is no env-var fallback for provider configuration** (except test credentials). API keys are stored using **AES-256-GCM** (the same `ENCRYPTION_KEY` used for OAuth — see [`libraries/nestjs-libraries/CLAUDE.md`](../../CLAUDE.md)).
+Admin goes to `Settings > AI Models` and configures each kind. **There is no env-var fallback for provider configuration** (except test credentials). API keys are stored using **AES-256-GCM** (the same `ENCRYPTION_KEY` used for OAuth — see [`libraries/nestjs-libraries/CLAUDE.md`](../../CLAUDE.md)).
 
 ### 2. Every resolution goes through `AiProviderResolverService`
 
@@ -204,11 +204,12 @@ Everything goes through `subscription.service.ts`. If you change the precedence 
 8. **Symptom:** Image/video generated has Portuguese text or weird translation artifacts → **Cause:** the LLM enriching the prompt returned in the user's input language. **Fix:** `generatePromptForPicture`/`generatePromptForVideo` system prompts contain explicit "Always respond in ENGLISH, regardless of input language — image/video models perform significantly better with English". Don't translate them; keep output English.
 9. **Symptom:** `Cache-Control` style staleness — admin changed model in Settings but the modal still shows old options → **Cause:** Redis catalog cache. **Fix:** `getCatalog` already bypasses cache for static providers (kieai/tavily/openai). For OpenRouter, hit `POST /ai/catalog/refresh` or wait 1h TTL.
 10. **Symptom:** Kie.ai video generation fails with `code=402 "Credits insufficient"` (their billing) but our backend returns generic 502 → **Cause:** `AiVideoService.translateKieaiError` exists but isn't applied. **Fix:** ensure controller propagates `error.message` from HttpException — the frontend already prefers `detail.message` over generic toast.
+11. **Symptom:** Image/video generation fails with `No object generated: could not parse the response` (after 3 retries + fallback also failed) and the OpenRouter dashboard shows `Finish Reason: -` instead of `stop` → **Cause:** free OpenRouter models (Nemotron 3 Nano Omni free, Gemma 4 26B A4B free, Mistral 7B free) don't reliably support structured output / JSON mode. The AI SDK's `generateObject` requires valid JSON and fails when the model returns plain text, markdown-wrapped JSON, or truncated output. **Fix:** the prompt enrichment helpers (`generatePromptForPicture`, `generatePromptForVideo`) use `generateText` (NOT `generateObject`) precisely because the schema is trivial (`{ prompt: string }`) — the raw text response IS the enriched prompt. Do NOT migrate them back to `generateObject`. Other methods (`generatePosts`, `separatePosts`) genuinely need structured output (array of posts with min/max length constraints) and stay on `generateObject` — when those break with free models, the admin must configure a paid fallback in Settings > Modelos de IA > Texto > Fallback.
 
 ## Useful Commands
 
 ```bash
-# AI Provider System specs (126 specs covering text, image T2I/I2I, video T2V/I2V, web search, resolver, factory, catalog, credentials)
+# AI Provider System specs (118 specs covering text, image T2I/I2I, video T2V/I2V, web search, resolver, factory, catalog, credentials)
 pnpm jest libraries/nestjs-libraries/src/ai/ --no-coverage
 
 # AI + Chat (124 + chat specs ~140 total) — the agent's tool layer also lives next door

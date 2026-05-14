@@ -80,7 +80,7 @@ function translateKieaiError(
   }
   if (code === 401 || lower.includes('unauthorized') || lower.includes('invalid api key')) {
     return (
-      'Chave kie.ai invalida ou expirada. Atualize em Settings > AI Provider > Video. ' +
+      'Chave kie.ai invalida ou expirada. Atualize em Configurações > Modelos de IA > Vídeo. ' +
       `(kie.ai: "${original}")`
     );
   }

@@ -141,7 +141,7 @@ export class AiWebSearchController {
         this.isTextCredentialError(e)
       ) {
         throw new HttpException(
-          'Configure também a chave de Texto em Settings > AI Provider > Geração de texto. ' +
+          'Configure também a chave de Texto em Configurações > Modelos de IA > Geração de texto. ' +
             'Ela é necessária para escrever a legenda final a partir dos resultados da busca.',
           412
         );
