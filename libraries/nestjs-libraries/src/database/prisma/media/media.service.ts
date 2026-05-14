@@ -82,19 +82,28 @@ export class MediaService {
             }
           }
         }
-        const result = await this._aiImageService.generate(
-          org.id,
-          finalPrompt,
-          profileId,
-          {
-            ...(aspectRatio ? { aspectRatio } : {}),
-            ...(extra?.mode ? { mode: extra.mode } : {}),
-            ...(extra?.referenceImageUrl
-              ? { referenceImageUrl: extra.referenceImageUrl }
-              : {}),
-          }
-        );
-        return result.base64;
+        try {
+          const result = await this._aiImageService.generate(
+            org.id,
+            finalPrompt,
+            profileId,
+            {
+              ...(aspectRatio ? { aspectRatio } : {}),
+              ...(extra?.mode ? { mode: extra.mode } : {}),
+              ...(extra?.referenceImageUrl
+                ? { referenceImageUrl: extra.referenceImageUrl }
+                : {}),
+            }
+          );
+          return result.base64;
+        } catch (err) {
+          const status =
+            err instanceof HttpException ? err.getStatus() : 'n/a';
+          this._logger.error(
+            `generateImage falhou: mode=${extra?.mode ?? 'T2I'} aspect=${aspectRatio ?? '(default)'} hasRef=${extra?.referenceImageUrl ? 'y' : 'n'} status=${status} msg=${(err as Error).message}`
+          );
+          throw err;
+        }
       }
     );
 
