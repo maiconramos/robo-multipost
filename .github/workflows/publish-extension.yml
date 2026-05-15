@@ -23,7 +23,7 @@ jobs:
         run: FRONTEND_URL=https://platform.postiz.com pnpm run build:extension
 
       - name: Publish to Chrome Web Store
-        uses: mnao305/chrome-extension-upload@v5.0.0
+        uses: mnao305/chrome-extension-upload@v6.0.0
         with:
           extension-id: ${{ secrets.CHROME_EXTENSION_ID }}
           client-id: ${{ secrets.CHROME_CLIENT_ID }}
