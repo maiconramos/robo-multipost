@@ -347,7 +347,8 @@
       "rollup@>=2 <2.80.0": "^2.80.0",
       "path-to-regexp@>=8 <8.4.0": "^8.4.0",
       "picomatch@>=4 <4.0.4": "^4.0.4",
-      "cross-spawn@<7": "^7.0.5"
+      "cross-spawn@<7": "^7.0.5",
+      "tar@<7": "^7.5.11"
     },
     "onlyBuiltDependencies": [
       "bcrypt"
