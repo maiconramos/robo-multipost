@@ -7,6 +7,33 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança
+
+- **Dependabot habilitado** (`.github/dependabot.yml`): arquivo existia mas estava com `package-ecosystem: ""` (inválido — bot ignorava silenciosamente). Corrigido para cobrir npm (monorepo pnpm, raiz `/`), GitHub Actions e Docker, com schedule semanal, grupos `runtime-minor-patch`/`dev-minor-patch`/`security-fixes` e majors em PRs individuais para revisão humana obrigatória.
+- **Automação de auditoria Dependabot no `security-auditor`**: o subagent agora executa `gh api .../dependabot/alerts` como passo zero de qualquer auditoria, surfaçando alertas critical/high antes de revisar o diff. Gracioso — se `gh` não estiver autenticado, emite `⏭️ unavailable` e continua.
+- **4 vulnerabilidades críticas corrigidas** via `pnpm.overrides` escopados (afetam apenas versões vulneráveis, sem tocar instâncias já corrigidas):
+  - `protobufjs` 7.5.4 → 8.0.3 (`GHSA-xq3m-2v4x-88gg`: execução arbitrária de código via parse de `.proto` não confiável)
+  - `handlebars` 4.7.8 → 4.7.9 (`GHSA-2w6w-674q-4c4q`: injeção JavaScript via AST type confusion)
+  - `happy-dom` 15.11.7 → 20.8.9 (`GHSA-37j7-fg3j-429f`: escape de contexto VM → RCE)
+  - `form-data` 2.3.3 → 2.5.5 (`GHSA-fjxv-7rqg-78g4`: boundary inseguro por função random fraca)
+- **~40 vulnerabilidades high corrigidas** via `pnpm.overrides` com ranges cirúrgicos (versões legadas intocadas):
+  - `next` 16.2.1 → 16.2.6 (7 CVEs: middleware/proxy bypass, SSRF via WebSocket upgrade, DoS Server Components e Cache Components, injeção via parâmetro dinâmico de rota, bypass i18n Pages Router)
+  - `axios` 1.15.0 → 1.16.0 (`GHSA` prototype pollution no Node HTTP adapter e SSRF via `socketPath`)
+  - `multer` 2.0.2 → 2.1.1 (`CVE-2026-3520`: DoS via recursão descontrolada)
+  - `fast-xml-parser` → 5.5.10 (expansão ilimitada de entidade numéricas — bypass de limites)
+  - `node-forge` 1.3.3 → 1.4.0 (bypass de `basicConstraints` em verificação de cadeia X.509)
+  - `defu` → 6.1.6, `fast-uri` → 3.1.2, `flatted` → 3.4.2, `basic-ftp` → 5.3.1 (prototype pollution, host confusion, DoS)
+  - `rollup@2.x` → 2.80.0 (path traversal em escrita de arquivos)
+  - `path-to-regexp@8.x` → 8.4.2, `picomatch@4.x` → 4.0.4, `cross-spawn@<7` → 7.0.5 (ReDoS)
+- **`tar` 6.2.1 → 7.5.13** (`GHSA` symlink path traversal): único consumidor é `@mapbox/node-pre-gyp` que chama apenas `tar.extract()` — API compatível entre versões.
+- **`music-metadata` 7.14.0 → 11.12.3** (`GHSA` loop infinito no parser ASF): dep direta, usada em `images.slides.ts`. Pacote virou ESM-only na v8 — migrado para `await import('music-metadata')` (dynamic import compatível com Node.js 22 + tsconfig CommonJS). Segunda argumento de `parseBuffer` atualizado de string para `{ mimeType: 'audio/mpeg' }` conforme nova assinatura da API.
+- **Riscos aceitos (CVEs não exploráveis neste projeto — verificados via advisory GitHub):**
+  - `@opentelemetry/exporter-prometheus`, `@opentelemetry/sdk-node`, `@opentelemetry/auto-instrumentations-node` (`GHSA-q7rr-3cgh-j5r3`: crash do exporter Prometheus via HTTP malformado) — nenhum desses pacotes é configurado nem exposto no projeto. Sem `registerInstrumentations()` em `main.ts`, sem endpoint Prometheus ativo. Forçar 0.203 → 0.217 sem subir `langsmith` criaria cascata de peer deps quebrados de maior risco.
+  - `langsmith` < 0.8.0 (4 CVEs: `GHSA-3644-q5cj-c5c7` desserialização de manifests via `pullPrompt()`; `GHSA-v34v-rq6j-cj6p` SSRF via `baggage` header em `RunTree.fromHeaders()` com tracing distribuído; `GHSA-fw9q-39r9-c252` prototype pollution em `createAnonymizer()`; `GHSA-rr7j-v2q5-chgv` bypass de redação em streaming) — sem `LANGSMITH_API_KEY`, sem `LANGCHAIN_TRACING_V2`, sem chamadas a `pullPrompt()` ou `RunTree.fromHeaders()` em nenhum arquivo do projeto. Todas as funções vulneráveis exigem ativação/uso explícito. Salto 0.3→0.8 exigiria upgrade em cadeia do langchain.
+  - `lodash` / `lodash-es` (`GHSA-r5fr-rjxr-66jc` injeção de código via `_.template`; `GHSA-f23m-r3pf-42rh` prototype pollution via `_.unset`/`_.omit`) — auditados todos os 13 arquivos com import de lodash. Funções usadas: `capitalize`, `chunk`, `sortBy`, `shuffle`, `difference`, `uniq`, `uniqBy`, `groupBy`. Nenhuma instância de `_.template`, `_.unset` ou `_.omit`. Biblioteca abandonada em 4.17.x — versão `4.18.0` referenciada no advisory nunca foi lançada.
+  - `path-to-regexp@0.1.12` (`GHSA-37ch-88jc-xwx2` ReDoS via múltiplos parâmetros de rota) — versão corrigida `0.1.13` não foi publicada no npm (última release do branch 0.1.x é `0.1.9`). Padrões de rota no projeto são estáticos (definidos em decoradores NestJS como `@Get('/users/:id')`), nunca controlados por input de usuário — ataque não é viável.
+  - `picomatch@2.3.1` — sem fix disponível no branch 2.x. Instância residual de dependência interna do Vite; não é importada diretamente pelo projeto.
+
 ### Alterado
 - **UX da aba "Persona de IA"**: refator amplo focado em densidade visual e redução de ruído.
   - Removido o dropdown "Perfil" que duplicava o seletor de perfil já presente no header. Agora a tela edita automaticamente a persona do perfil ativo (resolvido via `useCurrentProfile()`, mesmo padrão usado pelo card de "Modelos de IA"). Para trocar de perfil, o usuário usa o ProfileSelector do header — single source of truth para profile-active.
