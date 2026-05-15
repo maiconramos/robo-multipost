@@ -331,7 +331,11 @@
       "react": "19.2.4",
       "react-dom": "19.2.4",
       "@types/react": "19.1.8",
-      "@types/react-dom": "19.1.6"
+      "@types/react-dom": "19.1.6",
+      "handlebars@<4.7.9": "^4.7.9",
+      "form-data@<2.5.4": "^2.5.4",
+      "happy-dom@<20.0.0": "^20.0.0",
+      "protobufjs@<8.0.1": "^8.0.1"
     },
     "onlyBuiltDependencies": [
       "bcrypt"
