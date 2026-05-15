@@ -9,7 +9,6 @@ import { chunk } from 'lodash';
 import Transloadit from 'transloadit';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { Readable } from 'stream';
-import { parseBuffer } from 'music-metadata';
 import { stringifySync } from 'subtitle';
 
 import pLimit from 'p-limit';
@@ -24,7 +23,8 @@ const transloadit = new Transloadit({
 });
 
 async function getAudioDuration(buffer: Buffer): Promise<number> {
-  const metadata = await parseBuffer(buffer, 'audio/mpeg');
+  const { parseBuffer } = await import('music-metadata');
+  const metadata = await parseBuffer(buffer, { mimeType: 'audio/mpeg' });
   return metadata.format.duration || 0;
 }
 
