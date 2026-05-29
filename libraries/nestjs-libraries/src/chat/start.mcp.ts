@@ -5,6 +5,7 @@ import { MCPServer } from '@mastra/mcp';
 import { randomUUID } from 'crypto';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { runWithContext } from './async.storage';
 import { createOAuthMiddleware } from './oauth-middleware';
 const fixAcceptHeader = (req: Request) => {
@@ -22,14 +23,18 @@ export const startMcp = async (app: INestApplication) => {
   const mastraService = app.get(MastraService, { strict: false });
   const organizationService = app.get(OrganizationService, { strict: false });
   const oauthService = app.get(OAuthService, { strict: false });
+  const profileService = app.get(ProfileService, { strict: false });
 
-  const resolveAuth = async (token: string) => {
+  const resolveAuth = async (token: string): Promise<{ org: any; profileId?: string } | null> => {
     if (token.startsWith('pos_')) {
       const authorization = await oauthService.getOrgByOAuthToken(token);
       if (!authorization) return null;
-      return authorization.organization;
+      return { org: authorization.organization };
     }
-    return organizationService.getOrgByApiKey(token);
+    const profile = await profileService.getProfileByApiKey(token);
+    if (profile) return { org: profile.organization, profileId: profile.id };
+    const org = await organizationService.getOrgByApiKey(token);
+    return org ? { org } : null;
   };
 
   const mastra = await mastraService.mastra();
@@ -50,8 +55,8 @@ export const startMcp = async (app: INestApplication) => {
       resource: new URL('/mcp-oauth', process.env.NEXT_PUBLIC_BACKEND_URL!).toString(),
       authorizationServers: [process.env.NEXT_PUBLIC_BACKEND_URL!],
       validateToken: async (token: string) => {
-        const org = await resolveAuth(token);
-        if (!org) {
+        const resolved = await resolveAuth(token);
+        if (!resolved) {
           return { valid: false, error: 'invalid_token', errorDescription: 'Invalid API Key or OAuth token' };
         }
         return { valid: true, subject: token };
@@ -107,14 +112,14 @@ export const startMcp = async (app: INestApplication) => {
     if (!result.proceed) return;
 
     const token = result.tokenValidation?.subject;
-    const auth = await resolveAuth(token!);
-    if (!auth) {
+    const resolved = await resolveAuth(token!);
+    if (!resolved) {
       res.status(401).json({ error: 'invalid_token', error_description: 'Could not resolve organization' });
       return;
     }
 
     fixAcceptHeader(req);
-    await runWithContext({ requestId: token!, auth }, async () => {
+    await runWithContext({ requestId: token!, auth: resolved.org, profileId: resolved.profileId }, async () => {
       await server.startHTTP({
         url: url,
         httpPath: url.pathname,
@@ -154,19 +159,18 @@ export const startMcp = async (app: INestApplication) => {
       return;
     }
 
-    // @ts-ignore
-    req.auth = await resolveAuth(token);
-    // @ts-ignore
-    if (!req.auth) {
+    const resolved = await resolveAuth(token);
+    if (!resolved) {
       res.status(401).send('Invalid API Key or OAuth token');
       return;
     }
+    // @ts-ignore
+    req.auth = resolved.org;
 
     const url = new URL('/mcp', process.env.NEXT_PUBLIC_BACKEND_URL);
 
     fixAcceptHeader(req);
-    // @ts-ignore
-    await runWithContext({ requestId: token, auth: req.auth }, async () => {
+    await runWithContext({ requestId: token, auth: resolved.org, profileId: resolved.profileId }, async () => {
       await server.startHTTP({
         url,
         httpPath: url.pathname,
@@ -194,23 +198,23 @@ export const startMcp = async (app: INestApplication) => {
       return;
     }
 
-    // @ts-ignore
-    req.auth = await organizationService.getOrgByApiKey(req.params.id);
-    // @ts-ignore
-    if (!req.auth) {
+    const mcpId = req.params.id as string;
+    const resolved = await resolveAuth(mcpId);
+    if (!resolved) {
       res.status(400).send('Invalid API Key');
       return;
     }
+    // @ts-ignore
+    req.auth = resolved.org;
 
     const url = new URL(
-      `/mcp/${req.params.id}`,
+      `/mcp/${mcpId}`,
       process.env.NEXT_PUBLIC_BACKEND_URL
     );
 
     fixAcceptHeader(req);
     await runWithContext(
-      // @ts-ignore
-      { requestId: req.params.id, auth: req.auth },
+      { requestId: mcpId, auth: resolved.org, profileId: resolved.profileId },
       async () => {
         await server.startHTTP({
           url,
@@ -240,24 +244,24 @@ export const startMcp = async (app: INestApplication) => {
       return;
     }
 
-    // @ts-ignore
-    req.auth = await organizationService.getOrgByApiKey(req.params.id);
-    // @ts-ignore
-    if (!req.auth) {
+    const sseId = req.params.id as string;
+    const resolvedSse = await resolveAuth(sseId);
+    if (!resolvedSse) {
       res.status(400).send('Invalid API Key');
       return;
     }
+    // @ts-ignore
+    req.auth = resolvedSse.org;
 
     const url = new URL(req.originalUrl, process.env.NEXT_PUBLIC_BACKEND_URL);
 
     await runWithContext(
-      // @ts-ignore
-      { requestId: req.params.id, auth: req.auth },
+      { requestId: sseId, auth: resolvedSse.org, profileId: resolvedSse.profileId },
       async () => {
         await new MCPServer(serverConfig).startSSE({
           url,
-          ssePath: `/sse/${req.params.id}`,
-          messagePath: `/message/${req.params.id}`,
+          ssePath: `/sse/${sseId}`,
+          messagePath: `/message/${sseId}`,
           req,
           res,
         });

@@ -21,6 +21,7 @@ export const UserContext = createContext<
       streakSince: string | null;
       profileId: string | null;
       profileName: string | null;
+      profileApiKey: string | null;
     })
 >(undefined);
 export const ContextWrapper: FC<{
@@ -29,6 +30,7 @@ export const ContextWrapper: FC<{
     tier: 'FREE' | 'STANDARD' | 'PRO' | 'ULTIMATE' | 'TEAM';
     role: 'USER' | 'ADMIN' | 'SUPERADMIN';
     publicApi: string;
+    profileApiKey: string | null;
     totalChannels: number;
   };
   children: ReactNode;

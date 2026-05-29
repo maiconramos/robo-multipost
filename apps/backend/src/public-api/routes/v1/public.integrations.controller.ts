@@ -13,6 +13,7 @@ import {
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
+import { GetPublicApiProfileId } from '@gitroom/nestjs-libraries/user/public.api.profile.from.request';
 import { Organization } from '@prisma/client';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
@@ -184,10 +185,15 @@ export class PublicIntegrationsController {
   @Get('/integrations')
   async listIntegration(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Query('profileId') profileId?: string
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    return (await this._integrationService.getIntegrationsList(org.id, profileId)).map(
+    if (publicApiProfileId && profileId && profileId !== publicApiProfileId) {
+      throw new HttpException({ msg: 'Profile key cannot access another profile' }, 403);
+    }
+    const effectiveProfileId = publicApiProfileId ?? profileId;
+    return (await this._integrationService.getIntegrationsList(org.id, effectiveProfileId)).map(
       (org) => ({
         id: org.id,
         name: org.name,

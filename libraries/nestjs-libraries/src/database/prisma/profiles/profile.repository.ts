@@ -1,6 +1,8 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { ProfileRole, ShortLinkPreference } from '@prisma/client';
+import { AuthService } from '@gitroom/helpers/auth/auth.service';
+import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 
 export interface ProfilePersonaData {
   brandDescription?: string | null;
@@ -244,6 +246,33 @@ export class ProfileRepository {
   deletePersona(profileId: string) {
     return this._profilePersona.model.profilePersona.deleteMany({
       where: { profileId },
+    });
+  }
+
+  getProfileByApiKey(apiKey: string) {
+    return this._profile.model.profile.findFirst({
+      where: { apiKey, deletedAt: null },
+      include: {
+        organization: {
+          include: {
+            subscription: {
+              select: {
+                subscriptionTier: true,
+                totalChannels: true,
+                isLifetime: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
+  updateApiKey(orgId: string, profileId: string) {
+    return this._profile.model.profile.update({
+      where: { id: profileId, organizationId: orgId },
+      data: { apiKey: AuthService.fixedEncryption(makeId(20)) },
+      select: { id: true, apiKey: true },
     });
   }
 

@@ -7,6 +7,14 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado
+
+- **Chaves de API por perfil**: cada perfil pode gerar sua própria chave de API escopada apenas às suas integrações. A chave da organização continua existindo com acesso irrestrito a todos os perfis. Chaves de perfil funcionam na REST API pública, no MCP e no CLI.
+  - No painel `Configurações > Desenvolvedores`, o perfil Default exibe as duas chaves (organização + perfil); perfis secundários exibem apenas a chave do próprio perfil.
+  - Novo endpoint `POST /profiles/:id/api-key/rotate` (admin) para gerar ou rotacionar a chave de um perfil.
+  - Novo endpoint `GET /public/v1/profiles` para listar perfis disponíveis via API pública (chave de org retorna todos; chave de perfil retorna apenas o próprio perfil).
+  - Segurança: tentativa de usar `?profileId` diferente da chave de perfil retorna `403 Forbidden`.
+
 ### Segurança
 
 - **Dependabot habilitado** (`.github/dependabot.yml`): arquivo existia mas estava com `package-ecosystem: ""` (inválido — bot ignorava silenciosamente). Corrigido para cobrir npm (monorepo pnpm, raiz `/`), GitHub Actions e Docker, com schedule semanal, grupos `runtime-minor-patch`/`dev-minor-patch`/`security-fixes` e majors em PRs individuais para revisão humana obrigatória.

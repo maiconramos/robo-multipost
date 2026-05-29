@@ -79,4 +79,13 @@ export class ProfilesController {
   ) {
     return this._profileService.removeMember(id, userId);
   }
+
+  @Post('/:id/api-key/rotate')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async rotateProfileApiKey(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return this._profileService.updateApiKey(org.id, id);
+  }
 }

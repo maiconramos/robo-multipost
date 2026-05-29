@@ -1106,6 +1106,7 @@ model Profile {
   isDefault      Boolean             @default(false)
   lateApiKey     String?
   zernioApiKey   String?
+  apiKey         String?
   shortlink      ShortLinkPreference @default(ASK)
   createdAt      DateTime            @default(now())
   updatedAt      DateTime            @updatedAt
@@ -1134,6 +1135,7 @@ model Profile {
   @@unique([organizationId, slug, deletedAt])
   @@index([organizationId])
   @@index([isDefault])
+  @@index([apiKey])
 }
 
 enum KnowledgeDocumentStatus {

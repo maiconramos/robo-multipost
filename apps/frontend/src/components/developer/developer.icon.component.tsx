@@ -13,16 +13,16 @@ export const DeveloperIconComponent: FC = () => {
     <div
       className="hover:text-newTextColor cursor-pointer"
       data-tooltip-id="tooltip"
-      data-tooltip-content={t('developer', 'Developer')}
+      data-tooltip-content={t('integrations_menu', 'Integrações')}
       onClick={() => {
         modals.openModal({
-          title: t('developer', 'Developer'),
+          title: t('integrations_menu', 'Integrações'),
           size: '80%',
           children: <DeveloperComponent />,
         });
       }}
     >
-      Developers
+      {t('integrations_menu', 'Integrações')}
     </div>
   );
 };

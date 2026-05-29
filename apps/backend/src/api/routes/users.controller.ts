@@ -94,6 +94,8 @@ export class UsersController {
       streakSince: organization?.streakSince || null,
       // @ts-ignore
       publicApi: organization?.users[0]?.role === 'SUPERADMIN' || organization?.users[0]?.role === 'ADMIN' ? organization?.apiKey : '',
+      // @ts-ignore
+      profileApiKey: organization?.users[0]?.role === 'SUPERADMIN' || organization?.users[0]?.role === 'ADMIN' ? (profile?.apiKey ?? null) : null,
       profileId: profile?.id || null,
       profileName: profile?.name || null,
     };

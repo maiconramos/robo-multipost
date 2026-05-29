@@ -205,4 +205,16 @@ export class ProfileService {
     }
     return this._profileRepository.deletePersona(profileId);
   }
+
+  getProfileByApiKey(apiKey: string) {
+    return this._profileRepository.getProfileByApiKey(apiKey);
+  }
+
+  async updateApiKey(orgId: string, profileId: string) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
+    return this._profileRepository.updateApiKey(orgId, profileId);
+  }
 }
