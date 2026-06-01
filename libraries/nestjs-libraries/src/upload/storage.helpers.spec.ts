@@ -1,4 +1,29 @@
-import { loadFromUrlOrDataUrl } from './storage.helpers';
+import {
+  loadFromUrlOrDataUrl,
+  publicUrlToLocalPath,
+} from './storage.helpers';
+
+describe('publicUrlToLocalPath', () => {
+  it('deve converter a URL publica de upload no caminho de filesystem', () => {
+    expect(
+      publicUrlToLocalPath(
+        'https://app.exemplo.com/uploads/2026/06/abc.png',
+        '/data/uploads',
+        'https://app.exemplo.com'
+      )
+    ).toBe('/data/uploads/2026/06/abc.png');
+  });
+
+  it('deve retornar null quando a URL nao e do storage local', () => {
+    expect(
+      publicUrlToLocalPath(
+        'https://r2.cdn.com/abc.png',
+        '/data/uploads',
+        'https://app.exemplo.com'
+      )
+    ).toBeNull();
+  });
+});
 
 describe('loadFromUrlOrDataUrl', () => {
   let originalFetch: typeof globalThis.fetch;

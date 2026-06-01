@@ -1,7 +1,10 @@
 import { IUploadProvider } from './upload.interface';
 import { mkdirSync, unlink, writeFileSync } from 'fs';
 import { extname } from 'path';
-import { loadFromUrlOrDataUrl } from './storage.helpers';
+import {
+  loadFromUrlOrDataUrl,
+  publicUrlToLocalPath,
+} from './storage.helpers';
 export class LocalStorage implements IUploadProvider {
   constructor(private uploadDirectory: string) {}
 
@@ -66,15 +69,18 @@ export class LocalStorage implements IUploadProvider {
   }
 
   async removeFile(filePath: string): Promise<void> {
-    // Logic to remove the file from the filesystem goes here
-    return new Promise((resolve, reject) => {
-      unlink(filePath, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
+    // O `path` salvo no banco e a URL publica (`FRONTEND_URL/uploads/...`),
+    // entao mapeamos de volta para o caminho real em disco antes de apagar.
+    // Idempotente: ignora erro (ex.: arquivo ja inexistente) para nao quebrar
+    // fluxos de limpeza repetida.
+    const localPath =
+      publicUrlToLocalPath(
+        filePath,
+        this.uploadDirectory,
+        process.env.FRONTEND_URL || ''
+      ) || filePath;
+    return new Promise((resolve) => {
+      unlink(localPath, () => resolve());
     });
   }
 }

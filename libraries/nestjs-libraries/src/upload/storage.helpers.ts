@@ -43,3 +43,25 @@ export async function loadFromUrlOrDataUrl(path: string): Promise<{
   const buffer = Buffer.from(await res.arrayBuffer());
   return { buffer, contentType, extension };
 }
+
+/**
+ * Converte a URL publica de upload local (`FRONTEND_URL/uploads/...`) no
+ * caminho de filesystem real (`uploadDir/...`). Retorna `null` quando a URL
+ * nao pertence ao storage local (ex.: objeto no R2), para que o chamador
+ * decida o fallback.
+ *
+ * Necessario porque o `path` salvo no banco e a URL publica, nao o caminho
+ * em disco. Sem esse mapeamento o `removeFile` local nao apaga nada.
+ */
+export function publicUrlToLocalPath(
+  publicUrl: string,
+  uploadDir: string,
+  frontendUrl: string
+): string | null {
+  const prefix = `${frontendUrl}/uploads`;
+  if (!publicUrl.startsWith(prefix)) {
+    return null;
+  }
+  const relative = publicUrl.slice(prefix.length);
+  return `${uploadDir}${relative}`;
+}
