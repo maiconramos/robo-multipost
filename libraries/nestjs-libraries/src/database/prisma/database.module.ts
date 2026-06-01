@@ -15,6 +15,7 @@ import { CarouselSchedulerService } from '@gitroom/nestjs-libraries/database/pri
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { MediaRepository } from '@gitroom/nestjs-libraries/database/prisma/media/media.repository';
+import { MediaCleanupService } from '@gitroom/nestjs-libraries/database/prisma/media/media.cleanup.service';
 import { NotificationsRepository } from '@gitroom/nestjs-libraries/database/prisma/notifications/notifications.repository';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { StripeService } from '@gitroom/nestjs-libraries/services/stripe.service';
@@ -91,6 +92,7 @@ import { AiModule } from '@gitroom/nestjs-libraries/ai/ai.module';
     SignatureService,
     MediaService,
     MediaRepository,
+    MediaCleanupService,
     AgenciesService,
     AgenciesRepository,
     IntegrationManager,
