@@ -157,6 +157,10 @@ export class MediaService {
     return this._mediaRepository.getMedia(org, page, profileId);
   }
 
+  getMediaStats(org: string, profileId?: string) {
+    return this._mediaRepository.getMediaStats(org, profileId);
+  }
+
   saveMediaInformation(org: string, data: SaveMediaInformationDto) {
     return this._mediaRepository.saveMediaInformation(org, data);
   }
