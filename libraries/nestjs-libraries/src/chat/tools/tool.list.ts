@@ -10,6 +10,8 @@ import { KnowledgeQueryTool } from '@gitroom/nestjs-libraries/chat/tools/knowled
 import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web-search.tool';
 import { ExtractUrlsTool } from '@gitroom/nestjs-libraries/chat/tools/extract-urls.tool';
 import { UploadMediaFromUrlTool } from '@gitroom/nestjs-libraries/chat/tools/upload.media.from.url.tool';
+import { MediaListTool } from '@gitroom/nestjs-libraries/chat/tools/media.list.tool';
+import { MediaCleanupTool } from '@gitroom/nestjs-libraries/chat/tools/media.cleanup.tool';
 import {
   ListAutomationsTool,
   ListInstagramPostsForAutomationTool,
@@ -30,6 +32,8 @@ export const toolList = [
   WebSearchTool,
   ExtractUrlsTool,
   UploadMediaFromUrlTool,
+  MediaListTool,
+  MediaCleanupTool,
   ListAutomationsTool,
   ListInstagramPostsForAutomationTool,
   CreateCommentAutomationTool,
