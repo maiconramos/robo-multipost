@@ -103,3 +103,40 @@ describe('PublicIntegrationsController - uploadSimple', () => {
     expect(result).toEqual({ id: 'media-1', path: 'https://r2/slide.png' });
   });
 });
+
+describe('PublicIntegrationsController - uploadsFromUrl', () => {
+  let controller: PublicIntegrationsController;
+  let mediaService: { uploadFromUrl: jest.Mock };
+
+  beforeEach(() => {
+    mediaService = {
+      uploadFromUrl: jest
+        .fn()
+        .mockResolvedValue({ id: 'media-2', path: 'https://r2/x.jpg' }),
+    };
+    controller = new PublicIntegrationsController(
+      {} as any,
+      {} as any,
+      mediaService as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+  });
+
+  it('reusa MediaService.uploadFromUrl com profileId e retorna id e path', async () => {
+    const result = await controller.uploadsFromUrl(
+      { id: 'org-1' } as any,
+      { url: 'https://ext/x.jpg' } as any,
+      'profile-1'
+    );
+
+    expect(mediaService.uploadFromUrl).toHaveBeenCalledWith(
+      'org-1',
+      'https://ext/x.jpg',
+      undefined,
+      'profile-1'
+    );
+    expect(result).toEqual({ id: 'media-2', path: 'https://r2/x.jpg' });
+  });
+});
