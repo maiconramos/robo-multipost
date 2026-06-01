@@ -89,7 +89,9 @@ Meta limits **one `sendPrivateReply` per comment**. After the postback, the 24h 
 | `knowledge.query.tool.ts` | Query the profile's Knowledge Base (RAG) |
 | `web-search.tool.ts` | Web search via `AiWebSearchService` |
 | `upload.media.from.url.tool.ts` | Host external media from a public URL via `MediaService.uploadFromUrl` → `{ id, path }` for use as a post attachment |
-| `automations.tool.ts` | Flows over MCP: `listAutomations`, `listInstagramPostsForAutomation`, `createCommentAutomation` (maps to `QuickCreateFlowDto`), `setAutomationStatus` — via `FlowsService` |
+| `automations.tool.ts` | Flows over MCP: `listAutomations`, `listInstagramPostsForAutomation`, `createCommentAutomation` (maps to `QuickCreateFlowDto`), `setAutomationStatus`, via `FlowsService` |
+| `media.list.tool.ts` | `listMedia`: lists media in the org/profile gallery via `AsyncLocalStorage` (no `orgId` in schema) |
+| `media.cleanup.tool.ts` | `cleanupMedia`: triggers `MediaCleanupService.cleanup()` and returns `{ deleted, skipped, failed }` |
 | `tool.list.ts` | Central registry of available tools |
 | `tool.context.helper.ts` | Helper to extract org/profile from `AsyncLocalStorage` |
 
