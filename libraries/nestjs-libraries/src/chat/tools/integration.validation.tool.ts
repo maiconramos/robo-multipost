@@ -7,7 +7,7 @@ import {
   socialIntegrationList,
 } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { getValidationSchemas } from '@gitroom/nestjs-libraries/chat/validation.schemas.helper';
-import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
+import { getAuth } from '@gitroom/nestjs-libraries/chat/async.storage';
 
 @Injectable()
 export class IntegrationValidationTool implements AgentToolInterface {
@@ -72,8 +72,11 @@ export class IntegrationValidationTool implements AgentToolInterface {
             ),
         }),
       }),
-      execute: async (input: any, options: any) => {
-        checkAuth(input, options);
+      execute: async (input: any) => {
+        const org = getAuth<{ id: string }>();
+        if (!org?.id) {
+          throw new Error('MCP: organizacao ausente no contexto');
+        }
         const integration = socialIntegrationList.find(
           (p) => p.identifier === input.platform
         )!;

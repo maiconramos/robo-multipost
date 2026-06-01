@@ -4,7 +4,7 @@ import { Injectable } from '@nestjs/common';
 import { VideoManager } from '@gitroom/nestjs-libraries/videos/video.manager';
 import z from 'zod';
 import { ModuleRef } from '@nestjs/core';
-import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
+import { getAuth } from '@gitroom/nestjs-libraries/chat/async.storage';
 
 @Injectable()
 export class VideoFunctionTool implements AgentToolInterface {
@@ -22,8 +22,11 @@ export class VideoFunctionTool implements AgentToolInterface {
         identifier: z.string(),
         functionName: z.string(),
       }),
-      execute: async (input: any, options: any) => {
-        checkAuth(input, options);
+      execute: async (input: any) => {
+        const org = getAuth<{ id: string }>();
+        if (!org?.id) {
+          throw new Error('MCP: organizacao ausente no contexto');
+        }
         const videos = this._videoManagerService.getAllVideos();
         const findVideo = videos.find(
           (p) =>

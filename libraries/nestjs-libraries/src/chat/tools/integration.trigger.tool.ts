@@ -9,9 +9,8 @@ import {
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { timer } from '@gitroom/helpers/utils/timer';
-import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
+import { getAuth } from '@gitroom/nestjs-libraries/chat/async.storage';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
-import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.context.helper';
 
 @Injectable()
 export class IntegrationTriggerTool implements AgentToolInterface {
@@ -44,12 +43,12 @@ export class IntegrationTriggerTool implements AgentToolInterface {
       outputSchema: z.object({
         output: z.array(z.record(z.string(), z.any())),
       }),
-      execute: async (input: any, options: any) => {
-        checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const organizationId = JSON.parse(
-          requestContext.get('organization') as string
-        ).id;
+      execute: async (input: any) => {
+        const org = getAuth<{ id: string }>();
+        if (!org?.id) {
+          throw new Error('MCP: organizacao ausente no contexto');
+        }
+        const organizationId = org.id;
 
         const getIntegration =
           await this._integrationService.getIntegrationById(

@@ -3,8 +3,10 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { AiWebSearchService } from '@gitroom/nestjs-libraries/ai/ai-web-search.service';
-import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
-import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.context.helper';
+import {
+  getAuth,
+  getProfileId,
+} from '@gitroom/nestjs-libraries/chat/async.storage';
 
 @Injectable()
 export class WebSearchTool implements AgentToolInterface {
@@ -16,16 +18,13 @@ export class WebSearchTool implements AgentToolInterface {
       id: 'webSearchTool',
       description:
         'Search the public web for information. ' +
-        "Use ONLY when the topic is about external/world events, news, public figures, " +
+        'Use ONLY when the topic is about external/world events, news, public figures, ' +
         "third-party products/companies, or anything you don't have first-party context for. " +
         "NEVER use for facts about the USER's own brand/product/service — call " +
         '`knowledgeBaseQuery` first for that. ' +
         'When the user provides specific URLs, prefer `extractUrlsTool` instead.',
       inputSchema: z.object({
-        query: z
-          .string()
-          .min(2)
-          .describe('Search query in natural language'),
+        query: z.string().min(2).describe('Search query in natural language'),
         maxResults: z
           .number()
           .int()
@@ -64,11 +63,12 @@ export class WebSearchTool implements AgentToolInterface {
           })
         ),
       }),
-      execute: async (input: any, options: any) => {
-        checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const org = JSON.parse(requestContext.get('organization') as string);
-        const profileId = requestContext.get('profileId') as string | undefined;
+      execute: async (input: any) => {
+        const org = getAuth<{ id: string }>();
+        if (!org?.id) {
+          throw new Error('MCP: organizacao ausente no contexto');
+        }
+        const profileId = getProfileId();
 
         const result = await this._aiWebSearchService.search(
           org.id,

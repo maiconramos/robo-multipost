@@ -4,7 +4,11 @@ import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
-import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
+import { Organization } from '@prisma/client';
+import {
+  getAuth,
+  getProfileId,
+} from '@gitroom/nestjs-libraries/chat/async.storage';
 import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.context.helper';
 
 @Injectable()
@@ -57,7 +61,7 @@ manualPrompt: keep default (false) unless the user gave you a fully crafted prom
         aspectRatio: z
           .enum(['1:1', '9:16', '16:9'])
           .describe(
-            "Target aspect ratio. 1:1 = Instagram feed, 9:16 = Stories/Reels/TikTok, 16:9 = YouTube/LinkedIn."
+            'Target aspect ratio. 1:1 = Instagram feed, 9:16 = Stories/Reels/TikTok, 16:9 = YouTube/LinkedIn.'
           ),
         style: z
           .string()
@@ -77,11 +81,14 @@ manualPrompt: keep default (false) unless the user gave you a fully crafted prom
         path: z.string(),
       }),
       execute: async (input: any, options: any) => {
-        checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const org = JSON.parse(requestContext.get('organization') as string);
-        const personaRaw = requestContext.get('persona') as string;
-        const profileId = requestContext.get('profileId') as string | undefined;
+        const org = getAuth<Organization>();
+        if (!org?.id) {
+          throw new Error('MCP: organizacao ausente no contexto');
+        }
+        const profileId = getProfileId();
+        // Persona so e populada no caminho do agente (copilot.controller.ts)
+        // via requestContext; na chamada direta via MCP fica ausente (best-effort).
+        const personaRaw = readRequestContext(options).get('persona') as string;
 
         // Persona (imageStyle) e style do agente sao concatenados no prompt
         // antes de mandar pro service. Quando manualPrompt=true, o

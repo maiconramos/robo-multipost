@@ -6,8 +6,10 @@ import {
   AiWebSearchService,
   MAX_EXTRACT_URLS,
 } from '@gitroom/nestjs-libraries/ai/ai-web-search.service';
-import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
-import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.context.helper';
+import {
+  getAuth,
+  getProfileId,
+} from '@gitroom/nestjs-libraries/chat/async.storage';
 
 @Injectable()
 export class ExtractUrlsTool implements AgentToolInterface {
@@ -58,11 +60,12 @@ export class ExtractUrlsTool implements AgentToolInterface {
           })
         ),
       }),
-      execute: async (input: any, options: any) => {
-        checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const org = JSON.parse(requestContext.get('organization') as string);
-        const profileId = requestContext.get('profileId') as string | undefined;
+      execute: async (input: any) => {
+        const org = getAuth<{ id: string }>();
+        if (!org?.id) {
+          throw new Error('MCP: organizacao ausente no contexto');
+        }
+        const profileId = getProfileId();
 
         const result = await this._aiWebSearchService.extract(
           org.id,

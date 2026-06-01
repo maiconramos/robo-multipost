@@ -3,8 +3,11 @@ import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
 import { Injectable } from '@nestjs/common';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
-import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
-import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.context.helper';
+import { Organization } from '@prisma/client';
+import {
+  getAuth,
+  getProfileId,
+} from '@gitroom/nestjs-libraries/chat/async.storage';
 
 @Injectable()
 export class GenerateVideoTool implements AgentToolInterface {
@@ -55,7 +58,7 @@ Note: video generation is slow (can take up to ~10 minutes due to provider polli
         aspectRatio: z
           .enum(['1:1', '9:16', '16:9'])
           .describe(
-            "Target aspect ratio. 1:1 = Instagram feed, 9:16 = Stories/Reels/TikTok, 16:9 = YouTube/LinkedIn."
+            'Target aspect ratio. 1:1 = Instagram feed, 9:16 = Stories/Reels/TikTok, 16:9 = YouTube/LinkedIn.'
           ),
         enrichPrompt: z
           .boolean()
@@ -68,13 +71,12 @@ Note: video generation is slow (can take up to ~10 minutes due to provider polli
         id: z.string(),
         path: z.string(),
       }),
-      execute: async (input: any, options: any) => {
-        checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const org = JSON.parse(requestContext.get('organization') as string);
-        const profileId = requestContext.get('profileId') as
-          | string
-          | undefined;
+      execute: async (input: any) => {
+        const org = getAuth<Organization>();
+        if (!org?.id) {
+          throw new Error('MCP: organizacao ausente no contexto');
+        }
+        const profileId = getProfileId();
 
         return this._mediaService.generateAiVideo(
           org,
