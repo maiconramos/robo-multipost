@@ -1,0 +1,53 @@
+---
+# Build da imagem da correcao do MCP para o fork do usuario.
+# Diferente de build-containers.yml (que dispara em tags v* e usa CR_PAT +
+# multi-arch + owner fixo maiconramos), este workflow:
+#   - dispara no push da branch de trabalho (ou manualmente);
+#   - usa o GITHUB_TOKEN nativo (sem precisar configurar secret no fork);
+#   - publica em ghcr.io/<seu-usuario>/robo-multipost:fix-mcp (amd64).
+# Depois, troque a tag da imagem no stack do Portainer para :fix-mcp.
+name: "Build fix-mcp image"
+
+on:
+  push:
+    branches:
+      - feat/mcp-context-fix-and-tools
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+  packages: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Login to ghcr
+        uses: docker/login-action@v3
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build and Push Image
+        uses: docker/build-push-action@v6
+        with:
+          context: .
+          file: Dockerfile.dev
+          platforms: linux/amd64
+          push: true
+          pull: true
+          no-cache: true
+          provenance: false
+          sbom: false
+          build-args: |
+            NEXT_PUBLIC_VERSION=fix-mcp
+          tags: ghcr.io/${{ github.repository_owner }}/robo-multipost:fix-mcp

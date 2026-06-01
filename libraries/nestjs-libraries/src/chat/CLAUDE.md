@@ -88,6 +88,8 @@ Meta limits **one `sendPrivateReply` per comment**. After the postback, the 24h 
 | `integration.validation.tool.ts` | Validate an integration config |
 | `knowledge.query.tool.ts` | Query the profile's Knowledge Base (RAG) |
 | `web-search.tool.ts` | Web search via `AiWebSearchService` |
+| `upload.media.from.url.tool.ts` | Host external media from a public URL via `MediaService.uploadFromUrl` → `{ id, path }` for use as a post attachment |
+| `automations.tool.ts` | Flows over MCP: `listAutomations`, `listInstagramPostsForAutomation`, `createCommentAutomation` (maps to `QuickCreateFlowDto`), `setAutomationStatus` — via `FlowsService` |
 | `tool.list.ts` | Central registry of available tools |
 | `tool.context.helper.ts` | Helper to extract org/profile from `AsyncLocalStorage` |
 
@@ -97,7 +99,7 @@ Meta limits **one `sendPrivateReply` per comment**. After the postback, the 24h 
 
 1. **Spec first** if the tool has non-trivial logic.
 2. Create `tools/<name>.tool.ts` exporting an object that satisfies `AgentToolInterface`: `id`, `description`, `inputSchema` (Zod), `execute(input, context)`.
-3. **Do not accept `orgId`/`profileId` in the schema** — read them from `AsyncLocalStorage` via `tool.context.helper.ts`.
+3. **Do not accept `orgId`/`profileId` in the schema** — read them from `AsyncLocalStorage` via `getAuth()` / `getProfileId()` (`async.storage.ts`). This works on **both** the agent path and direct MCP calls. Do **not** rely on `checkAuth` + `readRequestContext(options)` (`tool.context.helper.ts`) to resolve org/profile: that `requestContext` is only populated on the agent path and is `undefined` on direct MCP calls (the bug that broke all tools). `readRequestContext` is now legacy — used only for `persona` in `generate.image.tool.ts` (agent-path best-effort).
 4. Register in `tool.list.ts`.
 5. If the tool consumes AI: use the factory from [`src/ai/`](../ai/CLAUDE.md) — do not call OpenAI/OpenRouter directly.
 6. If the tool triggers an integration: use `IntegrationManager` (in `database/prisma/integrations/`).

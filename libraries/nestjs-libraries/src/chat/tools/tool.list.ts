@@ -9,6 +9,13 @@ import { IntegrationListTool } from '@gitroom/nestjs-libraries/chat/tools/integr
 import { KnowledgeQueryTool } from '@gitroom/nestjs-libraries/chat/tools/knowledge.query.tool';
 import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web-search.tool';
 import { ExtractUrlsTool } from '@gitroom/nestjs-libraries/chat/tools/extract-urls.tool';
+import { UploadMediaFromUrlTool } from '@gitroom/nestjs-libraries/chat/tools/upload.media.from.url.tool';
+import {
+  ListAutomationsTool,
+  ListInstagramPostsForAutomationTool,
+  CreateCommentAutomationTool,
+  SetAutomationStatusTool,
+} from '@gitroom/nestjs-libraries/chat/tools/automations.tool';
 
 export const toolList = [
   IntegrationListTool,
@@ -22,4 +29,9 @@ export const toolList = [
   KnowledgeQueryTool,
   WebSearchTool,
   ExtractUrlsTool,
+  UploadMediaFromUrlTool,
+  ListAutomationsTool,
+  ListInstagramPostsForAutomationTool,
+  CreateCommentAutomationTool,
+  SetAutomationStatusTool,
 ];
