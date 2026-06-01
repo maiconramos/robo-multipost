@@ -4,12 +4,13 @@ import { DatabaseModule } from '@gitroom/nestjs-libraries/database/prisma/databa
 import { RefreshTokens } from './tasks/refresh.tokens';
 import { ConfigurationTask } from './tasks/configuration';
 import { AgentRun } from './tasks/agent.run';
+import { ScheduleCarousel } from './tasks/schedule.carousel';
 import { AgentModule } from '@gitroom/nestjs-libraries/agent/agent.module';
 
 @Module({
   imports: [ExternalCommandModule, DatabaseModule, AgentModule],
   controllers: [],
-  providers: [RefreshTokens, ConfigurationTask, AgentRun],
+  providers: [RefreshTokens, ConfigurationTask, AgentRun, ScheduleCarousel],
   get exports() {
     return [...this.imports, ...this.providers];
   },
