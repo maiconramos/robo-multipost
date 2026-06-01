@@ -43,19 +43,30 @@ describe('PostsService.getReferencedMediaPaths', () => {
     );
   });
 
-  it('deve coletar os paths de imagem dos posts pendentes (QUEUE/DRAFT)', async () => {
+  // Em producao o path da midia vive em Post.image (JSON do MediaDto, formato
+  // [{ id, path }]). Post.content e o HTML da legenda (texto simples, sem path).
+  // A guarda principal e a leitura de Post.image; o parse de content e apenas
+  // um safety-net defensivo para formatos futuros.
+  it('deve coletar os paths de imagem dos posts pendentes (QUEUE/DRAFT) a partir de Post.image', async () => {
     repository.getPendingPostsMedia.mockResolvedValue([
       {
-        content: JSON.stringify([{ image: [{ path: 'https://r2/a.png' }] }]),
-        image: null,
+        content: '<p>legenda do post</p>',
+        image: JSON.stringify([{ id: 'x', path: 'https://r2/a.png' }]),
       },
-      { content: '[]', image: JSON.stringify([{ path: 'https://r2/b.png' }]) },
+      {
+        content: '<p>outra legenda</p>',
+        image: JSON.stringify([
+          { id: 'y', path: 'https://r2/b.png' },
+          { id: 'z', path: 'https://r2/c.png' },
+        ]),
+      },
     ] as any);
 
     const paths = await service.getReferencedMediaPaths('org-1');
 
     expect(paths.has('https://r2/a.png')).toBe(true);
     expect(paths.has('https://r2/b.png')).toBe(true);
+    expect(paths.has('https://r2/c.png')).toBe(true);
   });
 
   it('deve ignorar conteudo nao-JSON sem lancar erro', async () => {
