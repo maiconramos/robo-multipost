@@ -57,6 +57,17 @@ export class PostsRepository {
     });
   }
 
+  getPendingPostsMedia(orgId?: string) {
+    return this._post.model.post.findMany({
+      where: {
+        deletedAt: null,
+        state: { in: ['QUEUE', 'DRAFT'] },
+        ...(orgId ? { organizationId: orgId } : {}),
+      },
+      select: { content: true, image: true },
+    });
+  }
+
   getOldPosts(orgId: string, date: string) {
     return this._post.model.post.findMany({
       where: {

@@ -63,6 +63,31 @@ export class PostsService {
     return this._postRepository.searchForMissingThreeHoursPosts();
   }
 
+  async getReferencedMediaPaths(orgId?: string): Promise<Set<string>> {
+    const posts = await this._postRepository.getPendingPostsMedia(orgId);
+    const paths = new Set<string>();
+    const collect = (raw: string | null) => {
+      if (!raw) return;
+      try {
+        const parsed = JSON.parse(raw);
+        const arr = Array.isArray(parsed) ? parsed : [parsed];
+        for (const item of arr) {
+          for (const img of item?.image || []) {
+            if (img?.path) paths.add(img.path);
+          }
+          if (item?.path) paths.add(item.path);
+        }
+      } catch {
+        /* conteudo nao-JSON, ignora */
+      }
+    };
+    for (const post of posts) {
+      collect(post.content);
+      collect(post.image);
+    }
+    return paths;
+  }
+
   updatePost(id: string, postId: string, releaseURL: string) {
     return this._postRepository.updatePost(id, postId, releaseURL);
   }
