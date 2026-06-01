@@ -1,4 +1,26 @@
 import 'reflect-metadata';
+
+// Mocks topo-de-modulo: StartupMigrationService passou a importar
+// MediaCleanupService -> PostsService -> IntegrationManager
+// (nostr.provider, ESM-only que quebra ts-jest) e o alias
+// @gitroom/backend. Nada disso e usado por este spec.
+jest.mock(
+  '@gitroom/nestjs-libraries/integrations/integration.manager',
+  () => ({ IntegrationManager: class IntegrationManagerMock {} })
+);
+jest.mock(
+  '@gitroom/nestjs-libraries/integrations/refresh.integration.service',
+  () => ({ RefreshIntegrationService: class RefreshIntegrationServiceMock {} })
+);
+jest.mock(
+  '@gitroom/nestjs-libraries/database/prisma/media/media.service',
+  () => ({ MediaService: class MediaServiceMock {} })
+);
+jest.mock(
+  '@gitroom/nestjs-libraries/short-linking/short.link.service',
+  () => ({ ShortLinkService: class ShortLinkServiceMock {} })
+);
+
 import { StartupMigrationService } from '../startup-migration.service';
 
 describe('StartupMigrationService.cleanupExpiredUnmatchedComments', () => {
@@ -25,7 +47,13 @@ describe('StartupMigrationService.cleanupExpiredUnmatchedComments', () => {
       $transaction: jest.fn(),
       $executeRawUnsafe: jest.fn(),
     };
-    service = new StartupMigrationService(prisma);
+    const mediaCleanupService = {
+      cleanup: jest.fn().mockResolvedValue({ deleted: 0, skipped: 0 }),
+    };
+    service = new StartupMigrationService(
+      prisma,
+      mediaCleanupService as any
+    );
   });
 
   it('deve ser no-op quando nao ha PENDING > 30 dias', async () => {

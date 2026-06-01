@@ -1,17 +1,35 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { MediaCleanupService } from '@gitroom/nestjs-libraries/database/prisma/media/media.cleanup.service';
 
 @Injectable()
 export class StartupMigrationService implements OnModuleInit {
   private readonly logger = new Logger(StartupMigrationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly mediaCleanupService: MediaCleanupService
+  ) {}
 
   async onModuleInit() {
     await this.migrateProfileScope();
     await this.migrateLateToZernio();
     await this.backfillRepostDestinations();
     await this.cleanupExpiredUnmatchedComments();
+    await this.cleanupOldMedia();
+  }
+
+  /**
+   * Limpeza idempotente da galeria por retencao (MEDIA_RETENTION_DAYS).
+   * Nunca apaga midia referenciada por post pendente. Engole erro para
+   * nao derrubar o boot, seguindo o padrao das demais migracoes.
+   */
+  private async cleanupOldMedia() {
+    try {
+      await this.mediaCleanupService.cleanup();
+    } catch (error) {
+      this.logger.error('cleanupOldMedia falhou:', error);
+    }
   }
 
   /**
