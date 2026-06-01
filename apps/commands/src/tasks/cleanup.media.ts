@@ -8,7 +8,7 @@ export class CleanupMedia {
   @Command({
     command: 'cleanup:media',
     describe:
-      'Remove midia antiga (env MEDIA_RETENTION_DAYS, default 30) que nao esteja ligada a nenhum post pendente. Idempotente.',
+      'Remove midia antiga GLOBAL (todas as orgs, sem escopo) com mais de MEDIA_RETENTION_DAYS dias (default 30) que nao esteja ligada a nenhum post pendente. Idempotente.',
   })
   async run(
     @Option({
@@ -21,7 +21,7 @@ export class CleanupMedia {
   ) {
     const result = await this._mediaCleanupService.cleanup(days);
     console.log(
-      `Cleanup concluido: ${result.deleted} removidas, ${result.skipped} protegidas.`
+      `Cleanup concluido: ${result.deleted} removidas, ${result.skipped} protegidas, ${result.failed} com falha (serao tentadas de novo).`
     );
     return result;
   }

@@ -22,7 +22,7 @@ export class MediaCleanupService {
   async cleanup(
     retentionDaysOverride?: number,
     orgId?: string
-  ): Promise<{ deleted: number; skipped: number }> {
+  ): Promise<{ deleted: number; skipped: number; failed: number }> {
     const retentionDays =
       MediaCleanupService.resolveRetentionDays(retentionDaysOverride);
     const cutoff = new Date();
@@ -33,13 +33,14 @@ export class MediaCleanupService {
       orgId
     );
     if (candidates.length === 0) {
-      return { deleted: 0, skipped: 0 };
+      return { deleted: 0, skipped: 0, failed: 0 };
     }
 
     const referenced = await this._postsService.getReferencedMediaPaths(orgId);
 
     let deleted = 0;
     let skipped = 0;
+    let failed = 0;
     for (const media of candidates) {
       if (referenced.has(media.path)) {
         skipped++;
@@ -47,12 +48,17 @@ export class MediaCleanupService {
       }
       try {
         await this.storage.removeFile(media.path);
+        if (media.thumbnail) {
+          await this.storage.removeFile(media.thumbnail);
+        }
       } catch (e) {
         this.logger.error(
-          `cleanup: falha ao remover arquivo ${media.path}: ${
+          `cleanup: falha ao remover ${media.path}, mantendo o registro para nova tentativa: ${
             (e as Error).message
           }`
         );
+        failed++;
+        continue;
       }
       await this._mediaRepository.deleteMedia(
         media.organizationId,
@@ -63,8 +69,8 @@ export class MediaCleanupService {
     }
 
     this.logger.log(
-      `MediaCleanup: ${deleted} midias removidas, ${skipped} protegidas (post pendente), retencao ${retentionDays}d`
+      `MediaCleanup: ${deleted} midias removidas, ${skipped} protegidas (post pendente), ${failed} com falha, retencao ${retentionDays}d`
     );
-    return { deleted, skipped };
+    return { deleted, skipped, failed };
   }
 }

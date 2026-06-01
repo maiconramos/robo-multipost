@@ -87,6 +87,7 @@ export class MediaRepository {
         organizationId: true,
         profileId: true,
         path: true,
+        thumbnail: true,
       },
     });
   }

@@ -45,6 +45,22 @@ describe('CarouselSchedulerService', () => {
         })
       ).rejects.toThrow('API key invalida');
     });
+
+    it('rejeita manifesto com channels vazio mesmo com perfil valido', async () => {
+      profileService.getProfileByApiKey.mockResolvedValue({
+        id: 'p',
+        organization: { id: 'o' },
+      } as any);
+
+      await expect(
+        service.scheduleFromManifest('key', {
+          folder: '/x',
+          date: '2026-06-02T13:00:00.000Z',
+          type: 'schedule',
+          channels: [],
+        })
+      ).rejects.toThrow('Manifesto invalido');
+    });
   });
 
   describe('sortSlides', () => {

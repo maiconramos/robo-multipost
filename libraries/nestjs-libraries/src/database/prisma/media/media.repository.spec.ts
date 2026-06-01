@@ -21,6 +21,7 @@ describe('MediaRepository.getDeletableMedia', () => {
         organizationId: true,
         profileId: true,
         path: true,
+        thumbnail: true,
       },
     });
   });
@@ -43,6 +44,7 @@ describe('MediaRepository.getDeletableMedia', () => {
         organizationId: true,
         profileId: true,
         path: true,
+        thumbnail: true,
       },
     });
   });

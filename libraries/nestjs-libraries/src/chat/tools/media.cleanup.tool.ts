@@ -27,6 +27,7 @@ export class MediaCleanupTool implements AgentToolInterface {
       outputSchema: z.object({
         deleted: z.number(),
         skipped: z.number(),
+        failed: z.number(),
       }),
       execute: async (input: any) => {
         const org = getAuth<{ id: string }>();

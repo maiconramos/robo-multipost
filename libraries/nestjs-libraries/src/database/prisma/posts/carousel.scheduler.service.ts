@@ -23,6 +23,11 @@ export interface CarouselManifest {
   channels: CarouselChannel[];
 }
 
+interface ResolvedProfile {
+  id: string;
+  organization: { id: string };
+}
+
 @Injectable()
 export class CarouselSchedulerService {
   private readonly _logger = new Logger(CarouselSchedulerService.name);
@@ -36,7 +41,9 @@ export class CarouselSchedulerService {
   ) {}
 
   async scheduleFromManifest(apiKey: string, manifest: CarouselManifest) {
-    const profile = await this._profileService.getProfileByApiKey(apiKey);
+    const profile = (await this._profileService.getProfileByApiKey(
+      apiKey
+    )) as ResolvedProfile | null;
     if (!profile) {
       throw new HttpException(
         'API key invalida (nenhum perfil encontrado)',
@@ -44,8 +51,31 @@ export class CarouselSchedulerService {
       );
     }
 
-    const orgId = (profile as any).organization.id as string;
-    const profileId = (profile as any).id as string;
+    const orgId = profile.organization.id;
+    const profileId = profile.id;
+
+    if (!Array.isArray(manifest.channels) || manifest.channels.length === 0) {
+      throw new HttpException(
+        'Manifesto invalido: channels deve ser um array nao vazio',
+        400
+      );
+    }
+    if (!manifest.date || !manifest.type) {
+      throw new HttpException(
+        'Manifesto invalido: date e type sao obrigatorios',
+        400
+      );
+    }
+    if (
+      manifest.channels.some(
+        (channel) => !channel.integrationId || !channel.caption
+      )
+    ) {
+      throw new HttpException(
+        'Manifesto invalido: cada canal precisa de integrationId e caption',
+        400
+      );
+    }
 
     const slidePaths = await this.readSlidePaths(manifest.folder);
     if (!slidePaths.length) {
