@@ -11,6 +11,7 @@ import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/in
 import { IntegrationRepository } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.repository';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { PostsRepository } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.repository';
+import { CarouselSchedulerService } from '@gitroom/nestjs-libraries/database/prisma/posts/carousel.scheduler.service';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
 import { MediaRepository } from '@gitroom/nestjs-libraries/database/prisma/media/media.repository';
@@ -82,6 +83,7 @@ import { AiModule } from '@gitroom/nestjs-libraries/ai/ai.module';
     IntegrationRepository,
     PostsService,
     PostsRepository,
+    CarouselSchedulerService,
     StripeService,
     SignatureRepository,
     AutopostRepository,
