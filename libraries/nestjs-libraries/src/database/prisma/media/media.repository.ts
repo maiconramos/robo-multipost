@@ -1,6 +1,7 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
+import { Prisma } from '@prisma/client';
 
 @Injectable()
 export class MediaRepository {
@@ -72,6 +73,36 @@ export class MediaRepository {
         thumbnailTimestamp: true,
       },
     });
+  }
+
+  getDeletableMedia(cutoff: Date, orgId?: string) {
+    return this._media.model.media.findMany({
+      where: {
+        deletedAt: null,
+        createdAt: { lt: cutoff },
+        ...(orgId ? { organizationId: orgId } : {}),
+      },
+      select: {
+        id: true,
+        organizationId: true,
+        profileId: true,
+        path: true,
+      },
+    });
+  }
+
+  async getMediaStats(org: string, profileId?: string) {
+    const where: Prisma.MediaWhereInput = {
+      organizationId: org,
+      deletedAt: null,
+      ...(profileId ? { OR: [{ profileId }, { profileId: null }] } : {}),
+    };
+    const total = await this._media.model.media.count({ where });
+    const sum = await this._media.model.media.aggregate({
+      where,
+      _sum: { fileSize: true },
+    });
+    return { total, totalSizeBytes: sum._sum.fileSize || 0 };
   }
 
   async getMedia(org: string, page: number, profileId?: string) {
