@@ -60,7 +60,8 @@ export class PublicIntegrationsController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadSimple(
     @GetOrgFromRequest() org: Organization,
-    @UploadedFile('file') file: Express.Multer.File
+    @UploadedFile('file') file: Express.Multer.File,
+    @GetPublicApiProfileId() publicApiProfileId?: string
   ) {
     Sentry.metrics.count('public_api-request', 1);
     if (!file) {
@@ -68,11 +69,14 @@ export class PublicIntegrationsController {
     }
 
     const getFile = await this.storage.uploadFile(file);
-    return this._mediaService.saveFile(
+    const media = await this._mediaService.saveFile(
       org.id,
       getFile.originalname,
-      getFile.path
+      getFile.path,
+      undefined,
+      publicApiProfileId
     );
+    return { id: media.id, path: media.path };
   }
 
   @Post('/upload-from-url')

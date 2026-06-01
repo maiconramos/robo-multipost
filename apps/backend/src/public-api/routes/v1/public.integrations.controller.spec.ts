@@ -59,3 +59,47 @@ describe('PublicIntegrationsController - listIntegration', () => {
     expect(integrationService.getIntegrationsList).toHaveBeenCalledWith('org-1', undefined);
   });
 });
+
+describe('PublicIntegrationsController - uploadSimple', () => {
+  let controller: PublicIntegrationsController;
+  let mediaService: { saveFile: jest.Mock };
+
+  beforeEach(() => {
+    mediaService = {
+      saveFile: jest
+        .fn()
+        .mockResolvedValue({ id: 'media-1', path: 'https://r2/slide.png' }),
+    };
+    controller = new PublicIntegrationsController(
+      {} as any,
+      {} as any,
+      mediaService as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+    (controller as any).storage = {
+      uploadFile: jest.fn().mockResolvedValue({
+        originalname: 'slide.png',
+        path: 'https://r2/slide.png',
+      }),
+    };
+  });
+
+  it('vincula a midia ao perfil e retorna id e path', async () => {
+    const result = await controller.uploadSimple(
+      { id: 'org-1' } as any,
+      { originalname: 'slide.png' } as any,
+      'profile-1'
+    );
+
+    expect(mediaService.saveFile).toHaveBeenCalledWith(
+      'org-1',
+      'slide.png',
+      'https://r2/slide.png',
+      undefined,
+      'profile-1'
+    );
+    expect(result).toEqual({ id: 'media-1', path: 'https://r2/slide.png' });
+  });
+});
