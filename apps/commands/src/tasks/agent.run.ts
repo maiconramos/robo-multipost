@@ -10,6 +10,12 @@ export class AgentRun {
     describe: 'Run the agent',
   })
   async agentRun() {
-    console.log(await this._agentGraphService.createGraph('hello', true));
+    // Stub de desenvolvimento. Nao existe metodo createGraph no AgentGraphService;
+    // o grafo real roda via AgentGraphService.start(orgId, body, profileId) com
+    // parametros reais. Mantido apenas para registrar o comando e nao quebrar o
+    // build do apps/commands.
+    console.log(
+      'run:agent e um stub de desenvolvimento. Use AgentGraphService.start(orgId, body, profileId) com parametros reais.'
+    );
   }
 }
