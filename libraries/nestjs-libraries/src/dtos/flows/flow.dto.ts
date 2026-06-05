@@ -3,16 +3,21 @@ import {
   IsOptional,
   IsEnum,
   IsArray,
+  ArrayNotEmpty,
+  ArrayMaxSize,
   ValidateNested,
+  ValidateIf,
   IsNumber,
   IsIn,
   IsBoolean,
   IsInt,
   Min,
   Max,
+  MaxLength,
 } from 'class-validator';
 import { Type } from 'class-transformer';
 import { FlowStatus, FlowNodeType } from '@prisma/client';
+import { IsPublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/validators/is-public-https-url.validator';
 
 export class CreateFlowDto {
   @IsString()
@@ -92,9 +97,11 @@ export class FlowEdgeDto {
 
 export class QuickCreateFlowDto {
   @IsString()
+  @MaxLength(200)
   name: string;
 
   @IsString()
+  @MaxLength(64)
   integrationId: string;
 
   @IsOptional()
@@ -105,23 +112,40 @@ export class QuickCreateFlowDto {
   @IsIn(['all', 'specific', 'next_publication'])
   postMode?: 'all' | 'specific' | 'next_publication';
 
-  @IsOptional()
+  // Obrigatorio e nao-vazio quando postMode='specific' em comentario de post.
+  // Em story_reply o alvo vem de storyIds, entao postIds fica opcional.
+  @ValidateIf(
+    (o) =>
+      o.postMode === 'specific' &&
+      (o.triggerType ?? 'comment_on_post') === 'comment_on_post'
+  )
   @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(100)
   @IsString({ each: true })
+  @MaxLength(64, { each: true })
   postIds?: string[];
 
-  @IsOptional()
+  // Obrigatorio e nao-vazio quando postMode='specific' em story_reply.
+  @ValidateIf((o) => o.postMode === 'specific' && o.triggerType === 'story_reply')
   @IsArray()
+  @ArrayNotEmpty()
+  @ArrayMaxSize(100)
   @IsString({ each: true })
+  @MaxLength(64, { each: true })
   storyIds?: string[];
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(50)
   @IsString({ each: true })
+  @MaxLength(100, { each: true })
   keywords?: string[];
 
+  // any = pelo menos uma keyword casa | all = todas casam | exact = comentario
+  // inteiro igual a keyword. Valores honrados em flow.activity.ts (orquestrador).
   @IsOptional()
-  @IsString()
+  @IsIn(['any', 'all', 'exact'])
   matchMode?: string;
 
   @IsOptional()
@@ -134,27 +158,37 @@ export class QuickCreateFlowDto {
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   followGateMessage?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(2200)
   replyMessage?: string;
 
   @IsOptional()
   @IsArray()
+  @ArrayMaxSize(10)
   @IsString({ each: true })
+  @MaxLength(2200, { each: true })
   replyMessages?: string[];
 
   @IsOptional()
   @IsString()
+  @MaxLength(2000)
   dmMessage?: string;
 
   @IsOptional()
   @IsString()
+  @MaxLength(80)
   dmButtonText?: string;
 
+  // URL do botao do DM. Endurecido: somente https publico (sem hosts privados
+  // nem esquemas javascript:/data:/file:). O service revalida (chokepoint para
+  // MCP e wizard); aqui e fail-fast no ValidationPipe da API REST/SDK.
   @IsOptional()
   @IsString()
+  @IsPublicHttpsUrl()
   dmButtonUrl?: string;
 
   // Fluxo de 2 etapas: DM inicial enviada com botao postback. So usado quando

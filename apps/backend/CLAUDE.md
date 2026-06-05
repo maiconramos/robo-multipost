@@ -40,7 +40,7 @@ Controller >> Manager >> Service >> Repository
 | `src/app.module.ts` | Root module — registers `SentryModule`, global `FILTER`, api/public-api modules |
 | `src/api/api.module.ts` | HTTP module for the private API (controllers requiring auth) |
 | `src/api/routes/` | 30+ REST controllers (auth, posts, integrations, ai-*, copilot, flows, ig-webhook, automations-inbox, etc.) |
-| `src/public-api/` | Versioned public API (`/v1/`) — authenticated by API key |
+| `src/public-api/` | Versioned public API (`/v1/`) — authenticated by API key (org or per-profile). Controllers register in `public.api.module.ts` `authenticatedController` array (middleware auto-applies). Per-profile scoping: reject `?profileId` ≠ key's profile with `403` (pattern in `public.integrations.controller.ts`); `FlowsService` is `@Global` (DatabaseModule) so no provider wiring needed. Example: `public.flows.controller.ts` (IG comment automations CRUD) |
 | `src/services/` | Small utility layer for the HTTP app (do not confuse with domain services in libraries) |
 
 ## Common Workflows

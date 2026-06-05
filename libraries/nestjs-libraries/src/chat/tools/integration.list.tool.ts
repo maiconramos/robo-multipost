@@ -19,6 +19,7 @@ export class IntegrationListTool implements AgentToolInterface {
     return createTool({
       id: 'integrationList',
       description: `This tool list available integrations to schedule posts to`,
+      inputSchema: z.object({}),
       outputSchema: z.object({
         output: z.array(
           z.object({
