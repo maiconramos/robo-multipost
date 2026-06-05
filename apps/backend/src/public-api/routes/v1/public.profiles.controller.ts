@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags } from '@nestjs/swagger';
+import { ApiTags, ApiSecurity } from '@nestjs/swagger';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetPublicApiProfileId } from '@gitroom/nestjs-libraries/user/public.api.profile.from.request';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
@@ -7,6 +7,7 @@ import { Organization } from '@prisma/client';
 import * as Sentry from '@sentry/nestjs';
 
 @ApiTags('Public API')
+@ApiSecurity('api-key')
 @Controller('/public/v1')
 export class PublicProfilesController {
   constructor(private _profileService: ProfileService) {}
