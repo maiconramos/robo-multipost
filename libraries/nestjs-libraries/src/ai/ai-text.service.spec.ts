@@ -1,3 +1,4 @@
+import { HttpException } from '@nestjs/common';
 import { AiTextService } from './ai-text.service';
 import { AiClientFactory, TextClientResult } from './ai-client.factory';
 import { createMock } from '@gitroom/nestjs-libraries/test';
@@ -303,6 +304,137 @@ describe('AiTextService', () => {
       await expect(
         service.caption('org-1', 'generate', 'tema')
       ).rejects.toThrow('principal failed');
+    });
+  });
+
+  describe('normalizacao de erro do provedor (evita modal de billing/logout)', () => {
+    const providerError = (message: string, statusCode: number) => {
+      const err: any = new Error(message);
+      err.statusCode = statusCode;
+      return err;
+    };
+
+    it('deve traduzir 402 do provedor em HttpException 412 com mensagem de creditos', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockRejectedValue(
+        providerError(
+          'This request requires more credits, or fewer max_tokens. You requested up to 65536 tokens, but can only afford 14565.',
+          402
+        )
+      );
+
+      expect.assertions(3);
+      try {
+        await service.caption('org-1', 'improve', 'algum texto valido');
+      } catch (e) {
+        expect(e).toBeInstanceOf(HttpException);
+        expect((e as HttpException).getStatus()).toBe(412);
+        expect((e as HttpException).getResponse()).toEqual(
+          expect.stringContaining('sem créditos')
+        );
+      }
+    });
+
+    it('deve traduzir 402 mesmo sem palavras-chave de credito (nunca vaza 402 cru)', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockRejectedValue(providerError('Payment Required', 402));
+
+      expect.assertions(1);
+      try {
+        await service.caption('org-1', 'improve', 'algum texto');
+      } catch (e) {
+        expect((e as HttpException).getStatus()).toBe(412);
+      }
+    });
+
+    it('deve traduzir 401 do provedor em HttpException 412 de autenticacao', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockRejectedValue(
+        providerError('No auth credentials found', 401)
+      );
+
+      expect.assertions(2);
+      try {
+        await service.caption('org-1', 'improve', 'algum texto');
+      } catch (e) {
+        expect((e as HttpException).getStatus()).toBe(412);
+        expect((e as HttpException).getResponse()).toEqual(
+          expect.stringContaining('autenticação')
+        );
+      }
+    });
+
+    it('deve traduzir 429 do provedor em HttpException 412 de limite de requisicoes', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockRejectedValue(
+        providerError('Too many requests', 429)
+      );
+
+      expect.assertions(2);
+      try {
+        await service.caption('org-1', 'improve', 'algum texto');
+      } catch (e) {
+        expect((e as HttpException).getStatus()).toBe(412);
+        expect((e as HttpException).getResponse()).toEqual(
+          expect.stringContaining('limite de requisições')
+        );
+      }
+    });
+
+    it('deve incluir o detalhe tecnico do provedor na mensagem (hibrida)', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockRejectedValue(
+        providerError('insufficient_quota: balance exhausted', 402)
+      );
+
+      expect.assertions(1);
+      try {
+        await service.caption('org-1', 'improve', 'algum texto');
+      } catch (e) {
+        expect((e as HttpException).getResponse()).toEqual(
+          expect.stringContaining('Detalhe do provedor')
+        );
+      }
+    });
+
+    it('deve sanitizar tokens (Bearer/sk-) ecoados pelo provedor no detalhe', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockRejectedValue(
+        providerError(
+          'API key sk-or-v1-deadbeefdeadbeef invalida (Bearer abc123def456 rejeitado)',
+          401
+        )
+      );
+
+      expect.assertions(4);
+      try {
+        await service.caption('org-1', 'improve', 'algum texto');
+      } catch (e) {
+        const response = (e as HttpException).getResponse() as string;
+        expect(response).not.toContain('sk-or-v1-deadbeefdeadbeef');
+        expect(response).not.toContain('abc123def456');
+        expect(response).toContain('sk-***');
+        expect(response).toContain('Bearer ***');
+      }
+    });
+
+    it('deve repassar HttpException ja controlada sem reembrulhar', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      const existing = new HttpException('erro ja controlado', 412);
+      generateTextMock.mockRejectedValue(existing);
+
+      await expect(
+        service.caption('org-1', 'improve', 'algum texto')
+      ).rejects.toBe(existing);
+    });
+
+    it('deve repassar erro sem statusCode como esta (vira 500 no NestJS)', async () => {
+      factory.text.mockResolvedValue(buildClient());
+      generateTextMock.mockRejectedValue(new Error('falha de rede generica'));
+
+      await expect(
+        service.caption('org-1', 'improve', 'algum texto')
+      ).rejects.toThrow('falha de rede generica');
     });
   });
 });

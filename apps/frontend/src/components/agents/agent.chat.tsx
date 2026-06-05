@@ -10,10 +10,12 @@ import React, {
 } from 'react';
 import { CopilotChat, CopilotKitCSSProperties } from '@copilotkit/react-ui';
 import {
+  ErrorMessageProps,
   InputProps,
   UserMessageProps,
 } from '@copilotkit/react-ui/dist/components/chat/props';
 import { Input } from '@gitroom/frontend/components/agents/agent.input';
+import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import {
   CopilotKit,
@@ -34,11 +36,92 @@ import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { ExistingDataContextProvider } from '@gitroom/frontend/components/launches/helpers/use.existing.data';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
+// Classifica a mensagem crua de erro do streaming do agente (CopilotKit
+// nao expoe status HTTP — o erro chega como texto). Espelha o mapeamento
+// do backend `buildFriendlyProviderMessage` em ai-text.service.ts.
+// Remove material sensivel (Bearer tokens, chaves sk-...) que o provedor
+// possa ecoar na mensagem crua do stream, antes de exibir o "Detalhe".
+// Espelha `sanitize()` de ai-text.service.ts / ai-video.service.ts.
+const sanitize = (value: string): string =>
+  (value || '')
+    .replace(/Bearer\s+[A-Za-z0-9_.\-]+/gi, 'Bearer ***')
+    .replace(/\bsk-[A-Za-z0-9_.\-]{6,}/gi, 'sk-***');
+
+type AiErrorKind = 'credits' | 'auth' | 'rate_limit' | 'generic';
+
+const classifyAiError = (raw?: string): AiErrorKind => {
+  const lower = (raw || '').toLowerCase();
+  if (
+    /credit|insufficient|afford|quota|billing|payment|fund|saldo|402/.test(
+      lower
+    )
+  ) {
+    return 'credits';
+  }
+  if (/unauthor|api key|invalid.{0,12}key|authentication|forbidden|401|403/.test(lower)) {
+    return 'auth';
+  }
+  if (/rate.?limit|too many|429/.test(lower)) {
+    return 'rate_limit';
+  }
+  return 'generic';
+};
+
+const friendlyAiErrorMessage = (
+  raw: string | undefined,
+  t: ReturnType<typeof useT>
+): string => {
+  switch (classifyAiError(raw)) {
+    case 'credits':
+      return t(
+        'ai_provider_no_credits',
+        'Seu provedor de IA está sem créditos ou atingiu o limite de cobrança. Verifique o saldo na conta do provedor e tente novamente.'
+      );
+    case 'auth':
+      return t(
+        'ai_provider_auth_error',
+        'Falha de autenticação no provedor de IA. Confira a chave de API em Configurações > Modelos de IA.'
+      );
+    case 'rate_limit':
+      return t(
+        'ai_provider_rate_limit',
+        'O provedor de IA atingiu o limite de requisições. Aguarde alguns instantes e tente novamente.'
+      );
+    default:
+      return t(
+        'ai_assistant_generic_error',
+        'O assistente encontrou um erro ao responder. Tente novamente em instantes.'
+      );
+  }
+};
+
+// Renderizado pelo CopilotChat quando o streaming do agente falha (ex.:
+// provedor de IA sem creditos). Sem isso o usuario nao recebia feedback
+// nenhum — o erro so aparecia no console (runChatCompletion).
+const AgentErrorMessage: FC<ErrorMessageProps> = ({ error }) => {
+  const t = useT();
+  const raw = error?.message || '';
+  return (
+    <div className="copilotKitMessage copilotKitAssistantMessage !bg-red-500/10 border border-red-500/40 rounded-[8px] p-[12px] my-[8px] text-[14px]">
+      <div className="font-semibold text-red-400 mb-[4px]">
+        {t('ai_assistant_error_title', 'Não foi possível responder')}
+      </div>
+      <div className="opacity-90">{friendlyAiErrorMessage(raw, t)}</div>
+      {raw ? (
+        <div className="text-[11px] opacity-50 mt-[8px] break-words">
+          {t('detail_label', 'Detalhe')}: {sanitize(raw)}
+        </div>
+      ) : null}
+    </div>
+  );
+};
+
 export const AgentChat: FC = () => {
   const { backendUrl } = useVariables();
   const params = useParams<{ id: string }>();
   const { properties } = useContext(PropertiesContext);
   const t = useT();
+  const toaster = useToaster();
 
   return (
     <CopilotKit
@@ -81,6 +164,16 @@ You can also use me as an MCP Server, check Settings >> Public API
             }}
             UserMessage={Message}
             Input={NewInput}
+            ErrorMessage={AgentErrorMessage}
+            onError={(errorEvent) =>
+              toaster.show(
+                friendlyAiErrorMessage(
+                  (errorEvent?.error as { message?: string })?.message,
+                  t
+                ),
+                'warning'
+              )
+            }
           />
         </div>
       </div>

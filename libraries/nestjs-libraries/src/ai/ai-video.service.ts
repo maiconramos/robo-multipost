@@ -193,8 +193,14 @@ export class AiVideoService {
     } catch (e) {
       const status = e instanceof HttpException ? e.getStatus() : undefined;
       if (status === 412) {
+        // 412 cobre tanto "credencial TEXT nao configurada" (resolver)
+        // quanto erro de runtime do provedor ja normalizado pelo
+        // AiTextService (ex.: sem creditos). `e.message` ja vem amigavel
+        // e sanitizado — logamos ele em vez de assumir "nao configurada".
         this._logger.warn(
-          'TEXT credential nao configurada para enrich; seguindo com prompt original.'
+          `Enrich de prompt pulado (IA indisponivel): ${
+            (e as Error).message
+          }. Seguindo com prompt original.`
         );
         return input.prompt;
       }
