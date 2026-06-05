@@ -88,6 +88,9 @@ Meta limits **one `sendPrivateReply` per comment**. After the postback, the 24h 
 | `integration.validation.tool.ts` | Validate an integration config |
 | `knowledge.query.tool.ts` | Query the profile's Knowledge Base (RAG) |
 | `web-search.tool.ts` | Web search via `AiWebSearchService` |
+| `create.comment.automation.tool.ts` | Create an IG comment/story automation (Flow) via `FlowsService.quickCreateFlow`. Reads org/profile from context; validates `dmButtonUrl` (https público); default `postMode='next_publication'` |
+| `list.comment.automations.tool.ts` | List the org/profile's IG automations via `FlowsService.getFlows` |
+| `set.comment.automation.status.tool.ts` | Activate/pause/archive an automation via `FlowsService.updateFlowStatus` (no delete by design — REST/SDK only) |
 | `tool.list.ts` | Central registry of available tools |
 | `tool.context.helper.ts` | Helper to extract org/profile from `AsyncLocalStorage` |
 
@@ -126,6 +129,7 @@ Meta limits **one `sendPrivateReply` per comment**. After the postback, the 24h 
 5. **Symptom:** RAG returns no results → **Cause:** pgvector not enabled, or embeddings not generated. **Fix:** verify the `pgvector/pgvector:pg17` image and re-run the chunking pipeline; see [`docs/architecture/knowledge-base-rag.md`](../../../../docs/architecture/knowledge-base-rag.md).
 6. **Symptom:** new Flow in the wizard does not appear in the visual Flow Builder → **Cause:** only one UI was updated. **Fix:** update **both wizard + node-config-panel** (parity — they share the same `triggerConfig`).
 7. **Symptom:** Gemini (Google AI Studio) via OpenRouter returns `400 INVALID_ARGUMENT: function_declarations[N].parameters.properties[X].items.properties[Y].items.required[0]: property is not defined` → **Cause:** `z.any()` in a tool's `inputSchema` translates to an empty JSON Schema `{}`, which Gemini rejects when the field is `required`. OpenAI/Anthropic tolerate this; Gemini does not. **Fix:** use `z.string()` for the field and let the backend `JSON.parse` to reidratar arrays/objects/numbers/booleans (see `tryParseJson` helper in `integration.schedule.post.ts`). This rule applies ONLY to `inputSchema` (what the LLM generates); `outputSchema` is not validated by Gemini's tool-schema check, so `z.any()` there is fine. Whenever adding a Zod tool schema, never use `z.any()` for required input fields — declare a concrete type or `z.string()` + parse downstream.
+8. **Symptom:** strict MCP clients (n8n MCP Client node, etc.) reject the tool list with `path: ["tools", N, "inputSchema", "type"], message: "expected object"` even though the connection authenticated and listed tools → **Cause:** a tool defined `outputSchema` but **omitted `inputSchema`**. A tool with no `inputSchema` serializes to a JSON Schema without `type: "object"`; lenient clients (Claude Code, Cursor) ignore it, strict Zod-validating clients (n8n) reject it. **Fix:** **every** tool must declare an `inputSchema` that is a `z.object({...})` — even a no-arg tool needs `inputSchema: z.object({})` (serializes to `{ "type": "object", "properties": {} }`). The MCP server builds the tool list at boot, so a restart is required after the fix. Canonical no-arg examples: `integration.list.tool.ts`, `generate.video.options.tool.ts`.
 
 ## Commands
 

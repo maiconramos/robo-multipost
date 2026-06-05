@@ -1,4 +1,12 @@
-import { Injectable, BadRequestException, Logger } from '@nestjs/common';
+import {
+  Injectable,
+  BadRequestException,
+  ForbiddenException,
+  HttpException,
+  HttpStatus,
+  Logger,
+} from '@nestjs/common';
+import { checkPublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/validators/is-public-https-url.validator';
 import { FlowsRepository } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.repository';
 import {
   FlowStatus,
@@ -56,7 +64,64 @@ export class FlowsService {
     return this._flowsRepository.getFlowById(id);
   }
 
+  /**
+   * Guard de autorizacao por integracao — chokepoint para TODOS os caminhos de
+   * criacao (REST publica, MCP, wizard interno). Fecha o gap em que a validacao
+   * antiga so olhava `orgId`: garante que a integracao existe, pertence a org,
+   * nao esta desativada/removida e — quando o chamador e escopado a um perfil
+   * (ex.: chave de API por-perfil) — pertence aquele perfil OU e org-wide
+   * (`profileId` null). Integracao de OUTRO perfil -> 403.
+   *
+   * Nao valida `providerIdentifier` aqui de proposito: a checagem "so Instagram"
+   * + verificacao de webhook continua em `checkIntegrationWebhook` (que roda em
+   * seguida e mantem o status 400 historico para nao-IG).
+   */
+  private async assertIntegrationAccess(
+    orgId: string,
+    integrationId: string,
+    callerProfileId?: string
+  ) {
+    const integration = await this._integrationService.getIntegrationById(
+      orgId,
+      integrationId
+    );
+    if (!integration || (integration as any).deletedAt) {
+      throw new HttpException(
+        'Integracao nao encontrada',
+        HttpStatus.PRECONDITION_FAILED
+      );
+    }
+    if ((integration as any).disabled) {
+      throw new HttpException(
+        'Integracao desativada ou com token expirado. Reconecte a conta antes de criar automacoes.',
+        HttpStatus.PRECONDITION_FAILED
+      );
+    }
+    if (
+      callerProfileId &&
+      integration.profileId &&
+      integration.profileId !== callerProfileId
+    ) {
+      throw new ForbiddenException('Integracao pertence a outro perfil');
+    }
+    return integration;
+  }
+
+  /**
+   * Endurece a URL do botao de DM em todos os caminhos de criacao/edicao via
+   * wizard/MCP. Bloqueia esquemas perigosos (javascript:/data:/file:) e hosts
+   * privados/locais; exige https publico. Espelha a validacao do DTO (REST/SDK).
+   */
+  private assertDmButtonUrl(url?: string) {
+    if (!url) return;
+    const error = checkPublicHttpsUrl(url);
+    if (error) {
+      throw new BadRequestException(`URL do botao invalida: ${error}`);
+    }
+  }
+
   async createFlow(orgId: string, body: CreateFlowDto, profileId?: string) {
+    await this.assertIntegrationAccess(orgId, body.integrationId, profileId);
     const check = await this.checkIntegrationWebhook(orgId, body.integrationId);
     if (!check.ok) {
       throw new BadRequestException(check.error);
@@ -500,6 +565,11 @@ export class FlowsService {
     if (!current) {
       throw new BadRequestException('Flow not found');
     }
+    // A integracao do flow nao muda no update, mas revalidamos: bloqueia
+    // reativacao (DRAFT->ACTIVE) sobre integracao desativada/removida e mantem
+    // simetria com o caminho de criacao (mesmo guard).
+    await this.assertIntegrationAccess(orgId, current.integrationId, profileId);
+    this.assertDmButtonUrl(body.dmButtonUrl);
     await this._flowsRepository.updateFlow(orgId, id, { name: body.name }, profileId);
 
     const triggerType = body.triggerType ?? 'comment_on_post';
@@ -556,6 +626,8 @@ export class FlowsService {
   }
 
   async quickCreateFlow(orgId: string, body: QuickCreateFlowDto, profileId?: string) {
+    await this.assertIntegrationAccess(orgId, body.integrationId, profileId);
+    this.assertDmButtonUrl(body.dmButtonUrl);
     const check = await this.checkIntegrationWebhook(orgId, body.integrationId);
     if (!check.ok) {
       throw new BadRequestException(check.error);

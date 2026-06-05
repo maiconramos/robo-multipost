@@ -218,6 +218,36 @@ Ambos escrevem o mesmo formato de `triggerConfig`:
 button postback do gate e injetado **automaticamente** pelo workflow — nao
 e configuravel no canvas.
 
+### 5.1 Criacao programatica (API publica / MCP / SDK)
+
+Alem da UI, automacoes podem ser criadas/gerenciadas sem JWT/cookie, por
+clientes externos (chave de API org ou por-perfil) e pelo agente de chat:
+
+- **REST publica** (`apps/backend/src/public-api/routes/v1/public.flows.controller.ts`):
+  `POST /public/v1/flows`, `GET /public/v1/flows` (+ filtro `integrationId`),
+  `GET|PUT|DELETE /public/v1/flows/:id`, `POST /public/v1/flows/:id/status`.
+  Body = `QuickCreateFlowDto` (mesmo contrato do wizard).
+- **MCP** (`libraries/.../chat/tools/`): `createCommentAutomationTool`,
+  `listCommentAutomationsTool`, `setCommentAutomationStatusTool`. Leem
+  org/profile do `AsyncLocalStorage` (nunca do input).
+- **SDK `@postiz/node`**: `createFlow`/`listFlows`/`getFlow`/`updateFlow`/
+  `setFlowStatus`/`deleteFlow`.
+
+**Todos convergem para `FlowsService.quickCreateFlow`** (chokepoint unico). O
+guard `assertIntegrationAccess(orgId, integrationId, profileId)` garante:
+integracao existe + pertence a org; e Instagram; nao desativada; e — para chave
+por-perfil — pertence ao proprio perfil **ou** e org-wide (`profileId` null).
+Integracao de outro perfil -> `403`. `dmButtonUrl` deve ser **https publico**
+(validador `is-public-https-url.validator.ts`, revalidado no service).
+
+**Encadeamento (cenario receita):** use `postMode='next_publication'` (default
+da REST/MCP). O flow nasce com `triggerPostIds=null`; quando o proximo post e
+publicado, `post.activity` chama `bindPendingFlowsToPost(integrationId, mediaId)`
+e a automacao gruda nesse post — sem o cliente precisar do media id do IG.
+Atencao: `bindPendingFlowsToPost` liga **todos** os flows `next_publication`
+pendentes do canal ao **proximo** post; para 1:1, crie a automacao logo antes de
+agendar o post.
+
 ---
 
 ## 6. Arquivos-chave (mapa rapido para agentes)

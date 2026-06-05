@@ -11,7 +11,7 @@ import {
   FlowExecutionStatus,
   PendingPostbackStatus,
 } from '@prisma/client';
-import { BadRequestException } from '@nestjs/common';
+import { BadRequestException, ForbiddenException, HttpException } from '@nestjs/common';
 
 const mockRepository = {
   getFlows: jest.fn(),
@@ -293,6 +293,114 @@ describe('FlowsService', () => {
       } finally {
         global.fetch = realFetch;
       }
+    });
+  });
+
+  // --- Autorizacao por integracao na criacao (S1/S5) ---
+
+  describe('assertIntegrationAccess (via createFlow)', () => {
+    const okWebhookFetch = () =>
+      jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            {
+              object: 'instagram',
+              active: true,
+              fields: [{ name: 'comments' }, { name: 'messages' }],
+            },
+          ],
+        }),
+      }) as any;
+
+    it('deve lancar Forbidden quando integracao pertence a outro perfil', async () => {
+      mockIntegrationService.getIntegrationById.mockResolvedValue({
+        id: 'int-1',
+        providerIdentifier: 'instagram',
+        organizationId: 'org-1',
+        profileId: 'outro-perfil',
+      });
+      const err: any = await service
+        .createFlow('org-1', { name: 'x', integrationId: 'int-1' } as any, 'perfil-A')
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(ForbiddenException);
+      expect(mockRepository.createFlow).not.toHaveBeenCalled();
+    });
+
+    it('deve permitir integracao org-wide (profileId null) para chave de perfil', async () => {
+      mockIntegrationService.getIntegrationById.mockResolvedValue({
+        id: 'int-1',
+        providerIdentifier: 'instagram',
+        organizationId: 'org-1',
+        profileId: null,
+      });
+      mockRepository.createFlow.mockResolvedValue({ id: 'flow-1' });
+      mockCredentialService.getRaw.mockResolvedValue({
+        clientId: 'fb-app',
+        clientSecret: 'fb-secret',
+      });
+      const realFetch = global.fetch;
+      global.fetch = okWebhookFetch();
+      try {
+        await service.createFlow(
+          'org-1',
+          { name: 'x', integrationId: 'int-1' } as any,
+          'perfil-A'
+        );
+        expect(mockRepository.createFlow).toHaveBeenCalled();
+      } finally {
+        global.fetch = realFetch;
+      }
+    });
+
+    it('deve lancar 412 quando integracao esta desativada', async () => {
+      mockIntegrationService.getIntegrationById.mockResolvedValue({
+        id: 'int-1',
+        providerIdentifier: 'instagram',
+        organizationId: 'org-1',
+        profileId: null,
+        disabled: true,
+      });
+      const err: any = await service
+        .createFlow('org-1', { name: 'x', integrationId: 'int-1' } as any, undefined)
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(412);
+      expect(mockRepository.createFlow).not.toHaveBeenCalled();
+    });
+
+    it('deve lancar 412 quando integracao nao existe', async () => {
+      mockIntegrationService.getIntegrationById.mockResolvedValue(null);
+      const err: any = await service
+        .createFlow('org-1', { name: 'x', integrationId: 'nope' } as any, undefined)
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect(err.getStatus()).toBe(412);
+    });
+  });
+
+  describe('quickCreateFlow dmButtonUrl (S2)', () => {
+    it('deve rejeitar dmButtonUrl que nao e https publico', async () => {
+      mockIntegrationService.getIntegrationById.mockResolvedValue({
+        id: 'int-1',
+        providerIdentifier: 'instagram',
+        organizationId: 'org-1',
+        profileId: null,
+      });
+      const err: any = await service
+        .quickCreateFlow(
+          'org-1',
+          {
+            name: 'x',
+            integrationId: 'int-1',
+            dmMessage: 'oi',
+            dmButtonUrl: 'http://localhost/admin',
+          } as any,
+          undefined
+        )
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(HttpException);
+      expect(mockRepository.createFlow).not.toHaveBeenCalled();
     });
   });
 
