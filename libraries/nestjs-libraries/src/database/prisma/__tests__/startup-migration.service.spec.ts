@@ -22,6 +22,7 @@ describe('StartupMigrationService.cleanupExpiredUnmatchedComments', () => {
         count: jest.fn(),
         deleteMany: jest.fn(),
       },
+      flow: { count: jest.fn().mockResolvedValue(0) },
       $transaction: jest.fn(),
       $executeRawUnsafe: jest.fn(),
     };
@@ -57,6 +58,63 @@ describe('StartupMigrationService.cleanupExpiredUnmatchedComments', () => {
     );
 
     // Nao lanca — apenas loga
+    await expect(service.onModuleInit()).resolves.toBeUndefined();
+  });
+});
+
+describe('StartupMigrationService.backfillFlowsToDefaultProfile', () => {
+  let service: StartupMigrationService;
+  let prisma: any;
+
+  beforeEach(() => {
+    prisma = {
+      providerCredential: { count: jest.fn().mockResolvedValue(0) },
+      organization: { count: jest.fn().mockResolvedValue(0) },
+      integration: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      repostRule: {
+        count: jest.fn().mockResolvedValue(0),
+        findMany: jest.fn().mockResolvedValue([]),
+      },
+      repostRuleDestination: { upsert: jest.fn() },
+      unmatchedComment: {
+        count: jest.fn().mockResolvedValue(0),
+        deleteMany: jest.fn(),
+      },
+      flow: { count: jest.fn().mockResolvedValue(0) },
+      $transaction: jest.fn(),
+      $executeRawUnsafe: jest.fn(),
+    };
+    service = new StartupMigrationService(prisma);
+  });
+
+  it('deve ser no-op quando nao ha flow com profileId null', async () => {
+    prisma.flow.count.mockResolvedValue(0);
+
+    await service.onModuleInit();
+
+    expect(prisma.$executeRawUnsafe).not.toHaveBeenCalled();
+  });
+
+  it('deve rodar UPDATE atribuindo flows null ao perfil Default', async () => {
+    prisma.flow.count.mockResolvedValue(2);
+
+    await service.onModuleInit();
+
+    expect(prisma.flow.count).toHaveBeenCalledWith({
+      where: { profileId: null },
+    });
+    expect(prisma.$executeRawUnsafe).toHaveBeenCalledWith(
+      expect.stringContaining('UPDATE "Flow"')
+    );
+  });
+
+  it('nao deve derrubar o boot quando o UPDATE falha', async () => {
+    prisma.flow.count.mockResolvedValue(1);
+    prisma.$executeRawUnsafe.mockRejectedValue(new Error('DB down'));
+
     await expect(service.onModuleInit()).resolves.toBeUndefined();
   });
 });

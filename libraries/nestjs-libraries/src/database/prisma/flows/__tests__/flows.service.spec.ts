@@ -95,6 +95,15 @@ const mockInstagramMessaging = {
   resolveIgUserToken: jest.fn().mockResolvedValue(null),
 } as any;
 
+const mockProfileService = {
+  getProfileById: jest
+    .fn()
+    .mockResolvedValue({ id: 'profile-1', organizationId: 'org-1' }),
+  getDefaultProfile: jest
+    .fn()
+    .mockResolvedValue({ id: 'default-profile', organizationId: 'org-1', isDefault: true }),
+} as any;
+
 const makeFlow = (overrides?: Record<string, any>): any => ({
   id: 'flow-1',
   organizationId: 'org-1',
@@ -130,6 +139,15 @@ describe('FlowsService', () => {
     });
     mockCredentialService.getRaw.mockResolvedValue(null);
     mockInstagramMessaging.resolveIgUserToken.mockResolvedValue(null);
+    mockProfileService.getProfileById.mockResolvedValue({
+      id: 'profile-1',
+      organizationId: 'org-1',
+    });
+    mockProfileService.getDefaultProfile.mockResolvedValue({
+      id: 'default-profile',
+      organizationId: 'org-1',
+      isDefault: true,
+    });
     // Defaults para alias/inbox (alguns specs sobrescrevem)
     mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([]);
     mockRepository.findIgnoredMedia.mockResolvedValue(null);
@@ -140,7 +158,8 @@ describe('FlowsService', () => {
       mockIntegrationService,
       mockIntegrationManager,
       mockCredentialService,
-      mockInstagramMessaging
+      mockInstagramMessaging,
+      mockProfileService
     );
   });
 
@@ -401,6 +420,113 @@ describe('FlowsService', () => {
         .catch((e) => e);
       expect(err).toBeInstanceOf(HttpException);
       expect(mockRepository.createFlow).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('quickCreateFlow - escopo de perfil (nunca salva null)', () => {
+    const passWebhook = () =>
+      jest.fn().mockResolvedValue({
+        ok: true,
+        json: async () => ({
+          data: [
+            {
+              object: 'instagram',
+              callback_url: 'https://x',
+              active: true,
+              fields: [{ name: 'comments' }, { name: 'messages' }],
+            },
+          ],
+        }),
+      }) as any;
+
+    beforeEach(() => {
+      mockCredentialService.getRaw.mockResolvedValue({
+        clientId: 'fb-app',
+        clientSecret: 'fb-secret',
+      });
+    });
+
+    it('req 1: chave de org sem profileId -> usa o perfil Default', async () => {
+      mockRepository.createFlow.mockResolvedValue({ id: 'flow-1' });
+      mockRepository.getFlow.mockResolvedValue(makeFlow({ id: 'flow-1' }));
+      const realFetch = global.fetch;
+      global.fetch = passWebhook();
+      try {
+        await service.quickCreateFlow(
+          'org-1',
+          { name: 'X', integrationId: 'int-1' } as any,
+          undefined
+        );
+        expect(mockProfileService.getDefaultProfile).toHaveBeenCalledWith('org-1');
+        expect(mockRepository.createFlow).toHaveBeenCalledWith(
+          'org-1',
+          expect.any(Object),
+          'default-profile'
+        );
+      } finally {
+        global.fetch = realFetch;
+      }
+    });
+
+    it('req 2/3: com profileId valido -> usa esse perfil (validado na org)', async () => {
+      mockRepository.createFlow.mockResolvedValue({ id: 'flow-1' });
+      mockRepository.getFlow.mockResolvedValue(makeFlow({ id: 'flow-1' }));
+      const realFetch = global.fetch;
+      global.fetch = passWebhook();
+      try {
+        await service.quickCreateFlow(
+          'org-1',
+          { name: 'X', integrationId: 'int-1' } as any,
+          'perfil-A'
+        );
+        expect(mockProfileService.getProfileById).toHaveBeenCalledWith(
+          'org-1',
+          'perfil-A'
+        );
+        expect(mockRepository.createFlow).toHaveBeenCalledWith(
+          'org-1',
+          expect.any(Object),
+          'perfil-A'
+        );
+      } finally {
+        global.fetch = realFetch;
+      }
+    });
+
+    it('req 4: profileId inexistente na org -> BadRequest e nao cria', async () => {
+      mockProfileService.getProfileById.mockResolvedValue(null);
+      const realFetch = global.fetch;
+      global.fetch = passWebhook();
+      try {
+        await expect(
+          service.quickCreateFlow(
+            'org-1',
+            { name: 'X', integrationId: 'int-1' } as any,
+            'fantasma'
+          )
+        ).rejects.toBeInstanceOf(BadRequestException);
+        expect(mockRepository.createFlow).not.toHaveBeenCalled();
+      } finally {
+        global.fetch = realFetch;
+      }
+    });
+
+    it('req 4: sem profileId e sem perfil Default -> BadRequest', async () => {
+      mockProfileService.getDefaultProfile.mockResolvedValue(null);
+      const realFetch = global.fetch;
+      global.fetch = passWebhook();
+      try {
+        await expect(
+          service.quickCreateFlow(
+            'org-1',
+            { name: 'X', integrationId: 'int-1' } as any,
+            undefined
+          )
+        ).rejects.toBeInstanceOf(BadRequestException);
+        expect(mockRepository.createFlow).not.toHaveBeenCalled();
+      } finally {
+        global.fetch = realFetch;
+      }
     });
   });
 
