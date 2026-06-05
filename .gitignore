@@ -73,4 +73,4 @@ graphify-out/cost.json
 graphify-out/.rebuild.lock
 # Graphify intermediate build artifacts (efêmeros, regenerados em todo rebuild)
 graphify-out/.graphify_*
-
+/graphify-out/cache/*
