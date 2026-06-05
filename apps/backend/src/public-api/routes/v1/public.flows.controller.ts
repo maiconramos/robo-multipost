@@ -31,6 +31,56 @@ import {
   UpdateFlowStatusDto,
 } from '@gitroom/nestjs-libraries/dtos/flows/flow.dto';
 
+// Exemplos prontos exibidos no Swagger ("Example Value" -> dropdown). O body e
+// um $ref puro do QuickCreateFlowDto, e o Swagger UI nao compoe automaticamente
+// um exemplo a partir dos `example` de cada campo — por isso fornecemos exemplos
+// completos e copiaveis aqui.
+const FLOW_BODY_EXAMPLES = {
+  'comentario-dm': {
+    summary: 'Comentário → resposta + DM com link (next_publication)',
+    value: {
+      name: 'Receita - link no DM',
+      integrationId: 'SEU_INTEGRATION_ID',
+      triggerType: 'comment_on_post',
+      postMode: 'next_publication',
+      keywords: ['EU QUERO'],
+      matchMode: 'any',
+      replyMessage: 'Te mandei no direct! 💬',
+      dmMessage: 'Aqui está a receita 👇',
+      dmButtonText: 'Ver receita',
+      dmButtonUrl: 'https://seu-blog.com/bolo',
+    },
+  },
+  'post-especifico': {
+    summary: 'Post específico (postMode=specific + postIds)',
+    value: {
+      name: 'Promo do post X',
+      integrationId: 'SEU_INTEGRATION_ID',
+      triggerType: 'comment_on_post',
+      postMode: 'specific',
+      postIds: ['17999999999999999'],
+      keywords: ['QUERO'],
+      dmMessage: 'Segue o link 👇',
+      dmButtonText: 'Acessar',
+      dmButtonUrl: 'https://seu-blog.com/promo',
+    },
+  },
+  'follow-gate': {
+    summary: 'Com follow-gate (exige seguir antes da DM)',
+    value: {
+      name: 'Ebook - follow gate',
+      integrationId: 'SEU_INTEGRATION_ID',
+      postMode: 'next_publication',
+      keywords: ['QUERO'],
+      requireFollow: true,
+      followGateMessage: 'Siga o perfil e comente de novo 😉',
+      dmMessage: 'Valeu por seguir! Aqui 👇',
+      dmButtonText: 'Baixar',
+      dmButtonUrl: 'https://seu-blog.com/ebook',
+    },
+  },
+};
+
 /**
  * API publica de automacoes de comentario/story do Instagram (Flows).
  *
@@ -91,7 +141,7 @@ export class PublicFlowsController {
     description:
       'Escopa o flow a um perfil (apenas chave de organização). Omitido → perfil Default.',
   })
-  @ApiBody({ type: QuickCreateFlowDto })
+  @ApiBody({ type: QuickCreateFlowDto, examples: FLOW_BODY_EXAMPLES })
   @ApiResponse({ status: 201, description: 'Flow criado (geralmente já ACTIVE).' })
   @ApiResponse({
     status: 400,
@@ -192,7 +242,7 @@ export class PublicFlowsController {
   })
   @ApiParam({ name: 'id', description: 'ID do flow' })
   @ApiQuery({ name: 'profileId', required: false })
-  @ApiBody({ type: QuickCreateFlowDto })
+  @ApiBody({ type: QuickCreateFlowDto, examples: FLOW_BODY_EXAMPLES })
   // quickUpdateFlow promove DRAFT->ACTIVE, disparando assinatura de webhook na
   // Meta — mesmo rate limit do POST para evitar abuso da chamada outbound.
   @Throttle({ default: { limit: 20, ttl: 3600_000 } })
