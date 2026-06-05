@@ -9,14 +9,24 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Adicionado
 
+- **Automações de comentário do Instagram via API pública, MCP e SDK**: agora é possível criar e gerenciar automações de resposta a comentários/stories programaticamente — antes só dava pela interface. Quando alguém comenta uma palavra-chave (ex.: "EU QUERO") em um post, a automação responde publicamente e/ou envia o link no direct. Isso fecha o cenário de ponta a ponta: gerar a imagem da receita, publicar no Instagram e criar a automação do comentário, tudo via API ou pelo agente.
+  - Novos endpoints na API pública (chave de organização ou de perfil): `POST /public/v1/flows` (criar), `GET /public/v1/flows` (listar, com filtro opcional `integrationId`), `GET /public/v1/flows/:id`, `PUT /public/v1/flows/:id` (editar), `POST /public/v1/flows/:id/status` (ativar/pausar/arquivar) e `DELETE /public/v1/flows/:id` (excluir).
+  - Modo de vínculo padrão `next_publication`: a automação se conecta sozinha ao próximo post publicado no canal, permitindo encadear "gerar imagem → publicar no Instagram → criar a automação" sem o cliente precisar do ID de mídia do Instagram.
+  - Ferramentas MCP `createCommentAutomationTool`, `listCommentAutomationsTool` e `setCommentAutomationStatusTool` para o agente de chat (e clientes MCP como o n8n). O agente sempre confirma a configuração com o usuário antes de criar.
+  - SDK `@postiz/node`: novos métodos `createFlow`, `listFlows`, `getFlow`, `updateFlow`, `setFlowStatus` e `deleteFlow`.
 - **Chaves de API por perfil**: cada perfil pode gerar sua própria chave de API escopada apenas às suas integrações. A chave da organização continua existindo com acesso irrestrito a todos os perfis. Chaves de perfil funcionam na REST API pública, no MCP e no CLI.
-  - No painel `Configurações > Desenvolvedores`, o perfil Default exibe as duas chaves (organização + perfil); perfis secundários exibem apenas a chave do próprio perfil.
+  - A aba `Configurações > Desenvolvedores` foi renomeada para `Integrações`. No perfil Default exibe as duas chaves (organização + perfil); perfis secundários exibem apenas a chave do próprio perfil.
   - Novo endpoint `POST /profiles/:id/api-key/rotate` (admin) para gerar ou rotacionar a chave de um perfil.
   - Novo endpoint `GET /public/v1/profiles` para listar perfis disponíveis via API pública (chave de org retorna todos; chave de perfil retorna apenas o próprio perfil).
   - Segurança: tentativa de usar `?profileId` diferente da chave de perfil retorna `403 Forbidden`.
 
+### Corrigido
+
+- **Servidor MCP rejeitado por clientes estritos (n8n)**: as ferramentas `integrationList` e `generateVideoOptions` não declaravam `inputSchema`, fazendo o servidor MCP serializar um schema sem `type: "object"`. Clientes tolerantes (Claude Code, Cursor) ignoravam, mas o n8n MCP Client recusava a lista inteira de ferramentas com `Invalid input: expected "object"`. Adicionado `inputSchema: z.object({})` às duas (exige restart do backend para revalidar a lista no boot).
+
 ### Segurança
 
+- **Automações de comentário — autorização por perfil e validação de URL**: a criação de automação (via API pública, MCP ou wizard interno) agora passa por um guard único que valida que a integração pertence à organização e ao perfil do chamador (chave de API por perfil **não** cria automação no Instagram de outro perfil → `403`), que é uma conta do Instagram **ativa** (integração desativada/removida → `412`), e que a URL do botão do direct é **https pública** (bloqueia esquemas `javascript:`/`data:`/`file:` e hosts privados/locais como `localhost`/`127.0.0.1`/`169.254.169.254`). O endpoint público usa `ValidationPipe` estrito (rejeita campos extras, mitigando mass-assignment) e tem rate limit próprio (mais apertado que o global) por disparar assinatura de webhook na Meta. Endurecido também o `matchMode` (apenas `any`/`all`/`exact`) e a obrigatoriedade de `postIds`/`storyIds` quando o vínculo é `specific`.
 - **Dependabot habilitado** (`.github/dependabot.yml`): arquivo existia mas estava com `package-ecosystem: ""` (inválido — bot ignorava silenciosamente). Corrigido para cobrir npm (monorepo pnpm, raiz `/`), GitHub Actions e Docker, com schedule semanal, grupos `runtime-minor-patch`/`dev-minor-patch`/`security-fixes` e majors em PRs individuais para revisão humana obrigatória.
 - **Automação de auditoria Dependabot no `security-auditor`**: o subagent agora executa `gh api .../dependabot/alerts` como passo zero de qualquer auditoria, surfaçando alertas critical/high antes de revisar o diff. Gracioso — se `gh` não estiver autenticado, emite `⏭️ unavailable` e continua.
 - **4 vulnerabilidades críticas corrigidas** via `pnpm.overrides` escopados (afetam apenas versões vulneráveis, sem tocar instâncias já corrigidas):
