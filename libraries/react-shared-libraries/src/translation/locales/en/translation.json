@@ -1792,6 +1792,8 @@
   "integrations_menu": "Integrations",
   "integrations_tab": "Integrations",
   "access": "Access",
+  "read_the_docs": "Docs",
+  "api_reference_tooltip": "API documentation (Swagger)",
   "mcp_hint_terminal": "Run this command in your terminal.",
   "mcp_hint_cursor": "Add to .cursor/mcp.json in your project root.",
   "mcp_hint_vscode": "Add to .vscode/mcp.json in your project root.",

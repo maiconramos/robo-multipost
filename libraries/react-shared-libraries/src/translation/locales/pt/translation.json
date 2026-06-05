@@ -1790,6 +1790,8 @@
   "integrations_menu": "Integrações",
   "integrations_tab": "Integrações",
   "access": "Acesso",
+  "read_the_docs": "Docs",
+  "api_reference_tooltip": "Documentação da API (Swagger)",
   "mcp_hint_terminal": "Execute este comando no seu terminal.",
   "mcp_hint_cursor": "Adicione ao arquivo .cursor/mcp.json na raiz do projeto.",
   "mcp_hint_vscode": "Adicione ao arquivo .vscode/mcp.json na raiz do projeto.",
