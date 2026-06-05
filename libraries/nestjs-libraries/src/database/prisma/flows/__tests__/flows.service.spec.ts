@@ -91,6 +91,10 @@ const mockCredentialService = {
   getRaw: jest.fn().mockResolvedValue(null),
 } as any;
 
+const mockInstagramMessaging = {
+  resolveIgUserToken: jest.fn().mockResolvedValue(null),
+} as any;
+
 const makeFlow = (overrides?: Record<string, any>): any => ({
   id: 'flow-1',
   organizationId: 'org-1',
@@ -125,6 +129,7 @@ describe('FlowsService', () => {
       ensureWebhookSubscription: mockEnsureWebhookSubscription,
     });
     mockCredentialService.getRaw.mockResolvedValue(null);
+    mockInstagramMessaging.resolveIgUserToken.mockResolvedValue(null);
     // Defaults para alias/inbox (alguns specs sobrescrevem)
     mockRepository.findAliasesByIntegrationAndMedia.mockResolvedValue([]);
     mockRepository.findIgnoredMedia.mockResolvedValue(null);
@@ -134,8 +139,119 @@ describe('FlowsService', () => {
       mockTemporalService,
       mockIntegrationService,
       mockIntegrationManager,
-      mockCredentialService
+      mockCredentialService,
+      mockInstagramMessaging
     );
+  });
+
+  // --- Issue 1: roteamento de host/token via resolveIgRoute ---
+
+  describe('getInstagramPostsByIntegration (host routing)', () => {
+    const setProviderMedia = () => {
+      const getRecentMedia = jest
+        .fn()
+        .mockResolvedValue({ posts: [], nextCursor: null });
+      mockIntegrationManager.getSocialIntegration.mockReturnValue({
+        getRecentMedia,
+      });
+      return getRecentMedia;
+    };
+
+    const igIntegration: any = {
+      id: 'int-1',
+      token: 'page-token',
+      internalId: 'ig-123',
+      providerIdentifier: 'instagram',
+      organizationId: 'org-1',
+      profileId: null,
+    };
+
+    it('usa graph.facebook.com + page token quando nao ha IG User Token', async () => {
+      mockIntegrationService.getIntegrationById.mockResolvedValue(igIntegration);
+      mockInstagramMessaging.resolveIgUserToken.mockResolvedValue(null);
+      const getRecentMedia = setProviderMedia();
+
+      await service.getInstagramPostsByIntegration('org-1', 'int-1');
+
+      expect(getRecentMedia).toHaveBeenCalledWith(
+        'ig-123',
+        'page-token',
+        'graph.facebook.com',
+        25,
+        undefined
+      );
+    });
+
+    it('usa graph.instagram.com + IG User Token quando registrado', async () => {
+      mockIntegrationService.getIntegrationById.mockResolvedValue(igIntegration);
+      mockInstagramMessaging.resolveIgUserToken.mockResolvedValue('ig-user-token');
+      const getRecentMedia = setProviderMedia();
+
+      await service.getInstagramPostsByIntegration('org-1', 'int-1');
+
+      expect(getRecentMedia).toHaveBeenCalledWith(
+        'ig-123',
+        'ig-user-token',
+        'graph.instagram.com',
+        25,
+        undefined
+      );
+    });
+  });
+
+  describe('getInstagramStoriesByIntegration (host routing)', () => {
+    it('roteia host/token via resolveIgRoute (IG User Token -> graph.instagram.com)', async () => {
+      mockIntegrationService.getIntegrationById.mockResolvedValue({
+        id: 'int-1',
+        token: 'page-token',
+        internalId: 'ig-123',
+        providerIdentifier: 'instagram',
+        organizationId: 'org-1',
+        profileId: null,
+      });
+      mockInstagramMessaging.resolveIgUserToken.mockResolvedValue('ig-user-token');
+      const getRecentStories = jest.fn().mockResolvedValue({ stories: [] });
+      mockIntegrationManager.getSocialIntegration.mockReturnValue({
+        getRecentStories,
+      });
+
+      await service.getInstagramStoriesByIntegration('org-1', 'int-1');
+
+      expect(getRecentStories).toHaveBeenCalledWith(
+        'ig-123',
+        'ig-user-token',
+        'graph.instagram.com'
+      );
+    });
+  });
+
+  // --- Issue 3: segredo de postback nao-publico ---
+
+  describe('getPostbackSecret', () => {
+    it('usa ENCRYPTION_KEY quando nao ha segredos dedicados (sem literal publico)', () => {
+      const prev = {
+        p: process.env.POSTBACK_SIGNING_SECRET,
+        f: process.env.FACEBOOK_APP_SECRET,
+        i: process.env.INSTAGRAM_APP_SECRET,
+        e: process.env.ENCRYPTION_KEY,
+      };
+      delete process.env.POSTBACK_SIGNING_SECRET;
+      delete process.env.FACEBOOK_APP_SECRET;
+      delete process.env.INSTAGRAM_APP_SECRET;
+      process.env.ENCRYPTION_KEY = 'enc-key-xyz';
+      try {
+        expect((service as any).getPostbackSecret()).toBe('enc-key-xyz');
+        expect((service as any).getPostbackSecret()).not.toBe(
+          'dev-only-fallback-postback-secret'
+        );
+      } finally {
+        if (prev.p) process.env.POSTBACK_SIGNING_SECRET = prev.p;
+        if (prev.f) process.env.FACEBOOK_APP_SECRET = prev.f;
+        if (prev.i) process.env.INSTAGRAM_APP_SECRET = prev.i;
+        if (prev.e !== undefined) process.env.ENCRYPTION_KEY = prev.e;
+        else delete process.env.ENCRYPTION_KEY;
+      }
+    });
   });
 
   // --- CRUD delegation ---
@@ -748,8 +864,8 @@ describe('FlowsService', () => {
 
       expect(mockRepository.createPendingPostback).toHaveBeenCalledTimes(1);
       const arg = mockRepository.createPendingPostback.mock.calls[0][0] as any;
-      expect(arg.payload).toMatch(/^pb_[A-Za-z0-9_-]{12}_[a-f0-9]{8}$/);
-      expect(arg.payloadHmac).toHaveLength(8);
+      expect(arg.payload).toMatch(/^pb_[A-Za-z0-9_-]{12}_[a-f0-9]{16}$/);
+      expect(arg.payloadHmac).toHaveLength(16);
       expect(arg.expiresAt).toBeInstanceOf(Date);
       // expires ~23h in the future (tolerate a couple seconds of drift)
       const deltaMs = arg.expiresAt.getTime() - Date.now();
@@ -797,7 +913,7 @@ describe('FlowsService', () => {
         .createHmac('sha256', 'unit-test-secret')
         .update(shortId)
         .digest('hex')
-        .slice(0, 8);
+        .slice(0, 16);
       return `pb_${shortId}_${hmac}`;
     };
 
@@ -813,7 +929,8 @@ describe('FlowsService', () => {
 
     it('ignores payloads with invalid HMAC (spoofing attempt)', async () => {
       await service.handlePostbackClick({
-        payload: 'pb_abcdefghijkl_deadbeef',
+        // formato valido (16 hex) mas HMAC incorreto -> rejeitado pela assinatura
+        payload: 'pb_abcdefghijkl_deadbeefdeadbeef',
         senderIgsid: 'sender-1',
         igAccountId: 'acct-1',
       });

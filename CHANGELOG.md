@@ -22,6 +22,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Corrigido
 
+- **Automações do Instagram não listavam posts/stories em contas conectadas via Instagram Login**: os seletores de "post/story específico" (Wizard e API) buscavam mídias sempre em `graph.facebook.com`, retornando lista vazia para integrações conectadas via Instagram Login (IG User Token) — caso comum em instâncias self-hosted. Agora o host e o token são resolvidos por `resolveIgRoute` (Facebook Login → `graph.facebook.com`; Instagram Login → `graph.instagram.com`), igual ao restante das automações. Quem usa Facebook Login não é afetado (mesmo comportamento de antes).
+
+### Segurança
+
+- **Assinatura de postback do follow-gate endurecida**: o segredo HMAC deixou de ter um fallback literal público no código (que, por ser AGPL-aberto, qualquer um podia recomputar). Agora deriva de `POSTBACK_SIGNING_SECRET` → `FACEBOOK_APP_SECRET` → `INSTAGRAM_APP_SECRET` → `ENCRYPTION_KEY` → `JWT_SECRET`, com aviso em log se nenhum estiver configurado. O HMAC do payload passou de 32 para 64 bits. Sem migração: postbacks em voo expiram naturalmente na janela de 23h.
 - **Servidor MCP rejeitado por clientes estritos (n8n)**: as ferramentas `integrationList` e `generateVideoOptions` não declaravam `inputSchema`, fazendo o servidor MCP serializar um schema sem `type: "object"`. Clientes tolerantes (Claude Code, Cursor) ignoravam, mas o n8n MCP Client recusava a lista inteira de ferramentas com `Invalid input: expected "object"`. Adicionado `inputSchema: z.object({})` às duas (exige restart do backend para revalidar a lista no boot).
 
 ### Segurança
