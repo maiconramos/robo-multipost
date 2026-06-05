@@ -15,8 +15,13 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
   - Novo endpoint `GET /public/v1/profiles` para listar perfis disponíveis via API pública (chave de org retorna todos; chave de perfil retorna apenas o próprio perfil).
   - Segurança: tentativa de usar `?profileId` diferente da chave de perfil retorna `403 Forbidden`.
 
+### Corrigido
+
+- **Automações do Instagram não listavam posts/stories em contas conectadas via Instagram Login**: os seletores de "post/story específico" (Wizard e API) buscavam mídias sempre em `graph.facebook.com`, retornando lista vazia para integrações conectadas via Instagram Login (IG User Token) — caso comum em instâncias self-hosted. Agora o host e o token são resolvidos por `resolveIgRoute` (Facebook Login → `graph.facebook.com`; Instagram Login → `graph.instagram.com`), igual ao restante das automações. Quem usa Facebook Login não é afetado (mesmo comportamento de antes).
+
 ### Segurança
 
+- **Assinatura de postback do follow-gate endurecida**: o segredo HMAC deixou de ter um fallback literal público no código (que, por ser AGPL-aberto, qualquer um podia recomputar). Agora deriva de `POSTBACK_SIGNING_SECRET` → `FACEBOOK_APP_SECRET` → `INSTAGRAM_APP_SECRET` → `ENCRYPTION_KEY` → `JWT_SECRET`, com aviso em log se nenhum estiver configurado. O HMAC do payload passou de 32 para 64 bits. Sem migração: postbacks em voo expiram naturalmente na janela de 23h.
 - **Dependabot habilitado** (`.github/dependabot.yml`): arquivo existia mas estava com `package-ecosystem: ""` (inválido — bot ignorava silenciosamente). Corrigido para cobrir npm (monorepo pnpm, raiz `/`), GitHub Actions e Docker, com schedule semanal, grupos `runtime-minor-patch`/`dev-minor-patch`/`security-fixes` e majors em PRs individuais para revisão humana obrigatória.
 - **Automação de auditoria Dependabot no `security-auditor`**: o subagent agora executa `gh api .../dependabot/alerts` como passo zero de qualquer auditoria, surfaçando alertas critical/high antes de revisar o diff. Gracioso — se `gh` não estiver autenticado, emite `⏭️ unavailable` e continua.
 - **4 vulnerabilidades críticas corrigidas** via `pnpm.overrides` escopados (afetam apenas versões vulneráveis, sem tocar instâncias já corrigidas):

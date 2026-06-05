@@ -23,6 +23,8 @@ import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/in
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
+import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
+import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/instagram-route.resolver';
 import * as crypto from 'crypto';
 
 // Janela de 24h da Meta para trocar mensagens apos interacao do usuario.
@@ -38,7 +40,8 @@ export class FlowsService {
     private _temporalService: TemporalService,
     private _integrationService: IntegrationService,
     private _integrationManager: IntegrationManager,
-    private _credentialService: CredentialService
+    private _credentialService: CredentialService,
+    private _instagramMessaging: InstagramMessagingService
   ) {}
 
   getFlows(orgId: string, profileId?: string) {
@@ -472,9 +475,14 @@ export class FlowsService {
     }
 
     try {
+      const route = await resolveIgRoute(
+        integration as any,
+        this._instagramMessaging
+      );
       const result = await provider.getRecentMedia(
         integration.internalId,
-        integration.token
+        route.token,
+        route.host
       );
       return result.posts;
     } catch (err) {
@@ -813,10 +821,17 @@ export class FlowsService {
     }
 
     try {
+      // Roteia host/token conforme o tipo de conexao da integracao (IG Login
+      // -> graph.instagram.com; Facebook Login -> graph.facebook.com). Nunca
+      // hardcodar o host: apps Instagram-only nao respondem em graph.facebook.com.
+      const route = await resolveIgRoute(
+        integration as any,
+        this._instagramMessaging
+      );
       return await provider.getRecentMedia(
         integration.internalId,
-        integration.token,
-        'graph.facebook.com',
+        route.token,
+        route.host,
         limit,
         cursor
       );
@@ -850,10 +865,14 @@ export class FlowsService {
     }
 
     try {
+      const route = await resolveIgRoute(
+        integration as any,
+        this._instagramMessaging
+      );
       return await provider.getRecentStories(
         integration.internalId,
-        integration.token,
-        'graph.facebook.com'
+        route.token,
+        route.host
       );
     } catch (err) {
       this._logger.warn(
@@ -1333,11 +1352,11 @@ export class FlowsService {
   // --- Follow-gate em 2 etapas (postback) ---
 
   /**
-   * Gera um payload curto (<=23 chars) assinado com HMAC. Formato:
-   *   pb_<12 chars base64url>_<8 chars hex>
+   * Gera um payload curto (<=31 chars) assinado com HMAC. Formato:
+   *   pb_<12 chars base64url>_<16 chars hex>
    * O prefixo `pb_` permite filtrar trafico alheio no webhook sem fazer
-   * lookup no banco. O sufixo HMAC impede que um atacante externo forje
-   * payloads (ver verifyPostbackPayload).
+   * lookup no banco. O sufixo HMAC (64 bits) impede que um atacante externo
+   * forje payloads (ver verifyPostbackPayload).
    */
   private generatePostbackPayload(): { payload: string; payloadHmac: string } {
     const shortId = crypto.randomBytes(9).toString('base64url'); // 12 chars
@@ -1346,7 +1365,7 @@ export class FlowsService {
       .createHmac('sha256', secret)
       .update(shortId)
       .digest('hex')
-      .slice(0, 8);
+      .slice(0, 16);
     return { payload: `pb_${shortId}_${hmac}`, payloadHmac: hmac };
   }
 
@@ -1356,7 +1375,7 @@ export class FlowsService {
    * constante para evitar leak via timing.
    */
   private verifyPostbackPayload(payload: string): boolean {
-    const match = payload.match(/^pb_([A-Za-z0-9_-]{12})_([a-f0-9]{8})$/);
+    const match = payload.match(/^pb_([A-Za-z0-9_-]{12})_([a-f0-9]{16})$/);
     if (!match) return false;
     const [, shortId, providedHmac] = match;
     const secret = this.getPostbackSecret();
@@ -1364,7 +1383,7 @@ export class FlowsService {
       .createHmac('sha256', secret)
       .update(shortId)
       .digest('hex')
-      .slice(0, 8);
+      .slice(0, 16);
     try {
       return crypto.timingSafeEqual(
         Buffer.from(providedHmac),
@@ -1376,11 +1395,28 @@ export class FlowsService {
   }
 
   private getPostbackSecret(): string {
-    return (
+    // Precedencia: segredo dedicado -> segredos de app Meta -> ENCRYPTION_KEY /
+    // JWT_SECRET (sempre presentes num deploy funcional; estaveis entre
+    // restarts, entao nao invalidam postbacks em voo). O literal publico antigo
+    // foi removido: por ser AGPL-publico, qualquer um podia recomputar o HMAC.
+    // So caimos no fallback de dev (com WARN) num ambiente totalmente sem
+    // configuracao — onde nao ha o que proteger.
+    const secret =
       process.env.POSTBACK_SIGNING_SECRET ||
       process.env.FACEBOOK_APP_SECRET ||
-      'dev-only-fallback-postback-secret'
+      process.env.INSTAGRAM_APP_SECRET ||
+      process.env.ENCRYPTION_KEY ||
+      process.env.JWT_SECRET;
+    if (secret) {
+      return secret;
+    }
+    this._logger.warn(
+      'Nenhum segredo de assinatura de postback configurado ' +
+        '(POSTBACK_SIGNING_SECRET / FACEBOOK_APP_SECRET / INSTAGRAM_APP_SECRET / ' +
+        'ENCRYPTION_KEY / JWT_SECRET). Usando fallback de desenvolvimento — ' +
+        'configure ENCRYPTION_KEY em producao.'
     );
+    return 'dev-only-fallback-postback-secret';
   }
 
   /**
