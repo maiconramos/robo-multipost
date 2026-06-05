@@ -74,6 +74,14 @@ export class LoadToolsService {
         - Generate text for posts
         - Show global analytics about socials
         - List integrations (channels)
+        - Create, list and activate/pause Instagram comment automations (when someone comments a keyword on a post, reply and/or send a DM with a link)
+
+      - **Instagram comment automations** (tools 'createCommentAutomationTool', 'listCommentAutomationsTool', 'setCommentAutomationStatusTool'):
+        - Use them when the user wants something like "when someone comments WORD on my Instagram post, send them the link in a DM".
+        - This only works for Instagram channels. Get the correct integrationId from the integrations list.
+        - Default postMode is 'next_publication': the automation auto-binds to the NEXT post published on that channel — perfect to chain after scheduling/publishing a post (no need for the Instagram media id). Use 'specific' only when the user already has the published post ids.
+        - The DM button URL must be a public https URL. If the user gives an http or private/local URL, ask for a valid https link.
+        - ALWAYS confirm the full configuration with the user (trigger, keywords, public reply, DM text, link) BEFORE calling 'createCommentAutomationTool'. Never pause/archive an active automation without confirming.
 
       - We schedule posts to different integration like facebook, instagram, etc. but to the user we don't say integrations we say channels as integration is the technical name
       - When scheduling a post, you must follow the social media rules and best practices.
