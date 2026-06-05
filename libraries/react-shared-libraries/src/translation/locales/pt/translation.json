@@ -1809,5 +1809,11 @@
   "oauth_app_note_line1": "Crie um App OAuth para permitir que outros usuários do Robô MultiPost autorizem seu produto a publicar em nome deles.",
   "oauth_app_note_line2": "Depois que um usuário concluir o fluxo OAuth2, você recebe um token com prefixo pos_ que funciona em qualquer lugar onde uma Chave de API funciona — API, MCP e CLI.",
   "oauth_application": "Aplicação OAuth",
-  "create_an_oauth_application": "Crie uma aplicação OAuth para permitir integrações de terceiros com o Robô MultiPost em nome dos seus usuários."
+  "create_an_oauth_application": "Crie uma aplicação OAuth para permitir integrações de terceiros com o Robô MultiPost em nome dos seus usuários.",
+  "ai_assistant_error_title": "Não foi possível responder",
+  "ai_assistant_generic_error": "O assistente encontrou um erro ao responder. Tente novamente em instantes.",
+  "ai_provider_no_credits": "Seu provedor de IA está sem créditos ou atingiu o limite de cobrança. Verifique o saldo na conta do provedor e tente novamente.",
+  "ai_provider_auth_error": "Falha de autenticação no provedor de IA. Confira a chave de API em Configurações > Modelos de IA.",
+  "ai_provider_rate_limit": "O provedor de IA atingiu o limite de requisições. Aguarde alguns instantes e tente novamente.",
+  "detail_label": "Detalhe"
 }

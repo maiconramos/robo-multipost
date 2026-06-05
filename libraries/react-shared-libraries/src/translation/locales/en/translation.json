@@ -1811,5 +1811,11 @@
   "oauth_app_note_line1": "Create an OAuth App to let other Postiz users authorize your product to post on their behalf.",
   "oauth_app_note_line2": "After a user completes the OAuth2 flow, you receive a pos_ prefixed token that works everywhere an API Key does — API, MCP, and CLI.",
   "oauth_application": "OAuth Application",
-  "create_an_oauth_application": "Create an OAuth application to allow third-party integrations with Postiz on behalf of your users."
+  "create_an_oauth_application": "Create an OAuth application to allow third-party integrations with Postiz on behalf of your users.",
+  "ai_assistant_error_title": "Couldn't get a response",
+  "ai_assistant_generic_error": "The assistant ran into an error while replying. Please try again in a moment.",
+  "ai_provider_no_credits": "Your AI provider is out of credits or hit its billing limit. Check your balance in the provider account and try again.",
+  "ai_provider_auth_error": "Authentication failed with the AI provider. Check the API key in Settings > AI Models.",
+  "ai_provider_rate_limit": "The AI provider hit its request limit. Wait a few moments and try again.",
+  "detail_label": "Detail"
 }

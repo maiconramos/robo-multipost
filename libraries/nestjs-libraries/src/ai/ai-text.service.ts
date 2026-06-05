@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { generateObject, generateText } from 'ai';
 import { shuffle } from 'lodash';
 import { z } from 'zod';
@@ -58,6 +58,76 @@ export interface CaptionOptions {
    * evitar ciclo com DatabaseModule.
    */
   personaBlock?: string;
+}
+
+const PROVIDER_ERROR_DETAIL_MAX = 240;
+
+/**
+ * Remove material sensivel (Bearer tokens, chaves `sk-...`) que alguns
+ * provedores ecoam de volta na mensagem de erro, antes de embuti-la na
+ * resposta HTTP. Defense in depth — espelha `sanitize()` de
+ * ai-video.service.ts; a maioria dos provedores ja mascara, mas nao
+ * confiamos nisso.
+ */
+function sanitize(value: string): string {
+  return (value || '')
+    .replace(/Bearer\s+[A-Za-z0-9_.\-]+/gi, 'Bearer ***')
+    .replace(/\bsk-[A-Za-z0-9_.\-]{6,}/gi, 'sk-***');
+}
+
+/**
+ * Extrai o status HTTP de um erro vindo do provedor de IA. O AI SDK
+ * (`APICallError`) expoe `.statusCode`; outros clients usam `.status`.
+ * Retorna undefined quando o erro NAO carrega status numerico — sinal de
+ * que nao e um erro HTTP do provedor (ex.: parse/network/NoObjectGenerated).
+ */
+function providerErrorStatus(error: unknown): number | undefined {
+  const statusCode = (error as { statusCode?: unknown })?.statusCode;
+  if (typeof statusCode === 'number') {
+    return statusCode;
+  }
+  const status = (error as { status?: unknown })?.status;
+  if (typeof status === 'number') {
+    return status;
+  }
+  return undefined;
+}
+
+/**
+ * Mensagem amigavel (pt-BR) + detalhe tecnico do provedor (formato
+ * hibrido), mapeada pela natureza do erro. Sempre devolvida com status
+ * 412 pelo chamador — NUNCA 402, que e interceptado pelo modal global de
+ * billing do frontend (ver `apps/frontend/.../layout.context.tsx`).
+ */
+function buildFriendlyProviderMessage(
+  status: number,
+  providerMessage = ''
+): string {
+  const trimmed = (providerMessage || '').trim();
+  const safe = sanitize(trimmed);
+  const detail =
+    safe.length > 0
+      ? ` (Detalhe do provedor: ${
+          safe.length > PROVIDER_ERROR_DETAIL_MAX
+            ? `${safe.slice(0, PROVIDER_ERROR_DETAIL_MAX)}…`
+            : safe
+        })`
+      : '';
+  const lower = trimmed.toLowerCase();
+
+  const isCreditsIssue =
+    status === 402 ||
+    /credit|insufficient|afford|quota|billing|payment|fund/.test(lower);
+  if (isCreditsIssue) {
+    return `Seu provedor de IA está sem créditos ou atingiu o limite de cobrança. Verifique o saldo na conta do provedor (ex.: OpenRouter) e tente novamente.${detail}`;
+  }
+  if (status === 401 || status === 403) {
+    return `Falha de autenticação no provedor de IA. Confira a chave de API em Configurações > Modelos de IA.${detail}`;
+  }
+  if (status === 429) {
+    return `O provedor de IA atingiu o limite de requisições. Aguarde alguns instantes e tente novamente.${detail}`;
+  }
+  return `O provedor de IA retornou um erro ao gerar o texto. Tente novamente em instantes.${detail}`;
 }
 
 @Injectable()
@@ -379,7 +449,7 @@ export class AiTextService {
     try {
       return await invoke(client.model);
     } catch (primaryError) {
-      if (!client.fallbackModel) throw primaryError;
+      if (!client.fallbackModel) throw this.normalizeProviderError(primaryError);
       this._logger.warn(
         `Modelo principal falhou, tentando fallback. Erro: ${(primaryError as Error).message}`
       );
@@ -389,8 +459,36 @@ export class AiTextService {
         this._logger.error(
           `Fallback tambem falhou: ${(fallbackError as Error).message}`
         );
-        throw primaryError;
+        throw this.normalizeProviderError(primaryError);
       }
     }
+  }
+
+  /**
+   * Converte erros de runtime do provedor (OpenRouter/OpenAI via AI SDK)
+   * numa HttpException 412 controlada. CRITICO: sem isso o `APICallError`
+   * carrega `.statusCode` + `.message`, e o filtro padrao do NestJS
+   * (`BaseExceptionFilter.isHttpError`) repassa esse status como status
+   * HTTP do app — fazendo o frontend abrir o modal global de billing
+   * (status 402) ou ate deslogar o usuario (status 401). Convencao do
+   * repo: erro de IA usa 412, nunca 402.
+   *
+   * - HttpException ja controlada (ex.: 412 "credencial nao configurada"
+   *   do resolver) passa direto, sem reembrulhar.
+   * - Erro com status numerico do provedor → 412 + mensagem amigavel.
+   * - Erro sem status (parse/network) → repassado como esta (NestJS 500).
+   */
+  private normalizeProviderError(error: unknown): unknown {
+    if (error instanceof HttpException) {
+      return error;
+    }
+    const status = providerErrorStatus(error);
+    if (status === undefined) {
+      return error;
+    }
+    return new HttpException(
+      buildFriendlyProviderMessage(status, (error as Error)?.message),
+      412
+    );
   }
 }
