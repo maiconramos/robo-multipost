@@ -162,6 +162,37 @@ const CopyButton = ({
   );
 };
 
+const ExternalLinkIcon = () => (
+  <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+    <polyline points="15 3 21 3 21 9" />
+    <line x1="10" y1="14" x2="21" y2="3" />
+  </svg>
+);
+
+const DocsLinkButton = ({
+  href,
+  label,
+  tooltip,
+}: {
+  href: string;
+  label: string;
+  tooltip?: string;
+}) => (
+  <a
+    className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+    href={href}
+    target="_blank"
+    rel="noopener noreferrer"
+    {...(tooltip
+      ? { 'data-tooltip-id': 'tooltip', 'data-tooltip-content': tooltip }
+      : {})}
+  >
+    <ExternalLinkIcon />
+    {label}
+  </a>
+);
+
 const McpSection = ({
   apiKey,
   mcpBase,
@@ -201,14 +232,10 @@ const McpSection = ({
           </div>
         </div>
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
-          <a
-            className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+          <DocsLinkButton
             href="https://docs.postiz.com/mcp/introduction"
-            target="_blank"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-            {t('read_the_docs', 'Docs')}
-          </a>
+            label={t('read_the_docs', 'Docs')}
+          />
         </div>
       </div>
       <div className="p-[20px] flex flex-col gap-[16px]">
@@ -375,14 +402,10 @@ const CliSection = ({
           </div>
         </div>
         <div className="flex gap-[6px] shrink-0 pt-[2px]">
-          <a
-            className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+          <DocsLinkButton
             href="https://docs.postiz.com/cli/introduction"
-            target="_blank"
-          >
-            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
-            {t('read_the_docs', 'Docs')}
-          </a>
+            label={t('read_the_docs', 'Docs')}
+          />
         </div>
       </div>
       <div className="p-[20px] flex flex-col gap-[16px]">
@@ -445,6 +468,7 @@ const ApiKeyCard = ({
   onReveal,
   onRotate,
   extraActions,
+  docsUrl,
 }: {
   title: string;
   description: string;
@@ -453,6 +477,7 @@ const ApiKeyCard = ({
   onReveal: () => void;
   onRotate: () => void;
   extraActions?: React.ReactNode;
+  docsUrl?: string;
 }) => {
   const t = useT();
   return (
@@ -462,6 +487,15 @@ const ApiKeyCard = ({
           <div className="text-[15px] font-[600]">{title}</div>
           <div className="text-[13px] text-customColor18 mt-[2px]">{description}</div>
         </div>
+        {docsUrl && (
+          <div className="flex gap-[6px] shrink-0 pt-[2px]">
+            <DocsLinkButton
+              href={docsUrl}
+              label={t('read_the_docs', 'Docs')}
+              tooltip={t('api_reference_tooltip', 'Documentação da API (Swagger)')}
+            />
+          </div>
+        )}
       </div>
       <div className="p-[20px] flex flex-col gap-[16px]">
         <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
@@ -499,8 +533,11 @@ const ProfileApiKeySection = ({ profileId }: { profileId: string }) => {
   const toaster = useToaster();
   const decision = useDecisionModal();
   const { mutate } = useSWRConfig();
+  const { backendUrl } = useVariables();
   const t = useT();
   const [reveal, setReveal] = useState(false);
+
+  const docsUrl = `${backendUrl}/docs`;
 
   const generateKey = useCallback(async () => {
     await fetch(`/profiles/${profileId}/api-key/rotate`, { method: 'POST' });
@@ -527,9 +564,18 @@ const ProfileApiKeySection = ({ profileId }: { profileId: string }) => {
   if (!user.profileApiKey) {
     return (
       <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-        <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder">
-          <div className="text-[15px] font-[600]">{t('profile_api_key', 'Profile API Key')}</div>
-          <div className="text-[13px] text-customColor18 mt-[2px]">{t('profile_api_key_description', 'Scoped access to this profile only.')}</div>
+        <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+          <div>
+            <div className="text-[15px] font-[600]">{t('profile_api_key', 'Profile API Key')}</div>
+            <div className="text-[13px] text-customColor18 mt-[2px]">{t('profile_api_key_description', 'Scoped access to this profile only.')}</div>
+          </div>
+          <div className="flex gap-[6px] shrink-0 pt-[2px]">
+            <DocsLinkButton
+              href={docsUrl}
+              label={t('read_the_docs', 'Docs')}
+              tooltip={t('api_reference_tooltip', 'Documentação da API (Swagger)')}
+            />
+          </div>
         </div>
         <div className="p-[20px]">
           <button type="button" onClick={generateKey} className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]">
@@ -548,6 +594,7 @@ const ProfileApiKeySection = ({ profileId }: { profileId: string }) => {
       reveal={reveal}
       onReveal={() => setReveal(!reveal)}
       onRotate={rotateKey}
+      docsUrl={docsUrl}
     />
   );
 };
@@ -587,6 +634,7 @@ const PublicApiContent = () => {
   }
 
   const mcpBase = mcpUrl || backendUrl;
+  const docsUrl = `${backendUrl}/docs`;
   const activeKey = isDefault ? user.publicApi : (user.profileApiKey ?? user.publicApi);
 
   const wizardButton = (
@@ -630,6 +678,7 @@ const PublicApiContent = () => {
           onReveal={() => setRevealOrg(!revealOrg)}
           onRotate={rotateOrgKey}
           extraActions={wizardButton}
+          docsUrl={docsUrl}
         />
       )}
 
