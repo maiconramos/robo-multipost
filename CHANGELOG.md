@@ -22,6 +22,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Corrigido
 
+- **Automações criadas via API de organização não apareciam na interface**: ao criar um flow com a chave de API da organização (sem `?profileId`), ele era salvo com `profileId` nulo (org-wide) e ficava invisível na listagem de Automações, que filtra por perfil. Agora a criação nunca salva perfil nulo:
+  - Chave de organização sem `profileId` → atribui ao **perfil Default** da org.
+  - Chave de organização com `?profileId` → valida que o perfil pertence à org e usa ele.
+  - Chave de perfil → usa o próprio perfil (como já era).
+  - `profileId` inexistente na org → `400`.
+  - Migração automática no boot (`StartupMigrationService`): flows órfãos já existentes (`profileId` nulo) são atribuídos ao perfil Default da organização — idempotente, então automações criadas antes do fix passam a aparecer.
 - **Automações do Instagram não listavam posts/stories em contas conectadas via Instagram Login**: os seletores de "post/story específico" (Wizard e API) buscavam mídias sempre em `graph.facebook.com`, retornando lista vazia para integrações conectadas via Instagram Login (IG User Token) — caso comum em instâncias self-hosted. Agora o host e o token são resolvidos por `resolveIgRoute` (Facebook Login → `graph.facebook.com`; Instagram Login → `graph.instagram.com`), igual ao restante das automações. Quem usa Facebook Login não é afetado (mesmo comportamento de antes).
 
 ### Segurança

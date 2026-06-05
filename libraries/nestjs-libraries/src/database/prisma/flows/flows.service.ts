@@ -28,6 +28,7 @@ import {
 } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
 import { TypedSearchAttributes } from '@temporalio/common';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
@@ -49,8 +50,43 @@ export class FlowsService {
     private _integrationService: IntegrationService,
     private _integrationManager: IntegrationManager,
     private _credentialService: CredentialService,
-    private _instagramMessaging: InstagramMessagingService
+    private _instagramMessaging: InstagramMessagingService,
+    private _profileService: ProfileService
   ) {}
+
+  /**
+   * Resolve o profileId de ARMAZENAMENTO de um flow novo. NUNCA retorna vazio:
+   * um flow com profileId null fica invisivel na UI por-perfil (a listagem
+   * filtra por profileId exato). Regras:
+   *   - profileId informado (chave por-perfil OU chave de org com ?profileId):
+   *     valida que o perfil pertence a org e usa.
+   *   - sem profileId (chave de org sem ?profileId): usa o perfil Default da org.
+   */
+  private async resolveCreationProfileId(
+    orgId: string,
+    profileId?: string
+  ): Promise<string> {
+    if (profileId) {
+      const profile = await this._profileService.getProfileById(
+        orgId,
+        profileId
+      );
+      if (!profile) {
+        throw new BadRequestException(
+          'Perfil informado nao encontrado nesta organizacao'
+        );
+      }
+      return profileId;
+    }
+
+    const def = await this._profileService.getDefaultProfile(orgId);
+    if (!def) {
+      throw new BadRequestException(
+        'Perfil Default nao encontrado na organizacao'
+      );
+    }
+    return def.id;
+  }
 
   getFlows(orgId: string, profileId?: string) {
     return this._flowsRepository.getFlows(orgId, profileId);
@@ -126,7 +162,11 @@ export class FlowsService {
     if (!check.ok) {
       throw new BadRequestException(check.error);
     }
-    return this._flowsRepository.createFlow(orgId, body, profileId);
+    const resolvedProfileId = await this.resolveCreationProfileId(
+      orgId,
+      profileId
+    );
+    return this._flowsRepository.createFlow(orgId, body, resolvedProfileId);
   }
 
   async checkIntegrationWebhook(
@@ -632,6 +672,10 @@ export class FlowsService {
     if (!check.ok) {
       throw new BadRequestException(check.error);
     }
+    // Nunca cria flow com profileId null (ficaria invisivel na UI por-perfil):
+    // sem profileId -> Default da org; com profileId -> validado. A partir daqui
+    // todo o resto do metodo usa o profileId resolvido.
+    profileId = await this.resolveCreationProfileId(orgId, profileId);
 
     const triggerType = body.triggerType ?? 'comment_on_post';
     const triggerIds =

@@ -12,6 +12,42 @@ export class StartupMigrationService implements OnModuleInit {
     await this.migrateLateToZernio();
     await this.backfillRepostDestinations();
     await this.cleanupExpiredUnmatchedComments();
+    await this.backfillFlowsToDefaultProfile();
+  }
+
+  /**
+   * Atribui flows orfaos (profileId null — criados via chave de API de org
+   * antes da resolucao automatica de perfil) ao perfil Default da org. Sem
+   * isso eles ficam invisiveis na UI por-perfil (a listagem filtra por
+   * profileId exato). Idempotente via count guard; SQL estatico (sem
+   * interpolacao de input — sem risco de injection).
+   */
+  private async backfillFlowsToDefaultProfile() {
+    try {
+      const count = await this.prisma.flow.count({
+        where: { profileId: null },
+      });
+      if (count === 0) {
+        return;
+      }
+
+      this.logger.log(
+        `backfillFlowsToDefaultProfile: ${count} flow(s) sem perfil. Atribuindo ao perfil Default...`
+      );
+
+      await this.prisma.$executeRawUnsafe(`
+        UPDATE "Flow" f
+        SET "profileId" = p.id
+        FROM "Profile" p
+        WHERE p."organizationId" = f."organizationId"
+        AND p."isDefault" = true AND p."deletedAt" IS NULL
+        AND f."profileId" IS NULL
+      `);
+
+      this.logger.log('backfillFlowsToDefaultProfile: concluido.');
+    } catch (error) {
+      this.logger.error('backfillFlowsToDefaultProfile falhou:', error);
+    }
   }
 
   /**
