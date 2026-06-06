@@ -25,6 +25,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Corrigido
 
+- **Adicionar um segundo Instagram nas Credenciais apagava o primeiro**: em Configurações > Credenciais > Token do Instagram, ao cadastrar um segundo token de Instagram no mesmo perfil, a conta anterior sumia e parava de funcionar (automações estilo ManyChat deixavam de responder). Causa: o backend só devolve os tokens em forma redigida (`hasToken`, nunca o token em si), então ao adicionar uma conta nova o frontend remontava a lista com as contas existentes **sem** o token — e o backend descartava qualquer entrada sem token, mantendo apenas a recém-adicionada. Agora entradas sem token cuja conta já estava registrada são preservadas integralmente (token e data de renovação originais), permitindo múltiplos Instagrams por perfil. Quem já perdeu o token antigo precisa recadastrá-lo uma vez.
 - **Automações criadas via API de organização não apareciam na interface**: ao criar um flow com a chave de API da organização (sem `?profileId`), ele era salvo com `profileId` nulo (org-wide) e ficava invisível na listagem de Automações, que filtra por perfil. Agora a criação nunca salva perfil nulo:
   - Chave de organização sem `profileId` → atribui ao **perfil Default** da org.
   - Chave de organização com `?profileId` → valida que o perfil pertence à org e usa ele.

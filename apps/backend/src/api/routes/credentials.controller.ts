@@ -218,8 +218,17 @@ export class CredentialsController {
 
         const validated: IgMessagingTokenEntry[] = [];
         for (const incoming of body.instagramTokens) {
-          if (!incoming.igUserId || !incoming.token) continue;
+          if (!incoming.igUserId) continue;
           const prior = existingMap.get(incoming.igUserId);
+          // The GET endpoint redacts stored tokens (returns `hasToken`, never
+          // the token itself), so when the user adds another account the
+          // frontend rebuilds the list carrying the untouched accounts WITHOUT
+          // their token. Preserve the existing entry instead of dropping it —
+          // otherwise adding a second Instagram silently wipes the first.
+          if (!incoming.token) {
+            if (prior) validated.push(prior);
+            continue;
+          }
           // If the incoming token equals the one we already have, skip revalidation
           // and keep the existing refreshedAt. Otherwise, validate the fresh token.
           if (prior && prior.token === incoming.token) {
