@@ -25,6 +25,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Corrigido
 
+- **Canais do Zernio não apareciam quando havia só o perfil padrão**: ao conectar uma conta (ex.: Instagram) no perfil **Default** do Zernio e tentar adicioná-la em Lançamentos > Adicionar Canal > Zernio, o modal mostrava "Nenhuma conta conectada encontrada neste perfil", mesmo com a conta conectada no Zernio. As contas só apareciam depois de criar um segundo perfil no Zernio. Causa: o modal buscava as contas usando `selectedProfileId` (preenchido apenas quando o usuário **clica** num perfil), mas com um único perfil a seleção é automática e só atualiza `effectiveProfileId` — então a busca de contas nunca era disparada. Agora a busca usa `effectiveProfileId`, carregando as contas do perfil único (default) sem exigir clique.
 - **Automações criadas via API de organização não apareciam na interface**: ao criar um flow com a chave de API da organização (sem `?profileId`), ele era salvo com `profileId` nulo (org-wide) e ficava invisível na listagem de Automações, que filtra por perfil. Agora a criação nunca salva perfil nulo:
   - Chave de organização sem `profileId` → atribui ao **perfil Default** da org.
   - Chave de organização com `?profileId` → valida que o perfil pertence à org e usa ele.

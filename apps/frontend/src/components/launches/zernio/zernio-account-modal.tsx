@@ -58,8 +58,6 @@ export const ZernioAccountModal: FC<{
 
   const { data: profilesData, isLoading: profilesLoading } =
     useZernioProfiles();
-  const { data: accountsData, isLoading: accountsLoading } =
-    useZernioAccounts(selectedProfileId);
 
   // Auto-select if only one profile
   const profiles = profilesData?.profiles || [];
@@ -69,6 +67,13 @@ export const ZernioAccountModal: FC<{
   }, [profiles]);
 
   const effectiveProfileId = selectedProfileId || autoSelectedProfileId;
+
+  // Fetch accounts for the EFFECTIVE profile — the one auto-selected when there
+  // is a single (default) Zernio profile, or the one the user picked when there
+  // are several. Keying off selectedProfileId here would leave a lone default
+  // profile's accounts unfetched (it is never clicked), so they would never show.
+  const { data: accountsData, isLoading: accountsLoading } =
+    useZernioAccounts(effectiveProfileId);
 
   // Group accounts by platform
   const groupedAccounts = useMemo(() => {
