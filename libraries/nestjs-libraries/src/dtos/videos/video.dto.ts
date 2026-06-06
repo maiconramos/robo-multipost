@@ -2,6 +2,7 @@ import {
   IsIn, Validate, ValidationArguments, ValidatorConstraint, ValidatorConstraintInterface
 } from 'class-validator';
 import { VideoAbstract } from '@gitroom/nestjs-libraries/videos/video.interface';
+import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 
 @ValidatorConstraint({ name: 'checkInRuntime', async: false })
 export class ValidIn implements ValidatorConstraintInterface {
@@ -24,11 +25,14 @@ export class ValidIn implements ValidatorConstraintInterface {
 }
 
 export class VideoDto {
+  @ApiProperty({ description: 'Identificador do tipo de vídeo (validado em runtime contra os geradores disponíveis).' })
   @Validate(ValidIn)
   type: string;
 
+  @ApiProperty({ enum: ['vertical', 'horizontal'], description: 'Orientação do vídeo de saída.' })
   @IsIn(['vertical', 'horizontal'])
   output: 'vertical' | 'horizontal';
 
+  @ApiPropertyOptional({ description: 'Parâmetros específicos do tipo de vídeo (chave/valor).' })
   customParams: any;
 }

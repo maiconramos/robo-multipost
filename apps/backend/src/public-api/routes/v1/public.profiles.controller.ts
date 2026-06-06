@@ -1,5 +1,5 @@
 import { Controller, Get } from '@nestjs/common';
-import { ApiTags, ApiSecurity } from '@nestjs/swagger';
+import { ApiTags, ApiSecurity, ApiOperation, ApiResponse } from '@nestjs/swagger';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetPublicApiProfileId } from '@gitroom/nestjs-libraries/user/public.api.profile.from.request';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
@@ -13,6 +13,12 @@ export class PublicProfilesController {
   constructor(private _profileService: ProfileService) {}
 
   @Get('/profiles')
+  @ApiOperation({
+    summary: 'Listar perfis',
+    description:
+      'Lista os perfis da organização. Chave de org retorna todos; chave de perfil retorna apenas o próprio. Use o `id` como `?profileId` ao criar posts/automações.',
+  })
+  @ApiResponse({ status: 200, description: 'Lista de perfis (id, name, isDefault, hasApiKey).' })
   async listProfiles(
     @GetOrgFromRequest() org: Organization,
     @GetPublicApiProfileId() publicApiProfileId: string | undefined
