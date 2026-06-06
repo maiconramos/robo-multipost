@@ -25,6 +25,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Corrigido
 
+- **Build quebrado nos testes (CI) por erro de tipo na API pública**: a suíte `pnpm test` (ts-jest) falhava ao compilar `public.integrations.controller.ts` com `TS7018` — a const `POST_BODY_EXAMPLES` (exemplos do Swagger para `POST /public/v1/posts`) tinha arrays vazios (`tags: []`, `image: []`) cujo tipo era inferido como `any[]` implícito sob `noImplicitAny`. O `build:backend` (transpile sem type-check) não pegava, mas o CI sim, deixando todos os PRs vermelhos. A const passou a ser tipada como `Record<string, { summary: string; value: any }>`. Sem mudança de comportamento.
 - **Automações criadas via API de organização não apareciam na interface**: ao criar um flow com a chave de API da organização (sem `?profileId`), ele era salvo com `profileId` nulo (org-wide) e ficava invisível na listagem de Automações, que filtra por perfil. Agora a criação nunca salva perfil nulo:
   - Chave de organização sem `profileId` → atribui ao **perfil Default** da org.
   - Chave de organização com `?profileId` → valida que o perfil pertence à org e usa ele.

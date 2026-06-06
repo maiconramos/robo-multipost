@@ -54,7 +54,7 @@ import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 // Exemplos prontos exibidos no Swagger para POST /public/v1/posts. O body e
 // processado como `any` (mapeado para CreatePostDto), entao fornecemos exemplos
 // completos e copiaveis para quem usa a API/n8n.
-const POST_BODY_EXAMPLES = {
+const POST_BODY_EXAMPLES: Record<string, { summary: string; value: any }> = {
   'publicar-agora': {
     summary: 'Publicar agora (type=now) com imagem',
     value: {
