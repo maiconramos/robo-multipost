@@ -43,7 +43,7 @@ import { GetNotificationsDto } from '@gitroom/nestjs-libraries/dtos/notification
 import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
 import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { Readable } from 'stream';
-import { lookup, extension } from 'mime-types';
+import { detectAllowedUploadMime } from '@gitroom/nestjs-libraries/upload/allowed.upload.mime';
 import * as Sentry from '@sentry/nestjs';
 import { socialIntegrationList, IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { getValidationSchemas } from '@gitroom/nestjs-libraries/chat/validation.schemas.helper';
@@ -187,14 +187,14 @@ export class PublicIntegrationsController {
     }
 
     const buffer = Buffer.from(await response.arrayBuffer());
-    const contentTypeHeader = response.headers?.get('content-type');
-    const responseMime =
-      typeof contentTypeHeader === 'string'
-        ? contentTypeHeader.split(';')[0]?.trim()
-        : undefined;
-    const urlMime = lookup(body?.url?.split?.('?')?.[0]);
-    const mimetype = (urlMime || responseMime || 'image/jpeg') as string;
-    const ext = extension(mimetype) || 'jpg';
+    // Valida pelo conteudo real (magic bytes), nao pelo Content-Type/extensao
+    // declarados (forjaveis). Rejeita SVG/HTML e outros vetores de XSS.
+    const detected = await detectAllowedUploadMime(buffer);
+    if (!detected) {
+      throw new HttpException({ msg: 'Unsupported file type.' }, 400);
+    }
+    const mimetype = detected.mime;
+    const ext = detected.ext;
 
     const getFile = await this.storage.uploadFile({
       buffer,
