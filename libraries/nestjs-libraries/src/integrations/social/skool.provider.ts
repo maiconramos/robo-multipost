@@ -31,10 +31,22 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
     client_id: string;
     auth_token: string;
   } {
-    return AuthService.verifyJWT(integration.customInstanceDetails!) as {
-      client_id: string;
-      auth_token: string;
-    };
+    const stored = integration.customInstanceDetails!;
+    try {
+      // Formato atual: credenciais guardadas como JSON encriptado em repouso (AES).
+      return JSON.parse(AuthService.fixedDecryption(stored)) as {
+        client_id: string;
+        auth_token: string;
+      };
+    } catch {
+      // Formato legado: contas Skool conectadas antes da mudanca de formato
+      // guardavam as credenciais como JWT assinado. Lemos assim para que
+      // contas ja conectadas continuem funcionando sem reconectar.
+      return AuthService.verifyJWT(stored) as {
+        client_id: string;
+        auth_token: string;
+      };
+    }
   }
 
   override handleErrors(
@@ -106,7 +118,7 @@ export class SkoolProvider extends SocialAbstract implements SocialProvider {
       return {
         refreshToken: '',
         expiresIn: dayjs().add(100, 'year').unix() - dayjs().unix(),
-        accessToken: AuthService.signJWT(cookies),
+        accessToken: AuthService.fixedEncryption(JSON.stringify(cookies)),
         id: data.id,
         name: data.first_name + ' ' + data.last_name,
         picture: data.metadata.picture_profile || '',
