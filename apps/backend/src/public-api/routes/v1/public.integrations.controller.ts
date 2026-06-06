@@ -40,7 +40,8 @@ import { VideoFunctionDto } from '@gitroom/nestjs-libraries/dtos/videos/video.fu
 import { UploadDto } from '@gitroom/nestjs-libraries/dtos/media/upload.dto';
 import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service';
 import { GetNotificationsDto } from '@gitroom/nestjs-libraries/dtos/notifications/get.notifications.dto';
-import axios from 'axios';
+import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
+import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { Readable } from 'stream';
 import { lookup, extension } from 'mime-types';
 import * as Sentry from '@sentry/nestjs';
@@ -172,14 +173,21 @@ export class PublicIntegrationsController {
     @Body() body: UploadDto
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    const response = await axios.get(body.url, {
-      responseType: 'arraybuffer',
+    // Validacao SSRF + DNS-pinning (fecha a janela TOCTOU): a URL e fornecida
+    // pelo usuario, entao so seguimos para hosts publicos seguros.
+    if (!(await isSafePublicHttpsUrl(body.url))) {
+      throw new HttpException({ msg: 'Unsafe URL' }, 400);
+    }
+    const response = await fetch(body.url, {
+      // @ts-ignore — undici option, not in lib.dom fetch types
+      dispatcher: ssrfSafeDispatcher,
     });
+    if (!response.ok) {
+      throw new HttpException({ msg: 'Failed to fetch URL' }, 400);
+    }
 
-    const buffer = Buffer.from(response.data);
-    // AxiosHeaderValue agora é union (string | string[] | number | boolean);
-    // só fazemos split em string.
-    const contentTypeHeader = response.headers?.['content-type'];
+    const buffer = Buffer.from(await response.arrayBuffer());
+    const contentTypeHeader = response.headers?.get('content-type');
     const responseMime =
       typeof contentTypeHeader === 'string'
         ? contentTypeHeader.split(';')[0]?.trim()

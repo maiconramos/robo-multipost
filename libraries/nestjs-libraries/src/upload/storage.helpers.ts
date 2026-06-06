@@ -1,3 +1,6 @@
+import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
+import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+
 /**
  * Resolve um `path` para `{ buffer, contentType, extension }` aceitando
  * tanto URLs HTTP(S) quanto data URLs (`data:image/png;base64,...`).
@@ -7,6 +10,10 @@
  * fluxo de geracao de imagem com IA devolve base64 e o controller monta
  * data URL antes de chamar `storage.uploadSimple`, sem este helper o
  * upload falha.
+ *
+ * URLs HTTP(S) (fornecidas pelo usuario) passam por validacao SSRF
+ * (`isSafePublicHttpsUrl`) e usam o `ssrfSafeDispatcher` (DNS-pinning) para
+ * fechar a janela TOCTOU. Data URLs nao tocam a rede.
  */
 export async function loadFromUrlOrDataUrl(path: string): Promise<{
   buffer: Buffer;
@@ -31,7 +38,13 @@ export async function loadFromUrlOrDataUrl(path: string): Promise<{
     return { buffer, contentType, extension };
   }
 
-  const res = await fetch(path);
+  if (!(await isSafePublicHttpsUrl(path))) {
+    throw new Error('Unsafe URL');
+  }
+  const res = await fetch(path, {
+    // @ts-ignore — undici option, not in lib.dom fetch types
+    dispatcher: ssrfSafeDispatcher,
+  });
   const contentType =
     res?.headers?.get('content-type') ||
     res?.headers?.get('Content-Type') ||

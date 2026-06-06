@@ -27,6 +27,7 @@ import { Readable, pipeline } from 'stream';
 import { promisify } from 'util';
 import { OnlyURL } from '@gitroom/nestjs-libraries/dtos/webhooks/webhooks.dto';
 import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
+import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
 import { CommentKind } from '@prisma/client';
 
@@ -267,6 +268,8 @@ export class PublicController {
       r = await fetch(currentUrl, {
         signal: ac.signal,
         redirect: 'manual',
+        // @ts-ignore — undici option, not in lib.dom fetch types
+        dispatcher: ssrfSafeDispatcher,
       });
 
       if (r.status >= 300 && r.status < 400) {
