@@ -36,6 +36,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
   - Chave de perfil → usa o próprio perfil (como já era).
   - `profileId` inexistente na org → `400`.
   - Migração automática no boot (`StartupMigrationService`): flows órfãos já existentes (`profileId` nulo) são atribuídos ao perfil Default da organização — idempotente, então automações criadas antes do fix passam a aparecer.
+- **Posts agendados via API/MCP de organização não apareciam no calendário**: ao agendar um post com a chave de organização (sem `profileId` no contexto), ele era salvo com `profileId` nulo e ficava invisível no Calendário, que filtra pelo perfil selecionado. Agora `createPost` herda o perfil **do canal de destino** quando nenhum perfil é informado — todo canal pertence a exatamente um perfil, então o post cai no calendário correto na hora (sem depender do restart que aciona a varredura de órfãos).
 - **Automações do Instagram não listavam posts/stories em contas conectadas via Instagram Login**: os seletores de "post/story específico" (Wizard e API) buscavam mídias sempre em `graph.facebook.com`, retornando lista vazia para integrações conectadas via Instagram Login (IG User Token) — caso comum em instâncias self-hosted. Agora o host e o token são resolvidos por `resolveIgRoute` (Facebook Login → `graph.facebook.com`; Instagram Login → `graph.instagram.com`), igual ao restante das automações. Quem usa Facebook Login não é afetado (mesmo comportamento de antes).
 
 ### Segurança

@@ -756,6 +756,19 @@ export class PostsService {
         content: updateContent[i],
       }));
 
+      // Posts inherit the profile of their target channel when no explicit
+      // profileId is provided (e.g. org-scoped public API / MCP keys). Without
+      // this, the post is created orphaned (profileId NULL) and stays invisible
+      // in every profile-filtered calendar until the startup orphan migration.
+      let effectiveProfileId = profileId;
+      if (!effectiveProfileId && post?.integration?.id) {
+        const integration = await this._integrationService.getIntegrationById(
+          orgId,
+          post.integration.id
+        );
+        effectiveProfileId = integration?.profileId ?? undefined;
+      }
+
       const { posts } = await this._postRepository.createOrUpdatePost(
         body.type,
         orgId,
@@ -763,7 +776,7 @@ export class PostsService {
         post,
         body.tags,
         body.inter,
-        profileId
+        effectiveProfileId
       );
 
       if (!posts?.length) {
