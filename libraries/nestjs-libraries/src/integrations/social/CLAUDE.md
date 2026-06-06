@@ -99,6 +99,7 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 |---|---|
 | `../social.abstract.ts` | Base class + error classes (`RefreshToken`, `BadBody`, `NotEnoughScopes`) |
 | `social.integrations.interface.ts` | Interfaces (`SocialProvider`, `ClientInformation`, `AuthTokenDetails`, `PostDetails`, `PostResponse`) |
+| `facebook.provider.ts` | FB Page via Facebook Login (Page Access Token, host `graph.facebook.com`). `post()` ramifica por `settings.post_type`: feed/reel (`/photos`+`/feed`, `/videos`) **ou** Story — foto via `/photo_stories` (upload unpublished → `photo_id`) e vídeo via `/video_stories` (upload resumável 3 fases: `start`→rupload com header `file_url`→`finish`). Story não tem carrossel: cada mídia vira um story separado. Scopes de Story já estão nos `scopes` do provider (sem reconexão) |
 | `instagram.provider.ts` | IG via Facebook Login (Page Access Token, host `graph.facebook.com`); includes `getMediaMetadata(mediaId, token, host?)` for inbox/dark-post enrichment |
 | `instagram.standalone.provider.ts` | IG via Instagram Login (IG User Token, host `graph.instagram.com`) — preferred for self-hosted |
 | `instagram-route.resolver.ts` | `resolveIgRoute` — picks the correct host/token |

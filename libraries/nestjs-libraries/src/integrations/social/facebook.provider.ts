@@ -8,7 +8,7 @@ import {
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import dayjs from 'dayjs';
-import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import { BadBody, SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { FacebookDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/facebook.dto';
 import { DribbbleDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/dribbble.dto';
 import { Integration } from '@prisma/client';
@@ -493,6 +493,12 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
   ): Promise<PostResponse[]> {
     const [firstPost] = postDetails;
 
+    // Facebook Page Stories: publica via /photo_stories e /video_stories.
+    // Story nao tem carrossel — cada midia vira um story separado, igual ao IG.
+    if (firstPost?.settings?.post_type === 'story') {
+      return this.postStory(id, accessToken, firstPost);
+    }
+
     let finalId = '';
     let finalUrl = '';
     if ((firstPost?.media?.[0]?.path?.indexOf('mp4') || -2) > -1) {
@@ -583,6 +589,127 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
         status: 'success',
       },
     ];
+  }
+
+  // Publica uma ou mais midias como Facebook Page Stories. Story nao suporta
+  // carrossel, entao cada midia e publicada como um story independente —
+  // mesmo comportamento do InstagramProvider para stories com multiplas midias.
+  private async postStory(
+    id: string,
+    accessToken: string,
+    firstPost: PostDetails<FacebookDto>
+  ): Promise<PostResponse[]> {
+    const medias = firstPost?.media || [];
+    if (!medias.length) {
+      // A validacao do frontend (checkValidity) ja impede isso; guarda defensiva.
+      throw new BadBody(
+        'facebook-story',
+        '{}',
+        '{}',
+        'Facebook Stories require at least one media'
+      );
+    }
+
+    let lastPostId = '';
+    for (const media of medias) {
+      const isVideo = (media?.path?.indexOf('mp4') || -2) > -1;
+      lastPostId = isVideo
+        ? await this.uploadVideoStory(id, accessToken, media.path)
+        : await this.uploadPhotoStory(id, accessToken, media.path);
+    }
+
+    return [
+      {
+        id: firstPost.id,
+        postId: lastPostId,
+        releaseURL: `https://www.facebook.com/${lastPostId}`,
+        status: 'success',
+      },
+    ];
+  }
+
+  // Story de foto: faz upload da imagem como nao-publicada para obter o photo_id
+  // e em seguida publica via /photo_stories. Retorna o post_id do story.
+  private async uploadPhotoStory(
+    id: string,
+    accessToken: string,
+    url: string
+  ): Promise<string> {
+    const { id: photoId } = await (
+      await this.fetch(
+        `https://graph.facebook.com/v20.0/${id}/photos?access_token=${accessToken}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ url, published: false }),
+        },
+        'upload story photo'
+      )
+    ).json();
+
+    const { post_id } = await (
+      await this.fetch(
+        `https://graph.facebook.com/v20.0/${id}/photo_stories?access_token=${accessToken}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ photo_id: photoId }),
+        },
+        'publish photo story'
+      )
+    ).json();
+
+    return String(post_id || photoId);
+  }
+
+  // Story de video: upload resumavel em 3 fases (start -> upload -> finish).
+  // No upload usamos o header `file_url` para a Meta buscar o arquivo do nosso
+  // storage hospedado (R2/local com URL publica), evitando streamar bytes.
+  private async uploadVideoStory(
+    id: string,
+    accessToken: string,
+    fileUrl: string
+  ): Promise<string> {
+    // Fase 1 — start: cria a sessao e devolve video_id + upload_url (rupload).
+    const { video_id, upload_url } = await (
+      await this.fetch(
+        `https://graph.facebook.com/v20.0/${id}/video_stories?access_token=${accessToken}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ upload_phase: 'start' }),
+        },
+        'start video story'
+      )
+    ).json();
+
+    // Fase 2 — upload hospedado: Meta busca o arquivo pela URL.
+    await this.fetch(
+      upload_url,
+      {
+        method: 'POST',
+        headers: {
+          Authorization: `OAuth ${accessToken}`,
+          file_url: fileUrl,
+        },
+      },
+      'upload video story'
+    );
+
+    // Fase 3 — finish: publica o story.
+    const { post_id } = await (
+      await this.fetch(
+        `https://graph.facebook.com/v20.0/${id}/video_stories?access_token=${accessToken}`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ upload_phase: 'finish', video_id }),
+        },
+        'finish video story'
+      )
+    ).json();
+
+    return String(post_id || video_id);
   }
 
   async comment(
