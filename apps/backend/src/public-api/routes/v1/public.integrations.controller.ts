@@ -11,7 +11,16 @@ import {
   UploadedFile,
   UseInterceptors,
 } from '@nestjs/common';
-import { ApiTags, ApiSecurity } from '@nestjs/swagger';
+import {
+  ApiTags,
+  ApiSecurity,
+  ApiOperation,
+  ApiBody,
+  ApiParam,
+  ApiQuery,
+  ApiResponse,
+  ApiConsumes,
+} from '@nestjs/swagger';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetPublicApiProfileId } from '@gitroom/nestjs-libraries/user/public.api.profile.from.request';
 import { Organization } from '@prisma/client';
@@ -42,6 +51,64 @@ import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abst
 import { timer } from '@gitroom/helpers/utils/timer';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 
+// Exemplos prontos exibidos no Swagger para POST /public/v1/posts. O body e
+// processado como `any` (mapeado para CreatePostDto), entao fornecemos exemplos
+// completos e copiaveis para quem usa a API/n8n.
+const POST_BODY_EXAMPLES = {
+  'publicar-agora': {
+    summary: 'Publicar agora (type=now) com imagem',
+    value: {
+      type: 'now',
+      date: '2026-06-10T14:30:00Z',
+      shortLink: false,
+      tags: [],
+      posts: [
+        {
+          integration: { id: 'SEU_INTEGRATION_ID' },
+          value: [
+            {
+              content: 'Meu post de teste 🚀',
+              image: [{ id: 'media-1', path: 'https://seu-cdn.com/imagem.jpg' }],
+            },
+          ],
+          settings: { __type: 'instagram' },
+        },
+      ],
+    },
+  },
+  'agendar-data': {
+    summary: 'Agendar para uma data futura (type=schedule)',
+    value: {
+      type: 'schedule',
+      date: '2026-06-15T09:00:00Z',
+      shortLink: false,
+      tags: [],
+      posts: [
+        {
+          integration: { id: 'SEU_INTEGRATION_ID' },
+          value: [{ content: 'Post agendado 📅', image: [] }],
+          settings: { __type: 'instagram' },
+        },
+      ],
+    },
+  },
+  'rascunho': {
+    summary: 'Salvar como rascunho (type=draft)',
+    value: {
+      type: 'draft',
+      date: '2026-06-15T09:00:00Z',
+      shortLink: false,
+      tags: [],
+      posts: [
+        {
+          integration: { id: 'SEU_INTEGRATION_ID' },
+          value: [{ content: 'Rascunho de post ✍️', image: [] }],
+        },
+      ],
+    },
+  },
+};
+
 @ApiTags('Public API')
 @ApiSecurity('api-key')
 @Controller('/public/v1')
@@ -58,6 +125,21 @@ export class PublicIntegrationsController {
   ) {}
 
   @Post('/upload')
+  @ApiOperation({
+    summary: 'Upload de um arquivo de mídia (multipart)',
+    description:
+      'Envie o arquivo no campo `file` (multipart/form-data). Retorna o objeto de mídia salvo (com `id` e `path`) para usar em `image[].path` ao criar um post.',
+  })
+  @ApiConsumes('multipart/form-data')
+  @ApiBody({
+    schema: {
+      type: 'object',
+      properties: { file: { type: 'string', format: 'binary' } },
+    },
+  })
+  @ApiResponse({ status: 201, description: 'Arquivo salvo (retorna id + path).' })
+  @ApiResponse({ status: 400, description: 'Nenhum arquivo enviado.' })
+  @ApiResponse({ status: 401, description: 'Chave de API ausente ou inválida.' })
   @UseInterceptors(FileInterceptor('file'))
   async uploadSimple(
     @GetOrgFromRequest() org: Organization,
@@ -77,6 +159,14 @@ export class PublicIntegrationsController {
   }
 
   @Post('/upload-from-url')
+  @ApiOperation({
+    summary: 'Upload de mídia a partir de uma URL',
+    description:
+      'Baixa a mídia da `url` informada e salva. Retorna o objeto de mídia (com `id` e `path`) para usar em `image[].path` ao criar um post.',
+  })
+  @ApiResponse({ status: 201, description: 'Mídia da URL salva (retorna id + path).' })
+  @ApiResponse({ status: 400, description: 'URL inválida ou inacessível.' })
+  @ApiResponse({ status: 401, description: 'Chave de API ausente ou inválida.' })
   async uploadsFromUrl(
     @GetOrgFromRequest() org: Organization,
     @Body() body: UploadDto
@@ -119,6 +209,12 @@ export class PublicIntegrationsController {
   }
 
   @Get('/find-slot/:id')
+  @ApiOperation({
+    summary: 'Próximo horário livre para agendar',
+    description: 'Retorna `{ date }` com o próximo horário disponível para agendar um post no canal.',
+  })
+  @ApiParam({ name: 'id', required: false, description: 'integrationId (opcional)' })
+  @ApiResponse({ status: 200, description: 'Horário livre encontrado.' })
   async findSlotIntegration(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id?: string
@@ -128,6 +224,12 @@ export class PublicIntegrationsController {
   }
 
   @Get('/posts')
+  @ApiOperation({
+    summary: 'Listar posts',
+    description: 'Lista os posts da organização no intervalo `startDate`–`endDate`.',
+  })
+  @ApiResponse({ status: 200, description: 'Lista de posts.' })
+  @ApiResponse({ status: 400, description: 'Parâmetros de query inválidos.' })
   async getPosts(
     @GetOrgFromRequest() org: Organization,
     @Query() query: GetPostsDto
@@ -141,6 +243,19 @@ export class PublicIntegrationsController {
   }
 
   @Post('/posts')
+  @ApiOperation({
+    summary: 'Criar / agendar um post',
+    description:
+      'Cria um post (publicar agora, agendar ou rascunho). Cada item de `posts` mira um canal (`integration.id`, de GET /public/v1/integrations) com `value[].content` (texto) e `value[].image[]` (mídias de GET /public/v1/upload). `settings.__type` deve ser o identificador do provider (ex.: "instagram", "x", "facebook").',
+  })
+  @ApiBody({
+    schema: { type: 'object', additionalProperties: true },
+    examples: POST_BODY_EXAMPLES,
+  })
+  @ApiResponse({ status: 201, description: 'Post criado.' })
+  @ApiResponse({ status: 400, description: 'Dados do post inválidos.' })
+  @ApiResponse({ status: 401, description: 'Chave de API ausente ou inválida.' })
+  @ApiResponse({ status: 403, description: 'Limite mensal de posts atingido.' })
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
   async createPost(
     @GetOrgFromRequest() org: Organization,
@@ -159,6 +274,10 @@ export class PublicIntegrationsController {
   }
 
   @Delete('/posts/:id')
+  @ApiOperation({ summary: 'Excluir um post (e seu grupo)' })
+  @ApiParam({ name: 'id', description: 'ID do post' })
+  @ApiResponse({ status: 200, description: 'Post excluído.' })
+  @ApiResponse({ status: 404, description: 'Post não encontrado.' })
   async deletePost(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -169,6 +288,8 @@ export class PublicIntegrationsController {
   }
 
   @Delete('/posts/group/:group')
+  @ApiOperation({ summary: 'Excluir todos os posts de um grupo' })
+  @ApiParam({ name: 'group', description: 'ID do grupo de posts' })
   deletePostByGroup(
     @GetOrgFromRequest() org: Organization,
     @Param('group') group: string
@@ -178,12 +299,25 @@ export class PublicIntegrationsController {
   }
 
   @Get('/is-connected')
+  @ApiOperation({ summary: 'Healthcheck da chave de API', description: 'Retorna `{ connected: true }` se a chave for válida.' })
   async getActiveIntegrations(@GetOrgFromRequest() org: Organization) {
     Sentry.metrics.count('public_api-request', 1);
     return { connected: true };
   }
 
   @Get('/integrations')
+  @ApiOperation({
+    summary: 'Listar canais (integrações)',
+    description:
+      'Lista os canais conectados (Instagram, X, Facebook, etc.). Use o `id` retornado como `integrationId` ao criar posts/automações.',
+  })
+  @ApiQuery({
+    name: 'profileId',
+    required: false,
+    description: 'Filtra por perfil (chave de org). Chave de perfil só vê o próprio.',
+  })
+  @ApiResponse({ status: 200, description: 'Lista de canais (id, name, identifier, picture, ...).' })
+  @ApiResponse({ status: 403, description: 'Chave de perfil tentando acessar outro perfil.' })
   async listIntegration(
     @GetOrgFromRequest() org: Organization,
     @GetPublicApiProfileId() publicApiProfileId: string | undefined,
@@ -213,6 +347,8 @@ export class PublicIntegrationsController {
   }
 
   @Get('/social/:integration')
+  @ApiOperation({ summary: 'URL de OAuth para conectar um canal', description: 'Gera a URL de autenticação OAuth do provider.' })
+  @ApiParam({ name: 'integration', description: 'Identificador do provider (ex.: instagram, x)' })
   @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
   async getIntegrationUrl(
     @Param('integration') integration: string,
@@ -256,6 +392,8 @@ export class PublicIntegrationsController {
   }
 
   @Get('/notifications')
+  @ApiOperation({ summary: 'Listar notificações (paginadas)' })
+  @ApiResponse({ status: 200, description: 'Notificações paginadas.' })
   async getNotifications(
     @GetOrgFromRequest() org: Organization,
     @Query() query: GetNotificationsDto
@@ -268,6 +406,9 @@ export class PublicIntegrationsController {
   }
 
   @Post('/generate-video')
+  @ApiOperation({ summary: 'Gerar um vídeo (IA)', description: 'Gera um vídeo a partir do `type` e parâmetros.' })
+  @ApiResponse({ status: 201, description: 'Vídeo gerado.' })
+  @ApiResponse({ status: 400, description: 'Parâmetros inválidos.' })
   generateVideo(
     @GetOrgFromRequest() org: Organization,
     @Body() body: VideoDto
@@ -277,6 +418,7 @@ export class PublicIntegrationsController {
   }
 
   @Post('/video/function')
+  @ApiOperation({ summary: 'Executar função auxiliar de geração de vídeo' })
   videoFunction(@Body() body: VideoFunctionDto) {
     Sentry.metrics.count('public_api-request', 1);
     return this._mediaService.videoFunction(
@@ -287,6 +429,8 @@ export class PublicIntegrationsController {
   }
 
   @Delete('/integrations/:id')
+  @ApiOperation({ summary: 'Excluir um canal (integração) e seus posts' })
+  @ApiParam({ name: 'id', description: 'integrationId' })
   async deleteChannel(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -306,6 +450,8 @@ export class PublicIntegrationsController {
   }
 
   @Get('/integration-settings/:id')
+  @ApiOperation({ summary: 'Configurações/validação de um canal' })
+  @ApiParam({ name: 'id', description: 'integrationId' })
   async getIntegrationSettings(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -349,6 +495,8 @@ export class PublicIntegrationsController {
   }
 
   @Get('/posts/:id/missing')
+  @ApiOperation({ summary: 'Conteúdo faltante de um post' })
+  @ApiParam({ name: 'id', description: 'ID do post' })
   async getMissingContent(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string
@@ -358,6 +506,8 @@ export class PublicIntegrationsController {
   }
 
   @Put('/posts/:id/release-id')
+  @ApiOperation({ summary: 'Atualizar o release id de um post' })
+  @ApiParam({ name: 'id', description: 'ID do post' })
   async updateReleaseId(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
@@ -368,6 +518,13 @@ export class PublicIntegrationsController {
   }
 
   @Get('/analytics/:integration')
+  @ApiOperation({
+    summary: 'Analytics de um canal',
+    description: 'Estatísticas do canal nos últimos `date` dias.',
+  })
+  @ApiParam({ name: 'integration', description: 'integrationId do canal' })
+  @ApiQuery({ name: 'date', description: 'Janela em dias (ex.: 7, 30)' })
+  @ApiResponse({ status: 200, description: 'Dados analíticos do canal.' })
   async getAnalytics(
     @GetOrgFromRequest() org: Organization,
     @Param('integration') integration: string,
@@ -378,6 +535,10 @@ export class PublicIntegrationsController {
   }
 
   @Get('/analytics/post/:postId')
+  @ApiOperation({ summary: 'Analytics de um post específico' })
+  @ApiParam({ name: 'postId', description: 'ID do post' })
+  @ApiQuery({ name: 'date', description: 'Janela em dias' })
+  @ApiResponse({ status: 200, description: 'Estatísticas do post.' })
   async getPostAnalytics(
     @GetOrgFromRequest() org: Organization,
     @Param('postId') postId: string,
@@ -388,6 +549,8 @@ export class PublicIntegrationsController {
   }
 
   @Post('/integration-trigger/:id')
+  @ApiOperation({ summary: 'Executar ferramenta nativa de um canal' })
+  @ApiParam({ name: 'id', description: 'integrationId' })
   async triggerIntegrationTool(
     @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
