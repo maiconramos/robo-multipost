@@ -615,6 +615,12 @@ function buildSettingsForFormat(input: {
         __type: 'facebook',
         ...trace,
       };
+    case 'FACEBOOK_STORY':
+      return {
+        __type: 'facebook',
+        post_type: 'story',
+        ...trace,
+      };
     case 'TIKTOK_FEED':
       return {
         __type: input.providerIdentifier,

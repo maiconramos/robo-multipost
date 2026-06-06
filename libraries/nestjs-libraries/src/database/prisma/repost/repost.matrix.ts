@@ -8,8 +8,10 @@ import { RepostDestinationFormat, RepostSourceType } from '@prisma/client';
  *   - tiktok.provider.ts usa content_posting_method=DIRECT_POST (feed)
  *   - youtube.provider.ts usa videos.insert (Short se 9:16 + <= 60s)
  *
- * Importante: o Instagram Story nao pode ser publicado via TikTok API;
- * o Facebook Story nao e exposto pela Graph API publica (so IG).
+ * Importante: o Instagram Story nao pode ser publicado via TikTok API.
+ * O Facebook aceita dois destinos: FACEBOOK_REEL (video no feed via /videos) e
+ * FACEBOOK_STORY (foto ou video via /photo_stories e /video_stories — ver
+ * facebook.provider.ts). FACEBOOK_STORY aceita imagem; FACEBOOK_REEL exige video.
  */
 export const PROVIDER_DESTINATION_FORMATS: Record<
   string,
@@ -17,7 +19,7 @@ export const PROVIDER_DESTINATION_FORMATS: Record<
 > = {
   instagram: ['INSTAGRAM_POST', 'INSTAGRAM_STORY'],
   'instagram-standalone': ['INSTAGRAM_POST', 'INSTAGRAM_STORY'],
-  facebook: ['FACEBOOK_REEL'],
+  facebook: ['FACEBOOK_REEL', 'FACEBOOK_STORY'],
   tiktok: ['TIKTOK_FEED'],
   'zernio-tiktok': ['TIKTOK_FEED'],
   youtube: ['YOUTUBE_SHORT'],
@@ -44,6 +46,7 @@ export const SOURCE_DESTINATION_MATRIX: Record<
     'INSTAGRAM_POST',
     'INSTAGRAM_STORY',
     'FACEBOOK_REEL',
+    'FACEBOOK_STORY',
     'TIKTOK_FEED',
     'YOUTUBE_SHORT',
     'LINKEDIN_POST',
@@ -55,6 +58,7 @@ export const SOURCE_DESTINATION_MATRIX: Record<
     'INSTAGRAM_POST',
     'INSTAGRAM_STORY',
     'FACEBOOK_REEL',
+    'FACEBOOK_STORY',
     'TIKTOK_FEED',
     'YOUTUBE_SHORT',
     'LINKEDIN_POST',
@@ -66,7 +70,7 @@ export const SOURCE_DESTINATION_MATRIX: Record<
 
 /**
  * `sourceType`s que cada providerIdentifier pode representar como ORIGEM.
- * V2 so exp?e Instagram (Story ou Reel/Feed). V3 adicionara TikTok e
+ * V2 so expoe Instagram (Story ou Reel/Feed). V3 adicionara TikTok e
  * YouTube quando os providers implementarem fetching.
  */
 export const PROVIDER_SOURCE_TYPES: Record<string, RepostSourceType[]> = {

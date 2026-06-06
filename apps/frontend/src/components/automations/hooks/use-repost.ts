@@ -10,6 +10,7 @@ export type RepostDestinationFormat =
   | 'INSTAGRAM_POST'
   | 'INSTAGRAM_STORY'
   | 'FACEBOOK_REEL'
+  | 'FACEBOOK_STORY'
   | 'TIKTOK_FEED'
   | 'YOUTUBE_SHORT'
   | 'LINKEDIN_POST'
@@ -178,6 +179,7 @@ export const FORMAT_LABEL: Record<RepostDestinationFormat, string> = {
   INSTAGRAM_POST: 'Reel/Feed',
   INSTAGRAM_STORY: 'Story',
   FACEBOOK_REEL: 'Reel',
+  FACEBOOK_STORY: 'Story',
   TIKTOK_FEED: 'Feed',
   YOUTUBE_SHORT: 'Short',
   LINKEDIN_POST: 'Post',
