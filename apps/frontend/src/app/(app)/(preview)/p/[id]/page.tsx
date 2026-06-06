@@ -1,4 +1,5 @@
 import { internalFetch } from '@gitroom/helpers/utils/internal.fetch';
+import { sanitizePostContent } from '@gitroom/helpers/utils/sanitize.post.content';
 import { getPlatformIconPath } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 export const dynamic = 'force-dynamic';
 import { Metadata } from 'next';
@@ -119,7 +120,7 @@ export default async function Auth(props: {
                       <div
                         className="text-sm whitespace-pre-wrap"
                         dangerouslySetInnerHTML={{
-                          __html: p.content,
+                          __html: sanitizePostContent(p.content),
                         }}
                       />
                       <div className="flex w-full gap-[10px]">
