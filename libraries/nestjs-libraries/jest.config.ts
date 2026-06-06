@@ -11,6 +11,8 @@ const config: Config = {
     '^@gitroom/nestjs-libraries/(.*)$': '<rootDir>/src/$1',
     '^@gitroom/helpers/(.*)$': '<rootDir>/../../libraries/helpers/src/$1',
     '^@gitroom/backend/(.*)$': '<rootDir>/../../apps/backend/src/$1',
+    '^isomorphic-dompurify$':
+      '<rootDir>/../../jest-mocks/isomorphic-dompurify.js',
   },
 };
 
