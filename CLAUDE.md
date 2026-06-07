@@ -25,7 +25,7 @@
 | `apps/frontend/` | Next.js UI | [link](apps/frontend/CLAUDE.md) |
 | `apps/orchestrator/` | Temporal workflows | [link](apps/orchestrator/CLAUDE.md) |
 | `apps/extension/` | Browser extension | — (stub) |
-| `apps/cli/` | `postiz` CLI | — (stub) |
+| `apps/cli/` | CLI/skill de agente (`@robo-multipost/agent`) — self-hosted, com flows | [link](apps/cli/CLAUDE.md) |
 | `apps/sdk/` | `@postiz/node` SDK | — (stub) |
 | `apps/commands/` | Background commands microservice | — (stub) |
 | `libraries/nestjs-libraries/` | Shared backend/orchestrator domain | [link](libraries/nestjs-libraries/CLAUDE.md) |

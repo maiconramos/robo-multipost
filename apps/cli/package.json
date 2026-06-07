@@ -1,0 +1,25 @@
+{
+  "name": "@robo-multipost/agent",
+  "version": "0.1.0",
+  "description": "CLI/skill do Robô MultiPost para agentes de IA (posts, integrações, automações de comentário e mídia) — funciona em qualquer instância self-hosted.",
+  "bin": {
+    "multipost": "bin/multipost.js"
+  },
+  "files": [
+    "bin",
+    "SKILL.md",
+    "README.md"
+  ],
+  "engines": {
+    "node": ">=20"
+  },
+  "keywords": [
+    "robo-multipost",
+    "postiz",
+    "social media",
+    "agent",
+    "cli",
+    "skill"
+  ],
+  "license": "AGPL-3.0"
+}

@@ -1823,5 +1823,9 @@
   "ai_provider_no_credits": "Your AI provider is out of credits or hit its billing limit. Check your balance in the provider account and try again.",
   "ai_provider_auth_error": "Authentication failed with the AI provider. Check the API key in Settings > AI Models.",
   "ai_provider_rate_limit": "The AI provider hit its request limit. Wait a few moments and try again.",
-  "detail_label": "Detail"
+  "detail_label": "Detail",
+  "agent_skill": "AI Agent Skill",
+  "agent_skill_description": "Complete guide (MCP + CLI + API) for the agent. Pass this link + your API Key to the agent (Hermes, OpenClaw, Claude, etc.).",
+  "copy_skill_link": "Copy skill link",
+  "open": "Open"
 }
