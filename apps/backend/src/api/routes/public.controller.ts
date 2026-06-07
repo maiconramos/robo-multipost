@@ -30,6 +30,7 @@ import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/we
 import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
 import { CommentKind } from '@prisma/client';
+import { buildAgentSkillMarkdown } from '@gitroom/nestjs-libraries/agent/agent.skill.template';
 
 const pump = promisify(pipeline);
 
@@ -44,6 +45,21 @@ export class PublicController {
     private _subscriptionService: SubscriptionService,
     private _reviewLinksService: ReviewLinksService
   ) {}
+
+  // Guia/skill de agente em markdown, com a URL do backend já injetada.
+  // Público (sem auth) — o conteúdo é instrução, não segredo; as chamadas reais
+  // exigem a chave. Passe este link + a chave ao agente (Hermes/OpenClaw/etc.).
+  @Get('/agent-skill')
+  async agentSkill(@Res() res: Response) {
+    const apiUrl =
+      process.env.NEXT_PUBLIC_BACKEND_URL ||
+      process.env.FRONTEND_URL ||
+      '';
+    res.setHeader('Content-Type', 'text/markdown; charset=utf-8');
+    res.setHeader('Cache-Control', 'public, max-age=300');
+    res.send(buildAgentSkillMarkdown(apiUrl));
+  }
+
   @Post('/agent')
   async createAgent(@Body() body: { text: string; apiKey: string }) {
     if (

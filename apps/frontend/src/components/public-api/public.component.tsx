@@ -599,6 +599,47 @@ const ProfileApiKeySection = ({ profileId }: { profileId: string }) => {
   );
 };
 
+const AgentSkillSection = ({ backendUrl }: { backendUrl: string }) => {
+  const t = useT();
+  const skillUrl = `${backendUrl}/public/agent-skill`;
+  return (
+    <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
+      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+        <div>
+          <div className="text-[15px] font-[600]">
+            {t('agent_skill', 'Skill para Agentes de IA')}
+          </div>
+          <div className="text-[13px] text-customColor18 mt-[2px]">
+            {t(
+              'agent_skill_description',
+              'Guia completo (MCP + CLI + API) para o agente. Passe este link + sua Chave de API ao agente (Hermes, OpenClaw, Claude, etc.).'
+            )}
+          </div>
+        </div>
+        <div className="flex gap-[6px] shrink-0 pt-[2px]">
+          <a
+            className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
+            href={skillUrl}
+            target="_blank"
+            rel="noreferrer"
+          >
+            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+            {t('open', 'Abrir')}
+          </a>
+        </div>
+      </div>
+      <div className="p-[20px] flex flex-col gap-[16px]">
+        <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
+          <code className="text-[14px] flex-1 truncate">{skillUrl}</code>
+        </div>
+        <div className="flex gap-[8px]">
+          <CopyButton text={skillUrl} label={t('copy_skill_link', 'Copiar link da skill')} />
+        </div>
+      </div>
+    </div>
+  );
+};
+
 const PublicApiContent = () => {
   const user = useUser();
   const { profile } = useCurrentProfile();
@@ -686,6 +727,7 @@ const PublicApiContent = () => {
         <ProfileApiKeySection profileId={user.profileId} />
       )}
 
+      <AgentSkillSection backendUrl={backendUrl} />
       <CliSection apiKey={activeKey} backendUrl={backendUrl} />
       <McpSection apiKey={activeKey} mcpBase={mcpBase} />
     </div>

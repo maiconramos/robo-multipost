@@ -42,9 +42,14 @@ Esta é a regra mais importante desta área. **Sempre que a API pública
 relevante para um agente**, atualize na MESMA mudança:
 
 1. **`bin/multipost.js`** — adicione/ajuste o comando ou flag correspondente.
-2. **`SKILL.md`** — documente para o agente (exemplos + schema). Esta é a fonte de
-   verdade que o agente consome em runtime.
-3. **`README.md`** — se for relevante para o setup humano.
+2. **`SKILL.md`** — documente para o agente (exemplos + schema). Fonte de verdade
+   do pacote npm/local.
+3. **`libraries/nestjs-libraries/src/agent/agent.skill.template.ts`** — o guia
+   comprehensivo (MCP + CLI + REST) **servido em `GET /public/agent-skill`** com a
+   URL do backend injetada. É o que o agente baixa quando o usuário passa o link da
+   skill (botão "Skill para Agentes de IA" em Configurações > Integrações). Mantenha
+   alinhado com o SKILL.md e a API.
+4. **`README.md`** — se for relevante para o setup humano.
 
 > Análogo à regra "Wizard ↔ Flow Builder parity" do projeto: uma feature que existe
 > na API mas não no SKILL.md é invisível para o agente. Ao implementar qualquer
