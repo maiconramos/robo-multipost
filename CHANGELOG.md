@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Mídia enviada via chave de API de perfil agora fica vinculada ao perfil correto.** Os endpoints `POST /public/v1/upload` e `POST /public/v1/upload-from-url` não propagavam o perfil da chave de API ao salvar a mídia — o arquivo era gravado sem perfil e aparecia no perfil padrão (compartilhado com todos), em vez de ficar escopado ao perfil que fez o upload. Agora o `profileId` da chave é repassado ao salvar, alinhando o upload ao comportamento de `GET /public/v1/integrations`.
+
 ### Alterado
 
 - **NestJS atualizado de 10 → 11** (sync do upstream `38b0ac8`): bump de todo o ecossistema (`@nestjs/common|core|platform-express|testing|microservices` → 11; `@nestjs/swagger` 7 → 11; `@nestjs/schedule` 4 → 6; `@nestjs/throttler` → 6.5; `reflect-metadata` → 0.2). Traz o **Express 5**. Ajustes necessários foram mínimos: no `main.ts`, o query parser foi fixado em `extended` (o padrão do Express 5 virou `simple`, sem objetos/arrays aninhados) e o middleware de body grande passou de `/copilot/*` para `/copilot` (o `app.use` casa por prefixo; Express 5 exige wildcard nomeado). Node ≥ 20 já atendido (imagem em Node 22). Sem mudança de comportamento esperada. Plano detalhado em [`docs/planning/nestjs-11-migration.md`](docs/planning/nestjs-11-migration.md).
