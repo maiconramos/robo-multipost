@@ -7,6 +7,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Analytics do Instagram não duplica mais as métricas** (sync do upstream `fc509b1`): curtidas/visualizações/comentários/compartilhamentos/salvamentos eram contados em dobro porque o provider replicava cada ponto de dado em "amanhã" só para o gráfico desenhar uma linha. O ponto duplicado foi removido do backend e o gráfico passou a tratar um único ponto de dado no frontend (duplica apenas para exibição).
+- **Pinterest: limite de 5 imagens e correção do envio de múltiplas imagens** (sync do upstream `0b3328d`): valida no máximo 5 imagens por post (UI + regra do provider + mensagem de erro amigável quando a API retorna `maxItems=5`) e corrige o mapeamento de `multiple_image_urls` (cada item agora vai como `{ url }`, como a API do Pinterest espera).
+- **Threads: mensagem clara quando a mídia é inacessível** (sync do upstream `faeb898`): URLs de mídia inválidas/inacessíveis passam a retornar um erro explicando para subir a mídia antes, em vez de um erro genérico.
+
 ### Alterado
 
 - **NestJS atualizado de 10 → 11** (sync do upstream `38b0ac8`): bump de todo o ecossistema (`@nestjs/common|core|platform-express|testing|microservices` → 11; `@nestjs/swagger` 7 → 11; `@nestjs/schedule` 4 → 6; `@nestjs/throttler` → 6.5; `reflect-metadata` → 0.2). Traz o **Express 5**. Ajustes necessários foram mínimos: no `main.ts`, o query parser foi fixado em `extended` (o padrão do Express 5 virou `simple`, sem objetos/arrays aninhados) e o middleware de body grande passou de `/copilot/*` para `/copilot` (o `app.use` casa por prefixo; Express 5 exige wildcard nomeado). Node ≥ 20 já atendido (imagem em Node 22). Sem mudança de comportamento esperada. Plano detalhado em [`docs/planning/nestjs-11-migration.md`](docs/planning/nestjs-11-migration.md).
