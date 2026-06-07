@@ -7,6 +7,8 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+## [0.5.3] - 2026-06-07
+
 ### Adicionado
 
 - **Skill de agente servida pelo backend + botão na interface**: novo endpoint público (sem auth) `GET /public/agent-skill` que devolve um **guia completo em markdown** (MCP + CLI + referência REST + deep-dive de flows) com a **URL do backend já injetada**. Em `Configurações > Integrações` há um card **"Skill para Agentes de IA"** com o link + botão de copiar. Assim, para um agente self-hosted (Hermes, OpenClaw, Claude), basta passar **o link da skill + a Chave de API** — a URL já vem embutida no guia. O conteúdo é gerado por `agent.skill.template.ts` (mantido em paridade com a API pública).
