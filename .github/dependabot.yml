@@ -74,3 +74,9 @@ updates:
       - "docker"
     commit-message:
       prefix: "chore(docker)"
+    ignore:
+      # engines exige Node 22 (>=22.12 <23). Bloqueia bump de major da imagem
+      # `node` (23+): o Node 26 quebrou @sentry/profiling-node (binding nativo
+      # ABI 147 inexistente) e contradiz engines. Migrar so deliberadamente.
+      - dependency-name: "node"
+        update-types: ["version-update:semver-major"]
