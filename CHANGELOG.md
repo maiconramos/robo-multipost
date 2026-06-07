@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Alterado
+
+- **NestJS atualizado de 10 → 11** (sync do upstream `38b0ac8`): bump de todo o ecossistema (`@nestjs/common|core|platform-express|testing|microservices` → 11; `@nestjs/swagger` 7 → 11; `@nestjs/schedule` 4 → 6; `@nestjs/throttler` → 6.5; `reflect-metadata` → 0.2). Traz o **Express 5**. Ajustes necessários foram mínimos: no `main.ts`, o query parser foi fixado em `extended` (o padrão do Express 5 virou `simple`, sem objetos/arrays aninhados) e o middleware de body grande passou de `/copilot/*` para `/copilot` (o `app.use` casa por prefixo; Express 5 exige wildcard nomeado). Node ≥ 20 já atendido (imagem em Node 22). Sem mudança de comportamento esperada. Plano detalhado em [`docs/planning/nestjs-11-migration.md`](docs/planning/nestjs-11-migration.md).
+
 ## [0.5.3] - 2026-06-07
 
 ### Adicionado

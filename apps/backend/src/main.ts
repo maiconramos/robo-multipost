@@ -53,7 +53,15 @@ async function start() {
     })
   );
 
-  app.use(['/copilot/*', '/posts'], (req: any, res: any, next: any) => {
+  // Express 5 (NestJS 11): o query parser padrao passou a ser 'simple' (sem
+  // objetos/arrays aninhados). Mantemos o 'extended' (qs) para preservar o
+  // comportamento das query strings que ja usavamos. `set` vive no Express
+  // puro (via http adapter), nao no wrapper INestApplication.
+  app.getHttpAdapter().getInstance().set('query parser', 'extended');
+
+  // Express 5: o wildcard '*' precisa ser nomeado. Como app.use casa por
+  // prefixo, '/copilot' ja cobre '/copilot/*'.
+  app.use(['/copilot', '/posts'], (req: any, res: any, next: any) => {
     json({ limit: '50mb' })(req, res, next);
   });
 
