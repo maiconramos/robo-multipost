@@ -16,7 +16,7 @@ import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
 
 @Rules(
-  'Pinterest requires at least one media, if posting a video, you must have two attachment, one for video, one for the cover picture, When posting a video, there can be only one'
+  'Pinterest requires at least one media, if posting a video, you must have two attachment, one for video, one for the cover picture, When posting a video, there can be only one, if posting images, there can be maximum 5'
 )
 export class PinterestProvider
   extends SocialAbstract
@@ -47,6 +47,12 @@ export class PinterestProvider
         value: string;
       }
     | undefined {
+    if (body.indexOf('constraint: maxItems=5') > -1) {
+      return {
+        type: 'bad-body' as const,
+        value: 'You can upload a maximum of 5 images per post on Pinterest.',
+      };
+    }
     if (body.indexOf('cover_image_url or cover_image_content_type') > -1) {
       return {
         type: 'bad-body' as const,
@@ -279,7 +285,9 @@ export class PinterestProvider
               }
             : {
                 source_type: 'multiple_image_urls',
-                items: mapImages,
+                items: mapImages.map((m) => ({
+                  url: m.path,
+                })),
               },
         }),
       })

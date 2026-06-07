@@ -58,7 +58,7 @@ const AnalyticsCard: FC<{
   const color = colorVariants[index % colorVariants.length];
   const labelKey = `analytics_label_${item.label.toLowerCase().replace(/\s+/g, '_').replace(/[^a-z0-9_]/g, '')}`;
 
-  const hasMultipleDataPoints = item.data.length > 1;
+  const hasDataPoints = item.data.length >= 1;
 
   return (
     <div className="group relative">
@@ -94,7 +94,7 @@ const AnalyticsCard: FC<{
         </div>
 
         {/* Content */}
-        {hasMultipleDataPoints ? (
+        {hasDataPoints ? (
           <>
             {/* Chart */}
             <div className="flex-1 px-[12px] py-[8px]">

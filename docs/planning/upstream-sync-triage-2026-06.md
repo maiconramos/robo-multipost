@@ -210,3 +210,33 @@ Validados: build backend (tsc) exit 0, test:libs 456/456, sem `eslint-disable`.
 
 > Nota de processo: `pnpm lint` não existe como script na raiz (CLAUDE.md desatualizado) e o
 > `eslint` direto falha com "circular structure" (config quebrada) — dívida de tooling pré-existente.
+
+---
+
+## 7. Fechamento do backlog (2026-06-07)
+
+Estado final após os syncs desta data. O backlog do upstream está **fechado** — tudo
+de valor real foi adotado ou tem decisão explícita de diferimento abaixo.
+
+### ✅ Adotado (mergeado em `main`)
+- **Segurança:** `071143d` (SSRF DNS-pinning), `3ea3022` (magic-byte + CSP nginx), `23696d2` (auth hardening / token leak — só a parte de segurança, sem remover billing/NOWPayments).
+- **Bumps:** `2316a45` (Next.js, via `pnpm.overrides`), `38b0ac8` (**NestJS 10→11 / Express 5**, PR #72).
+- **Cherry-pick limpo:** `09f4274` (mastodon alt text), `5257f2f` (redirect_uri), `cdcf63b` (allow localhost OAuth), `d6bc6eb` (discord handleErrors).
+- **XSS:** `7236213` (DOMPurify, porte manual — `sanitize.post.content.ts`).
+- **Providers (PR `chore/upstream-provider-sync`):** `fc509b1` (IG métricas dobradas), `0b3328d` (Pinterest 5 imgs + items mapping), `faeb898` (Threads mídia inacessível — só o mapeamento de erro; o fork usa `indexOf('.mp4')`, não `hasExtension`).
+
+### ⏭️ Descartado — já coberto / pré-requisito ausente no fork
+- `2d01c38` (não republicar post deletado) — **redundante**: o fork já filtra `deletedAt: null` em `postRepository.getPost`, então post deletado nunca volta para republicação.
+- `3c625a3` (desc order) — depende de um `stateFilter === 'published'` que **não existe** no fork (veio do `4811741`, não adotado).
+
+### ⏸️ Diferido — exige porte cuidadoso + validação em runtime (não portar cego)
+- `e18d4a5` (**LinkedIn** — aguardar mídia `AVAILABLE` antes de anexar): +89 linhas com polling assíncrono e troca do endpoint de comentário `v2/socialActions` → `rest/socialActions` + headers de versão. Mexe em provider divergente (per-profile) e não dá para validar sem postar de verdade no LinkedIn. Tratar em PR dedicado com teste real.
+- `d48e2a7` (**Instagram** `error_subcode 33` + token composto `access___user`): a triagem alerta que adotar cego **regride o roteamento per-profile**. Porte linha-a-linha preservando `getClient`/integração do fork.
+- **Cadeia de workflow V103→V105** (`6e55eb3`/`7be2920`/`d2c1eab` + `971042a` slimPost): fork está em **V102**. É a maior dívida de divergência — tratar como **épico isolado**, com merge cuidadoso de `posts.service`/`post.activity`/`posts.repository`. Não diluir em PRs de fix.
+
+### ⛔ Não adotar (regressão conhecida)
+- `45e55c5` (auth header CORS) — regride o gate `NOT_SECURED` do fork.
+- `7aa50e5` (Facebook Stories) — o fork já tem (commit `382af1cc`).
+
+### Restante = ruído
+Os 49 SKIP (tracking SaaS, billing Stripe, CLAs, SECURITY.md, branding, WebView mobile inexistente) e os REVIEW de baixo valor permanecem deliberadamente fora — não agregam ao self-hosted.
