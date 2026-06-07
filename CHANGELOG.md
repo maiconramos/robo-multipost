@@ -9,6 +9,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Corrigido
 
+- **Mídia enviada via chave de API de perfil agora fica vinculada ao perfil correto.** Os endpoints `POST /public/v1/upload` e `POST /public/v1/upload-from-url` não propagavam o perfil da chave de API ao salvar a mídia — o arquivo era gravado sem perfil e aparecia no perfil padrão (compartilhado com todos), em vez de ficar escopado ao perfil que fez o upload. Agora o `profileId` da chave é repassado ao salvar, alinhando o upload ao comportamento de `GET /public/v1/integrations`.
 - **Analytics do Instagram não duplica mais as métricas** (sync do upstream `fc509b1`): curtidas/visualizações/comentários/compartilhamentos/salvamentos eram contados em dobro porque o provider replicava cada ponto de dado em "amanhã" só para o gráfico desenhar uma linha. O ponto duplicado foi removido do backend e o gráfico passou a tratar um único ponto de dado no frontend (duplica apenas para exibição).
 - **Pinterest: limite de 5 imagens e correção do envio de múltiplas imagens** (sync do upstream `0b3328d`): valida no máximo 5 imagens por post (UI + regra do provider + mensagem de erro amigável quando a API retorna `maxItems=5`) e corrige o mapeamento de `multiple_image_urls` (cada item agora vai como `{ url }`, como a API do Pinterest espera).
 - **Threads: mensagem clara quando a mídia é inacessível** (sync do upstream `faeb898`): URLs de mídia inválidas/inacessíveis passam a retornar um erro explicando para subir a mídia antes, em vez de um erro genérico.
