@@ -144,6 +144,7 @@ export class PublicIntegrationsController {
   @UseInterceptors(FileInterceptor('file'))
   async uploadSimple(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @UploadedFile('file') file: Express.Multer.File
   ) {
     Sentry.metrics.count('public_api-request', 1);
@@ -152,10 +153,15 @@ export class PublicIntegrationsController {
     }
 
     const getFile = await this.storage.uploadFile(file);
+    // Chave de perfil: vincula a midia ao proprio perfil. Sem isso, a midia
+    // ficava com profileId=null (compartilhada com todos os perfis via o OR
+    // de getMedia) em vez de escopada ao perfil que fez o upload.
     return this._mediaService.saveFile(
       org.id,
       getFile.originalname,
-      getFile.path
+      getFile.path,
+      undefined,
+      publicApiProfileId
     );
   }
 
@@ -170,6 +176,7 @@ export class PublicIntegrationsController {
   @ApiResponse({ status: 401, description: 'Chave de API ausente ou inválida.' })
   async uploadsFromUrl(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Body() body: UploadDto
   ) {
     Sentry.metrics.count('public_api-request', 1);
@@ -209,10 +216,14 @@ export class PublicIntegrationsController {
       encoding: '',
     });
 
+    // Chave de perfil: vincula a midia da URL ao proprio perfil (mesmo motivo
+    // do /upload acima).
     return this._mediaService.saveFile(
       org.id,
       getFile.originalname,
-      getFile.path
+      getFile.path,
+      undefined,
+      publicApiProfileId
     );
   }
 
