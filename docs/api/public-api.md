@@ -70,6 +70,10 @@ Authorization: SUA_CHAVE_DE_API
 
 **`value[].image[]` (MediaDto):** `{ id, path }` — `path` é a URL da mídia (de `POST /upload`).
 
+**`settings` por canal:** além de `__type`, aceita opções do provider. No Instagram:
+- `settings.post_type` — `"post"` (feed/Reels) ou `"story"`.
+- `settings.cover` — **capa do Reels**: um `MediaDto` `{ id, path }` (mídia de `POST /upload`). O `path` (URL pública) é enviado como `cover_url` à Meta. Só vale para **Reels** (um único vídeo `.mp4`, não story); em foto/carrossel/story é ignorado. Exige `id` **e** `path` válidos — senão a API responde **400**.
+
 ### Exemplo — publicar agora com imagem
 ```json
 {
@@ -87,6 +91,33 @@ Authorization: SUA_CHAVE_DE_API
         }
       ],
       "settings": { "__type": "instagram" }
+    }
+  ]
+}
+```
+
+### Exemplo — Reels do Instagram com capa
+> Suba o vídeo (`.mp4`) e a imagem de capa via `POST /upload` (ou `/upload-from-url`) e use os `{ id, path }` retornados.
+```json
+{
+  "type": "now",
+  "date": "2026-06-10T14:30:00Z",
+  "shortLink": false,
+  "tags": [],
+  "posts": [
+    {
+      "integration": { "id": "SEU_INTEGRATION_ID" },
+      "value": [
+        {
+          "content": "Meu Reels 🚀",
+          "image": [{ "id": "media-video", "path": "https://seu-cdn.com/video.mp4" }]
+        }
+      ],
+      "settings": {
+        "__type": "instagram",
+        "post_type": "post",
+        "cover": { "id": "media-capa", "path": "https://seu-cdn.com/capa.jpg" }
+      }
     }
   ]
 }
