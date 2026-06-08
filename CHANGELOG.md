@@ -7,6 +7,8 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+## [0.5.4] - 2026-06-07
+
 ### Corrigido
 
 - **Mídia enviada via chave de API de perfil agora fica vinculada ao perfil correto.** Os endpoints `POST /public/v1/upload` e `POST /public/v1/upload-from-url` não propagavam o perfil da chave de API ao salvar a mídia — o arquivo era gravado sem perfil e aparecia no perfil padrão (compartilhado com todos), em vez de ficar escopado ao perfil que fez o upload. Agora o `profileId` da chave é repassado ao salvar, alinhando o upload ao comportamento de `GET /public/v1/integrations`.
