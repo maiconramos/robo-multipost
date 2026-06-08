@@ -7,6 +7,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+## [0.5.5] - 2026-06-07
+
+### Documentação
+
+- **Capa de Reels do Instagram na API pública** documentada. O campo `settings.cover` (que já era suportado) agora está descrito na skill de agente servida em `GET /public/agent-skill`, no `SKILL.md` do CLI e na referência da API pública (`docs/api/public-api.md`), com exemplo e regras: é um objeto de mídia `{ id, path }` (de `POST /upload`), o `path` precisa ser URL pública (enviado como `cover_url` à Meta), vale só para Reels (vídeo `.mp4` único, não story) e exige `id` e `path` (senão `400`).
+
 ## [0.5.4] - 2026-06-07
 
 ### Corrigido
