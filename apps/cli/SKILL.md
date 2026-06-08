@@ -83,9 +83,24 @@ multipost posts:create --json '{
             "settings":{}}]
 }'
 
+# Reels do Instagram com capa custom (settings.cover):
+# 1) suba a capa (e o vídeo) por upload:url/upload:file e use os {id, path} retornados.
+multipost posts:create --json '{
+  "type":"now","date":"2026-06-10T14:00:00.000Z","shortLink":false,"tags":[],
+  "posts":[{"integration":{"id":"<ID>"},
+            "value":[{"content":"<p>Meu Reels</p>",
+                      "image":[{"id":"<VIDEO_ID>","path":"<URL_VIDEO_MP4>"}]}],
+            "settings":{"__type":"instagram","post_type":"post",
+                        "cover":{"id":"<CAPA_ID>","path":"<URL_CAPA_PUBLICA>"}}}]
+}'
+
 multipost posts:list --startDate 2026-06-01T00:00:00.000Z --endDate 2026-06-30T23:59:59.999Z
 multipost posts:delete --id <POST_ID>
 ```
+> **Capa de Reels:** `settings.cover` é um `{id, path}` de mídia (use o objeto que
+> `upload:url`/`upload:file` retorna). O `path` precisa ser URL pública (vira
+> `cover_url` na Meta). Só vale para Reels (vídeo `.mp4` único, não story); foto,
+> carrossel e story ignoram. Sem `id` **e** `path` válidos, a API responde 400.
 > `posts:list` **exige** `--startDate` e `--endDate` (ISO 8601). A lista traz
 > `releaseId` e `state` de cada post.
 

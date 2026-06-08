@@ -106,6 +106,15 @@ Todas exigem \`Authorization: <CHAVE>\`. Base: \`${base}/public/v1\`.
 \`content\` é HTML (tags: \`p, br, strong, u, a, ul, li, h1-h3\`); use \`<p></p>\` vazio
 para linha em branco entre parágrafos.
 
+#### Settings por canal
+O \`settings\` de cada post carrega opções do provider (\`settings.__type\` =
+identificador, ex. \`"instagram"\`).
+- **Capa de Reels (Instagram):** \`settings.cover = {id, path}\` de uma imagem
+  enviada por \`/upload\` (o \`path\`, URL pública, é enviado como \`cover_url\` à Meta).
+  Só vale para **Reels** (vídeo \`.mp4\` único, não story); em foto/carrossel/story é
+  ignorado. \`cover\` exige \`id\` **e** \`path\` válidos — senão a API responde 400.
+- **Tipo (Instagram):** \`settings.post_type\` = \`"post"\` (feed/Reels) ou \`"story"\`.
+
 ### Mídia
 | Método | Caminho | Corpo |
 |---|---|---|
