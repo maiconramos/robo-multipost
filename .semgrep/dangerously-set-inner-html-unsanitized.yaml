@@ -1,0 +1,22 @@
+rules:
+  - id: dangerously-set-inner-html-unsanitized
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      dangerouslySetInnerHTML com conteúdo possivelmente não sanitizado. Conteúdo que pode vir de
+      outro usuário, da saída da IA, ou de comentários do IG (via webhook) deve passar por
+      sanitizePostContent (DOMPurify) antes de ir para __html. Regex/replaceLinks NÃO sanitizam.
+      Ver SECURITY_AUDIT.md achados C2, C3, C4.
+    metadata:
+      cwe: "CWE-79: Cross-site Scripting (XSS)"
+      audit-finding: C2,C3,C4
+    patterns:
+      - pattern: |
+          dangerouslySetInnerHTML={{ __html: $HTML }}
+      - pattern-not: |
+          dangerouslySetInnerHTML={{ __html: sanitizePostContent(...) }}
+      - pattern-not: |
+          dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(...) }}
+    paths:
+      include:
+        - "apps/frontend/**"
