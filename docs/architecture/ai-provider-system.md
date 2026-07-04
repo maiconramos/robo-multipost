@@ -186,6 +186,18 @@ caller se o DB lentar.
 - `textForMastra(orgId, profileId?)` -> retorna **funcao async lazy**
   que resolve o modelo a cada chamada — usado no Mastra Agent para que
   trocar credencial em runtime nao exija reiniciar o singleton
+- `openAiCompatibleTextConfig(orgId, profileId?)` -> `{ provider, apiKey, baseURL?, model }`
+  (config crua) e `buildOpenAiCompatibleClient(orgId, profileId?)` ->
+  `{ client, model }` (cliente `openai` SDK ja construido). Usados pelos
+  endpoints do CopilotKit (`/copilot/agent` e `/copilot/chat` em
+  `apps/backend/src/api/routes/copilot.controller.ts`) para montar o
+  `OpenAIAdapter` a partir da credencial da UI — **sem depender da env var
+  `OPENAI_API_KEY`**. Herdam o gate de compartilhamento default->perfil do
+  resolver (perfil secundario sem chave e sem `shareDefault` -> 412).
+  `buildOpenAiCompatibleClient` aplica um shim de compatibilidade
+  (`beta.chat -> chat`) porque o `OpenAIAdapter` do CopilotKit foi tipado
+  para o `openai` v4 e o monorepo usa o v6 (que moveu `beta.chat.completions`
+  para `chat.completions`).
 
 Internamente usa `createOpenRouter({apiKey})` ou `createOpenAI({apiKey})`
 do AI SDK v5. Para imagem em OpenRouter, retorna o `provider(modelId)`

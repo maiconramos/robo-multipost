@@ -34,6 +34,17 @@ jest.mock('@ai-sdk/openai', () => ({
   }),
 }));
 
+// Cliente `openai` (SDK) usado por buildOpenAiCompatibleClient. Simula o
+// formato do v6: tem `chat` mas NAO tem `beta.chat` (o shim deve religar).
+const openAiClientCtorSpy = jest.fn();
+jest.mock('openai', () => ({
+  __esModule: true,
+  default: jest.fn().mockImplementation((opts: any) => {
+    openAiClientCtorSpy(opts);
+    return { chat: { completions: { stream: jest.fn() } }, beta: {} };
+  }),
+}));
+
 const credential = (overrides: Record<string, any> = {}): Record<string, any> => ({
   id: 'cred-1',
   scope: 'WORKSPACE',
@@ -165,6 +176,101 @@ describe('AiClientFactory', () => {
       const model = await lazy();
       expect(resolver.resolve).toHaveBeenCalledTimes(1);
       expect(model).toBeDefined();
+    });
+  });
+
+  describe('openAiCompatibleTextConfig', () => {
+    it('deve devolver baseURL do OpenRouter com apiKey e model resolvidos', async () => {
+      resolver.resolve.mockResolvedValue(credential() as any);
+
+      const cfg = await factory.openAiCompatibleTextConfig('org-1', 'prof-1');
+
+      expect(resolver.resolve).toHaveBeenCalledWith('org-1', 'TEXT', 'prof-1');
+      expect(cfg).toEqual({
+        provider: 'openrouter',
+        apiKey: 'sk-or-real',
+        baseURL: 'https://openrouter.ai/api/v1',
+        model: 'openai/gpt-5.5',
+      });
+    });
+
+    it('deve devolver baseURL undefined para OpenAI direto', async () => {
+      resolver.resolve.mockResolvedValue(
+        credential({ provider: 'openai', model: 'gpt-5.5', apiKey: 'sk-oai' }) as any
+      );
+
+      const cfg = await factory.openAiCompatibleTextConfig('org-1');
+
+      expect(resolver.resolve).toHaveBeenCalledWith('org-1', 'TEXT', undefined);
+      expect(cfg).toEqual({
+        provider: 'openai',
+        apiKey: 'sk-oai',
+        baseURL: undefined,
+        model: 'gpt-5.5',
+      });
+    });
+
+    it('deve cair no default model quando credential.model e null', async () => {
+      resolver.resolve.mockResolvedValue(
+        credential({ provider: 'openai', model: null }) as any
+      );
+
+      const cfg = await factory.openAiCompatibleTextConfig('org-1');
+
+      expect(cfg.model).toBe('gpt-5.5');
+    });
+
+    it('deve recusar provider desconhecido com HttpException', async () => {
+      resolver.resolve.mockResolvedValue(
+        credential({ provider: 'azure', model: 'gpt-x' }) as any
+      );
+
+      await expect(
+        factory.openAiCompatibleTextConfig('org-1')
+      ).rejects.toThrow(HttpException);
+    });
+
+    it('deve propagar 412 do resolver (credencial nao configurada/compartilhada)', async () => {
+      resolver.resolve.mockRejectedValue(
+        new HttpException('Configure suas chaves em Configuracoes > Modelos de IA.', 412)
+      );
+
+      await expect(
+        factory.openAiCompatibleTextConfig('org-1', 'prof-1')
+      ).rejects.toMatchObject({ status: 412 });
+    });
+  });
+
+  describe('buildOpenAiCompatibleClient', () => {
+    it('deve construir cliente com apiKey+baseURL e religar beta.chat -> chat (shim CopilotKit)', async () => {
+      resolver.resolve.mockResolvedValue(credential() as any);
+
+      const { client, model } = await factory.buildOpenAiCompatibleClient(
+        'org-1',
+        'prof-1'
+      );
+
+      expect(openAiClientCtorSpy).toHaveBeenCalledWith({
+        apiKey: 'sk-or-real',
+        baseURL: 'https://openrouter.ai/api/v1',
+      });
+      expect(model).toBe('openai/gpt-5.5');
+      // Shim aplicado: beta.chat passa a apontar para chat (v6 nao tem beta.chat)
+      expect((client as any).beta.chat).toBe((client as any).chat);
+    });
+
+    it('deve construir cliente OpenAI direto com baseURL undefined', async () => {
+      resolver.resolve.mockResolvedValue(
+        credential({ provider: 'openai', model: 'gpt-5.5', apiKey: 'sk-oai' }) as any
+      );
+
+      const { model } = await factory.buildOpenAiCompatibleClient('org-1');
+
+      expect(openAiClientCtorSpy).toHaveBeenCalledWith({
+        apiKey: 'sk-oai',
+        baseURL: undefined,
+      });
+      expect(model).toBe('gpt-5.5');
     });
   });
 

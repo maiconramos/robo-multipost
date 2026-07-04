@@ -47,10 +47,20 @@ const sanitize = (value: string): string =>
     .replace(/Bearer\s+[A-Za-z0-9_.\-]+/gi, 'Bearer ***')
     .replace(/\bsk-[A-Za-z0-9_.\-]{6,}/gi, 'sk-***');
 
-type AiErrorKind = 'credits' | 'auth' | 'rate_limit' | 'generic';
+type AiErrorKind = 'config' | 'credits' | 'auth' | 'rate_limit' | 'generic';
 
 const classifyAiError = (raw?: string): AiErrorKind => {
   const lower = (raw || '').toLowerCase();
+  // Credencial nao configurada / nao compartilhada (HTTP 412 do
+  // AiProviderResolverService). Verificado ANTES de auth para nao ser
+  // confundido com erro de chave invalida.
+  if (
+    /modelos de ia|configure suas chaves|nao esta compartilhando|não está compartilhando|precondition|412/.test(
+      lower
+    )
+  ) {
+    return 'config';
+  }
   if (
     /credit|insufficient|afford|quota|billing|payment|fund|saldo|402/.test(
       lower
@@ -72,6 +82,11 @@ const friendlyAiErrorMessage = (
   t: ReturnType<typeof useT>
 ): string => {
   switch (classifyAiError(raw)) {
+    case 'config':
+      return t(
+        'ai_assistant_provider_not_configured',
+        'Configure suas chaves de IA em Configurações > Modelos de IA. Se você usa um perfil secundário, verifique se o perfil padrão está compartilhando a credencial.'
+      );
     case 'credits':
       return t(
         'ai_provider_no_credits',
