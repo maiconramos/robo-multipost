@@ -29,6 +29,7 @@ import {
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
+import { sanitizeChatContent } from '@gitroom/helpers/utils/sanitize.chat.content';
 import { TextMessage } from '@copilotkit/runtime-client-gql';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import dayjs from 'dayjs';
@@ -225,7 +226,7 @@ const LoadMessages: FC<{ id: string }> = ({ id }) => {
 
 const Message: FC<UserMessageProps> = (props) => {
   const convertContentToImagesAndVideo = useMemo(() => {
-    return (props.message?.content || '')
+    const html = (props.message?.content || '')
       .replace(/Video: (http.*mp4\n)/g, (match, p1) => {
         return `<video controls class="h-[150px] w-[150px] rounded-[8px] mb-[10px]"><source src="${p1.trim()}" type="video/mp4">Your browser does not support the video tag.</video>`;
       })
@@ -241,11 +242,14 @@ const Message: FC<UserMessageProps> = (props) => {
           return ``;
         }
       );
+    return sanitizeChatContent(html);
   }, [props.message?.content]);
   return (
     <div
       className="copilotKitMessage copilotKitUserMessage min-w-[300px]"
-      dangerouslySetInnerHTML={{ __html: convertContentToImagesAndVideo }}
+      dangerouslySetInnerHTML={{
+        __html: convertContentToImagesAndVideo,
+      }}
     />
   );
 };
