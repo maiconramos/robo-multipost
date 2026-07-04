@@ -7,6 +7,13 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança
+
+- **Isolamento entre workspaces (multi-tenant) reforçado em flows e perfis (IDOR/BOLA).** Quatro endpoints autenticados buscavam/alteravam recursos apenas pelo `id`, sem verificar a organização do usuário:
+  - `GET /flows/:id/executions` e `GET /flows/:id/executions/:executionId` retornavam o histórico de execução de automações de **qualquer** organização (contém dados de usuários finais do Instagram: IDs, texto de comentários, conteúdo de DMs, estado do follow-gate). Agora escopados por `organizationId` via a relação `flow`.
+  - `GET /profiles/:id/members` expunha `id`, `e-mail` e `nome` dos membros de **qualquer** perfil de outra organização. Agora valida a posse do perfil antes de retornar.
+  - `POST /profiles/:id/members` e `DELETE /profiles/:id/members/:userId` permitiam a um admin adicionar/remover membros em perfis de **outra** organização (o `@CheckPolicies(ADMIN)` só valida o papel na org atual, não a posse do perfil). Agora ambos validam que o perfil pertence à organização do request (404 caso contrário), seguindo o mesmo padrão de `updateProfile`/`deleteProfile`.
+
 ## [0.5.5] - 2026-06-07
 
 ### Documentação

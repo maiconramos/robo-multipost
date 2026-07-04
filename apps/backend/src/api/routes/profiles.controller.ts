@@ -58,26 +58,31 @@ export class ProfilesController {
   }
 
   @Get('/:id/members')
-  async getMembers(@Param('id') id: string) {
-    return this._profileService.getMembers(id);
+  async getMembers(
+    @GetOrgFromRequest() org: Organization,
+    @Param('id') id: string
+  ) {
+    return this._profileService.getMembers(org.id, id);
   }
 
   @Post('/:id/members')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async addMember(
+    @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
     @Body() body: { userId: string; role: 'OWNER' | 'MANAGER' | 'EDITOR' | 'VIEWER' }
   ) {
-    return this._profileService.addMember(id, body.userId, body.role);
+    return this._profileService.addMember(org.id, id, body.userId, body.role);
   }
 
   @Delete('/:id/members/:userId')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async removeMember(
+    @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
     @Param('userId') userId: string
   ) {
-    return this._profileService.removeMember(id, userId);
+    return this._profileService.removeMember(org.id, id, userId);
   }
 
   @Post('/:id/api-key/rotate')

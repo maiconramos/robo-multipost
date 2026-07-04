@@ -194,11 +194,13 @@ export class FlowsController {
 
   @Get('/:id/executions')
   async getExecutions(
+    @GetOrgFromRequest() org: Organization,
     @Param('id') id: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string
   ) {
     return this._flowsService.getExecutions(
+      org.id,
       id,
       page ? parseInt(page, 10) : undefined,
       limit ? parseInt(limit, 10) : undefined
@@ -206,7 +208,10 @@ export class FlowsController {
   }
 
   @Get('/:id/executions/:executionId')
-  async getExecution(@Param('executionId') executionId: string) {
-    return this._flowsService.getExecution(executionId);
+  async getExecution(
+    @GetOrgFromRequest() org: Organization,
+    @Param('executionId') executionId: string
+  ) {
+    return this._flowsService.getExecution(org.id, executionId);
   }
 }
