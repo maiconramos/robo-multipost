@@ -2,7 +2,7 @@ import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/pris
 import { Injectable } from '@nestjs/common';
 import { ProfileRole, ShortLinkPreference } from '@prisma/client';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
-import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.is';
 
 export interface ProfilePersonaData {
   brandDescription?: string | null;
@@ -271,7 +271,7 @@ export class ProfileRepository {
   updateApiKey(orgId: string, profileId: string) {
     return this._profile.model.profile.update({
       where: { id: profileId, organizationId: orgId },
-      data: { apiKey: AuthService.fixedEncryption(makeId(20)) },
+      data: { apiKey: AuthService.fixedEncryption(makeSecureId(20)) },
       select: { id: true, apiKey: true },
     });
   }
