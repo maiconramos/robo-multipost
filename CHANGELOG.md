@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Corrigido
+
+- **Chat do agente voltou a responder e agora usa 100% a IA configurada na interface.** O chat/agente (páginas Agent e o assistente do compositor) dependia de uma variável de ambiente `OPENAI_API_KEY` separada; quando ela não estava definida, a requisição ficava pendurada e o usuário recebia um erro `504 Gateway Time-out` genérico — mesmo com a chave de IA configurada em **Configurações > Modelos de IA**. Agora os endpoints `/copilot/agent` e `/copilot/chat` resolvem a credencial de texto direto do provedor configurado na interface (OpenAI **ou** OpenRouter), herdando o compartilhamento do perfil padrão com perfis secundários. A variável `OPENAI_API_KEY` deixou de ser necessária para o chat. Quando não há credencial configurada (ou o perfil padrão não está compartilhando), o chat exibe imediatamente uma mensagem clara ("Configure suas chaves de IA em Configurações > Modelos de IA") em vez de travar.
+
 ## [0.5.5] - 2026-06-07
 
 ### Documentação

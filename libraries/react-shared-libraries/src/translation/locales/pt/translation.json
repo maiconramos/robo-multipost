@@ -1821,6 +1821,7 @@
   "ai_provider_no_credits": "Seu provedor de IA está sem créditos ou atingiu o limite de cobrança. Verifique o saldo na conta do provedor e tente novamente.",
   "ai_provider_auth_error": "Falha de autenticação no provedor de IA. Confira a chave de API em Configurações > Modelos de IA.",
   "ai_provider_rate_limit": "O provedor de IA atingiu o limite de requisições. Aguarde alguns instantes e tente novamente.",
+  "ai_assistant_provider_not_configured": "Configure suas chaves de IA em Configurações > Modelos de IA. Se você usa um perfil secundário, verifique se o perfil padrão está compartilhando a credencial.",
   "detail_label": "Detalhe",
   "agent_skill": "Skill para Agentes de IA",
   "agent_skill_description": "Guia completo (MCP + CLI + API) para o agente. Passe este link + sua Chave de API ao agente (Hermes, OpenClaw, Claude, etc.).",
