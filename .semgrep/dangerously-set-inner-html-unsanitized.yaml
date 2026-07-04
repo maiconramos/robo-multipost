@@ -16,6 +16,8 @@ rules:
       - pattern-not: |
           dangerouslySetInnerHTML={{ __html: sanitizePostContent(...) }}
       - pattern-not: |
+          dangerouslySetInnerHTML={{ __html: sanitizeChatContent(...) }}
+      - pattern-not: |
           dangerouslySetInnerHTML={{ __html: DOMPurify.sanitize(...) }}
     paths:
       include:
