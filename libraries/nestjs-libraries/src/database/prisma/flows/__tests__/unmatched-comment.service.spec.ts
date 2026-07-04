@@ -461,6 +461,75 @@ describe('UnmatchedCommentService', () => {
     });
   });
 
+  describe('namespace de organizacao na chave de cache', () => {
+    it('deve incluir o organizationId na chave ao ler cache no enrich', async () => {
+      repo.findUnmatchedByIdInternal.mockResolvedValue({
+        id: 'uc-1',
+        igMediaId: 'media-X',
+        organizationId: 'org-1',
+        integrationId: 'int-1',
+      } as any);
+      ioRedis.get.mockResolvedValue(JSON.stringify({ permalink: 'p' }));
+
+      await service.enrich('uc-1');
+
+      expect(ioRedis.get).toHaveBeenCalledWith(
+        'ig:media:org-1:media-X:metadata'
+      );
+    });
+
+    it('deve gravar cache com a chave namespaced apos buscar no Graph API', async () => {
+      repo.findUnmatchedByIdInternal.mockResolvedValue({
+        id: 'uc-1',
+        igMediaId: 'media-X',
+        organizationId: 'org-1',
+        integrationId: 'int-1',
+      } as any);
+      ioRedis.get.mockResolvedValue(null);
+      integrationService.getIntegrationById.mockResolvedValue({
+        id: 'int-1',
+        providerIdentifier: 'instagram',
+        organizationId: 'org-1',
+      } as any);
+      resolveIgRoute.mockResolvedValue({
+        token: 'tok',
+        host: 'graph.facebook.com',
+      });
+      instagramProvider.getMediaMetadata.mockResolvedValue({
+        id: 'media-X',
+        permalink: 'https://x',
+      } as any);
+
+      await service.enrich('uc-1');
+
+      expect(ioRedis.setex).toHaveBeenCalledWith(
+        'ig:media:org-1:media-X:metadata',
+        expect.any(Number),
+        expect.any(String)
+      );
+    });
+
+    it('deve isolar a chave por organizationId no getMediaMetadataCached', async () => {
+      repo.listAliasesByFlow.mockResolvedValue([
+        {
+          id: 'a-1',
+          flowId: 'f-1',
+          integrationId: 'int-1',
+          aliasMediaId: 'media-X',
+          source: 'MANUAL',
+        },
+      ] as any);
+      ioRedis.get.mockResolvedValue(null);
+      integrationService.getIntegrationById.mockResolvedValue(null);
+
+      await service.listAliasesEnriched('org-2', 'f-1');
+
+      expect(ioRedis.get).toHaveBeenCalledWith(
+        'ig:media:org-2:media-X:metadata'
+      );
+    });
+  });
+
   describe('cleanupExpired', () => {
     it('deve delegar pro repo retornando o count', async () => {
       repo.deleteUnmatchedOlderThan.mockResolvedValue(12);
