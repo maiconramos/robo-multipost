@@ -158,7 +158,7 @@ export class UnmatchedCommentService {
       return;
     }
 
-    const cacheKey = `ig:media:${uc.igMediaId}:metadata`;
+    const cacheKey = this.mediaMetadataCacheKey(uc.organizationId, uc.igMediaId);
     const cached = await this.readCacheSafe(cacheKey);
     if (cached) {
       await this._flowsRepository.updateUnmatchedMetadata(uc.id, {
@@ -261,7 +261,10 @@ export class UnmatchedCommentService {
     mediaType?: string;
     isAd?: boolean;
   } | null> {
-    const cacheKey = `ig:media:${input.igMediaId}:metadata`;
+    const cacheKey = this.mediaMetadataCacheKey(
+      input.organizationId,
+      input.igMediaId
+    );
     const cached = await this.readCacheSafe(cacheKey);
     if (cached) return cached;
 
@@ -295,6 +298,10 @@ export class UnmatchedCommentService {
 
   cleanupExpired(cutoff: Date): Promise<number> {
     return this._flowsRepository.deleteUnmatchedOlderThan(cutoff);
+  }
+
+  private mediaMetadataCacheKey(orgId: string, mediaId: string): string {
+    return `ig:media:${orgId}:${mediaId}:metadata`;
   }
 
   private async readCacheSafe(
