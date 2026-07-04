@@ -282,15 +282,15 @@ export class FlowsRepository {
     });
   }
 
-  getExecution(id: string) {
+  getExecution(id: string, orgId: string) {
     return this._flowExecution.model.flowExecution.findFirst({
-      where: { id },
+      where: { id, flow: { organizationId: orgId } },
     });
   }
 
-  getExecutions(flowId: string, page = 1, limit = 20) {
+  getExecutions(flowId: string, orgId: string, page = 1, limit = 20) {
     return this._flowExecution.model.flowExecution.findMany({
-      where: { flowId },
+      where: { flowId, flow: { organizationId: orgId } },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,

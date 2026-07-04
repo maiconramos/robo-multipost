@@ -1,0 +1,30 @@
+rules:
+  - id: fetch-user-url-without-ssrf-dispatcher
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      fetch() de uma URL possivelmente controlada pelo usuário sem o ssrfSafeDispatcher.
+      A validação por DTO (@IsSafeWebhookUrl) resolve DNS no momento da validação, mas o fetch
+      re-resolve no envio — abrindo DNS rebinding. Use { dispatcher: ssrfSafeDispatcher } como em
+      /public/stream e nos uploads. Ver SECURITY_AUDIT.md achado C1.
+    metadata:
+      cwe: "CWE-918: Server-Side Request Forgery (SSRF)"
+      audit-finding: C1
+    patterns:
+      - pattern-either:
+          - pattern: |
+              fetch($URL, { ... })
+          - pattern: |
+              fetch($URL)
+      - metavariable-regex:
+          metavariable: $URL
+          regex: (?i).*(url|uri|endpoint|webhook|href|link|picture|image).*
+      - pattern-not: |
+          fetch($URL, { ..., dispatcher: ssrfSafeDispatcher, ... })
+    paths:
+      include:
+        - "apps/backend/**"
+        - "libraries/**"
+      exclude:
+        - "*.spec.ts"
+        - "*.test.ts"

@@ -1,0 +1,20 @@
+rules:
+  - id: prisma-raw-unsafe-with-interpolation
+    languages: [typescript]
+    severity: ERROR
+    message: >
+      $queryRawUnsafe/$executeRawUnsafe com interpolação de string. Use a variante com tagged
+      template ($queryRaw`...`) que parametriza, ou passe parâmetros posicionais. Nunca concatene
+      input do usuário em SQL cru. Ver SECURITY_AUDIT.md (Fase 3 — SQL injection).
+    metadata:
+      cwe: "CWE-89: SQL Injection"
+    patterns:
+      - pattern-either:
+          - pattern: $P.$queryRawUnsafe(`...${$X}...`)
+          - pattern: $P.$executeRawUnsafe(`...${$X}...`)
+          - pattern: $P.$queryRawUnsafe($A + $B)
+          - pattern: $P.$executeRawUnsafe($A + $B)
+    paths:
+      exclude:
+        - "*.spec.ts"
+        - "*.test.ts"

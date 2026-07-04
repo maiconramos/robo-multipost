@@ -1,0 +1,37 @@
+rules:
+  - id: prisma-query-by-id-without-org-filter
+    languages: [typescript]
+    severity: WARNING
+    message: >
+      Query Prisma por `id` sem `organizationId`/`profileId` no `where`. Em um SaaS multi-tenant,
+      todo acesso a recurso por id deve ser escopado ao tenant (a autorização aqui é fail-open:
+      o PoliciesGuard não valida ownership de objeto). Confirme que a camada acima impõe o escopo,
+      ou adicione `organizationId` ao where. Ver SECURITY_AUDIT.md achados A1-A4.
+    metadata:
+      cwe: "CWE-639: Authorization Bypass Through User-Controlled Key (IDOR/BOLA)"
+      owasp: "API1:2023 Broken Object Level Authorization"
+      audit-finding: A1,A2,A3,A4
+    patterns:
+      - pattern-either:
+          - pattern: |
+              $M.findFirst({ where: { id: $ID } })
+          - pattern: |
+              $M.findUnique({ where: { id: $ID } })
+          - pattern: |
+              $M.update({ where: { id: $ID }, ... })
+          - pattern: |
+              $M.delete({ where: { id: $ID } })
+          - pattern: |
+              $M.updateMany({ where: { id: $ID }, ... })
+      - pattern-not-inside: |
+          $M.$FN({ where: { ..., organizationId: ... }, ... })
+      - pattern-not-inside: |
+          $M.$FN({ where: { ..., flow: { organizationId: ... } }, ... })
+      - pattern-not-inside: |
+          $M.$FN({ where: { ..., profileId: ... }, ... })
+    paths:
+      include:
+        - "libraries/nestjs-libraries/src/database/prisma/**"
+      exclude:
+        - "*.spec.ts"
+        - "**/startup-migration.service.ts"

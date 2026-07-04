@@ -1,0 +1,39 @@
+rules:
+  - id: jwt-sign-without-expiry
+    languages: [typescript, javascript]
+    severity: WARNING
+    message: >
+      jsonwebtoken sign() sem `expiresIn`. Tokens de sessão sem expiração permanecem válidos
+      indefinidamente (não há denylist/revogação). Defina { expiresIn: '...' }.
+      Ver SECURITY_AUDIT.md achado B3.
+    metadata:
+      cwe: "CWE-613: Insufficient Session Expiration"
+      audit-finding: B3
+    patterns:
+      - pattern: |
+          sign($PAYLOAD, $SECRET)
+      - pattern-not: |
+          sign($PAYLOAD, $SECRET, { ..., expiresIn: $E, ... })
+    paths:
+      exclude:
+        - "*.spec.ts"
+        - "*.test.ts"
+
+  - id: jwt-verify-without-algorithm-pin
+    languages: [typescript, javascript]
+    severity: INFO
+    message: >
+      jsonwebtoken verify() sem fixar `algorithms`. Defesa em profundidade contra alg-confusion:
+      use { algorithms: ['HS256'] }. Ver SECURITY_AUDIT.md achado B9.
+    metadata:
+      cwe: "CWE-347: Improper Verification of Cryptographic Signature"
+      audit-finding: B9
+    patterns:
+      - pattern: |
+          verify($TOKEN, $SECRET)
+      - pattern-not: |
+          verify($TOKEN, $SECRET, { ..., algorithms: $A, ... })
+    paths:
+      exclude:
+        - "*.spec.ts"
+        - "*.test.ts"

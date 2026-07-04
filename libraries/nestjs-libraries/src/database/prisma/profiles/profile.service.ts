@@ -65,11 +65,19 @@ export class ProfileService {
     return this._profileRepository.deleteProfile(orgId, profileId);
   }
 
-  addMember(profileId: string, userId: string, role: ProfileRole) {
+  async addMember(orgId: string, profileId: string, userId: string, role: ProfileRole) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
     return this._profileRepository.addMember(profileId, userId, role);
   }
 
-  removeMember(profileId: string, userId: string) {
+  async removeMember(orgId: string, profileId: string, userId: string) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
     return this._profileRepository.removeMember(profileId, userId);
   }
 
@@ -82,7 +90,11 @@ export class ProfileService {
     return members.map((m) => m.profileId);
   }
 
-  getMembers(profileId: string) {
+  async getMembers(orgId: string, profileId: string) {
+    const profile = await this._profileRepository.getProfileById(orgId, profileId);
+    if (!profile) {
+      throw new HttpException('Profile not found', 404);
+    }
     return this._profileRepository.getMembers(profileId);
   }
 
