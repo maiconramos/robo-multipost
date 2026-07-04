@@ -7,6 +7,7 @@ import clsx from 'clsx';
 import { useClickAway } from '@uidotdev/usehooks';
 import ReactLoading from '@gitroom/frontend/components/layout/loading';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { sanitizePostContent } from '@gitroom/helpers/utils/sanitize.post.content';
 function replaceLinks(text: string) {
   const urlRegex =
     /(\bhttps?:\/\/[-A-Z0-9+&@#/%?=~_|!:,.;]*[-A-Z0-9+&@#/%=~_|])/gi;
@@ -33,7 +34,7 @@ export const ShowNotification: FC<{
         newNotification && 'font-bold bg-seventh animate-newMessages'
       )}
       dangerouslySetInnerHTML={{
-        __html: replaceLinks(notification.content),
+        __html: sanitizePostContent(replaceLinks(notification.content)),
       }}
     />
   );
