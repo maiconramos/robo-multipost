@@ -285,6 +285,36 @@ export class RepostService {
     return { success: true };
   }
 
+  // Self-heal no boot: garante que cada regra habilitada tenha seu workflow
+  // repost-rule-<id> rodando. Idempotente via USE_EXISTING (no-op quando ja
+  // roda). Chamado pelo StartupMigrationService (backend e orchestrator).
+  async reconcileWorkflows() {
+    const rules = await this._repostRepository.findAllEnabled();
+    let reconciled = 0;
+    for (const rule of rules) {
+      try {
+        await this._temporalService.client
+          .getRawClient()
+          ?.workflow.start(WORKFLOW_NAME, {
+            workflowId: workflowIdOf(rule.id),
+            taskQueue: 'main',
+            args: [{ ruleId: rule.id }],
+            workflowIdConflictPolicy: 'USE_EXISTING',
+            typedSearchAttributes: new TypedSearchAttributes([
+              { key: organizationIdKey, value: rule.organizationId },
+            ]),
+          });
+        reconciled++;
+      } catch (err) {
+        console.error(
+          `[repost] reconcile failed rule=${rule.id}:`,
+          (err as Error).message || err
+        );
+      }
+    }
+    return { total: rules.length, reconciled };
+  }
+
   getLogs(
     orgId: string,
     id: string,

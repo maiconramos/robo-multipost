@@ -1,11 +1,15 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
+import { RepostService } from './repost/repost.service';
 
 @Injectable()
 export class StartupMigrationService implements OnModuleInit {
   private readonly logger = new Logger(StartupMigrationService.name);
 
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly repostService: RepostService
+  ) {}
 
   async onModuleInit() {
     await this.migrateProfileScope();
@@ -13,6 +17,27 @@ export class StartupMigrationService implements OnModuleInit {
     await this.backfillRepostDestinations();
     await this.cleanupExpiredUnmatchedComments();
     await this.backfillFlowsToDefaultProfile();
+    await this.reconcileRepostWorkflows();
+  }
+
+  /**
+   * Self-heal: para cada RepostRule habilitada garante que o workflow
+   * repost-rule-<id> esteja rodando. Idempotente via workflowIdConflictPolicy
+   * USE_EXISTING (no-op quando ja roda). Roda em backend e orchestrator
+   * (DatabaseModule eh @Global); a 2a execucao vira no-op.
+   */
+  private async reconcileRepostWorkflows() {
+    try {
+      const result = await this.repostService.reconcileWorkflows();
+      if (result.total === 0) {
+        return;
+      }
+      this.logger.log(
+        `reconcileRepostWorkflows: ${result.reconciled}/${result.total} repost workflow(s) reconciliados`
+      );
+    } catch (error) {
+      this.logger.error('reconcileRepostWorkflows falhou:', error);
+    }
   }
 
   /**
