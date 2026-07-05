@@ -18,7 +18,7 @@ export default async function Auth(params: {searchParams: Promise<{provider: str
     ).register;
     if (!canRegister && !(await params?.searchParams)?.provider) {
       return (
-        <>
+        <div className="flex flex-col flex-1">
           <LoginWithOidc />
           <div className="text-center">
             {t('registration_is_disabled', 'Registration is disabled')}
@@ -27,7 +27,7 @@ export default async function Auth(params: {searchParams: Promise<{provider: str
               {t('login_instead', 'Login instead')}
             </Link>
           </div>
-        </>
+        </div>
       );
     }
   }
