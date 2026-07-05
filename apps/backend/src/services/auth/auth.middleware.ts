@@ -1,7 +1,7 @@
 import { Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
-import { User } from '@prisma/client';
+import { Role, User } from '@prisma/client';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/users.service';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
@@ -83,6 +83,13 @@ export class AuthMiddleware implements NestMiddleware {
           // eslint-disable-next-line @typescript-eslint/ban-ts-comment
           // @ts-expect-error
           req.org = loadImpersonate.organization;
+
+          await this.resolveProfileContext(
+            req,
+            loadImpersonate.organization.id,
+            user.id,
+            loadImpersonate.organization.users[0]?.role
+          );
           next();
           return;
         }
@@ -111,25 +118,75 @@ export class AuthMiddleware implements NestMiddleware {
       // @ts-expect-error
       req.org = setOrg;
 
-      // Resolve profile context
-      const profileHeader = req.cookies.showprofile || req.headers.showprofile;
-      const userProfileIds = await this._profileService.getUserProfileIds(user.id, setOrg.id);
-
-      if (userProfileIds.length > 0) {
-        const profiles = await this._profileService.getProfilesByOrgId(setOrg.id);
-        const accessibleProfiles = profiles.filter((p) => userProfileIds.includes(p.id));
-        const setProfile = profileHeader
-          ? accessibleProfiles.find((p) => p.id === profileHeader)
-          : accessibleProfiles.find((p) => p.isDefault) || accessibleProfiles[0];
-        // @ts-expect-error
-        req.profile = setProfile || null;
-      } else {
-        // @ts-expect-error
-        req.profile = null;
-      }
+      await this.resolveProfileContext(
+        req,
+        setOrg.id,
+        user.id,
+        setOrg.users[0]?.role
+      );
     } catch (err) {
       throw new HttpForbiddenException();
     }
     next();
+  }
+
+  // Resolve o contexto de perfil da requisicao. Org ADMIN/SUPERADMIN tem
+  // acesso implicito a todos os perfis da org (sem linhas de ProfileMember);
+  // org USER so acessa perfis onde possui membership. Nunca nega aqui —
+  // rotas como /user/self precisam responder mesmo sem perfil para o
+  // frontend renderizar o estado "aguardando atribuicao".
+  private async resolveProfileContext(
+    req: Request,
+    orgId: string,
+    userId: string,
+    orgRole?: Role
+  ) {
+    const request = req as Request & {
+      profile: unknown;
+      profileRole: string | null;
+      profileAccess: 'implicit' | 'member' | 'none';
+    };
+    const profileHeader = req.cookies.showprofile || req.headers.showprofile;
+    const isOrgAdmin = orgRole === 'ADMIN' || orgRole === 'SUPERADMIN';
+
+    if (isOrgAdmin) {
+      const profiles = await this._profileService.getProfilesByOrgId(orgId);
+      const setProfile =
+        (profileHeader && profiles.find((p) => p.id === profileHeader)) ||
+        profiles.find((p) => p.isDefault) ||
+        profiles[0] ||
+        null;
+      request.profile = setProfile;
+      request.profileRole = setProfile ? 'OWNER' : null;
+      request.profileAccess = 'implicit';
+      return;
+    }
+
+    const memberships = await this._profileService.getUserProfileMemberships(
+      userId,
+      orgId
+    );
+    if (!memberships.length) {
+      request.profile = null;
+      request.profileRole = null;
+      request.profileAccess = 'none';
+      return;
+    }
+
+    const profiles = await this._profileService.getProfilesByOrgId(orgId);
+    const accessibleProfiles = profiles.filter((p) =>
+      memberships.some((m) => m.profileId === p.id)
+    );
+    const setProfile =
+      (profileHeader &&
+        accessibleProfiles.find((p) => p.id === profileHeader)) ||
+      accessibleProfiles.find((p) => p.isDefault) ||
+      accessibleProfiles[0] ||
+      null;
+    request.profile = setProfile;
+    request.profileRole = setProfile
+      ? memberships.find((m) => m.profileId === setProfile.id)?.role ?? null
+      : null;
+    request.profileAccess = setProfile ? 'member' : 'none';
   }
 }

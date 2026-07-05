@@ -37,7 +37,15 @@ export class AuthService {
     body: CreateOrgUserDto | LoginUserDto,
     ip: string,
     userAgent: string,
-    addToOrg?: boolean | { orgId: string; role: 'USER' | 'ADMIN'; id: string }
+    addToOrg?:
+      | boolean
+      | {
+          orgId: string;
+          role: 'USER' | 'ADMIN';
+          id: string;
+          profileIds?: string[];
+          profileRole?: 'MANAGER' | 'EDITOR' | 'VIEWER';
+        }
   ) {
     if (provider === Provider.LOCAL) {
       if (process.env.DISALLOW_PLUS && body.email.includes('+')) {
@@ -65,7 +73,9 @@ export class AuthService {
                 create.users[0].user.id,
                 addToOrg.id,
                 addToOrg.orgId,
-                addToOrg.role
+                addToOrg.role,
+                addToOrg.profileIds,
+                addToOrg.profileRole
               )
             : false;
 
@@ -103,7 +113,9 @@ export class AuthService {
             user.id,
             addToOrg.id,
             addToOrg.orgId,
-            addToOrg.role
+            addToOrg.role,
+            addToOrg.profileIds,
+            addToOrg.profileRole
           )
         : false;
     return { addedOrg, jwt: await this.jwt(user) };
@@ -125,6 +137,8 @@ export class AuthService {
         role: 'USER' | 'ADMIN';
         orgId: string;
         id: string;
+        profileIds?: string[];
+        profileRole?: 'MANAGER' | 'EDITOR' | 'VIEWER';
       };
     } catch (err) {
       return false;

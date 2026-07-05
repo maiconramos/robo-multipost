@@ -114,6 +114,12 @@ Shared DTOs live in `dtos/<area>/<name>.dto.ts`. Use `class-validator` for valid
 
 For encrypting sensitive values (OAuth tokens, AI keys, messaging tokens): use the `crypto/` helpers. Environment variable: `ENCRYPTION_KEY` (the same one used for OAuth and [AI](src/ai/CLAUDE.md)). AES-256-GCM is the canonical scheme.
 
+### Profile access & org role resolution
+
+- `getOrgRole(org)` (`src/user/org.role.ts`) is the canonical, fail-closed way to read a resolved org's role (`org.users[0]?.role ?? Role.USER`) — use it instead of accessing `org.users[0].role` directly in new guards/services.
+- `ProfileAccessGuard` (`src/services/auth/profile-access/`) is the global guard enforcing per-profile isolation (closed-by-default): org `ADMIN`/`SUPERADMIN` get implicit access to every profile (no `ProfileMember` rows needed); org `USER` needs a resolved `req.profile` (set by `AuthMiddleware`) or gets `403 NO_PROFILE_ASSIGNED`. Decorators: `@ProfileManage({ param })` (require `OWNER`/`MANAGER`), `@SkipProfileAccess()` (exempt a route).
+- `isAuthBypassPath` (`src/services/auth/auth-bypass-paths.ts`) is the shared, exact-segment path-bypass helper used by both `PoliciesGuard` and `ProfileAccessGuard` — never write an ad-hoc `path.indexOf('/auth')`-style substring check for a new bypass list; it would also match unrelated routes like `/oauth/authorize`.
+
 ## Key File Map
 
 | File | Purpose |
@@ -123,6 +129,7 @@ For encrypting sensitive values (OAuth tokens, AI keys, messaging tokens): use t
 | `src/database/prisma/<table>/<table>.repository.ts` | Per-table repositories (`PrismaRepository<T>` pattern) |
 | `src/database/prisma/startup-migration.service.ts` | **Code-level data migrations** that run on every app startup (idempotent backfills, not schema changes — see pitfall below) |
 | `src/database/prisma/flows/unmatched-comment.service.ts` | Inbox operations for unbound IG comments: `listInbox`, `bindToFlow`, `ignore`, `enrich`, `cleanupExpired` (30d PENDING retention, registered in `StartupMigrationService`), `getMediaMetadataCached` (Redis 24h), `listAliasesEnriched` |
+| `src/database/prisma/profiles/profile.seed.module.ts` | `ProfileSeedService` (`OnModuleInit`) — one-time-per-org bootstrap of default/customer profiles and legacy `USER` membership backfill, gated by `Organization.profilesBootstrappedAt` (see pitfall below) |
 | `src/database/prisma/migrations/` | **Schema-level Prisma migrations** (DDL applied via `pnpm prisma-db-push`) |
 | `src/test/mock.factory.ts` | `createMock`, `createPrismaRepositoryMock` |
 | `src/test/create-testing-module.ts` | `createTestModule({ service, mocks })` |
@@ -159,6 +166,7 @@ For encrypting sensitive values (OAuth tokens, AI keys, messaging tokens): use t
 5. **Symptom:** spec passes locally but fails in CI → **Cause:** test ordering (shared state, global mock). **Fix:** isolate state in `beforeEach`/`afterEach`; never use `--bail` to mask the issue.
 6. **Symptom:** App starts cleanly after deploy but data looks wrong (rows with stale `lateApiKey`, `providerIdentifier='late-X'` instead of `zernio-X`, missing `RepostRuleDestination` rows, etc.) → **Cause:** `StartupMigrationService` (`OnModuleInit`) runs every startup with three idempotent migrations (`migrateProfileScope`, `migrateLateToZernio`, `backfillRepostDestinations`), but it **swallows errors** — failures are only logged, the app keeps running. **Fix:** tail the backend logs on deploy for `Late->Zernio migration failed:` / `Profile scope migration failed:` / `Backfill RepostRuleDestination falhou:`. Each method begins with a `count()` guard that skips when no rows need work, so re-running is safe — just fix the underlying issue and restart the backend. New data migrations belong here when they need application-level logic (joins, format mapping, conditional updates) — pure DDL still goes through Prisma migrations.
 7. **Symptom:** `PENDING UnmatchedComment` rows accumulate indefinitely after adding a new inbox-like feature → **Cause:** time-windowed cleanup must be registered in `StartupMigrationService.onModuleInit`, not as a standalone `@Cron` service. The canonical example is `cleanupExpiredUnmatchedComments` (30-day retention) — count-guard idempotent, swallows errors per existing pattern. **Fix:** add an idempotent cleanup method to `StartupMigrationService` and call it from `onModuleInit`. Do NOT create a separate cron service.
+8. **Symptom:** an org member removed from a profile by an admin appears to get `EDITOR` access back after a backend restart → **Cause:** looks like `ProfileSeedService` (`database/prisma/profiles/profile.seed.module.ts`) always backfills legacy `USER` memberships on `OnModuleInit`. **Fix:** the backfill is gated by `Organization.profilesBootstrappedAt` — it runs once per org and is skipped afterward, even across redeploys; new orgs are marked bootstrapped at creation (`createOrgAndUser`/`createMaxUser`). Check the column before assuming stale re-seeding behavior.
 
 ## Commands
 

@@ -11,8 +11,10 @@ import {
   Query,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
-import { AiKind, AiScope, Organization } from '@prisma/client';
+import { AiKind, AiScope, Organization, Role, User } from '@prisma/client';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
+import { GetUserFromRequest } from '@gitroom/nestjs-libraries/user/user.from.request';
+import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
 import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import {
   AuthorizationActions,
@@ -57,21 +59,22 @@ export class AiCredentialsController {
    * - Sem profileId, ou profileId pertence ao perfil default → scope=WORKSPACE
    * - profileId de perfil secundario → scope=PROFILE
    *
-   * Sempre valida que o profile pertence ao org do request.
+   * Valida que o profile pertence ao org E que o usuario tem acesso a ele
+   * (org USER precisa de membership; admin tem acesso implicito).
    */
   private async resolveScope(
     organizationId: string,
+    actor: { userId: string; orgRole: Role },
     profileIdRaw?: string
   ): Promise<ScopeContext> {
     if (!profileIdRaw) return { scope: 'WORKSPACE' };
 
-    const profile = await this._profileService.getProfileById(
+    const { profile } = await this._profileService.assertProfileAccess(
       organizationId,
-      profileIdRaw
+      profileIdRaw,
+      actor.userId,
+      actor.orgRole
     );
-    if (!profile) {
-      throw new HttpException('Perfil nao encontrado neste workspace.', 404);
-    }
     if (profile.isDefault) {
       return { scope: 'WORKSPACE' };
     }
@@ -79,18 +82,44 @@ export class AiCredentialsController {
   }
 
   @Get('/')
-  async list(@GetOrgFromRequest() org: Organization) {
-    return this._credentialService.listRedactedByOrg(org.id);
+  async list(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User
+  ) {
+    const credentials = await this._credentialService.listRedactedByOrg(
+      org.id
+    );
+    const orgRole = getOrgRole(org);
+    if (orgRole !== 'USER') {
+      return credentials;
+    }
+    // Org USER so ve metadados de credenciais do workspace e dos perfis
+    // que acessa — nao enumera a configuracao dos demais perfis da org.
+    const accessible = await this._profileService.getAccessibleProfiles(
+      org.id,
+      user.id,
+      orgRole
+    );
+    const accessibleIds = new Set(accessible.map((p) => p.id));
+    return credentials.filter(
+      (credential: { profileId?: string | null }) =>
+        !credential.profileId || accessibleIds.has(credential.profileId)
+    );
   }
 
   @Get('/:kind')
   async getByKind(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Param('kind') kindRaw: string,
     @Query('profileId') profileIdRaw?: string
   ) {
     const kind = parseKindParam(kindRaw);
-    const ctx = await this.resolveScope(org.id, profileIdRaw);
+    const ctx = await this.resolveScope(
+      org.id,
+      { userId: user.id, orgRole: getOrgRole(org) },
+      profileIdRaw
+    );
     const result = await this._credentialService.getRedacted(
       org.id,
       ctx.scope,
@@ -104,12 +133,17 @@ export class AiCredentialsController {
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async save(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Param('kind') kindRaw: string,
     @Body() body: unknown,
     @Query('profileId') profileIdRaw?: string
   ) {
     const kind = parseKindParam(kindRaw);
-    const ctx = await this.resolveScope(org.id, profileIdRaw);
+    const ctx = await this.resolveScope(
+      org.id,
+      { userId: user.id, orgRole: getOrgRole(org) },
+      profileIdRaw
+    );
     const payload: SaveAiCredentialPayload =
       SaveAiCredentialPayloadSchema.parse(body);
     await this._credentialService.save(
@@ -132,11 +166,16 @@ export class AiCredentialsController {
   @CheckPolicies([AuthorizationActions.Delete, Sections.ADMIN])
   async remove(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Param('kind') kindRaw: string,
     @Query('profileId') profileIdRaw?: string
   ) {
     const kind = parseKindParam(kindRaw);
-    const ctx = await this.resolveScope(org.id, profileIdRaw);
+    const ctx = await this.resolveScope(
+      org.id,
+      { userId: user.id, orgRole: getOrgRole(org) },
+      profileIdRaw
+    );
     await this._credentialService.delete(
       org.id,
       ctx.scope,
@@ -187,11 +226,16 @@ export class AiCredentialsController {
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async test(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Param('kind') kindRaw: string,
     @Query('profileId') profileIdRaw?: string
   ) {
     const kind = parseKindParam(kindRaw);
-    const ctx = await this.resolveScope(org.id, profileIdRaw);
+    const ctx = await this.resolveScope(
+      org.id,
+      { userId: user.id, orgRole: getOrgRole(org) },
+      profileIdRaw
+    );
     return this._credentialService.test(
       org.id,
       ctx.scope,

@@ -288,8 +288,20 @@ export class IntegrationService {
     }
   }
 
-  async validateIntegrationProfile(orgId: string, integrationId: string, profileId?: string) {
-    if (!profileId) return;
+  async validateIntegrationProfile(
+    orgId: string,
+    integrationId: string,
+    profileId?: string,
+    opts?: { requireProfile?: boolean }
+  ) {
+    if (!profileId) {
+      // Org USER sempre opera com perfil resolvido; sem ele, negar em vez de
+      // degradar para escopo org-wide. Admins e chaves de org passam.
+      if (opts?.requireProfile) {
+        throw new Error('Profile context required for this operation');
+      }
+      return;
+    }
     const integration = await this._integrationRepository.getIntegrationById(orgId, integrationId);
     if (!integration) {
       throw new Error('Integration not found');

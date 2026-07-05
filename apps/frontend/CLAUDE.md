@@ -106,6 +106,7 @@ The `--color-custom*` variables are **deprecated**. Use `--new-*` tokens and Tai
 | `src/components/settings/` | Settings panels (AI Models, AI Persona, AI Credits, Credentials, Profiles, etc.) |
 | `src/components/new-layout/` | Current sidebar + topbar |
 | `src/components/new-layout/sentry.feedback.component.tsx` | Sentry feedback widget |
+| `src/components/layout/no-profile-assigned.component.tsx` | Blocking "waiting for profile assignment" screen for org `USER` with no resolved profile membership (closed-by-default gate); rendered by `new-layout/layout.component.tsx` when the backend's `AuthMiddleware`/`ProfileAccessGuard` resolves no profile |
 | `src/sentry.server.config.ts` / `sentry.edge.config.ts` | Sentry config for SSR/edge |
 | `src/instrumentation.ts` | Next.js initialization hook (Sentry) |
 | `src/proxy.ts` | Proxy to the backend in dev |
@@ -178,6 +179,7 @@ logger.fatal('Database connection pool exhausted', { activeConnections: 100 });
 4. **Symptom:** billing modal opens in an AI flow when it should be a configuration error → **Cause:** backend returned 402. **Fix:** that is a backend rule (412) — see [`apps/backend/CLAUDE.md`](../backend/CLAUDE.md).
 5. **Symptom:** `useT() is undefined` in a client component → **Cause:** missing `'use client'` at the top of the file, or wrong import (`get.transation.service.client` is for client components; there is a separate `.backend` for SSR). **Fix:** import the client variant and mark the component as client.
 6. **Symptom:** PR rejected for suggesting `npm install @radix-ui/...` → **Cause:** broke the "no npm UI" rule. **Fix:** copy/adapt a primitive from `react-shared-libraries/src/form/` or write one natively.
+7. **Symptom:** a user just granted profile access still sees the "waiting for assignment" screen → **Cause:** the SWR fetch wrapper (`src/components/layout/layout.context.tsx`) only does `window.location.reload()` on the *next* request that comes back `403 NO_PROFILE_ASSIGNED` — it doesn't proactively poll. **Fix:** trigger any API call (or ask the user to manually refresh) to re-evaluate profile access.
 
 ## Commands
 

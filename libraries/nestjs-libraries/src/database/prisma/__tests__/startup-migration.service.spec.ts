@@ -1,4 +1,14 @@
 import 'reflect-metadata';
+
+// O tipo RepostService no construtor puxa integration.manager (nostr-tools e
+// ESM e quebra o ts-jest); mock segue o padrao dos demais specs do repo.
+jest.mock('@gitroom/nestjs-libraries/integrations/integration.manager', () => ({
+  IntegrationManager: class {},
+}));
+jest.mock('@gitroom/nestjs-libraries/redis/redis.service', () => ({
+  ioRedis: {},
+}));
+
 import { StartupMigrationService } from '../startup-migration.service';
 
 describe('StartupMigrationService.cleanupExpiredUnmatchedComments', () => {
@@ -26,7 +36,9 @@ describe('StartupMigrationService.cleanupExpiredUnmatchedComments', () => {
       $transaction: jest.fn(),
       $executeRawUnsafe: jest.fn(),
     };
-    service = new StartupMigrationService(prisma);
+    service = new StartupMigrationService(prisma, {
+      reconcileWorkflows: jest.fn().mockResolvedValue({ started: 0 }),
+    } as any);
   });
 
   it('deve ser no-op quando nao ha PENDING > 30 dias', async () => {
@@ -87,7 +99,9 @@ describe('StartupMigrationService.backfillFlowsToDefaultProfile', () => {
       $transaction: jest.fn(),
       $executeRawUnsafe: jest.fn(),
     };
-    service = new StartupMigrationService(prisma);
+    service = new StartupMigrationService(prisma, {
+      reconcileWorkflows: jest.fn().mockResolvedValue({ started: 0 }),
+    } as any);
   });
 
   it('deve ser no-op quando nao ha flow com profileId null', async () => {

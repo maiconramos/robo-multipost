@@ -37,7 +37,7 @@ Controller >> Manager >> Service >> Repository
 | File | Purpose |
 |---|---|
 | `src/main.ts` | NestJS bootstrap, `initializeSentry()`, port listen |
-| `src/app.module.ts` | Root module — registers `SentryModule`, global `FILTER`, api/public-api modules |
+| `src/app.module.ts` | Root module — registers `SentryModule`, global `FILTER`, api/public-api modules, and the global `APP_GUARD` chain: `ThrottlerBehindProxyGuard` → `PoliciesGuard` (billing/role policies) → `ProfileAccessGuard` (per-profile isolation, closed-by-default) |
 | `src/api/api.module.ts` | HTTP module for the private API (controllers requiring auth) |
 | `src/api/routes/` | 30+ REST controllers (auth, posts, integrations, ai-*, copilot, flows, ig-webhook, automations-inbox, etc.) |
 | `src/public-api/` | Versioned public API (`/v1/`) — authenticated by API key (org or per-profile). Controllers register in `public.api.module.ts` `authenticatedController` array (middleware auto-applies). Per-profile scoping: reject `?profileId` ≠ key's profile with `403` (pattern in `public.integrations.controller.ts`); `FlowsService` is `@Global` (DatabaseModule) so no provider wiring needed. Example: `public.flows.controller.ts` (IG comment automations CRUD) |
@@ -58,6 +58,8 @@ Controller >> Manager >> Service >> Repository
 ### Add a guard or interceptor
 
 Never create one in `apps/backend` — write it in `libraries/nestjs-libraries/src/services/auth/` (guards) or `libraries/nestjs-libraries/src/services/` (interceptors) and import.
+
+New routes touching profile-scoped data are checked automatically by the global `ProfileAccessGuard` (`libraries/nestjs-libraries/src/services/auth/profile-access/`): org `USER` without a resolved profile → `403 NO_PROFILE_ASSIGNED`; `VIEWER` role → `403 PROFILE_READ_ONLY` on non-`GET`. Use `@ProfileManage({ param: 'profileId' })` to require `OWNER`/`MANAGER` on the target profile, or `@SkipProfileAccess()` to exempt identity/session/public/billing routes (see `users.controller.ts`, `billing.controller.ts`, `stripe.controller.ts`, `notifications.controller.ts`, `public.controller.ts`). Org `ADMIN`/`SUPERADMIN` always pass — resolved via `getOrgRole` (see [`libraries/nestjs-libraries/CLAUDE.md`](../../libraries/nestjs-libraries/CLAUDE.md)).
 
 ### External webhooks (e.g., Instagram, Stripe)
 
@@ -88,6 +90,8 @@ import { FILTER } from '@gitroom/nestjs-libraries/sentry/sentry.exception';
 5. **Symptom:** new endpoint does not appear in Swagger → **Cause:** controller not registered in `api.module.ts`. **Fix:** add it to the `controllers:` array.
 6. **Symptom:** TS error `'createTestModule' does not exist` in a new spec → **Cause:** wrong import path. **Fix:** `import { createTestModule } from '@gitroom/nestjs-libraries/test'`.
 7. **Symptom:** `GET /automations/aliases/lookup` returns flows from other orgs → **Cause:** `lookupAliasFlows` (and any new service method that searches by external ID like `aliasMediaId`) was called without passing `orgId`. **Fix:** all service methods that accept an externally-supplied identifier (media ID, comment ID, etc.) MUST also accept and enforce `orgId` — closes cross-tenant info leak. See `FlowsService.lookupAliasFlows`.
+8. **Symptom:** a route that should return a plain 403 instead force-logs-out the user (401 + cookie cleared) → **Cause:** it threw/extended `HttpForbiddenException` (`libraries/nestjs-libraries/src/services/exception.filter.ts`), which the global `HttpExceptionFilter` always converts to a session-kill. **Fix:** use `new HttpException(body, 403)` or a dedicated class (`AdminRoleRequiredException`, `NoProfileAssignedException`, `ProfileReadOnlyException`, `ProfileManageDeniedException`) — never extend `HttpForbiddenException` for anything other than "force logout".
+9. **Symptom:** in a self-hosted install (no `STRIPE_PUBLISHABLE_KEY`), an org `USER` reaches an admin-only endpoint → **Cause:** looks like the billing bypass in `PermissionsService.check` (`!STRIPE_PUBLISHABLE_KEY` ⇒ allow everything) also covers `Sections.ADMIN`, but that's a role check, not a plan check. **Fix:** `Sections.ADMIN` requests are filtered out of the billing bypass and evaluated against role unconditionally; denial throws `AdminRoleRequiredException` (403), never `SubscriptionException` (402).
 
 ## Commands
 

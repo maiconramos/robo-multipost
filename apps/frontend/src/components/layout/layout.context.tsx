@@ -109,6 +109,21 @@ function LayoutContextInner(params: { children: ReactNode }) {
         return false;
       }
 
+      // Membership revogada em sessao ativa: recarrega para o gate
+      // "aguardando atribuicao de perfil" reavaliar o estado do usuario.
+      if (response.status === 403) {
+        try {
+          const body = await response.clone().json();
+          if (body?.code === 'NO_PROFILE_ASSIGNED') {
+            window.location.reload();
+            return false;
+          }
+        } catch (err) {
+          // corpo nao-JSON: segue o fluxo normal
+        }
+        return true;
+      }
+
       if (response.status === 402) {
         if (
           await deleteDialog(

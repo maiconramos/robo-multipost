@@ -19,11 +19,11 @@ The tenancy backbone of the product. Org → Profiles → Members; users are map
 
 | Model | Repo dir | Purpose | Rules |
 |---|---|---|---|
-| `Organization` | `organizations/` | Workspace / tenant. Holds `lateApiKey`/`zernioApiKey`, `shareLateWithProfiles`/`shareZernioWithProfiles` flags. | Parent |
+| `Organization` | `organizations/` | Workspace / tenant. Holds `lateApiKey`/`zernioApiKey`, `shareLateWithProfiles`/`shareZernioWithProfiles` flags, and `profilesBootstrappedAt` (one-time profile-membership backfill marker — set at org creation and swept once by `ProfileSeedService`; never re-seeded after that). | Parent |
 | `User` | `users/` | User account (email, password, super-admin flag, timezone). | Parent |
 | `UserOrganization` | `users/` | User ↔ Organization join with `Role` enum (admin/user). | Parent |
-| `Profile` | `profiles/` | Sub-account inside an Organization. `isDefault=true` profile mirrors org-level config; secondary profiles override per-tenant. Holds `aiImageCredits`/`aiVideoCredits`, `lateApiKey`/`zernioApiKey`, `shortlink`. | [`src/ai/CLAUDE.md`](../../libraries/nestjs-libraries/src/ai/CLAUDE.md) (overrides + AI credits), [`src/integrations/social/CLAUDE.md`](../../libraries/nestjs-libraries/src/integrations/social/CLAUDE.md) (Zernio key resolution) |
-| `ProfileMember` | `profiles/` | Profile ↔ User membership (`ProfileRole` enum). | Parent |
+| `Profile` | `profiles/` | Sub-account inside an Organization. `isDefault=true` profile mirrors org-level config; secondary profiles override per-tenant. Holds `aiImageCredits`/`aiVideoCredits`, `lateApiKey`/`zernioApiKey`, `shortlink`. Created together with the org (`createOrgAndUser` nested-creates the Default profile). | [`src/ai/CLAUDE.md`](../../libraries/nestjs-libraries/src/ai/CLAUDE.md) (overrides + AI credits), [`src/integrations/social/CLAUDE.md`](../../libraries/nestjs-libraries/src/integrations/social/CLAUDE.md) (Zernio key resolution) |
+| `ProfileMember` | `profiles/` | Profile ↔ User membership (`ProfileRole` enum) — governs **org-role USER only**. Org ADMIN/SUPERADMIN have implicit access to every profile (resolved by `AuthMiddleware`, no rows needed). USER with zero memberships is closed-by-default: data routes return `403 NO_PROFILE_ASSIGNED` (`ProfileAccessGuard`). `VIEWER` is read-only; `OWNER`/`MANAGER` manage that profile's members/persona/knowledge (`@ProfileManage`). | Parent |
 | `OAuthApp` | `oauth/` | OAuth app configurations exposed by the workspace (used by external integrators). | Parent |
 | `OAuthAuthorization` | `oauth/` | OAuth grants issued to those apps. | Parent |
 

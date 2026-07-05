@@ -11,7 +11,8 @@ export class OrganizationRepository {
   constructor(
     private _organization: PrismaRepository<'organization'>,
     private _userOrg: PrismaRepository<'userOrganization'>,
-    private _user: PrismaRepository<'user'>
+    private _user: PrismaRepository<'user'>,
+    private _profileMember: PrismaRepository<'profileMember'>
   ) {}
 
   createMaxUser(id: string, name: string, saasName: string, email: string) {
@@ -24,6 +25,14 @@ export class OrganizationRepository {
         name: name ? `${name}###${id}` : `Unnamed User###${id}`,
         apiKey: AuthService.fixedEncryption(makeSecureId(20)),
         isTrailing: false,
+        profilesBootstrappedAt: new Date(),
+        profiles: {
+          create: {
+            name: 'Default',
+            slug: 'default',
+            isDefault: true,
+          },
+        },
         subscription: {
           create: {
             totalChannels: 1000000,
@@ -270,6 +279,17 @@ export class OrganizationRepository {
         apiKey: AuthService.fixedEncryption(makeSecureId(20)),
         allowTrial: true,
         isTrailing: true,
+        // Perfil Default criado junto com a org; o criador (SUPERADMIN) tem
+        // acesso implicito, sem ProfileMember. O marcador impede que o seed
+        // de backfill (one-time) conceda memberships em orgs novas.
+        profilesBootstrappedAt: new Date(),
+        profiles: {
+          create: {
+            name: 'Default',
+            slug: 'default',
+            isDefault: true,
+          },
+        },
         users: {
           create: {
             role: Role.SUPERADMIN,
@@ -375,6 +395,15 @@ export class OrganizationRepository {
   }
 
   async deleteTeamMember(orgId: string, userId: string) {
+    // Remove tambem as memberships de perfil da org — sem isso, um reconvite
+    // do mesmo usuario ressuscitaria os acessos antigos sem passar pela
+    // selecao de perfis do convite.
+    await this._profileMember.model.profileMember.deleteMany({
+      where: {
+        userId,
+        profile: { organizationId: orgId },
+      },
+    });
     return this._userOrg.model.userOrganization.delete({
       where: {
         userId_organizationId: {

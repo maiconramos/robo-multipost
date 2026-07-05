@@ -15,6 +15,7 @@ model Organization {
   apiKey                  String?
   paymentId               String?
   streakSince             DateTime?
+  profilesBootstrappedAt  DateTime?
   createdAt               DateTime             @default(now())
   updatedAt               DateTime             @updatedAt
   allowTrial              Boolean              @default(false)

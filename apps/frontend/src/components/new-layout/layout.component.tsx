@@ -40,6 +40,7 @@ import { OrganizationSelector } from '@gitroom/frontend/components/layout/organi
 import { ProfileSelector } from '@gitroom/frontend/components/layout/profile.selector';
 import { StreakComponent } from '@gitroom/frontend/components/layout/streak.component';
 import { PreConditionComponent } from '@gitroom/frontend/components/layout/pre-condition.component';
+import { NoProfileAssignedComponent } from '@gitroom/frontend/components/layout/no-profile-assigned.component';
 import { AttachToFeedbackIcon } from '@gitroom/frontend/components/new-layout/sentry.feedback.component';
 import { FirstBillingComponent } from '@gitroom/frontend/components/billing/first.billing.component';
 
@@ -68,6 +69,12 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   });
 
   if (!user) return null;
+
+  // Closed-by-default: org USER sem perfil atribuido nao carrega o app —
+  // ve o estado "aguardando atribuicao" ate um admin conceder um perfil.
+  if (user.role === 'USER' && !user.profileId) {
+    return <NoProfileAssignedComponent />;
+  }
 
   return (
     <ContextWrapper user={user}>

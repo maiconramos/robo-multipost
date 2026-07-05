@@ -7,8 +7,10 @@ import {
 } from '@nestjs/common';
 import { StripeService } from '@gitroom/nestjs-libraries/services/stripe.service';
 import { ApiTags } from '@nestjs/swagger';
+import { SkipProfileAccess } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
 
 @ApiTags('Stripe')
+@SkipProfileAccess()
 @Controller('/stripe')
 export class StripeController {
   constructor(
