@@ -199,4 +199,64 @@ describe('CredentialService', () => {
       );
     });
   });
+
+  describe('findAllDecrypted', () => {
+    it('pula credencial ilegivel e retorna as demais em vez de lancar', async () => {
+      repository.findAllByProviderAcrossOrgs.mockResolvedValue([
+        { organizationId: 'org-1', profileId: null, encryptedData: 'BAD' },
+        {
+          organizationId: 'org-2',
+          profileId: null,
+          encryptedData: JSON.stringify({ instagramAppSecret: 'ok' }),
+        },
+      ] as any);
+      encryption.decryptJson.mockImplementation((s: string) => {
+        if (s === 'BAD') {
+          throw new Error('Unsupported state or unable to authenticate data');
+        }
+        return JSON.parse(s);
+      });
+
+      const result = await service.findAllDecrypted('facebook');
+
+      expect(result).toHaveLength(1);
+      expect(result[0]).toMatchObject({
+        organizationId: 'org-2',
+        data: { instagramAppSecret: 'ok' },
+      });
+    });
+
+    it('retorna lista vazia sem lancar quando todas as credenciais falham', async () => {
+      repository.findAllByProviderAcrossOrgs.mockResolvedValue([
+        { organizationId: 'org-1', profileId: null, encryptedData: 'BAD1' },
+        { organizationId: 'org-2', profileId: null, encryptedData: 'BAD2' },
+      ] as any);
+      encryption.decryptJson.mockImplementation(() => {
+        throw new Error('Unsupported state or unable to authenticate data');
+      });
+
+      const result = await service.findAllDecrypted('facebook');
+
+      expect(result).toEqual([]);
+    });
+
+    it('retorna todas as credenciais quando todas descriptografam', async () => {
+      repository.findAllByProviderAcrossOrgs.mockResolvedValue([
+        {
+          organizationId: 'org-1',
+          profileId: null,
+          encryptedData: JSON.stringify({ a: '1' }),
+        },
+        {
+          organizationId: 'org-2',
+          profileId: 'p2',
+          encryptedData: JSON.stringify({ b: '2' }),
+        },
+      ] as any);
+
+      const result = await service.findAllDecrypted('facebook');
+
+      expect(result).toHaveLength(2);
+    });
+  });
 });

@@ -335,6 +335,10 @@ apps/frontend/src/components/automations/
    escopo (comentario, story reply e postback). Em **producao** a validacao
    **falha fechada**: sem segredo resolvido o evento e recusado, e
    `SKIP_IG_WEBHOOK_HMAC=true` e ignorado (so vale fora de producao).
+   `CredentialService.findAllDecrypted` (a varredura cross-org de segredos)
+   e resiliente: uma credencial que nao descriptografa (ex.: `ENCRYPTION_KEY`
+   trocada apos salvar) e **pulada com log**, nao derruba o webhook de todos —
+   a validacao segue pelo segredo de ambiente.
 
 ---
 
