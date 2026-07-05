@@ -97,6 +97,16 @@ export class RepostRepository {
     });
   }
 
+  // Todas as regras habilitadas de TODAS as organizacoes — usado na
+  // reconciliacao de workflows no boot (self-heal). Index-backed via
+  // @@index([enabled]) / @@index([deletedAt]).
+  findAllEnabled() {
+    return this._repostRule.model.repostRule.findMany({
+      where: { enabled: true, deletedAt: null },
+      select: { id: true, organizationId: true },
+    });
+  }
+
   async createRule(
     orgId: string,
     profileId: string,

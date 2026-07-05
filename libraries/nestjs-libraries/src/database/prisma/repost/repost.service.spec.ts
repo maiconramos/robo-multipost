@@ -82,3 +82,71 @@ describe('RepostService.runNow', () => {
     errorSpy.mockRestore();
   });
 });
+
+describe('RepostService.reconcileWorkflows', () => {
+  let service: RepostService;
+  let repository: MockProxy<RepostRepository> & RepostRepository;
+  let start: jest.Mock;
+
+  beforeEach(() => {
+    repository = createMock<RepostRepository>();
+    start = jest.fn();
+    const temporal: any = {
+      client: {
+        getRawClient: () => ({ workflow: { start } }),
+      },
+    };
+
+    service = new RepostService(
+      repository,
+      temporal,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+  });
+
+  it('inicia workflow com USE_EXISTING para cada regra habilitada', async () => {
+    repository.findAllEnabled.mockResolvedValue([
+      { id: 'r1', organizationId: 'o1' },
+      { id: 'r2', organizationId: 'o2' },
+    ] as any);
+
+    const result = await service.reconcileWorkflows();
+
+    expect(start).toHaveBeenCalledTimes(2);
+    expect(start).toHaveBeenCalledWith(
+      'repostWorkflow',
+      expect.objectContaining({
+        workflowId: 'repost-rule-r1',
+        taskQueue: 'main',
+        args: [{ ruleId: 'r1' }],
+        workflowIdConflictPolicy: 'USE_EXISTING',
+      })
+    );
+    expect(result).toEqual({ total: 2, reconciled: 2 });
+  });
+
+  it('nao aborta o loop quando o start falha em uma regra', async () => {
+    repository.findAllEnabled.mockResolvedValue([
+      { id: 'r1', organizationId: 'o1' },
+      { id: 'r2', organizationId: 'o2' },
+    ] as any);
+    start.mockRejectedValueOnce(new Error('temporal down'));
+    const errorSpy = jest.spyOn(console, 'error').mockImplementation(() => {});
+
+    const result = await service.reconcileWorkflows();
+
+    expect(result).toEqual({ total: 2, reconciled: 1 });
+    errorSpy.mockRestore();
+  });
+
+  it('no-op quando nao ha regras habilitadas', async () => {
+    repository.findAllEnabled.mockResolvedValue([] as any);
+
+    const result = await service.reconcileWorkflows();
+
+    expect(start).not.toHaveBeenCalled();
+    expect(result).toEqual({ total: 0, reconciled: 0 });
+  });
+});
