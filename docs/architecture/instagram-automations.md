@@ -22,7 +22,7 @@ e um **follow gate de 2 etapas** com botao postback (padrao ManyChat).
 
 ```
 Comentario no IG
-   -> Webhook /api/webhooks/instagram (HMAC validado com Facebook OR Instagram App Secret)
+   -> Webhook /api/webhooks/instagram (HMAC validado; escopo por organizacao dona da conta)
    -> IgWebhookController.processCommentEvent
    -> FlowsService.startFlowsForComment (enfileira Temporal)
    -> flowExecutionWorkflow (task queue "main")
@@ -326,7 +326,15 @@ apps/frontend/src/components/automations/
    (private reply exige `comment_id`, nao abre janela).
 8. **Validar HMAC do webhook com AMBOS os app secrets** (Facebook AND
    Instagram) quando os dois produtos estao no mesmo app Meta. Ver
-   `ig-webhook.controller.ts`.
+   `ig-webhook.controller.ts`. A validacao e **escopada por organizacao**:
+   a assinatura so e aceita contra os segredos de ambiente
+   (`INSTAGRAM_APP_SECRET`/`FACEBOOK_APP_SECRET`, globais) OU contra a
+   credencial da(s) org(s) dona(s) da conta recebida (resolvida por
+   `internalId`). O segredo de uma org NAO valida evento de outra
+   (fecha falsificacao cross-tenant), e o despacho e filtrado pelo mesmo
+   escopo (comentario, story reply e postback). Em **producao** a validacao
+   **falha fechada**: sem segredo resolvido o evento e recusado, e
+   `SKIP_IG_WEBHOOK_HMAC=true` e ignorado (so vale fora de producao).
 
 ---
 
