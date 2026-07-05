@@ -2,7 +2,7 @@ import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/pris
 import { Injectable } from '@nestjs/common';
 import { ProfileRole, ShortLinkPreference } from '@prisma/client';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
-import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.is';
+import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.secure.id';
 
 export interface ProfilePersonaData {
   brandDescription?: string | null;
