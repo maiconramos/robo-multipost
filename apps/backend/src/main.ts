@@ -29,6 +29,14 @@ async function start() {
         'Content-Type',
         'Authorization',
         'x-copilotkit-runtime-client-gql-version',
+        // Headers customizados que o frontend (custom.fetch) envia em chamadas
+        // cross-origin (setup de dois subdominios: FRONTEND_URL x
+        // NEXT_PUBLIC_BACKEND_URL). Sem eles, o preflight CORS falha com
+        // "Failed to fetch" quando o browser tem cookies de sessao legiveis.
+        'auth',
+        'showorg',
+        'showprofile',
+        'impersonate',
       ],
       exposedHeaders: [
         'reload',
