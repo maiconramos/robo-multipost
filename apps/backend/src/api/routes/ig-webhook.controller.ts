@@ -20,6 +20,20 @@ import * as crypto from 'crypto';
 
 const DEFAULT_IG_WEBHOOK_VERIFY_TOKEN = 'multipost';
 
+// Limite de entries processadas por requisicao. A Meta entrega lotes pequenos
+// (tipicamente 1). O teto evita que uma requisicao NAO autenticada com um array
+// `entry` gigante force uma consulta de banco por conta antes da validacao da
+// assinatura (amplificacao pre-auth). Lotes legitimos nunca chegam perto disso.
+const MAX_WEBHOOK_ENTRIES = 100;
+
+// Escopo resultante da validacao da assinatura. `global` = casou com um segredo
+// de ambiente (confiavel para qualquer conta) ou skip em dev. `orgs` = casou com
+// a credencial de uma ou mais organizacoes especificas — o despacho so pode ir
+// para integracoes dessas orgs (fecha a falsificacao cross-tenant, D1).
+type SignatureScope =
+  | { kind: 'global' }
+  | { kind: 'orgs'; orgIds: Set<string> };
+
 @ApiTags('Instagram Webhook')
 @Controller('/public/ig-webhook')
 export class IgWebhookController {
@@ -72,21 +86,40 @@ export class IgWebhookController {
         body?.entry?.length ?? 0
       }`
     );
-    if (!body || !body.entry) {
+    if (!body || !body.entry || !Array.isArray(body.entry)) {
       this._logger.warn('IG webhook: no entries in body');
       return { status: 'ignored' };
     }
 
-    await this.verifySignature(req, body);
+    // Limita o numero de entries processadas (protege contra fan-out de banco
+    // pre-auth via `entry` array gigante — ver MAX_WEBHOOK_ENTRIES).
+    let entries = body.entry;
+    if (entries.length > MAX_WEBHOOK_ENTRIES) {
+      this._logger.warn(
+        `IG webhook: entry array too large (${entries.length}), truncating to ${MAX_WEBHOOK_ENTRIES}`
+      );
+      entries = entries.slice(0, MAX_WEBHOOK_ENTRIES);
+    }
 
-    for (const entry of body.entry) {
+    // Resolve as orgs donas de cada conta ANTES de validar, para escopar a
+    // assinatura aos segredos da(s) org(s) dona(s) da conta recebida (D1).
+    const ownersByEntryId = await this.resolveEntryOwners(entries);
+    const scope = await this.verifySignature(req, ownersByEntryId);
+
+    for (const entry of entries) {
       const igAccountId = entry.id;
 
       // Instagram DM webhooks come via entry.messaging (not entry.changes).
       // Story replies and reactions are the only DMs we handle right now.
       if (Array.isArray(entry.messaging)) {
-        for (const event of entry.messaging) {
-          await this.processMessagingEvent(igAccountId, event);
+        if (this.isEntryAllowed(scope, ownersByEntryId, igAccountId)) {
+          for (const event of entry.messaging) {
+            await this.processMessagingEvent(igAccountId, event, scope);
+          }
+        } else {
+          this._logger.warn(
+            `IG webhook: skipping messaging for account ${igAccountId} outside signature scope`
+          );
         }
       }
 
@@ -102,8 +135,11 @@ export class IgWebhookController {
         // Some Meta apps deliver messages via `changes` as well. Route them
         // through the same messaging handler when that happens.
         if (change.field === 'messages') {
-          if (change.value) {
-            await this.processMessagingEvent(igAccountId, change.value);
+          if (
+            change.value &&
+            this.isEntryAllowed(scope, ownersByEntryId, igAccountId)
+          ) {
+            await this.processMessagingEvent(igAccountId, change.value, scope);
           }
           continue;
         }
@@ -146,21 +182,28 @@ export class IgWebhookController {
         this._logger.log(
           `IG webhook dispatching comment ${igCommentId} on media ${igMediaId} by ${igCommenterId}`
         );
-        await this.processComment({
-          igAccountId,
-          igCommentId,
-          igCommenterId,
-          igCommenterName,
-          igMediaId,
-          commentText,
-        });
+        await this.processComment(
+          {
+            igAccountId,
+            igCommentId,
+            igCommenterId,
+            igCommenterName,
+            igMediaId,
+            commentText,
+          },
+          scope
+        );
       }
     }
 
     return { status: 'ok' };
   }
 
-  private async processMessagingEvent(igAccountId: string, event: any) {
+  private async processMessagingEvent(
+    igAccountId: string,
+    event: any,
+    scope: SignatureScope
+  ) {
     // Only story_mention / story_reply / reaction are handled here. Plain
     // DMs without a story context are ignored (future feature).
     const senderId = event?.sender?.id;
@@ -183,6 +226,11 @@ export class IgWebhookController {
         this._logger.log(
           `IG webhook postback received sender=${senderId} payload=${payload}`
         );
+        // Gate deste caminho = isEntryAllowed no handleWebhook (por igAccountId).
+        // Alem disso, handlePostbackClick tem autorizacao INDEPENDENTE: valida
+        // o HMAC do proprio payload (pb_...) e usa o organizationId da linha
+        // PendingPostback no banco, nunca campos do webhook. Nao "corrigir" isso
+        // para um loop por integracao — a protecao ja e suficiente.
         await this._flowsService.handlePostbackClick({
           payload,
           metaMid,
@@ -234,27 +282,33 @@ export class IgWebhookController {
     this._logger.log(
       `IG webhook dispatching story reply ${igMessageId} on story ${igStoryId} by ${senderId}`
     );
-    await this.processStoryReply({
-      igAccountId,
-      igThreadId: recipientId,
-      igMessageId,
-      igSenderId: senderId,
-      igStoryId,
-      messageText,
-      reaction,
-    });
+    await this.processStoryReply(
+      {
+        igAccountId,
+        igThreadId: recipientId,
+        igMessageId,
+        igSenderId: senderId,
+        igStoryId,
+        messageText,
+        reaction,
+      },
+      scope
+    );
   }
 
-  private async processStoryReply(data: {
-    igAccountId: string;
-    igThreadId?: string;
-    igMessageId: string;
-    igSenderId: string;
-    igSenderName?: string;
-    igStoryId: string;
-    messageText: string;
-    reaction?: string;
-  }) {
+  private async processStoryReply(
+    data: {
+      igAccountId: string;
+      igThreadId?: string;
+      igMessageId: string;
+      igSenderId: string;
+      igSenderName?: string;
+      igStoryId: string;
+      messageText: string;
+      reaction?: string;
+    },
+    scope: SignatureScope
+  ) {
     const integrations =
       await this._integrationService.getIntegrationsByInternalId(
         data.igAccountId
@@ -272,6 +326,13 @@ export class IgWebhookController {
         continue;
       }
 
+      if (!this.isOrgAllowed(scope, integration.organizationId)) {
+        this._logger.warn(
+          `IG webhook: skipping story reply dispatch to org ${integration.organizationId} outside signature scope`
+        );
+        continue;
+      }
+
       await this._flowsService.handleIncomingStoryReply({
         integrationId: integration.id,
         organizationId: integration.organizationId,
@@ -286,14 +347,17 @@ export class IgWebhookController {
     }
   }
 
-  private async processComment(data: {
-    igAccountId: string;
-    igCommentId: string;
-    igCommenterId: string;
-    igCommenterName?: string;
-    igMediaId: string;
-    commentText: string;
-  }) {
+  private async processComment(
+    data: {
+      igAccountId: string;
+      igCommentId: string;
+      igCommenterId: string;
+      igCommenterName?: string;
+      igMediaId: string;
+      commentText: string;
+    },
+    scope: SignatureScope
+  ) {
     const integrations =
       await this._integrationService.getIntegrationsByInternalId(
         data.igAccountId
@@ -314,6 +378,13 @@ export class IgWebhookController {
         continue;
       }
 
+      if (!this.isOrgAllowed(scope, integration.organizationId)) {
+        this._logger.warn(
+          `IG webhook: skipping comment dispatch to org ${integration.organizationId} outside signature scope`
+        );
+        continue;
+      }
+
       await this._flowsService.handleIncomingComment({
         integrationId: integration.id,
         igCommentId: data.igCommentId,
@@ -326,10 +397,62 @@ export class IgWebhookController {
     }
   }
 
+  // Resolve, para cada entry.id (igAccountId) do corpo, o conjunto de orgs que
+  // possuem uma integracao Instagram ativa daquela conta. Deduplica os ids para
+  // evitar consultas repetidas quando a Meta agrupa varias mudancas por conta.
+  private async resolveEntryOwners(
+    entries: any[]
+  ): Promise<Map<string, Set<string>>> {
+    const owners = new Map<string, Set<string>>();
+    const uniqueIds = [
+      ...new Set(
+        (entries || [])
+          .map((e) => e?.id)
+          .filter((id) => id !== undefined && id !== null)
+          .map((id) => String(id))
+      ),
+    ];
+
+    for (const id of uniqueIds) {
+      const integrations =
+        await this._integrationService.getIntegrationsByInternalId(id);
+      const orgIds = new Set<string>();
+      for (const integration of integrations) {
+        if (integration.providerIdentifier === 'instagram') {
+          orgIds.add(integration.organizationId);
+        }
+      }
+      owners.set(id, orgIds);
+    }
+
+    return owners;
+  }
+
+  private isOrgAllowed(
+    scope: SignatureScope,
+    organizationId: string
+  ): boolean {
+    return scope.kind === 'global' || scope.orgIds.has(organizationId);
+  }
+
+  private isEntryAllowed(
+    scope: SignatureScope,
+    ownersByEntryId: Map<string, Set<string>>,
+    igAccountId: string
+  ): boolean {
+    if (scope.kind === 'global') return true;
+    const owners = ownersByEntryId.get(String(igAccountId));
+    if (!owners) return false;
+    for (const org of owners) {
+      if (scope.orgIds.has(org)) return true;
+    }
+    return false;
+  }
+
   private async verifySignature(
     req: RawBodyRequest<Request>,
-    parsedBody: any
-  ) {
+    ownersByEntryId: Map<string, Set<string>>
+  ): Promise<SignatureScope> {
     const signature = req.headers['x-hub-signature-256'] as string;
     const hasRawBody = !!req.rawBody;
 
@@ -339,60 +462,93 @@ export class IgWebhookController {
       rawBodyBuf?.toString('utf8') ??
       (typeof req.body === 'string' ? req.body : JSON.stringify(req.body));
 
-    // Collect candidate app secrets. Meta signs Instagram webhooks with the
-    // "Instagram API with Instagram Login" app secret (separate from the
-    // Facebook App Secret when both products are enabled on the same app).
-    // We try all possible sources: Instagram env var first, then Facebook env
-    // var, then per-workspace credential secrets (both instagramAppSecret and
-    // clientSecret fields).
-    const candidates: Array<{ source: string; secret: string }> = [];
+    // Uniao das orgs donas das contas recebidas neste webhook. Segredos de
+    // credencial so entram como candidatos se pertencerem a uma dessas orgs
+    // (D1: nao aceitar a assinatura de uma org para um evento de outra).
+    const ownerOrgIds = new Set<string>();
+    for (const orgs of ownersByEntryId.values()) {
+      for (const org of orgs) ownerOrgIds.add(org);
+    }
+
+    // Segredos de ambiente sao GLOBAIS (Meta App operado pela plataforma —
+    // confiavel para qualquer conta). Mantidos SEPARADOS dos segredos de
+    // credencial para que um secret de tenant igual ao do ambiente nunca
+    // escale para escopo global (fica restrito a org dona da credencial).
+    const envSecrets: Array<{ value: string; source: string }> = [];
     if (process.env.INSTAGRAM_APP_SECRET) {
-      candidates.push({
+      envSecrets.push({
+        value: process.env.INSTAGRAM_APP_SECRET,
         source: 'env:INSTAGRAM_APP_SECRET',
-        secret: process.env.INSTAGRAM_APP_SECRET,
       });
     }
     if (process.env.FACEBOOK_APP_SECRET) {
-      candidates.push({
+      envSecrets.push({
+        value: process.env.FACEBOOK_APP_SECRET,
         source: 'env:FACEBOOK_APP_SECRET',
-        secret: process.env.FACEBOOK_APP_SECRET,
       });
     }
-    const all = await this._credentialService.findAllDecrypted('facebook');
-    for (const c of all) {
-      if (c.data?.instagramAppSecret) {
-        candidates.push({
-          source: `credential:${c.profileId || 'org'}:instagramAppSecret`,
-          secret: c.data.instagramAppSecret,
-        });
-      }
-      if (c.data?.clientSecret) {
-        candidates.push({
-          source: `credential:${c.profileId || 'org'}:clientSecret`,
-          secret: c.data.clientSecret,
-        });
+
+    // Segredos de credencial das orgs donas, agrupados por VALOR (um secret
+    // compartilhado por varias orgs autoriza todas elas — escopo `orgs`).
+    const credGroups = new Map<
+      string,
+      { orgIds: Set<string>; sources: string[] }
+    >();
+    if (ownerOrgIds.size > 0) {
+      const all = await this._credentialService.findAllDecrypted('facebook');
+      for (const c of all) {
+        if (!ownerOrgIds.has(c.organizationId)) continue;
+        const fields: Array<[string, string | undefined]> = [
+          ['instagramAppSecret', c.data?.instagramAppSecret],
+          ['clientSecret', c.data?.clientSecret],
+        ];
+        for (const [field, secret] of fields) {
+          if (!secret) continue;
+          let group = credGroups.get(secret);
+          if (!group) {
+            group = { orgIds: new Set<string>(), sources: [] };
+            credGroups.set(secret, group);
+          }
+          group.orgIds.add(c.organizationId);
+          group.sources.push(`credential:${c.organizationId}:${field}`);
+        }
       }
     }
+
+    const totalSecrets = envSecrets.length + credGroups.size;
+    const isProd = process.env.NODE_ENV === 'production';
 
     this._logger.log(
-      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBodyStr.length} candidates=${candidates.length}`
+      `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBodyStr.length} envSecrets=${envSecrets.length} credSecrets=${credGroups.size} ownerOrgs=${ownerOrgIds.size}`
     );
 
-    if (candidates.length === 0) {
-      // No secret configured anywhere — skip validation (dev mode)
+    if (totalSecrets === 0) {
+      // Nenhum segredo resolvido para a(s) conta(s) recebida(s).
+      if (isProd) {
+        this._logger.error(
+          'IG webhook: no signing secret resolved for the incoming account(s) in production — rejecting (fail closed).'
+        );
+        throw new ForbiddenException('No signing secret configured');
+      }
       this._logger.warn(
-        'IG webhook: no app secret configured, skipping HMAC validation'
+        'IG webhook: no app secret configured, skipping HMAC validation (dev only)'
       );
-      return;
+      return { kind: 'global' };
     }
 
-    // Allow skipping HMAC validation via env var (useful when Nginx/proxy
-    // re-serializes the body, breaking the signature).
+    // Skip via env var — util quando o proxy re-serializa o corpo e quebra a
+    // assinatura. NUNCA honrado em producao (fail closed, D2).
     if (process.env.SKIP_IG_WEBHOOK_HMAC === 'true') {
-      this._logger.warn(
-        'IG webhook: HMAC validation skipped (SKIP_IG_WEBHOOK_HMAC=true)'
-      );
-      return;
+      if (isProd) {
+        this._logger.warn(
+          'IG webhook: SKIP_IG_WEBHOOK_HMAC=true is IGNORED in production — validating signature.'
+        );
+      } else {
+        this._logger.warn(
+          'IG webhook: HMAC validation skipped (SKIP_IG_WEBHOOK_HMAC=true, dev only)'
+        );
+        return { kind: 'global' };
+      }
     }
 
     if (!signature) {
@@ -401,8 +557,7 @@ export class IgWebhookController {
     }
 
     const sigBuf = Buffer.from(signature);
-    const triedSources: string[] = [];
-    for (const { source, secret } of candidates) {
+    const matches = (secret: string): boolean => {
       // Compute HMAC from raw Buffer when available (exact bytes Meta signed)
       const expected =
         'sha256=' +
@@ -410,19 +565,37 @@ export class IgWebhookController {
           .createHmac('sha256', secret)
           .update(rawBodyBuf || rawBodyStr)
           .digest('hex');
-      triedSources.push(source);
       const expBuf = Buffer.from(expected);
-      if (
+      return (
         sigBuf.length === expBuf.length &&
         crypto.timingSafeEqual(sigBuf, expBuf)
-      ) {
+      );
+    };
+
+    const triedSources: string[] = [];
+
+    // Tenta os segredos de ambiente primeiro (escopo global).
+    for (const { value, source } of envSecrets) {
+      triedSources.push(source);
+      if (matches(value)) {
         this._logger.log(`IG webhook: signature valid (source=${source})`);
-        return;
+        return { kind: 'global' };
+      }
+    }
+
+    // Depois os segredos de credencial (escopo restrito as orgs donas).
+    for (const [secret, group] of credGroups) {
+      triedSources.push(...group.sources);
+      if (matches(secret)) {
+        this._logger.log(
+          `IG webhook: signature valid (source=${group.sources.join('|')})`
+        );
+        return { kind: 'orgs', orgIds: group.orgIds };
       }
     }
 
     this._logger.warn(
-      `IG webhook: signature mismatch. Tried ${triedSources.length} sources: [${triedSources.join(', ')}]. Remember Instagram API with Instagram Login uses a SEPARATE app secret from the Facebook App Secret — set INSTAGRAM_APP_SECRET env var or instagramAppSecret in the credential.`
+      `IG webhook: signature mismatch. Tried ${triedSources.length} source(s): [${triedSources.join(', ')}]. Instagram API with Instagram Login uses a SEPARATE app secret from the Facebook App Secret — set INSTAGRAM_APP_SECRET or instagramAppSecret in the owning workspace credential.`
     );
     throw new ForbiddenException('Invalid signature');
   }
