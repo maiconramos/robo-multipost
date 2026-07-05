@@ -20,7 +20,8 @@ export class ProfileRepository {
   constructor(
     private _profile: PrismaRepository<'profile'>,
     private _profileMember: PrismaRepository<'profileMember'>,
-    private _profilePersona: PrismaRepository<'profilePersona'>
+    private _profilePersona: PrismaRepository<'profilePersona'>,
+    private _userOrganization: PrismaRepository<'userOrganization'>
   ) {}
 
   getProfilesByOrgId(orgId: string) {
@@ -133,7 +134,14 @@ export class ProfileRepository {
           deletedAt: null,
         },
       },
-      select: { profileId: true },
+      select: { profileId: true, role: true },
+    });
+  }
+
+  isUserInOrg(userId: string, orgId: string) {
+    return this._userOrganization.model.userOrganization.findFirst({
+      where: { userId, organizationId: orgId, disabled: false },
+      select: { id: true },
     });
   }
 

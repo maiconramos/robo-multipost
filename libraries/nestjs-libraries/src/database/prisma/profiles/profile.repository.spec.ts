@@ -12,7 +12,15 @@ const mockProfileModel = {
   },
 };
 
-const mockProfileMemberModel = { model: { profileMember: {} } };
+const mockMemberFindMany = jest.fn();
+const mockProfileMemberModel = {
+  model: { profileMember: { findMany: mockMemberFindMany } },
+};
+
+const mockUserOrgFindFirst = jest.fn();
+const mockUserOrgModel = {
+  model: { userOrganization: { findFirst: mockUserOrgFindFirst } },
+};
 const mockPersonaModel = { model: { profilePersona: {} } };
 
 describe('ProfileRepository', () => {
@@ -23,7 +31,8 @@ describe('ProfileRepository', () => {
     repository = new ProfileRepository(
       mockProfileModel as any,
       mockProfileMemberModel as any,
-      mockPersonaModel as any
+      mockPersonaModel as any,
+      mockUserOrgModel as any
     );
   });
 
@@ -66,6 +75,50 @@ describe('ProfileRepository', () => {
       mockFindFirst.mockResolvedValue(null);
 
       const result = await repository.getProfileByApiKey('inexistente');
+
+      expect(result).toBeNull();
+    });
+  });
+
+  describe('getUserProfileIds', () => {
+    it('seleciona profileId e role das memberships do usuario na org', async () => {
+      mockMemberFindMany.mockResolvedValue([
+        { profileId: 'prof-1', role: 'EDITOR' },
+      ]);
+
+      const result = await repository.getUserProfileIds('u-1', 'org-1');
+
+      expect(result).toEqual([{ profileId: 'prof-1', role: 'EDITOR' }]);
+      expect(mockMemberFindMany).toHaveBeenCalledWith({
+        where: {
+          userId: 'u-1',
+          profile: {
+            organizationId: 'org-1',
+            deletedAt: null,
+          },
+        },
+        select: { profileId: true, role: true },
+      });
+    });
+  });
+
+  describe('isUserInOrg', () => {
+    it('consulta o vinculo do usuario com a org', async () => {
+      mockUserOrgFindFirst.mockResolvedValue({ id: 'uo-1' });
+
+      const result = await repository.isUserInOrg('u-1', 'org-1');
+
+      expect(result).toEqual({ id: 'uo-1' });
+      expect(mockUserOrgFindFirst).toHaveBeenCalledWith({
+        where: { userId: 'u-1', organizationId: 'org-1', disabled: false },
+        select: { id: true },
+      });
+    });
+
+    it('retorna null quando usuario nao pertence a org', async () => {
+      mockUserOrgFindFirst.mockResolvedValue(null);
+
+      const result = await repository.isUserInOrg('u-x', 'org-1');
 
       expect(result).toBeNull();
     });

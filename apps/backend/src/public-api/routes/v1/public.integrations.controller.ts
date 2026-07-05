@@ -236,10 +236,24 @@ export class PublicIntegrationsController {
   @ApiResponse({ status: 200, description: 'Horário livre encontrado.' })
   async findSlotIntegration(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Param('id') id?: string
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    return { date: await this._postsService.findFreeDateTime(org.id, id) };
+    if (id && publicApiProfileId) {
+      await this._integrationService.validateIntegrationProfile(
+        org.id,
+        id,
+        publicApiProfileId
+      );
+    }
+    return {
+      date: await this._postsService.findFreeDateTime(
+        org.id,
+        id,
+        publicApiProfileId
+      ),
+    };
   }
 
   @Get('/posts')
@@ -251,10 +265,26 @@ export class PublicIntegrationsController {
   @ApiResponse({ status: 400, description: 'Parâmetros de query inválidos.' })
   async getPosts(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Query() query: GetPostsDto
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    const posts = await this._postsService.getPosts(org.id, query);
+    if (
+      publicApiProfileId &&
+      query.profileId &&
+      query.profileId !== publicApiProfileId
+    ) {
+      throw new HttpException(
+        { msg: 'Profile key cannot access another profile' },
+        403
+      );
+    }
+    const effectiveProfileId = publicApiProfileId ?? query.profileId;
+    const posts = await this._postsService.getPosts(
+      org.id,
+      query,
+      effectiveProfileId
+    );
     return {
       posts,
       // comments,
@@ -278,6 +308,7 @@ export class PublicIntegrationsController {
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
   async createPost(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Body() rawBody: any
   ) {
     Sentry.metrics.count('public_api-request', 1);
@@ -288,8 +319,21 @@ export class PublicIntegrationsController {
     );
     body.type = rawBody.type;
 
+    // Chave de perfil so publica nos canais do proprio perfil.
+    if (publicApiProfileId) {
+      for (const post of body.posts || []) {
+        if (post?.integration?.id) {
+          await this._integrationService.validateIntegrationProfile(
+            org.id,
+            post.integration.id,
+            publicApiProfileId
+          );
+        }
+      }
+    }
+
     console.log(JSON.stringify(body, null, 2));
-    return this._postsService.createPost(org.id, body);
+    return this._postsService.createPost(org.id, body, publicApiProfileId);
   }
 
   @Delete('/posts/:id')
@@ -299,11 +343,24 @@ export class PublicIntegrationsController {
   @ApiResponse({ status: 404, description: 'Post não encontrado.' })
   async deletePost(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Param('id') id: string
   ) {
     Sentry.metrics.count('public_api-request', 1);
     const getPostById = await this._postsService.getPost(org.id, id);
-    return this._postsService.deletePost(org.id, getPostById.group);
+    const postProfileId = getPostById?.posts?.[0]?.profileId;
+    if (
+      publicApiProfileId &&
+      postProfileId &&
+      postProfileId !== publicApiProfileId
+    ) {
+      throw new HttpException({ msg: 'Post not found' }, 404);
+    }
+    return this._postsService.deletePost(
+      org.id,
+      getPostById.group,
+      publicApiProfileId
+    );
   }
 
   @Delete('/posts/group/:group')
@@ -311,10 +368,11 @@ export class PublicIntegrationsController {
   @ApiParam({ name: 'group', description: 'ID do grupo de posts' })
   deletePostByGroup(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Param('group') group: string
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    return this._postsService.deletePost(org.id, group);
+    return this._postsService.deletePost(org.id, group, publicApiProfileId);
   }
 
   @Get('/is-connected')
@@ -546,11 +604,18 @@ export class PublicIntegrationsController {
   @ApiResponse({ status: 200, description: 'Dados analíticos do canal.' })
   async getAnalytics(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Param('integration') integration: string,
     @Query('date') date: string
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    return this._integrationService.checkAnalytics(org, integration, date);
+    return this._integrationService.checkAnalytics(
+      org,
+      integration,
+      date,
+      false,
+      publicApiProfileId
+    );
   }
 
   @Get('/analytics/post/:postId')
@@ -560,11 +625,18 @@ export class PublicIntegrationsController {
   @ApiResponse({ status: 200, description: 'Estatísticas do post.' })
   async getPostAnalytics(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Param('postId') postId: string,
     @Query('date') date: string
   ) {
     Sentry.metrics.count('public_api-request', 1);
-    return this._postsService.checkPostAnalytics(org.id, postId, +date);
+    return this._postsService.checkPostAnalytics(
+      org.id,
+      postId,
+      +date,
+      false,
+      publicApiProfileId
+    );
   }
 
   @Post('/integration-trigger/:id')

@@ -6,15 +6,17 @@ import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.te
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
-import { Organization, ShortLinkPreference } from '@prisma/client';
+import { Organization, ProfileRole, ShortLinkPreference } from '@prisma/client';
 import Zernio from '@zernio/node';
 import { AutopostService } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 
 @Injectable()
 export class OrganizationService {
   constructor(
     private _organizationRepository: OrganizationRepository,
-    private _notificationsService: NotificationService
+    private _notificationsService: NotificationService,
+    private _profileService: ProfileService
   ) {}
   async createOrgAndUser(
     body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string },
@@ -37,13 +39,39 @@ export class OrganizationService {
     return this._organizationRepository.createMaxUser(id, name, saasName, email);
   }
 
-  addUserToOrg(
+  async addUserToOrg(
     userId: string,
     id: string,
     orgId: string,
-    role: 'USER' | 'ADMIN'
+    role: 'USER' | 'ADMIN',
+    profileIds?: string[],
+    profileRole?: ProfileRole
   ) {
-    return this._organizationRepository.addUserToOrg(userId, id, orgId, role);
+    const added = await this._organizationRepository.addUserToOrg(
+      userId,
+      id,
+      orgId,
+      role
+    );
+    // Convite com perfis: role USER entra restrito aos perfis escolhidos.
+    // ADMIN tem acesso implicito a todos — nao precisa de membership.
+    if (added && role === 'USER' && profileIds?.length) {
+      for (const profileId of profileIds) {
+        try {
+          await this._profileService.addMember(
+            orgId,
+            profileId,
+            userId,
+            profileRole ?? 'EDITOR'
+          );
+        } catch (err) {
+          // Perfil deletado entre o convite e o aceite: segue sem essa
+          // membership (o usuario cai na tela "aguardando atribuicao"
+          // se nenhuma sobrar).
+        }
+      }
+    }
+    return added;
   }
 
   getOrgById(id: string) {
@@ -79,6 +107,22 @@ export class OrganizationService {
   }
 
   async inviteTeamMember(orgId: string, body: AddTeamMemberDto) {
+    // Perfis do convite precisam pertencer a esta org (payload vai assinado
+    // no JWT e vira membership no aceite).
+    if (body.role === 'USER' && body.profileIds?.length) {
+      for (const profileId of body.profileIds) {
+        const profile = await this._profileService.getProfileById(
+          orgId,
+          profileId
+        );
+        if (!profile) {
+          throw new HttpException(
+            `Profile ${profileId} not found in this workspace`,
+            400
+          );
+        }
+      }
+    }
     const timeLimit = dayjs().add(1, 'hour').format('YYYY-MM-DD HH:mm:ss');
     const id = makeId(5);
     const url =

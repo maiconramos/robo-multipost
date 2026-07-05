@@ -4,8 +4,10 @@ import { Organization, User } from '@prisma/client';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/notifications/notification.service';
 import { ApiTags } from '@nestjs/swagger';
+import { SkipProfileAccess } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
 
 @ApiTags('Notifications')
+@SkipProfileAccess()
 @Controller('/notifications')
 export class NotificationsController {
   constructor(private _notificationsService: NotificationService) {}

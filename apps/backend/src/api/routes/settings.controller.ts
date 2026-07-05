@@ -14,6 +14,7 @@ import { ApiTags } from '@nestjs/swagger';
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { KnowledgeService } from '@gitroom/nestjs-libraries/database/prisma/knowledge/knowledge.service';
+import { ProfileManage } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
 
 @ApiTags('Settings')
 @Controller('/settings')
@@ -210,8 +211,10 @@ export class SettingsController {
     };
   }
 
+  // Persona e knowledge: admin da org OU OWNER/MANAGER do perfil alvo
+  // (@ProfileManage valida membership + hierarquia via ProfileAccessGuard).
   @Get('/profiles/:profileId/persona')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @ProfileManage({ param: 'profileId' })
   async getProfilePersona(
     @GetOrgFromRequest() org: Organization,
     @Param('profileId') profileId: string
@@ -221,7 +224,7 @@ export class SettingsController {
   }
 
   @Put('/profiles/:profileId/persona')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @ProfileManage({ param: 'profileId' })
   async updateProfilePersona(
     @GetOrgFromRequest() org: Organization,
     @Param('profileId') profileId: string,
@@ -232,7 +235,7 @@ export class SettingsController {
   }
 
   @Delete('/profiles/:profileId/persona')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @ProfileManage({ param: 'profileId' })
   async deleteProfilePersona(
     @GetOrgFromRequest() org: Organization,
     @Param('profileId') profileId: string
@@ -242,7 +245,7 @@ export class SettingsController {
   }
 
   @Get('/profiles/:profileId/knowledge')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @ProfileManage({ param: 'profileId' })
   async listKnowledge(
     @GetOrgFromRequest() org: Organization,
     @Param('profileId') profileId: string
@@ -252,7 +255,7 @@ export class SettingsController {
   }
 
   @Post('/profiles/:profileId/knowledge/upload')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @ProfileManage({ param: 'profileId' })
   @UseInterceptors(FileInterceptor('file'))
   async uploadKnowledge(
     @GetOrgFromRequest() org: Organization,
@@ -272,7 +275,7 @@ export class SettingsController {
   }
 
   @Delete('/profiles/:profileId/knowledge/:documentId')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @ProfileManage({ param: 'profileId' })
   async deleteKnowledge(
     @GetOrgFromRequest() org: Organization,
     @Param('profileId') profileId: string,

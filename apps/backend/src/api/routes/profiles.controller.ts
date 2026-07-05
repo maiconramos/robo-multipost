@@ -17,6 +17,9 @@ import {
   AuthorizationActions,
   Sections,
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import { ProfileManage } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
+import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
+import { AddProfileMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.profile-member.dto';
 
 @ApiTags('Profiles')
 @Controller('/profiles')
@@ -24,8 +27,17 @@ export class ProfilesController {
   constructor(private _profileService: ProfileService) {}
 
   @Get('/')
-  async getProfiles(@GetOrgFromRequest() org: Organization) {
-    return this._profileService.getProfilesByOrgId(org.id);
+  async getProfiles(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User
+  ) {
+    // Admin enxerga todos os perfis; org USER apenas os que e membro —
+    // nao vaza nomes/rosters dos demais clientes do workspace.
+    return this._profileService.getAccessibleProfiles(
+      org.id,
+      user.id,
+      getOrgRole(org)
+    );
   }
 
   @Post('/')
@@ -60,29 +72,45 @@ export class ProfilesController {
   @Get('/:id/members')
   async getMembers(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Param('id') id: string
   ) {
+    // Qualquer membro do perfil (ou admin) ve o roster; USER de fora -> 403.
+    await this._profileService.assertProfileAccess(
+      org.id,
+      id,
+      user.id,
+      getOrgRole(org)
+    );
     return this._profileService.getMembers(org.id, id);
   }
 
   @Post('/:id/members')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @ProfileManage({ param: 'id' })
   async addMember(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Param('id') id: string,
-    @Body() body: { userId: string; role: 'OWNER' | 'MANAGER' | 'EDITOR' | 'VIEWER' }
+    @Body() body: AddProfileMemberDto
   ) {
-    return this._profileService.addMember(org.id, id, body.userId, body.role);
+    return this._profileService.addMember(org.id, id, body.userId, body.role, {
+      userId: user.id,
+      orgRole: getOrgRole(org),
+    });
   }
 
   @Delete('/:id/members/:userId')
-  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  @ProfileManage({ param: 'id' })
   async removeMember(
     @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
     @Param('id') id: string,
     @Param('userId') userId: string
   ) {
-    return this._profileService.removeMember(org.id, id, userId);
+    return this._profileService.removeMember(org.id, id, userId, {
+      userId: user.id,
+      orgRole: getOrgRole(org),
+    });
   }
 
   @Post('/:id/api-key/rotate')

@@ -28,6 +28,11 @@ const roles = [
     value: 'ADMIN',
   },
 ];
+const profileRoles = [
+  { key: 'profile_role_editor', name: 'Editor', value: 'EDITOR' },
+  { key: 'profile_role_manager', name: 'Manager', value: 'MANAGER' },
+  { key: 'profile_role_viewer', name: 'Viewer', value: 'VIEWER' },
+];
 export const AddMember = () => {
   const modals = useModals();
   const fetch = useFetch();
@@ -41,6 +46,8 @@ export const AddMember = () => {
       email: '',
       role: '',
       sendEmail: true,
+      profileIds: [] as string[],
+      profileRole: 'EDITOR',
     },
     resolver,
     mode: 'onChange',
@@ -49,8 +56,47 @@ export const AddMember = () => {
     control: form.control,
     name: 'sendEmail',
   });
+  const role = useWatch({
+    control: form.control,
+    name: 'role',
+  });
+  const profileIds = useWatch({
+    control: form.control,
+    name: 'profileIds',
+  });
+  const loadProfiles = useCallback(async () => {
+    return (await fetch('/profiles')).json();
+  }, []);
+  const { data: profiles } = useSWR(
+    role === 'USER' ? 'invite-profiles' : null,
+    loadProfiles,
+    {
+      revalidateOnFocus: false,
+      revalidateOnReconnect: false,
+      revalidateIfStale: false,
+    }
+  );
+  const toggleProfile = useCallback(
+    (id: string) => () => {
+      const current = form.getValues('profileIds') || [];
+      form.setValue(
+        'profileIds',
+        current.includes(id)
+          ? current.filter((p: string) => p !== id)
+          : [...current, id],
+        { shouldValidate: true }
+      );
+    },
+    []
+  );
   const submit = useCallback(
-    async (values: { email: string; role: string; sendEmail: boolean }) => {
+    async (values: {
+      email: string;
+      role: string;
+      sendEmail: boolean;
+      profileIds: string[];
+      profileRole: string;
+    }) => {
       const { url } = await (
         await fetch('/settings/team', {
           method: 'POST',
@@ -88,6 +134,50 @@ export const AddMember = () => {
               </option>
             ))}
           </Select>
+          {role === 'USER' && (
+            <>
+              <div className="flex flex-col gap-[6px]">
+                <div className="text-[14px]">
+                  {t('invite_profiles_label', 'Member profiles')}
+                </div>
+                <div className="flex flex-col gap-[4px] max-h-[160px] overflow-y-auto border border-fifth rounded-[4px] p-[8px]">
+                  {(profiles || []).map(
+                    (profile: { id: string; name: string }) => (
+                      <label
+                        key={profile.id}
+                        className="flex items-center gap-[8px] cursor-pointer"
+                      >
+                        <input
+                          type="checkbox"
+                          checked={(profileIds || []).includes(profile.id)}
+                          onChange={toggleProfile(profile.id)}
+                        />
+                        <span>{profile.name}</span>
+                      </label>
+                    )
+                  )}
+                </div>
+                {!(profileIds || []).length && (
+                  <div className="text-[12px] text-red-400">
+                    {t(
+                      'invite_profiles_required',
+                      'Select at least one profile'
+                    )}
+                  </div>
+                )}
+              </div>
+              <Select
+                label={t('invite_profile_role_label', 'Role in profiles')}
+                name="profileRole"
+              >
+                {profileRoles.map((profileRole) => (
+                  <option key={profileRole.value} value={profileRole.value}>
+                    {t(profileRole.key, profileRole.name)}
+                  </option>
+                ))}
+              </Select>
+            </>
+          )}
           <div className="flex gap-[5px]">
             <div>
               <Checkbox name="sendEmail" />

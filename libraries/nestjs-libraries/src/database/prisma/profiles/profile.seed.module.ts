@@ -83,32 +83,15 @@ export class ProfileSeedService implements OnModuleInit {
       );
     }
 
-    // 3. Add SUPERADMIN and ADMIN users as OWNER members in all profiles of their org
-    const ownersAdded = await this.prisma.$executeRawUnsafe(`
-      INSERT INTO "ProfileMember" ("id", "profileId", "userId", "role", "createdAt", "updatedAt")
-      SELECT
-        gen_random_uuid(),
-        p."id",
-        uo."userId",
-        'OWNER'::"ProfileRole",
-        NOW(),
-        NOW()
-      FROM "UserOrganization" uo
-      JOIN "Profile" p ON p."organizationId" = uo."organizationId" AND p."deletedAt" IS NULL
-      WHERE uo."role" IN ('SUPERADMIN', 'ADMIN')
-      AND NOT EXISTS (
-        SELECT 1 FROM "ProfileMember" pm
-        WHERE pm."profileId" = p."id" AND pm."userId" = uo."userId"
-      )
-    `);
+    // 3. (removed) Org ADMIN/SUPERADMIN users have IMPLICIT access to every
+    // profile of their org (resolved by AuthMiddleware) — no ProfileMember
+    // rows are needed or created for them anymore.
 
-    if (ownersAdded > 0) {
-      this.logger.log(
-        `Added ${ownersAdded} OWNER profile member(s)`
-      );
-    }
-
-    // 4. Add USER role users as EDITOR members in all profiles of their org
+    // 4. One-time backfill: USER-role members of organizations that predate
+    // the membership feature keep their org-wide visibility (EDITOR on all
+    // profiles). Runs ONLY for orgs never bootstrapped AND with zero
+    // ProfileMember rows — memberships removed by an admin are never
+    // re-created on restart.
     const editorsAdded = await this.prisma.$executeRawUnsafe(`
       INSERT INTO "ProfileMember" ("id", "profileId", "userId", "role", "createdAt", "updatedAt")
       SELECT
@@ -119,18 +102,36 @@ export class ProfileSeedService implements OnModuleInit {
         NOW(),
         NOW()
       FROM "UserOrganization" uo
+      JOIN "Organization" o ON o."id" = uo."organizationId" AND o."profilesBootstrappedAt" IS NULL
       JOIN "Profile" p ON p."organizationId" = uo."organizationId" AND p."deletedAt" IS NULL
       WHERE uo."role" = 'USER'
       AND NOT EXISTS (
         SELECT 1 FROM "ProfileMember" pm
         WHERE pm."profileId" = p."id" AND pm."userId" = uo."userId"
       )
+      AND NOT EXISTS (
+        SELECT 1 FROM "ProfileMember" pm2
+        JOIN "Profile" p2 ON p2."id" = pm2."profileId"
+        WHERE p2."organizationId" = uo."organizationId"
+      )
     `);
 
     if (editorsAdded > 0) {
       this.logger.log(
-        `Added ${editorsAdded} EDITOR profile member(s)`
+        `Added ${editorsAdded} EDITOR profile member(s) (one-time backfill)`
       );
+    }
+
+    // 4b. Mark every org as bootstrapped so the backfill above never runs
+    // again for it (new orgs get the marker at creation in createOrgAndUser).
+    const orgsMarked = await this.prisma.$executeRawUnsafe(`
+      UPDATE "Organization"
+      SET "profilesBootstrappedAt" = NOW()
+      WHERE "profilesBootstrappedAt" IS NULL
+    `);
+
+    if (orgsMarked > 0) {
+      this.logger.log(`Marked ${orgsMarked} org(s) as profile-bootstrapped`);
     }
 
     // 5. Link Integrations with customerId to corresponding Profile (by Customer name)

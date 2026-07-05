@@ -25,3 +25,15 @@ export class SubscriptionException extends HttpException {
     super(message, HttpStatus.PAYMENT_REQUIRED);
   }
 }
+
+// 403 dedicado para negacao de role admin. NAO usar HttpForbiddenException
+// aqui: o HttpExceptionFilter global converte aquela classe em 401 +
+// limpeza do cookie de auth (logout forcado).
+export class AdminRoleRequiredException extends HttpException {
+  constructor(message: { section: Sections; action: AuthorizationActions }) {
+    super(
+      { ...message, code: 'ADMIN_ROLE_REQUIRED' },
+      HttpStatus.FORBIDDEN
+    );
+  }
+}

@@ -47,11 +47,23 @@ export class PermissionsService {
       Ability<[AuthorizationActions, Sections]>
     >(Ability as AbilityClass<AppAbility>);
 
-    if (
-      requestedPermission.length === 0 ||
-      !process.env.STRIPE_PUBLISHABLE_KEY
-    ) {
-      for (const [action, section] of requestedPermission) {
+    // Sections.ADMIN e uma checagem de role, nunca de plano — nao entra no
+    // bypass de billing (self-hosted sem STRIPE_PUBLISHABLE_KEY).
+    const adminPermissions = requestedPermission.filter(
+      ([, section]) => section === Sections.ADMIN
+    );
+    const tierPermissions = requestedPermission.filter(
+      ([, section]) => section !== Sections.ADMIN
+    );
+
+    for (const [action, section] of adminPermissions) {
+      if (['ADMIN', 'SUPERADMIN'].includes(permission)) {
+        can(action, section);
+      }
+    }
+
+    if (tierPermissions.length === 0 || !process.env.STRIPE_PUBLISHABLE_KEY) {
+      for (const [action, section] of tierPermissions) {
         can(action, section);
       }
       return build({
@@ -63,7 +75,7 @@ export class PermissionsService {
     }
 
     const { subscription, options } = await this.getPackageOptions(orgId);
-    for (const [action, section] of requestedPermission) {
+    for (const [action, section] of tierPermissions) {
       // check for the amount of channels
       if (section === Sections.CHANNEL) {
         // Refreshing an existing channel doesn't add a new one, so skip the limit check
@@ -122,14 +134,6 @@ export class PermissionsService {
       }
 
       if (section === Sections.TEAM_MEMBERS && options.team_members) {
-        can(action, section);
-        continue;
-      }
-
-      if (
-        section === Sections.ADMIN &&
-        ['ADMIN', 'SUPERADMIN'].includes(permission)
-      ) {
         can(action, section);
         continue;
       }

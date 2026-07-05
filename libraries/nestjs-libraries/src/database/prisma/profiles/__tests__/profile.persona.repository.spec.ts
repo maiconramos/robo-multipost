@@ -12,6 +12,7 @@ const mockPersonaModel = {
 
 const mockProfileModel = { model: { profile: {} } };
 const mockProfileMemberModel = { model: { profileMember: {} } };
+const mockUserOrgModel = { model: { userOrganization: {} } };
 
 describe('ProfileRepository - Persona', () => {
   let repository: ProfileRepository;
@@ -21,7 +22,8 @@ describe('ProfileRepository - Persona', () => {
     repository = new ProfileRepository(
       mockProfileModel as any,
       mockProfileMemberModel as any,
-      mockPersonaModel as any
+      mockPersonaModel as any,
+      mockUserOrgModel as any
     );
   });
 

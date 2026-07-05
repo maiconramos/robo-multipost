@@ -35,6 +35,7 @@ import { uniqBy } from 'lodash';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
+import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -141,7 +142,12 @@ export class IntegrationsController {
       throw new Error('Invalid body');
     }
 
-    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
+    await this._integrationService.validateIntegrationProfile(
+      org.id,
+      id,
+      profile?.id,
+      { requireProfile: getOrgRole(org) === 'USER' }
+    );
     await this._integrationService.updateProviderSettings(org.id, id, body);
   }
   @Post('/:id/nickname')
@@ -151,7 +157,12 @@ export class IntegrationsController {
     @Param('id') id: string,
     @Body() body: { name: string; picture: string }
   ) {
-    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
+    await this._integrationService.validateIntegrationProfile(
+      org.id,
+      id,
+      profile?.id,
+      { requireProfile: getOrgRole(org) === 'USER' }
+    );
     const integration = await this._integrationService.getIntegrationById(
       org.id,
       id
@@ -352,7 +363,12 @@ export class IntegrationsController {
     @Param('id') id: string,
     @Body() body: IntegrationTimeDto
   ) {
-    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
+    await this._integrationService.validateIntegrationProfile(
+      org.id,
+      id,
+      profile?.id,
+      { requireProfile: getOrgRole(org) === 'USER' }
+    );
     return this._integrationService.setTimes(org.id, id, body);
   }
 
@@ -478,7 +494,12 @@ export class IntegrationsController {
     @GetProfileFromRequest() profile: Profile | null,
     @Body('id') id: string
   ) {
-    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
+    await this._integrationService.validateIntegrationProfile(
+      org.id,
+      id,
+      profile?.id,
+      { requireProfile: getOrgRole(org) === 'USER' }
+    );
     return this._integrationService.disableChannel(org.id, id);
   }
 
@@ -488,7 +509,12 @@ export class IntegrationsController {
     @GetProfileFromRequest() profile: Profile | null,
     @Body('id') id: string
   ) {
-    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
+    await this._integrationService.validateIntegrationProfile(
+      org.id,
+      id,
+      profile?.id,
+      { requireProfile: getOrgRole(org) === 'USER' }
+    );
     return this._integrationService.enableChannel(
       org.id,
       // @ts-ignore
@@ -504,7 +530,12 @@ export class IntegrationsController {
     @GetProfileFromRequest() profile: Profile | null,
     @Body('id') id: string
   ) {
-    await this._integrationService.validateIntegrationProfile(org.id, id, profile?.id);
+    await this._integrationService.validateIntegrationProfile(
+      org.id,
+      id,
+      profile?.id,
+      { requireProfile: getOrgRole(org) === 'USER' }
+    );
     const isTherePosts = await this._integrationService.getPostsForChannel(
       org.id,
       id

@@ -31,10 +31,12 @@ import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf
 import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/review-links/review-links.service';
 import { CommentKind } from '@prisma/client';
 import { buildAgentSkillMarkdown } from '@gitroom/nestjs-libraries/agent/agent.skill.template';
+import { SkipProfileAccess } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
 
 const pump = promisify(pipeline);
 
 @ApiTags('Public')
+@SkipProfileAccess()
 @Controller('/public')
 export class PublicController {
   constructor(

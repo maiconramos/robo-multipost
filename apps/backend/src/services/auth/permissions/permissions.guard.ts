@@ -10,7 +10,13 @@ import {
 } from '@gitroom/backend/services/auth/permissions/permissions.ability';
 import { Organization } from '@prisma/client';
 import { Request } from 'express';
-import { SubscriptionException } from './permission.exception.class';
+import {
+  AdminRoleRequiredException,
+  Sections,
+  SubscriptionException,
+} from './permission.exception.class';
+import { isAuthBypassPath } from '@gitroom/nestjs-libraries/services/auth/auth-bypass-paths';
+import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
 
 @Injectable()
 export class PoliciesGuard implements CanActivate {
@@ -21,12 +27,7 @@ export class PoliciesGuard implements CanActivate {
 
   async canActivate(context: ExecutionContext): Promise<boolean> {
     const request: Request = context.switchToHttp().getRequest();
-    if (
-      request.path.indexOf('/auth') > -1 ||
-      request.path.indexOf('/auth') > -1 ||
-      request.path.indexOf('/integrations/social-connect') > -1 ||
-      request.path.indexOf('/integrations/provider') > -1
-    ) {
+    if (isAuthBypassPath(request.path)) {
       return true;
     }
 
@@ -46,14 +47,21 @@ export class PoliciesGuard implements CanActivate {
 
     const refreshChannelId = typeof request.query?.refresh === 'string' ? request.query.refresh : undefined;
 
-    // @ts-ignore
-    const ability = await this._authorizationService.check(org.id, org.createdAt, org.users[0].role, policyHandlers, refreshChannelId);
+    const ability = await this._authorizationService.check(org.id, org.createdAt, getOrgRole(org), policyHandlers, refreshChannelId);
 
     const item = policyHandlers.find(
       (handler) => !this.execPolicyHandler(handler, ability)
     );
 
     if (item) {
+      // ADMIN negado e falta de role (403), nao de plano (402) — 402 abre o
+      // modal de billing no frontend.
+      if (item[1] === Sections.ADMIN) {
+        throw new AdminRoleRequiredException({
+          section: item[1],
+          action: item[0],
+        });
+      }
       throw new SubscriptionException({
         section: item[1],
         action: item[0],

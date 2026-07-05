@@ -18,4 +18,12 @@ export class GetPostsDto {
   @IsOptional()
   @IsString()
   customer: string;
+
+  @ApiPropertyOptional({
+    description:
+      'Filtra por perfil (chave de org). Chave de perfil só vê o próprio.',
+  })
+  @IsOptional()
+  @IsString()
+  profileId?: string;
 }
