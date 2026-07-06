@@ -131,19 +131,19 @@ User (conta global)
 #### A. Tokens OAuth de Integracao (por canal social)
 
 Tabela `Integration`:
-- `token`: token OAuth. **Texto plano por padrao**; criptografado em repouso
-  (AES-256-GCM, mesma `ENCRYPTION_KEY` das credenciais) quando a env
-  `ENCRYPT_INTEGRATION_TOKENS=true` (B1). Cifrado = prefixo `enc:v1:`.
+- `token`: token OAuth. **Criptografado em repouso por padrao** (AES-256-GCM,
+  mesma `ENCRYPTION_KEY` das credenciais) desde o B1. Cifrado = prefixo `enc:v1:`.
 - `refreshToken`: idem `token`.
 - `tokenExpiration`: expiracao do access token
 - `tokenEncrypted`: flag boolean (default `false`) — **advisory**; a leitura
   decide cifrado vs texto plano pelo **prefixo** `enc:v1:`, nao por esta flag.
 - **Criptografia (B1):** a **escrita** cifra no chokepoint unico
-  `IntegrationRepository` (gate `ENCRYPT_INTEGRATION_TOKENS`, off por padrao,
-  rollback instantaneo, conversao gradual sem migracao); a **leitura**
+  `IntegrationRepository` (ligado por padrao; sem variavel a configurar; freio
+  opcional `DISABLE_INTEGRATION_TOKEN_ENCRYPTION=true`; conversao gradual, sem
+  migracao — tokens antigos em texto plano seguem funcionando); a **leitura**
   descriptografa no ponto de uso (`decryptIntegrationToken`, no-op em texto
   plano) — helper em `crypto/integration-token.helper.ts`. NAO trocar a
-  `ENCRYPTION_KEY` depois de ligar (quebra a descriptografia).
+  `ENCRYPTION_KEY` (quebra a descriptografia, como ja valia para credenciais).
 - Refresh automatico via `IntegrationService.refreshTokens()`
 
 #### B. Credenciais de App OAuth (por org, por provider)
