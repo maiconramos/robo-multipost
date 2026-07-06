@@ -42,7 +42,11 @@ export class GithubProvider extends AuthProviderAbstract {
       })
     ).json();
 
-    const [{ email }] = await (
+    const emails: Array<{
+      email: string;
+      primary?: boolean;
+      verified?: boolean;
+    }> = await (
       await fetch('https://api.github.com/user/emails', {
         headers: {
           Authorization: `token ${access_token}`,
@@ -50,8 +54,19 @@ export class GithubProvider extends AuthProviderAbstract {
       })
     ).json();
 
+    // Somente o email PRIMARIO e VERIFICADO — nunca `emails[0]` cru: a lista
+    // pode conter emails secundarios nao confirmados (ex.: alguem adiciona o
+    // email de outra pessoa sem provar posse), e a ordem nao e garantida.
+    // O restante do fluxo (email-lock de convite) confia neste valor.
+    const primaryVerified = (emails || []).find(
+      (e) => e.primary && e.verified
+    );
+    if (!primaryVerified?.email) {
+      throw new Error('No verified primary email on the GitHub account');
+    }
+
     return {
-      email: email,
+      email: primaryVerified.email,
       id: String(data.id),
     };
   }

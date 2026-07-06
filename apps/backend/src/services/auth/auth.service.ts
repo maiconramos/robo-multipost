@@ -44,6 +44,7 @@ export class AuthService {
     addToOrg?:
       | boolean
       | {
+          email?: string;
           orgId: string;
           role: 'USER' | 'ADMIN';
           id: string;
@@ -62,7 +63,11 @@ export class AuthService {
           throw new Error('Email already exists');
         }
 
-        if (!(await this.canRegister(provider))) {
+        const inviteAllowsRegister = await this.inviteAllowsRegistration(
+          addToOrg,
+          body.email
+        );
+        if (!inviteAllowsRegister && !(await this.canRegister(provider))) {
           throw new Error('Registration is disabled');
         }
 
@@ -116,7 +121,8 @@ export class AuthService {
       body as CreateOrgUserDto,
       ip,
       userAgent,
-      lang
+      lang,
+      addToOrg
     );
 
     const addedOrg =
@@ -131,6 +137,37 @@ export class AuthService {
           )
         : false;
     return { addedOrg, jwt: await this.jwt(user) };
+  }
+
+  // Decide se um convite pode liberar o registro mesmo com o registro publico
+  // desativado (DISABLE_REGISTRATION). Um convite genuino nao basta: para nao
+  // transformar o token num "abre instancia fechada", exigimos que
+  //  (1) o convite seja um JWT valido e nao expirado (garantido por
+  //      getOrgFromCookie: verifyJWT + timeLimit) — chega aqui como objeto;
+  //  (2) o email do registrante bata com o email convidado (email-lock) — sem
+  //      isso o token seria portador para qualquer identidade;
+  //  (3) o convite ainda nao tenha sido consumido (guarda de replay).
+  // Falhando qualquer condicao, o bypass e negado e o canRegister volta a
+  // mandar (bloqueando o registro publico em instancia fechada).
+  private async inviteAllowsRegistration(
+    addToOrg:
+      | boolean
+      | { email?: string; id: string; [key: string]: unknown }
+      | undefined,
+    registrantEmail?: string
+  ): Promise<boolean> {
+    if (!addToOrg || typeof addToOrg === 'boolean') {
+      return false;
+    }
+    const invitedEmail = addToOrg.email?.trim().toLowerCase();
+    const normalizedRegistrant = registrantEmail?.trim().toLowerCase();
+    if (!invitedEmail || !normalizedRegistrant || invitedEmail !== normalizedRegistrant) {
+      return false;
+    }
+    if (await this._organizationService.isInviteConsumed(addToOrg.id)) {
+      return false;
+    }
+    return true;
   }
 
   public getOrgFromCookie(cookie?: string) {
@@ -162,7 +199,10 @@ export class AuthService {
     body: CreateOrgUserDto,
     ip: string,
     userAgent: string,
-    lang?: string
+    lang?: string,
+    addToOrg?:
+      | boolean
+      | { email?: string; id: string; [key: string]: unknown }
   ) {
     const providerInstance = this._providerManager.getProvider(provider);
     const providerUser = await providerInstance.getUser(body.providerToken);
@@ -179,7 +219,13 @@ export class AuthService {
       return user;
     }
 
-    if (!(await this.canRegister(provider))) {
+    // Email-lock: o convite so libera o registro para a identidade OAuth cujo
+    // email confirmado bate com o email convidado.
+    const inviteAllowsRegister = await this.inviteAllowsRegistration(
+      addToOrg,
+      providerUser.email
+    );
+    if (!inviteAllowsRegister && !(await this.canRegister(provider))) {
       throw new Error('Registration is disabled');
     }
 

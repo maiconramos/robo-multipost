@@ -24,7 +24,8 @@ const mockUserOrgModel = {
     },
   },
 };
-const mockUserModel = { model: { user: {} } };
+const mockUserFindFirst = jest.fn();
+const mockUserModel = { model: { user: { findFirst: mockUserFindFirst } } };
 const mockMemberDeleteMany = jest.fn();
 const mockProfileMemberModel = {
   model: { profileMember: { deleteMany: mockMemberDeleteMany } },
@@ -73,6 +74,28 @@ describe('OrganizationRepository', () => {
 
       const callArgs = mockOrgCreate.mock.calls[0][0];
       expect(callArgs.data.profilesBootstrappedAt).toBeInstanceOf(Date);
+    });
+  });
+
+  describe('isInviteConsumed', () => {
+    it('retorna true quando algum usuario ja tem o inviteId', async () => {
+      mockUserFindFirst.mockResolvedValue({ id: 'u-1' });
+
+      const result = await repository.isInviteConsumed('inv-1');
+
+      expect(result).toBe(true);
+      expect(mockUserFindFirst).toHaveBeenCalledWith({
+        where: { inviteId: 'inv-1' },
+        select: { id: true },
+      });
+    });
+
+    it('retorna false quando o convite ainda nao foi consumido', async () => {
+      mockUserFindFirst.mockResolvedValue(null);
+
+      const result = await repository.isInviteConsumed('inv-2');
+
+      expect(result).toBe(false);
     });
   });
 

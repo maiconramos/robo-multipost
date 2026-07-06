@@ -42,6 +42,13 @@ export class OrganizationService {
     return this._organizationRepository.getCount();
   }
 
+  // Um convite e consumido uma unica vez: ao aceitar, o usuario recebe
+  // inviteId = id. Usado para recusar replay de convite ja gasto no bypass
+  // de registro (DISABLE_REGISTRATION).
+  async isInviteConsumed(inviteId: string) {
+    return this._organizationRepository.isInviteConsumed(inviteId);
+  }
+
   async createMaxUser(id: string, name: string, saasName: string, email: string) {
     return this._organizationRepository.createMaxUser(id, name, saasName, email);
   }

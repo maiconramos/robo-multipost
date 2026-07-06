@@ -7,6 +7,7 @@ const makeRepo = () => ({
   getLanguage: jest.fn().mockResolvedValue({ language: 'pt' }),
   updateLanguage: jest.fn(),
   getFirstOrgLanguageByUserId: jest.fn(),
+  isInviteConsumed: jest.fn(),
 });
 
 const makeNotifications = () => ({
@@ -34,6 +35,17 @@ describe('OrganizationService', () => {
       notifications as any,
       profiles as any
     );
+  });
+
+  describe('isInviteConsumed', () => {
+    it('delega ao repositorio', async () => {
+      repo.isInviteConsumed.mockResolvedValue(true);
+
+      const result = await service.isInviteConsumed('inv-1');
+
+      expect(result).toBe(true);
+      expect(repo.isInviteConsumed).toHaveBeenCalledWith('inv-1');
+    });
   });
 
   describe('addUserToOrg', () => {
