@@ -30,6 +30,7 @@ describe('RepostService.runNow', () => {
       temporal,
       {} as any,
       {} as any,
+      {} as any,
       {} as any
     );
   });
@@ -100,6 +101,7 @@ describe('RepostService.reconcileWorkflows', () => {
     service = new RepostService(
       repository,
       temporal,
+      {} as any,
       {} as any,
       {} as any,
       {} as any

@@ -26,6 +26,8 @@ import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/in
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/instagram-route.resolver';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import {
   CreateRepostRuleDto,
@@ -47,7 +49,8 @@ export class RepostService {
     private _temporalService: TemporalService,
     private _integrationService: IntegrationService,
     private _integrationManager: IntegrationManager,
-    private _instagramMessagingService: InstagramMessagingService
+    private _instagramMessagingService: InstagramMessagingService,
+    private _encryption: EncryptionService
   ) {}
 
   getRules(orgId: string, profileId?: string) {
@@ -354,6 +357,10 @@ export class RepostService {
         rule.sourceIntegrationId
       );
       if (!integration) return;
+      integration.token = decryptIntegrationToken(
+        this._encryption,
+        integration.token
+      );
 
       const route = await resolveIgRoute(
         integration as any,

@@ -159,7 +159,8 @@ describe('FlowsService', () => {
       mockIntegrationManager,
       mockCredentialService,
       mockInstagramMessaging,
-      mockProfileService
+      mockProfileService,
+      {} as any
     );
   });
 

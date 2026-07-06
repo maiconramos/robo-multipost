@@ -5,6 +5,8 @@ import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/in
 import { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/instagram-route.resolver';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 
 const CACHE_TTL_SECONDS = 86400; // 24h
@@ -17,7 +19,8 @@ export class UnmatchedCommentService {
     private _flowsRepository: FlowsRepository,
     private _integrationService: IntegrationService,
     private _instagramProvider: InstagramProvider,
-    private _instagramMessagingService: InstagramMessagingService
+    private _instagramMessagingService: InstagramMessagingService,
+    private _encryption: EncryptionService
   ) {}
 
   listInbox(
@@ -184,6 +187,10 @@ export class UnmatchedCommentService {
       });
       return;
     }
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
 
     try {
       const route = await resolveIgRoute(
@@ -273,6 +280,10 @@ export class UnmatchedCommentService {
       input.integrationId
     );
     if (!integration) return null;
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
 
     try {
       const route = await resolveIgRoute(

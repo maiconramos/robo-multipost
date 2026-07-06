@@ -6,6 +6,8 @@ import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/in
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/instagram-route.resolver';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 import { FlowExecutionStatus } from '@prisma/client';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import type { InstagramDmButton } from '@gitroom/nestjs-libraries/integrations/social/instagram-dm-button.type';
@@ -25,8 +27,21 @@ export class FlowActivity {
     private _integrationService: IntegrationService,
     private _integrationManager: IntegrationManager,
     private _instagramMessagingService: InstagramMessagingService,
-    private _unmatchedCommentService: UnmatchedCommentService
+    private _unmatchedCommentService: UnmatchedCommentService,
+    private _encryption: EncryptionService
   ) {}
+
+  // Descriptografa integration.token in-place (B1). No-op em tokens sem prefixo
+  // (texto puro legado). Chamado logo apos cada getIntegrationById nos metodos
+  // que usam o token do canal (posting/IG). Mantem o token cifrado em repouso e
+  // no historico do Temporal — so vira texto puro aqui, no ponto de uso.
+  private decryptToken<T extends { token: string }>(integration: T): T {
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
+    return integration;
+  }
 
   private resolveIgRoute(integration: {
     token: string;
@@ -58,6 +73,7 @@ export class FlowActivity {
     if (!integration) {
       throw new Error(`Integration ${integrationId} not found`);
     }
+    this.decryptToken(integration);
 
     const provider = this._integrationManager.getSocialIntegration('instagram') as unknown as InstagramProvider;
     if (!provider) {
@@ -117,6 +133,7 @@ export class FlowActivity {
     if (!integration) {
       throw new Error(`Integration ${integrationId} not found`);
     }
+    this.decryptToken(integration);
 
     const provider = this._integrationManager.getSocialIntegration('instagram') as unknown as InstagramProvider;
     if (!provider) {
@@ -201,6 +218,7 @@ export class FlowActivity {
     // so tem Standard Access em graph.instagram.com.
     let follows: boolean | null;
     if (source === 'comment' && integration.token) {
+      this.decryptToken(integration);
       const route = await this.resolveIgRoute(integration);
       follows = await this._instagramMessagingService.isFollowingByToken(
         route.token,
@@ -351,6 +369,7 @@ export class FlowActivity {
     if (!integration) {
       throw new Error(`Integration ${pb.integrationId} not found`);
     }
+    this.decryptToken(integration);
 
     const provider = this._integrationManager.getSocialIntegration(
       'instagram'
@@ -393,6 +412,7 @@ export class FlowActivity {
     if (!integration) {
       throw new Error(`Integration ${pb.integrationId} not found`);
     }
+    this.decryptToken(integration);
 
     const message = pb.snapshotFinalDm?.trim();
     if (!message) {
@@ -456,6 +476,7 @@ export class FlowActivity {
     if (!integration) {
       throw new Error(`Integration ${pb.integrationId} not found`);
     }
+    this.decryptToken(integration);
 
     const isStandalone =
       integration.providerIdentifier === 'instagram-standalone';

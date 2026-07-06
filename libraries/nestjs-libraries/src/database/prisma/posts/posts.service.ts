@@ -38,6 +38,8 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 type PostWithConditionals = Post & {
   integration?: Integration;
@@ -56,7 +58,8 @@ export class PostsService {
     private _openaiService: OpenaiService,
     private _temporalService: TemporalService,
     private _refreshIntegrationService: RefreshIntegrationService,
-    private _aiTextService: AiTextService
+    private _aiTextService: AiTextService,
+    private _encryption: EncryptionService
   ) {}
 
   searchForMissingThreeHoursPosts() {
@@ -116,6 +119,10 @@ export class PostsService {
       }
     }
 
+    getIntegration.token = decryptIntegrationToken(
+      this._encryption,
+      getIntegration.token
+    );
     try {
       return await integrationProvider.missing(
         getIntegration.internalId,
@@ -197,6 +204,10 @@ export class PostsService {
     //   return JSON.parse(getIntegrationData);
     // }
 
+    getIntegration.token = decryptIntegrationToken(
+      this._encryption,
+      getIntegration.token
+    );
     try {
       const loadAnalytics = await integrationProvider.postAnalytics(
         getIntegration.internalId,

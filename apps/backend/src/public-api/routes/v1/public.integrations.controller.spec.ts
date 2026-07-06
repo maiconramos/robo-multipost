@@ -62,6 +62,7 @@ describe('PublicIntegrationsController - listIntegration', () => {
       {} as any,
       {} as any,
       {} as any,
+      {} as any,
       {} as any
     );
   });
@@ -102,6 +103,7 @@ describe('PublicIntegrationsController - upload (escopo por perfil)', () => {
       makeIntegrationService() as any,
       {} as any,
       mediaService as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any
@@ -202,6 +204,7 @@ describe('PublicIntegrationsController - posts (escopo por perfil)', () => {
     controller = new PublicIntegrationsController(
       integrationService as any,
       postsService as any,
+      {} as any,
       {} as any,
       {} as any,
       {} as any,

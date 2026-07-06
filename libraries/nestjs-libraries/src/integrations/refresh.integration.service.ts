@@ -7,6 +7,8 @@ import {
   SocialProvider,
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { TemporalService } from 'nestjs-temporal-core';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 @Injectable()
 export class RefreshIntegrationService {
@@ -14,7 +16,8 @@ export class RefreshIntegrationService {
     private _integrationManager: IntegrationManager,
     @Inject(forwardRef(() => IntegrationService))
     private _integrationService: IntegrationService,
-    private _temporalService: TemporalService
+    private _temporalService: TemporalService,
+    private _encryption: EncryptionService
   ) {}
   async refresh(integration: Integration, cause = ''): Promise<false | AuthTokenDetails> {
     const socialProvider = this._integrationManager.getSocialIntegration(
@@ -91,7 +94,10 @@ export class RefreshIntegrationService {
       : undefined;
 
     const refresh: false | AuthTokenDetails = await socialProvider
-      .refreshToken(integration.refreshToken, clientInformation)
+      .refreshToken(
+        decryptIntegrationToken(this._encryption, integration.refreshToken),
+        clientInformation
+      )
       .catch((err) => false);
 
     if (!refresh || !refresh.accessToken) {
