@@ -6,6 +6,8 @@ import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { IntegrationTimeDto } from '@gitroom/nestjs-libraries/dtos/integrations/integration.time.dto';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { PlugDto } from '@gitroom/nestjs-libraries/dtos/plugs/plug.dto';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { encryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 @Injectable()
 export class IntegrationRepository {
@@ -16,8 +18,18 @@ export class IntegrationRepository {
     private _plugs: PrismaRepository<'plugs'>,
     private _exisingPlugData: PrismaRepository<'exisingPlugData'>,
     private _customers: PrismaRepository<'customer'>,
-    private _mentions: PrismaRepository<'mentions'>
+    private _mentions: PrismaRepository<'mentions'>,
+    private _encryption: EncryptionService
   ) {}
+
+  // B1 Etapa 2: criptografia dos tokens de canal em repouso, gate-ada por env
+  // (rollback instantaneo). encryptIntegrationToken e idempotente (valor ja
+  // prefixado ou vazio volta inalterado), entao reescrever um token ja cifrado
+  // ou um accessToken novo (pos-refresh) e seguro. A leitura (Etapa 1) decide
+  // por prefixo, entao tokens antigos em texto puro seguem funcionando.
+  private get shouldEncryptTokens(): boolean {
+    return process.env.ENCRYPT_INTEGRATION_TOKENS === 'true';
+  }
 
   getMentions(platform: string, q: string) {
     return this._mentions.model.mentions.findMany({
@@ -181,12 +193,35 @@ export class IntegrationRepository {
       });
     }
 
+    // Só cifra valores realmente presentes (string nao-vazia). null/''/undefined
+    // passam por `...params` inalterados — evita divergencia on/off (cifrar so
+    // faz sentido para um token real; nao marcar tokenEncrypted sem ter cifrado).
+    const encryptedTokenFields = this.shouldEncryptTokens
+      ? {
+          ...(params.token
+            ? { token: encryptIntegrationToken(this._encryption, params.token) }
+            : {}),
+          ...(params.refreshToken
+            ? {
+                refreshToken: encryptIntegrationToken(
+                  this._encryption,
+                  params.refreshToken
+                ),
+              }
+            : {}),
+          ...(params.token || params.refreshToken
+            ? { tokenEncrypted: true }
+            : {}),
+        }
+      : {};
+
     return this._integration.model.integration.update({
       where: {
         ...(existing ? { id: existing.id } : { id }),
       },
       data: {
         ...params,
+        ...encryptedTokenFields,
         disabled: false,
         deletedAt: null,
       },
@@ -239,6 +274,14 @@ export class IntegrationRepository {
     customInstanceDetails?: string,
     profileId?: string
   ) {
+    const encToken = this.shouldEncryptTokens
+      ? encryptIntegrationToken(this._encryption, token)
+      : token;
+    const encRefreshToken = this.shouldEncryptTokens
+      ? encryptIntegrationToken(this._encryption, refreshToken)
+      : refreshToken;
+    const tokenEncrypted = this.shouldEncryptTokens;
+
     const postTimes = timezone
       ? {
           postingTimes: JSON.stringify([
@@ -259,11 +302,12 @@ export class IntegrationRepository {
         type: type as any,
         name,
         providerIdentifier: provider,
-        token,
+        token: encToken,
         profile: username,
         ...(picture ? { picture } : {}),
         inBetweenSteps: isBetweenSteps,
-        refreshToken,
+        refreshToken: encRefreshToken,
+        tokenEncrypted,
         ...(expiresIn
           ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
           : {}),
@@ -292,8 +336,9 @@ export class IntegrationRepository {
         ...(picture ? { picture } : {}),
         profile: username,
         providerIdentifier: provider,
-        token,
-        refreshToken,
+        token: encToken,
+        refreshToken: encRefreshToken,
+        tokenEncrypted,
         ...(expiresIn
           ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
           : {}),
@@ -323,8 +368,9 @@ export class IntegrationRepository {
           rootInternalId: rootId,
         },
         data: {
-          token,
-          refreshToken,
+          token: encToken,
+          refreshToken: encRefreshToken,
+          tokenEncrypted,
           refreshNeeded: false,
           ...(expiresIn
             ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
