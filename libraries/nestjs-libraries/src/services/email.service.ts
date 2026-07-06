@@ -5,6 +5,7 @@ import { EmptyProvider } from '@gitroom/nestjs-libraries/emails/empty.provider';
 import { NodeMailerProvider } from '@gitroom/nestjs-libraries/emails/node.mailer.provider';
 import { TemporalService } from 'nestjs-temporal-core';
 import { timer } from '@gitroom/helpers/utils/timer';
+import { emailT } from '@gitroom/nestjs-libraries/emails/i18n/email.i18n';
 
 @Injectable()
 export class EmailService {
@@ -39,7 +40,8 @@ export class EmailService {
     subject: string,
     html: string,
     addTo: 'top' | 'bottom',
-    replyTo?: string
+    replyTo?: string,
+    lang?: string
   ) {
     return this._temporalService.client
       .getRawClient()
@@ -48,7 +50,7 @@ export class EmailService {
         workflowId: 'send_email',
         signal: 'sendEmail',
         args: [{ queue: [] }],
-        signalArgs: [{ to, subject, html, replyTo, addTo }],
+        signalArgs: [{ to, subject, html, replyTo, addTo, lang }],
         workflowIdConflictPolicy: 'USE_EXISTING',
       });
   }
@@ -57,7 +59,8 @@ export class EmailService {
     to: string,
     subject: string,
     html: string,
-    replyTo?: string
+    replyTo?: string,
+    lang?: string
   ) {
     if (to.indexOf('@') === -1) {
       return;
@@ -116,7 +119,9 @@ export class EmailService {
                         margin: 0;
                     ">${process.env.EMAIL_FROM_NAME}</h2>
                     <div style="font-size: 12px">
-                      You can change your notification preferences in your <a href="${process.env.FRONTEND_URL}/settings">account settings.</a>
+                      ${emailT('email_footer_preferences', lang, {
+                        url: `${process.env.FRONTEND_URL}/settings`,
+                      })}
                      </div>
                 </div>
             </div>

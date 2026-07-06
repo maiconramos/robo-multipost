@@ -46,7 +46,13 @@ export async function sendEmailWorkflow({
       if (!email) {
         continue;
       }
-      await sendEmail(email.to, email.subject, email.html, email.replyTo);
+      await sendEmail(
+        email.to,
+        email.subject,
+        email.html,
+        email.replyTo,
+        email.lang
+      );
       processedThisRun++;
     } catch (err) {
       console.log(err);

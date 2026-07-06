@@ -1,6 +1,24 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 
+// Visibilidade do sininho por perfil: admin ve tudo; demais veem apenas
+// notificacoes org-wide (profileId null) ou dos perfis a que pertencem.
+export type NotificationScope = { isAdmin: boolean; profileIds: string[] };
+
+function buildProfileScope(scope?: NotificationScope) {
+  if (!scope || scope.isAdmin) {
+    return {};
+  }
+  return {
+    OR: [
+      { profileId: null },
+      ...(scope.profileIds.length
+        ? [{ profileId: { in: scope.profileIds } }]
+        : []),
+    ],
+  };
+}
+
 @Injectable()
 export class NotificationsRepository {
   constructor(
@@ -19,7 +37,11 @@ export class NotificationsRepository {
     });
   }
 
-  async getMainPageCount(organizationId: string, userId: string) {
+  async getMainPageCount(
+    organizationId: string,
+    userId: string,
+    scope?: NotificationScope
+  ) {
     const { lastReadNotifications } = (await this.getLastReadNotification(
       userId
     ))!;
@@ -31,16 +53,28 @@ export class NotificationsRepository {
           createdAt: {
             gt: lastReadNotifications!,
           },
+          ...buildProfileScope(scope),
         },
       }),
     };
   }
 
-  async createNotification(organizationId: string, content: string) {
+  async createNotification(
+    organizationId: string,
+    content: string,
+    opts?: {
+      contentKey?: string;
+      contentParams?: Record<string, string | number | undefined>;
+      profileId?: string | null;
+    }
+  ) {
     await this._notifications.model.notifications.create({
       data: {
         organizationId,
         content,
+        contentKey: opts?.contentKey ?? null,
+        profileId: opts?.profileId ?? null,
+        ...(opts?.contentParams ? { contentParams: opts.contentParams } : {}),
       },
     });
   }
@@ -56,13 +90,18 @@ export class NotificationsRepository {
     });
   }
 
-  async getNotificationsPaginated(organizationId: string, page: number) {
+  async getNotificationsPaginated(
+    organizationId: string,
+    page: number,
+    scope?: NotificationScope
+  ) {
     const limit = 100;
     const skip = page * limit;
 
     const where = {
       organizationId,
       deletedAt: null as Date | null,
+      ...buildProfileScope(scope),
     };
 
     const [notifications, total] = await Promise.all([
@@ -76,6 +115,8 @@ export class NotificationsRepository {
         select: {
           id: true,
           content: true,
+          contentKey: true,
+          contentParams: true,
           link: true,
           createdAt: true,
         },
@@ -92,7 +133,11 @@ export class NotificationsRepository {
     };
   }
 
-  async getNotifications(organizationId: string, userId: string) {
+  async getNotifications(
+    organizationId: string,
+    userId: string,
+    scope?: NotificationScope
+  ) {
     const { lastReadNotifications } = (await this.getLastReadNotification(
       userId
     ))!;
@@ -115,10 +160,13 @@ export class NotificationsRepository {
         take: 10,
         where: {
           organizationId,
+          ...buildProfileScope(scope),
         },
         select: {
           createdAt: true,
           content: true,
+          contentKey: true,
+          contentParams: true,
         },
       }),
     };

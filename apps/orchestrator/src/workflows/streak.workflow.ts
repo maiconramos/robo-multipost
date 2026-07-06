@@ -1,11 +1,12 @@
 import { proxyActivities, sleep } from '@temporalio/workflow';
 import { EmailActivity } from '@gitroom/orchestrator/activities/email.activity';
 
-const { sendEmailAsync, getUserOrgs, setStreak } = proxyActivities<EmailActivity>({
-  startToCloseTimeout: '10 minute',
-  taskQueue: 'main',
-  cancellationType: 'ABANDON',
-});
+const { sendDigestEmail, getUserOrgs, setStreak } =
+  proxyActivities<EmailActivity>({
+    startToCloseTimeout: '10 minute',
+    taskQueue: 'main',
+    cancellationType: 'ABANDON',
+  });
 
 export async function streakWorkflow({
   organizationId,
@@ -15,14 +16,21 @@ export async function streakWorkflow({
   await setStreak(organizationId, 'start');
   await sleep(79200000);
   const userOrgs = await getUserOrgs(organizationId);
-  for (const user of userOrgs.users) {
+  const lang = userOrgs?.language ?? undefined;
+  for (const user of userOrgs?.users || []) {
     if (!user.user.sendStreakEmails) {
       continue;
     }
-    await sendEmailAsync(
+    await sendDigestEmail(
       user.user.email,
-      'Streak Reminder',
-      '<p>You are about to lose your streak in two hours! schedule a post now to keep it!</p>',
+      [
+        {
+          subjectKey: 'notif_streak_subject',
+          messageKey: 'notif_streak',
+          type: 'info',
+        },
+      ],
+      lang,
       'bottom'
     );
   }

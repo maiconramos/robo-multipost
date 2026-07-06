@@ -476,12 +476,18 @@ export class PublicIntegrationsController {
   @ApiResponse({ status: 200, description: 'Notificações paginadas.' })
   async getNotifications(
     @GetOrgFromRequest() org: Organization,
+    @GetPublicApiProfileId() publicApiProfileId: string | undefined,
     @Query() query: GetNotificationsDto
   ) {
     Sentry.metrics.count('public_api-request', 1);
+    // Chave de perfil ve apenas as notificacoes do proprio perfil (+ org-wide);
+    // chave de organizacao segue com visibilidade total (escopo undefined).
     return this._notificationService.getNotificationsPaginated(
       org.id,
-      query.page ?? 0
+      query.page ?? 0,
+      publicApiProfileId
+        ? { isAdmin: false, profileIds: [publicApiProfileId] }
+        : undefined
     );
   }
 

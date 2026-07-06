@@ -1835,5 +1835,17 @@
   "agent_skill": "Skill para Agentes de IA",
   "agent_skill_description": "Guia completo (MCP + CLI + API) para o agente. Passe este link + sua Chave de API ao agente (Hermes, OpenClaw, Claude, etc.).",
   "copy_skill_link": "Copiar link da skill",
-  "open": "Abrir"
+  "open": "Abrir",
+  "settings_language_title": "Idioma",
+  "settings_language_label": "Idioma do workspace",
+  "settings_language_description": "Define o idioma dos e-mails e notificações enviados por este workspace.",
+  "settings_language_pt": "Português",
+  "settings_language_en": "Inglês",
+  "notif_channel_refresh_failed": "Não foi possível renovar seu canal {{provider}} {{error}}. Volte ao sistema e conecte-o novamente {{url}}",
+  "notif_post_reconnect": "Não foi possível publicar no {{provider}} para {{integrationName}} porque você precisa reconectá-lo. Ative-o e tente novamente.",
+  "notif_post_disabled": "Não foi possível publicar no {{provider}} para {{integrationName}} porque está desativado. Ative-o e tente novamente.",
+  "notif_post_published": "Sua publicação foi feita no {{provider}} em {{url}}",
+  "notif_post_error": "Ocorreu um erro ao publicar no {{provider}}{{error}}",
+  "notif_post_error_comments": "Ocorreu um erro ao publicar comentários no {{provider}}{{error}}",
+  "notif_streak": "<p>Você está prestes a perder sua sequência em duas horas! Agende uma publicação agora para mantê-la!</p>"
 }

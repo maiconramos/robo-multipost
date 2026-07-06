@@ -20,13 +20,21 @@ export const ShowNotification: FC<{
   notification: {
     createdAt: string;
     content: string;
+    contentKey?: string | null;
+    contentParams?: Record<string, string | number> | null;
   };
   lastReadNotification: string;
 }> = (props) => {
   const { notification } = props;
+  const t = useT();
   const [newNotification] = useState(
     new Date(notification.createdAt) > new Date(props.lastReadNotification)
   );
+  // Notificacoes novas carregam contentKey+params: traduz no idioma de quem ve
+  // (locale do cliente). content fica como fallback para linhas legadas.
+  const message = notification.contentKey
+    ? t(notification.contentKey, notification.contentParams || {})
+    : notification.content;
   return (
     <div
       className={clsx(
@@ -34,7 +42,7 @@ export const ShowNotification: FC<{
         newNotification && 'font-bold bg-seventh animate-newMessages'
       )}
       dangerouslySetInnerHTML={{
-        __html: sanitizePostContent(replaceLinks(notification.content)),
+        __html: sanitizePostContent(replaceLinks(message)),
       }}
     />
   );
@@ -75,6 +83,8 @@ export const NotificationOpenComponent = () => {
               notification: {
                 createdAt: string;
                 content: string;
+                contentKey?: string | null;
+                contentParams?: Record<string, string | number> | null;
               },
               index: number
             ) => (

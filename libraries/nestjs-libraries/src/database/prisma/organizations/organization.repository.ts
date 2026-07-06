@@ -271,12 +271,14 @@ export class OrganizationRepository {
     body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string },
     hasEmail: boolean,
     ip: string,
-    userAgent: string
+    userAgent: string,
+    language?: string | null
   ) {
     return this._organization.model.organization.create({
       data: {
         name: body.company,
         apiKey: AuthService.fixedEncryption(makeSecureId(20)),
+        language: language ?? null,
         allowTrial: true,
         isTrailing: true,
         // Perfil Default criado junto com a org; o criador (SUPERADMIN) tem
@@ -394,6 +396,84 @@ export class OrganizationRepository {
     });
   }
 
+  // Destinatarios de e-mail de notificacao escopados por perfil: admins/superadmins
+  // sempre; demais, apenas se forem membros do perfil dono do canal. profileId
+  // nulo => notificacao org-wide (todos os membros, comportamento anterior).
+  async getUsersForNotification(orgId: string, profileId?: string | null) {
+    const userOrgs = await this._userOrg.model.userOrganization.findMany({
+      where: {
+        organizationId: orgId,
+        ...(profileId
+          ? {
+              OR: [
+                { role: { in: [Role.ADMIN, Role.SUPERADMIN] } },
+                {
+                  user: {
+                    profileMembers: {
+                      // escopa a membership a ESTA org (um usuario pode ter
+                      // perfis em varias orgs) — defense-in-depth caso um
+                      // (orgId, profileId) inconsistente chegue aqui.
+                      some: { profileId, profile: { organizationId: orgId } },
+                    },
+                  },
+                },
+              ],
+            }
+          : {}),
+      },
+      select: {
+        user: {
+          select: {
+            id: true,
+            email: true,
+            sendSuccessEmails: true,
+            sendFailureEmails: true,
+          },
+        },
+      },
+    });
+    return userOrgs.map((u) => u.user);
+  }
+
+  // Usado pelo digest/streak (via activity). Retorna o idioma da org e, por
+  // usuario, role + profileIds (escopados nesta org) + preferencias de e-mail,
+  // para o workflow filtrar destinatarios por perfil sem tocar o banco.
+  getTeamForNotifications(orgId: string) {
+    return this._organization.model.organization.findUnique({
+      where: {
+        id: orgId,
+      },
+      select: {
+        language: true,
+        users: {
+          select: {
+            role: true,
+            user: {
+              select: {
+                email: true,
+                id: true,
+                sendSuccessEmails: true,
+                sendFailureEmails: true,
+                sendStreakEmails: true,
+                profileMembers: {
+                  where: {
+                    profile: {
+                      organizationId: orgId,
+                      deletedAt: null,
+                    },
+                  },
+                  select: {
+                    profileId: true,
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   async deleteTeamMember(orgId: string, userId: string) {
     // Remove tambem as memberships de perfil da org — sem isso, um reconvite
     // do mesmo usuario ressuscitaria os acessos antigos sem passar pela
@@ -448,6 +528,50 @@ export class OrganizationRepository {
         shortlink,
       },
     });
+  }
+
+  getLanguage(orgId: string) {
+    return this._organization.model.organization.findUnique({
+      where: {
+        id: orgId,
+      },
+      select: {
+        language: true,
+      },
+    });
+  }
+
+  updateLanguage(orgId: string, language: string) {
+    return this._organization.model.organization.update({
+      where: {
+        id: orgId,
+      },
+      data: {
+        language,
+      },
+    });
+  }
+
+  // Idioma dos e-mails de conta (forgot/resend) para um usuario possivelmente
+  // multi-org: usa a org mais antiga (a criada no cadastro, onde o locale foi
+  // capturado). Fallback fica com o chamador (normalizeLang -> 'pt').
+  async getFirstOrgLanguageByUserId(userId: string) {
+    const org = await this._organization.model.organization.findFirst({
+      where: {
+        users: {
+          some: {
+            userId,
+          },
+        },
+      },
+      orderBy: {
+        createdAt: 'asc',
+      },
+      select: {
+        language: true,
+      },
+    });
+    return org?.language ?? null;
   }
 
   getZernioApiKey(orgId: string) {

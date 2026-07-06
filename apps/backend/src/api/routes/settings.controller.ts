@@ -8,6 +8,7 @@ import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/o
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.team.member.dto';
 import { ShortlinkPreferenceDto } from '@gitroom/nestjs-libraries/dtos/settings/shortlink-preference.dto';
+import { LanguageDto } from '@gitroom/nestjs-libraries/dtos/settings/language.dto';
 import { UpdateAiCreditsDto } from '@gitroom/nestjs-libraries/dtos/settings/update.ai-credits.dto';
 import { UpdateProfilePersonaDto } from '@gitroom/nestjs-libraries/dtos/settings/update.profile-persona.dto';
 import { ApiTags } from '@nestjs/swagger';
@@ -84,6 +85,20 @@ export class SettingsController {
       org.id,
       body.shortlink
     );
+  }
+
+  @Get('/language')
+  async getLanguage(@GetOrgFromRequest() org: Organization) {
+    return this._organizationService.getLanguage(org.id);
+  }
+
+  @Post('/language')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async updateLanguage(
+    @GetOrgFromRequest() org: Organization,
+    @Body() body: LanguageDto
+  ) {
+    return this._organizationService.updateLanguage(org.id, body.language);
   }
 
   @Get('/zernio')

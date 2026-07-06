@@ -99,8 +99,15 @@ export async function postWorkflowV101({
   if (post.integration?.refreshNeeded) {
     await inAppNotification(
       post.organizationId,
-      `We couldn't post to ${post.integration?.providerIdentifier} for ${post?.integration?.name}`,
-      `We couldn't post to ${post.integration?.providerIdentifier} for ${post?.integration?.name} because you need to reconnect it. Please enable it and try again.`,
+      {
+        subjectKey: 'notif_post_skipped_subject',
+        messageKey: 'notif_post_reconnect',
+        params: {
+          provider: post.integration?.providerIdentifier,
+          integrationName: post?.integration?.name,
+        },
+        profileId: post.integration?.profileId ?? post.profileId ?? null,
+      },
       true,
       false,
       'info'
@@ -112,8 +119,15 @@ export async function postWorkflowV101({
   if (post.integration?.disabled) {
     await inAppNotification(
       post.organizationId,
-      `We couldn't post to ${post.integration?.providerIdentifier} for ${post?.integration?.name}`,
-      `We couldn't post to ${post.integration?.providerIdentifier} for ${post?.integration?.name} because it's disabled. Please enable it and try again.`,
+      {
+        subjectKey: 'notif_post_skipped_subject',
+        messageKey: 'notif_post_disabled',
+        params: {
+          provider: post.integration?.providerIdentifier,
+          integrationName: post?.integration?.name,
+        },
+        profileId: post.integration?.profileId ?? post.profileId ?? null,
+      },
       true,
       false,
       'info'
@@ -175,12 +189,15 @@ export async function postWorkflowV101({
           // send notification on a sucessful post
           await inAppNotification(
             post.integration.organizationId,
-            `Your post has been published on ${capitalize(
-              post.integration.providerIdentifier
-            )}`,
-            `Your post has been published on ${capitalize(
-              post.integration.providerIdentifier
-            )} at ${postsResults[0].releaseURL}`,
+            {
+              subjectKey: 'notif_post_published_subject',
+              messageKey: 'notif_post_published',
+              params: {
+                provider: capitalize(post.integration.providerIdentifier),
+                url: postsResults[0].releaseURL,
+              },
+              profileId: post.integration?.profileId ?? post.profileId ?? null,
+            },
             true,
             true
           );
@@ -216,12 +233,20 @@ export async function postWorkflowV101({
         ) {
           await inAppNotification(
             post.organizationId,
-            `Error posting${i === 0 ? ' ' : ' comments '}on ${
-              post.integration?.providerIdentifier
-            } for ${post?.integration?.name}`,
-            `An error occurred while posting${i === 0 ? ' ' : ' comments '}on ${
-              post.integration?.providerIdentifier
-            }${err?.cause?.message ? `: ${err?.cause?.message}` : ``}`,
+            {
+              subjectKey:
+                i === 0
+                  ? 'notif_post_error_subject'
+                  : 'notif_post_error_comments_subject',
+              messageKey:
+                i === 0 ? 'notif_post_error' : 'notif_post_error_comments',
+              params: {
+                provider: post.integration?.providerIdentifier,
+                integrationName: post?.integration?.name,
+                error: err?.cause?.message ? `: ${err?.cause?.message}` : '',
+              },
+              profileId: post.integration?.profileId ?? post.profileId ?? null,
+            },
             true,
             false,
             'fail'

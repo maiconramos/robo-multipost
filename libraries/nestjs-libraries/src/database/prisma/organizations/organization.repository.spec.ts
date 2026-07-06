@@ -1,12 +1,28 @@
 import { OrganizationRepository } from './organization.repository';
 
 const mockOrgCreate = jest.fn();
+const mockOrgFindUnique = jest.fn();
+const mockOrgFindFirst = jest.fn();
+const mockOrgUpdate = jest.fn();
 const mockOrgModel = {
-  model: { organization: { create: mockOrgCreate } },
+  model: {
+    organization: {
+      create: mockOrgCreate,
+      findUnique: mockOrgFindUnique,
+      findFirst: mockOrgFindFirst,
+      update: mockOrgUpdate,
+    },
+  },
 };
 const mockUserOrgDelete = jest.fn();
+const mockUserOrgFindMany = jest.fn();
 const mockUserOrgModel = {
-  model: { userOrganization: { delete: mockUserOrgDelete } },
+  model: {
+    userOrganization: {
+      delete: mockUserOrgDelete,
+      findMany: mockUserOrgFindMany,
+    },
+  },
 };
 const mockUserModel = { model: { user: {} } };
 const mockMemberDeleteMany = jest.fn();
@@ -81,6 +97,117 @@ describe('OrganizationRepository', () => {
           },
         },
       });
+    });
+  });
+
+  describe('idioma da org', () => {
+    const body = {
+      company: 'ACME',
+      email: 'a@b.com',
+      password: 'secret',
+      provider: 'LOCAL',
+    } as any;
+
+    it('createOrgAndUser grava o idioma recebido', async () => {
+      mockOrgCreate.mockResolvedValue({ id: 'org-1', users: [] });
+
+      await repository.createOrgAndUser(body, true, 'ip', 'agent', 'en');
+
+      expect(mockOrgCreate.mock.calls[0][0].data.language).toBe('en');
+    });
+
+    it('createOrgAndUser grava null quando nao ha idioma', async () => {
+      mockOrgCreate.mockResolvedValue({ id: 'org-1', users: [] });
+
+      await repository.createOrgAndUser(body, true, 'ip', 'agent');
+
+      expect(mockOrgCreate.mock.calls[0][0].data.language).toBeNull();
+    });
+
+    it('getLanguage seleciona apenas language da org', async () => {
+      mockOrgFindUnique.mockResolvedValue({ language: 'en' });
+
+      const res = await repository.getLanguage('org-1');
+
+      expect(mockOrgFindUnique).toHaveBeenCalledWith({
+        where: { id: 'org-1' },
+        select: { language: true },
+      });
+      expect(res).toEqual({ language: 'en' });
+    });
+
+    it('updateLanguage grava o idioma na org', async () => {
+      await repository.updateLanguage('org-1', 'en');
+
+      expect(mockOrgUpdate).toHaveBeenCalledWith({
+        where: { id: 'org-1' },
+        data: { language: 'en' },
+      });
+    });
+
+    it('getFirstOrgLanguageByUserId usa a org mais antiga do usuario', async () => {
+      mockOrgFindFirst.mockResolvedValue({ language: 'pt' });
+
+      const res = await repository.getFirstOrgLanguageByUserId('u-1');
+
+      const args = mockOrgFindFirst.mock.calls[0][0];
+      expect(args.where).toEqual({ users: { some: { userId: 'u-1' } } });
+      expect(args.orderBy).toEqual({ createdAt: 'asc' });
+      expect(res).toBe('pt');
+    });
+
+    it('getFirstOrgLanguageByUserId retorna null quando sem org', async () => {
+      mockOrgFindFirst.mockResolvedValue(null);
+
+      expect(await repository.getFirstOrgLanguageByUserId('u-2')).toBeNull();
+    });
+  });
+
+  describe('destinatarios de notificacao escopados por perfil', () => {
+    it('getUsersForNotification escopa por admin ou membro do perfil (na org)', async () => {
+      mockUserOrgFindMany.mockResolvedValue([
+        { user: { id: 'u1', email: 'a@b.com' } },
+      ]);
+
+      const res = await repository.getUsersForNotification('org-1', 'prof-1');
+
+      const args = mockUserOrgFindMany.mock.calls[0][0];
+      expect(args.where.organizationId).toBe('org-1');
+      expect(args.where.OR).toEqual([
+        { role: { in: ['ADMIN', 'SUPERADMIN'] } },
+        {
+          user: {
+            profileMembers: {
+              some: {
+                profileId: 'prof-1',
+                profile: { organizationId: 'org-1' },
+              },
+            },
+          },
+        },
+      ]);
+      expect(res).toEqual([{ id: 'u1', email: 'a@b.com' }]);
+    });
+
+    it('getUsersForNotification sem profileId nao aplica filtro OR (org-wide)', async () => {
+      mockUserOrgFindMany.mockResolvedValue([]);
+
+      await repository.getUsersForNotification('org-1', null);
+
+      const args = mockUserOrgFindMany.mock.calls[0][0];
+      expect(args.where).toEqual({ organizationId: 'org-1' });
+    });
+
+    it('getTeamForNotifications escopa profileMembers e traz o idioma da org', async () => {
+      mockOrgFindUnique.mockResolvedValue({ language: 'en', users: [] });
+
+      await repository.getTeamForNotifications('org-1');
+
+      const args = mockOrgFindUnique.mock.calls[0][0];
+      expect(args.select.language).toBe(true);
+      expect(
+        args.select.users.select.user.select.profileMembers.where
+      ).toEqual({ profile: { organizationId: 'org-1', deletedAt: null } });
     });
   });
 });

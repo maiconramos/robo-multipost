@@ -19,7 +19,7 @@ The tenancy backbone of the product. Org → Profiles → Members; users are map
 
 | Model | Repo dir | Purpose | Rules |
 |---|---|---|---|
-| `Organization` | `organizations/` | Workspace / tenant. Holds `lateApiKey`/`zernioApiKey`, `shareLateWithProfiles`/`shareZernioWithProfiles` flags, and `profilesBootstrappedAt` (one-time profile-membership backfill marker — set at org creation and swept once by `ProfileSeedService`; never re-seeded after that). | Parent |
+| `Organization` | `organizations/` | Workspace / tenant. Holds `lateApiKey`/`zernioApiKey`, `shareLateWithProfiles`/`shareZernioWithProfiles` flags, `profilesBootstrappedAt` (one-time profile-membership backfill marker — set at org creation and swept once by `ProfileSeedService`; never re-seeded after that), and `language` (workspace email/notification locale, `pt`/`en`; captured at signup, resolved `?? 'pt'` — see [`email-i18n.md`](email-i18n.md)). | Parent |
 | `User` | `users/` | User account (email, password, super-admin flag, timezone). | Parent |
 | `UserOrganization` | `users/` | User ↔ Organization join with `Role` enum (admin/user). | Parent |
 | `Profile` | `profiles/` | Sub-account inside an Organization. `isDefault=true` profile mirrors org-level config; secondary profiles override per-tenant. Holds `aiImageCredits`/`aiVideoCredits`, `lateApiKey`/`zernioApiKey`, `shortlink`. Created together with the org (`createOrgAndUser` nested-creates the Default profile). | [`src/ai/CLAUDE.md`](../../libraries/nestjs-libraries/src/ai/CLAUDE.md) (overrides + AI credits), [`src/integrations/social/CLAUDE.md`](../../libraries/nestjs-libraries/src/integrations/social/CLAUDE.md) (Zernio key resolution) |
@@ -84,7 +84,7 @@ The Flow engine that powers follow-gate, comment auto-replies, and DMs.
 | Model | Repo dir | Purpose | Rules |
 |---|---|---|---|
 | `AutoPost` | `autopost/` | Auto-generated post schedule per integration. | Parent |
-| `Notifications` | `notifications/` | In-app notifications. | Parent |
+| `Notifications` | `notifications/` | In-app notifications (one row per org). Carries `contentKey`+`contentParams` (i18n key+params → bell renders per-viewer via `useT()`, email in org language) with `content` as a pre-rendered fallback, and `profileId` (scopes visibility/recipients to that profile's members + org admins; null = org-wide). See [`email-i18n.md`](email-i18n.md). | Parent |
 | `Announcement` | `announcements/` | Banner announcements (`AnnouncementColor` enum). | Parent |
 | `ReviewLink` | `review-links/` | Public review/feedback links. | Parent |
 | `Errors` | (no dedicated dir) | Error log table. Usually written via Sentry pipeline, not domain code. | Parent |

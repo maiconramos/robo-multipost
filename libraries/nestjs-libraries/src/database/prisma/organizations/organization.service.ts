@@ -6,6 +6,11 @@ import { AddTeamMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.te
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
+import {
+  emailT,
+  normalizeLang,
+  resolveOrgLang,
+} from '@gitroom/nestjs-libraries/emails/i18n/email.i18n';
 import { Organization, ProfileRole, ShortLinkPreference } from '@prisma/client';
 import Zernio from '@zernio/node';
 import { AutopostService } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.service';
@@ -21,13 +26,15 @@ export class OrganizationService {
   async createOrgAndUser(
     body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string },
     ip: string,
-    userAgent: string
+    userAgent: string,
+    language?: string | null
   ) {
     return this._organizationRepository.createOrgAndUser(
       body,
       this._notificationsService.hasEmailProvider(),
       ip,
-      userAgent
+      userAgent,
+      language ? normalizeLang(language) : null
     );
   }
 
@@ -98,6 +105,10 @@ export class OrganizationService {
     return this._organizationRepository.getTeam(orgId);
   }
 
+  getTeamForNotifications(orgId: string) {
+    return this._organizationRepository.getTeamForNotifications(orgId);
+  }
+
   async setStreak(organizationId: string, type: 'start' | 'end') {
     return this._organizationRepository.setStreak(organizationId, type);
   }
@@ -129,10 +140,15 @@ export class OrganizationService {
       process.env.FRONTEND_URL +
       `/?org=${AuthService.signJWT({ ...body, orgId, timeLimit, id })}`;
     if (body.sendEmail) {
+      const lang = resolveOrgLang(
+        await this._organizationRepository.getLanguage(orgId)
+      );
       await this._notificationsService.sendEmail(
         body.email,
-        'You have been invited to join an organization',
-        `You have been invited to join an organization. Click <a href="${url}">here</a> to join.<br />The link will expire in 1 hour.`
+        emailT('email_invite_subject', lang),
+        emailT('email_invite_html', lang, { link: url }),
+        undefined,
+        lang
       );
     }
     return { url };
@@ -174,6 +190,22 @@ export class OrganizationService {
       orgId,
       shortlink
     );
+  }
+
+  async getLanguage(orgId: string) {
+    const org = await this._organizationRepository.getLanguage(orgId);
+    return { language: resolveOrgLang(org) };
+  }
+
+  updateLanguage(orgId: string, language: string) {
+    return this._organizationRepository.updateLanguage(
+      orgId,
+      normalizeLang(language)
+    );
+  }
+
+  getFirstOrgLanguageByUserId(userId: string) {
+    return this._organizationRepository.getFirstOrgLanguageByUserId(userId);
   }
 
   private async fetchZernioUsage(apiKey: string) {

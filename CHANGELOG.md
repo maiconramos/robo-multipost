@@ -7,6 +7,19 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado
+
+- **E-mails e notificações agora saem em multi-idioma (pt/en) por workspace.** Até então todos os e-mails do app eram strings fixas em inglês (não havia camada de i18n no backend — `useT()`/i18next só existiam no frontend e não alcançavam o código de e-mail, que roda no backend/Temporal sem contexto de request). Esta entrega fecha essa lacuna:
+  - **Camada de i18n de e-mail no backend:** novo helper puro `emailT(key, lang, params)` + catálogo `pt`/`en` (`libraries/nestjs-libraries/src/emails/i18n/`). Interpolação `{{var}}` (mesma convenção do i18next). Função pura, sem `crypto`/IO — nunca importada dentro de workflow do Temporal (a renderização vive em services/activities), mantendo o bundle de workflow determinístico.
+  - **Idioma por workspace (`Organization.language`):** um idioma por organização, **capturado automaticamente no cadastro** (a partir do idioma detectado do navegador, via header `x-i18next-current-language`) e **ajustável em Configurações → Configurações Globais** (novo seletor de idioma). E-mails resolvem `org.language ?? 'pt'`.
+  - **E-mails transacionais traduzidos:** ativação de conta, reenvio de ativação, redefinição de senha e convite de equipe saem no idioma do workspace. O rodapé do template compartilhado (preferências de notificação) também é traduzido.
+  - **Notificações com i18n completo:** as notificações passam a carregar chave de tradução + parâmetros (em vez de uma string já renderizada). O **sininho in-app** é traduzido no idioma de quem está vendo (via `useT()`, locale do cliente); os **e-mails** (imediatos e digest) saem no idioma do workspace. Cobre falha ao renovar canal, erros/sucesso de publicação, streak e o digest.
+- **Notificações passam a respeitar o isolamento por perfil (e-mail e sininho).** Antes, uma notificação sobre um canal do Perfil A era enviada por e-mail e exibida no sino para **todos** os membros da organização, inclusive quem só pertencia ao Perfil B. Agora os destinatários e a visibilidade são escopados pelo perfil dono do canal (`Integration.profileId`): apenas os membros daquele perfil — e os admins/superadmins da org, que têm acesso implícito a todos os perfis — veem a notificação e recebem o e-mail. Notificações não ligadas a um canal específico (ex.: streak) seguem org-wide.
+
+### Alterado
+
+- **Rebrand dos textos de e-mail voltados ao usuário: "Postiz" → "Multipost".** O prefixo de assunto do digest passa de `[Postiz]` para `[Multipost]`, e os e-mails de agência (aprovada/recusada) e o assunto de boas-vindas da newsletter (listmonk) foram rebrandeados. Os créditos AGPL (LICENSE/README) e identificadores de código/env (`POSTIZ_OAUTH_*`, agente Mastra `postiz`, etc.) são **preservados**. O nome de remetente dos e-mails continua vindo 100% da env `EMAIL_FROM_NAME` (defina como `Robô MultiPost`).
+
 ### Segurança
 
 - **Preparação para criptografar os tokens dos canais em repouso (B1 — Etapa 1/2, sem mudança de comportamento).** Os tokens de acesso das integrações (`Integration.token`/`refreshToken`) ainda são gravados em texto puro; esta etapa apenas prepara o terreno: adiciona um helper auto-descritivo por prefixo (`enc:v1:`) e passa a **descriptografar o token no ponto de uso** (logo antes de cada chamada ao provider — postagem, refresh, analytics, plugs, automações do Instagram) em ~22 locais. Como nenhum token está criptografado ainda, cada descriptografia é um **no-op** (passa-through em texto puro) — zero mudança de comportamento. A criptografia na escrita entra na Etapa 2 (PR separado, gate-ada por `ENCRYPT_INTEGRATION_TOKENS`), quando os tokens passam a ficar cifrados em repouso e no histórico do Temporal.

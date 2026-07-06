@@ -8,7 +8,7 @@ import {
 import { Email, emailSignal } from '@gitroom/orchestrator/signals/email.signal';
 import { EmailActivity } from '@gitroom/orchestrator/activities/email.activity';
 
-const { getUserOrgs, sendEmailAsync } = proxyActivities<EmailActivity>({
+const { getUserOrgs, sendDigestEmail } = proxyActivities<EmailActivity>({
   startToCloseTimeout: '10 minute',
   taskQueue: 'main',
   cancellationType: 'ABANDON',
@@ -39,28 +39,29 @@ export async function digestEmailWorkflow({
     queue = [];
 
     const org = await getUserOrgs(organizationId);
+    const lang = org?.language ?? undefined;
 
-    for (const user of org.users) {
+    for (const user of org?.users || []) {
+      const isAdmin = user.role === 'ADMIN' || user.role === 'SUPERADMIN';
+      const userProfileIds = (user.user.profileMembers || []).map(
+        (m) => m.profileId
+      );
       const allowFailure = user.user.sendFailureEmails ? 'fail' : null;
       const allowSuccess = user.user.sendSuccessEmails ? 'success' : null;
 
       const toSend = batch.filter(
         (email) =>
-          email.type === allowFailure ||
-          email.type === allowSuccess ||
-          email.type === 'info'
+          (email.type === allowFailure ||
+            email.type === allowSuccess ||
+            email.type === 'info') &&
+          // escopo por perfil: admin ve tudo; demais so notificacoes org-wide
+          // (sem profileId) ou dos perfis a que pertencem.
+          (isAdmin || !email.profileId || userProfileIds.includes(email.profileId))
       );
 
       if (toSend.length === 0) continue;
 
-      await sendEmailAsync(
-        user.user.email,
-        toSend.length === 1
-          ? toSend[0].title
-          : `[Postiz] Your latest notifications`,
-        toSend.map((p) => p.message).join('<br/>'),
-        'bottom'
-      );
+      await sendDigestEmail(user.user.email, toSend, lang, 'bottom');
     }
 
     return await continueAsNew({

@@ -11,6 +11,10 @@ import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/n
 import { ForgotReturnPasswordDto } from '@gitroom/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { NewsletterService } from '@gitroom/nestjs-libraries/newsletter/newsletter.service';
+import {
+  emailT,
+  normalizeLang,
+} from '@gitroom/nestjs-libraries/emails/i18n/email.i18n';
 
 @Injectable()
 export class AuthService {
@@ -45,7 +49,8 @@ export class AuthService {
           id: string;
           profileIds?: string[];
           profileRole?: 'MANAGER' | 'EDITOR' | 'VIEWER';
-        }
+        },
+    lang?: string
   ) {
     if (provider === Provider.LOCAL) {
       if (process.env.DISALLOW_PLUS && body.email.includes('+')) {
@@ -64,7 +69,8 @@ export class AuthService {
         const create = await this._organizationService.createOrgAndUser(
           body,
           ip,
-          userAgent
+          userAgent,
+          lang
         );
 
         const addedOrg =
@@ -80,11 +86,16 @@ export class AuthService {
             : false;
 
         const obj = { addedOrg, jwt: await this.jwt(create.users[0].user) };
+        const orgLang = normalizeLang(lang);
         await this._emailService.sendEmail(
           body.email,
-          'Activate your account',
-          `Click <a href="${process.env.FRONTEND_URL}/auth/activate/${obj.jwt}">here</a> to activate your account`,
-          'top'
+          emailT('email_activate_subject', orgLang),
+          emailT('email_activate_html', orgLang, {
+            link: `${process.env.FRONTEND_URL}/auth/activate/${obj.jwt}`,
+          }),
+          'top',
+          undefined,
+          orgLang
         );
         return obj;
       }
@@ -104,7 +115,8 @@ export class AuthService {
       provider,
       body as CreateOrgUserDto,
       ip,
-      userAgent
+      userAgent,
+      lang
     );
 
     const addedOrg =
@@ -149,7 +161,8 @@ export class AuthService {
     provider: Provider,
     body: CreateOrgUserDto,
     ip: string,
-    userAgent: string
+    userAgent: string,
+    lang?: string
   ) {
     const providerInstance = this._providerManager.getProvider(provider);
     const providerUser = await providerInstance.getUser(body.providerToken);
@@ -180,7 +193,8 @@ export class AuthService {
         datafast_visitor_id: body.datafast_visitor_id,
       },
       ip,
-      userAgent
+      userAgent,
+      lang
     );
 
     this._track('register', providerUser.email, body.datafast_visitor_id).catch(
@@ -236,10 +250,18 @@ export class AuthService {
       expires: dayjs().add(20, 'minutes').format('YYYY-MM-DD HH:mm:ss'),
     });
 
+    const lang = normalizeLang(
+      await this._organizationService.getFirstOrgLanguageByUserId(user.id)
+    );
     await this._notificationService.sendEmail(
       user.email,
-      'Reset your password',
-      `You have requested to reset your passsord. <br />Click <a href="${process.env.FRONTEND_URL}/auth/forgot/${resetValues}">here</a> to reset your password<br />The link will expire in 20 minutes`
+      emailT('email_reset_subject', lang),
+      emailT('email_reset_html', lang, {
+        link: `${process.env.FRONTEND_URL}/auth/forgot/${resetValues}`,
+        minutes: 20,
+      }),
+      undefined,
+      lang
     );
   }
 
@@ -289,11 +311,18 @@ export class AuthService {
 
     const jwt = await this.jwt(user);
 
+    const lang = normalizeLang(
+      await this._organizationService.getFirstOrgLanguageByUserId(user.id)
+    );
     await this._emailService.sendEmail(
       user.email,
-      'Activate your account',
-      `Click <a href="${process.env.FRONTEND_URL}/auth/activate/${jwt}">here</a> to activate your account`,
-      'top'
+      emailT('email_activate_subject', lang),
+      emailT('email_activate_html', lang, {
+        link: `${process.env.FRONTEND_URL}/auth/activate/${jwt}`,
+      }),
+      'top',
+      undefined,
+      lang
     );
 
     return true;

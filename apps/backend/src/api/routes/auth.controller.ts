@@ -20,7 +20,10 @@ import { ApiTags } from '@nestjs/swagger';
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { RealIP } from 'nestjs-real-ip';
-import { UserAgent } from '@gitroom/nestjs-libraries/user/user.agent';
+import {
+  AcceptLanguage,
+  UserAgent,
+} from '@gitroom/nestjs-libraries/user/user.agent';
 import { Provider } from '@prisma/client';
 import * as Sentry from '@sentry/nestjs';
 
@@ -45,7 +48,8 @@ export class AuthController {
     @Body() body: CreateOrgUserDto,
     @Res({ passthrough: false }) response: Response,
     @RealIP() ip: string,
-    @UserAgent() userAgent: string
+    @UserAgent() userAgent: string,
+    @AcceptLanguage() acceptLanguage: string
   ) {
     try {
       const getOrgFromCookie = this._authService.getOrgFromCookie(
@@ -57,7 +61,8 @@ export class AuthController {
         body,
         ip,
         userAgent,
-        getOrgFromCookie
+        getOrgFromCookie,
+        acceptLanguage
       );
 
       const activationRequired =

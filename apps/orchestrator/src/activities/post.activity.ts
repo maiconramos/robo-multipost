@@ -254,16 +254,19 @@ export class PostActivity {
   @ActivityMethod()
   async inAppNotification(
     orgId: string,
-    subject: string,
-    message: string,
+    payload: {
+      subjectKey: string;
+      messageKey: string;
+      params?: Record<string, string | number | undefined>;
+      profileId?: string | null;
+    },
     sendEmail = false,
     digest = false,
     type: NotificationType = 'success'
   ) {
     return this._notificationService.inAppNotification(
       orgId,
-      subject,
-      message,
+      payload,
       sendEmail,
       digest,
       type

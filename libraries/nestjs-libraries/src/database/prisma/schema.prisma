@@ -25,6 +25,7 @@ model Organization {
   shareLateWithProfiles   Boolean              @default(false)
   zernioApiKey            String?
   shareZernioWithProfiles Boolean              @default(false)
+  language                String?
   autoPost                AutoPost[]
   Comments                Comments[]
   credits                 Credits[]
@@ -529,6 +530,9 @@ model Notifications {
   id             String       @id @default(uuid())
   organizationId String
   content        String
+  contentKey     String?
+  contentParams  Json?
+  profileId      String?
   link           String?
   createdAt      DateTime     @default(now())
   updatedAt      DateTime     @updatedAt
@@ -538,6 +542,7 @@ model Notifications {
   @@index([createdAt])
   @@index([organizationId])
   @@index([deletedAt])
+  @@index([profileId])
 }
 
 model MessagesGroup {

@@ -231,8 +231,16 @@ export class IntegrationService {
   ) {
     await this._notificationService.inAppNotification(
       orgId,
-      `Could not refresh your ${integration.providerIdentifier} channel ${err}`,
-      `Could not refresh your ${integration.providerIdentifier} channel ${err}. Please go back to the system and connect it again ${process.env.FRONTEND_URL}/launches`,
+      {
+        subjectKey: 'notif_channel_refresh_failed_subject',
+        messageKey: 'notif_channel_refresh_failed',
+        params: {
+          provider: integration.providerIdentifier,
+          error: err,
+          url: `${process.env.FRONTEND_URL}/launches`,
+        },
+        profileId: integration.profileId ?? null,
+      },
       true,
       false,
       'info'

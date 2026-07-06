@@ -1837,5 +1837,17 @@
   "agent_skill": "AI Agent Skill",
   "agent_skill_description": "Complete guide (MCP + CLI + API) for the agent. Pass this link + your API Key to the agent (Hermes, OpenClaw, Claude, etc.).",
   "copy_skill_link": "Copy skill link",
-  "open": "Open"
+  "open": "Open",
+  "settings_language_title": "Language",
+  "settings_language_label": "Workspace language",
+  "settings_language_description": "Sets the language of the emails and notifications sent by this workspace.",
+  "settings_language_pt": "Portuguese",
+  "settings_language_en": "English",
+  "notif_channel_refresh_failed": "Could not refresh your {{provider}} channel {{error}}. Please go back to the system and connect it again {{url}}",
+  "notif_post_reconnect": "We couldn't post to {{provider}} for {{integrationName}} because you need to reconnect it. Please enable it and try again.",
+  "notif_post_disabled": "We couldn't post to {{provider}} for {{integrationName}} because it's disabled. Please enable it and try again.",
+  "notif_post_published": "Your post has been published on {{provider}} at {{url}}",
+  "notif_post_error": "An error occurred while posting on {{provider}}{{error}}",
+  "notif_post_error_comments": "An error occurred while posting comments on {{provider}}{{error}}",
+  "notif_streak": "<p>You are about to lose your streak in two hours! schedule a post now to keep it!</p>"
 }

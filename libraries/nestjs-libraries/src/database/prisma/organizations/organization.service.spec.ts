@@ -3,6 +3,10 @@ import { AuthService } from '@gitroom/helpers/auth/auth.service';
 
 const makeRepo = () => ({
   addUserToOrg: jest.fn(),
+  createOrgAndUser: jest.fn(),
+  getLanguage: jest.fn().mockResolvedValue({ language: 'pt' }),
+  updateLanguage: jest.fn(),
+  getFirstOrgLanguageByUserId: jest.fn(),
 });
 
 const makeNotifications = () => ({
@@ -160,6 +164,61 @@ describe('OrganizationService', () => {
 
       expect(result.url).toContain('/?org=');
       expect(profiles.getProfileById).not.toHaveBeenCalled();
+    });
+
+    it('envia o e-mail de convite traduzido no idioma da org', async () => {
+      repo.getLanguage.mockResolvedValue({ language: 'en' });
+
+      await service.inviteTeamMember('org-1', {
+        email: 'a@b.com',
+        role: 'ADMIN',
+        sendEmail: true,
+      } as any);
+
+      expect(repo.getLanguage).toHaveBeenCalledWith('org-1');
+      expect(notifications.sendEmail).toHaveBeenCalledWith(
+        'a@b.com',
+        'You have been invited to join an organization',
+        expect.stringContaining('to join'),
+        undefined,
+        'en'
+      );
+    });
+  });
+
+  describe('idioma da org', () => {
+    it('createOrgAndUser normaliza e propaga o idioma capturado', async () => {
+      await service.createOrgAndUser({} as any, 'ip', 'agent', 'en-US');
+
+      expect(repo.createOrgAndUser).toHaveBeenCalledWith(
+        {},
+        true,
+        'ip',
+        'agent',
+        'en'
+      );
+    });
+
+    it('createOrgAndUser grava null quando nao ha idioma', async () => {
+      await service.createOrgAndUser({} as any, 'ip', 'agent');
+
+      expect(repo.createOrgAndUser).toHaveBeenCalledWith(
+        {},
+        true,
+        'ip',
+        'agent',
+        null
+      );
+    });
+
+    it('getLanguage resolve com fallback pt', async () => {
+      repo.getLanguage.mockResolvedValue({ language: null });
+      expect(await service.getLanguage('org-1')).toEqual({ language: 'pt' });
+    });
+
+    it('updateLanguage normaliza antes de gravar', async () => {
+      await service.updateLanguage('org-1', 'en');
+      expect(repo.updateLanguage).toHaveBeenCalledWith('org-1', 'en');
     });
   });
 });
