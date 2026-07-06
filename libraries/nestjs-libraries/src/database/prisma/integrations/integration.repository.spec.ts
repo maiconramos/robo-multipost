@@ -12,13 +12,18 @@ import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.s
 import { TOKEN_ENC_PREFIX } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 import { MockProxy } from 'jest-mock-extended';
 
+// B1 Etapa 2: criptografia LIGADA por padrao; DISABLE_INTEGRATION_TOKEN_ENCRYPTION
+// e o freio de emergencia opcional.
 describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
   let repo: IntegrationRepository;
   let prismaMock: ReturnType<typeof createPrismaRepositoryMock<'integration'>>;
   let encryption: MockProxy<EncryptionService> & EncryptionService;
-  const ORIGINAL = process.env.ENCRYPT_INTEGRATION_TOKENS;
+  const ORIGINAL = process.env.DISABLE_INTEGRATION_TOKEN_ENCRYPTION;
 
   beforeEach(() => {
+    // Baseline = default (cifrado). Cada teste que quiser desligar seta DISABLE.
+    delete process.env.DISABLE_INTEGRATION_TOKEN_ENCRYPTION;
+
     prismaMock = createPrismaRepositoryMock('integration');
     prismaMock.model.integration.upsert.mockResolvedValue({ id: 'int-1' } as any);
 
@@ -37,8 +42,9 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
   });
 
   afterEach(() => {
-    if (ORIGINAL === undefined) delete process.env.ENCRYPT_INTEGRATION_TOKENS;
-    else process.env.ENCRYPT_INTEGRATION_TOKENS = ORIGINAL;
+    if (ORIGINAL === undefined)
+      delete process.env.DISABLE_INTEGRATION_TOKEN_ENCRYPTION;
+    else process.env.DISABLE_INTEGRATION_TOKEN_ENCRYPTION = ORIGINAL;
   });
 
   const create = (token: string, refreshToken = 'REFRESH') =>
@@ -61,9 +67,7 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
     prismaMock.model.integration.upsert.mock.calls[0][0] as any;
 
   describe('createOrUpdateIntegration', () => {
-    it('grava token cifrado (prefixado) e tokenEncrypted=true quando ENCRYPT_INTEGRATION_TOKENS=true', async () => {
-      process.env.ENCRYPT_INTEGRATION_TOKENS = 'true';
-
+    it('grava token cifrado (prefixado) e tokenEncrypted=true por padrao', async () => {
       await create('PLAINTOKEN');
 
       const arg = upsertArg();
@@ -75,8 +79,8 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
       expect(arg.update.tokenEncrypted).toBe(true);
     });
 
-    it('grava token em texto puro e tokenEncrypted=false quando a flag esta desligada (default)', async () => {
-      delete process.env.ENCRYPT_INTEGRATION_TOKENS;
+    it('grava token em texto puro e tokenEncrypted=false quando DISABLE_INTEGRATION_TOKEN_ENCRYPTION=true', async () => {
+      process.env.DISABLE_INTEGRATION_TOKEN_ENCRYPTION = 'true';
 
       await create('PLAINTOKEN');
 
@@ -88,8 +92,6 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
     });
 
     it('e idempotente: nao re-cifra um token que ja tem o prefixo', async () => {
-      process.env.ENCRYPT_INTEGRATION_TOKENS = 'true';
-
       await create(`${TOKEN_ENC_PREFIX}JACIFRADO`, '');
 
       const arg = upsertArg();
@@ -97,8 +99,7 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
       expect(encryption.encrypt).not.toHaveBeenCalled();
     });
 
-    it('cifra tambem o updateMany do oneTimeToken (linhas irmas) quando a flag esta ligada', async () => {
-      process.env.ENCRYPT_INTEGRATION_TOKENS = 'true';
+    it('cifra tambem o updateMany do oneTimeToken (linhas irmas) por padrao', async () => {
       prismaMock.model.integration.findFirst.mockResolvedValue({
         rootInternalId: 'root-1',
       } as any);
@@ -129,8 +130,7 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
   });
 
   describe('updateIntegration', () => {
-    it('cifra params.token e seta tokenEncrypted=true quando a flag esta ligada', async () => {
-      process.env.ENCRYPT_INTEGRATION_TOKENS = 'true';
+    it('cifra params.token e seta tokenEncrypted=true por padrao', async () => {
       prismaMock.model.integration.findUnique.mockResolvedValue(null as any);
       prismaMock.model.integration.update.mockResolvedValue({ id: 'int-1' } as any);
 
@@ -145,8 +145,8 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
       expect(arg.data.tokenEncrypted).toBe(true);
     });
 
-    it('nao cifra e nao seta tokenEncrypted quando a flag esta desligada', async () => {
-      delete process.env.ENCRYPT_INTEGRATION_TOKENS;
+    it('nao cifra e nao seta tokenEncrypted quando DISABLE_INTEGRATION_TOKEN_ENCRYPTION=true', async () => {
+      process.env.DISABLE_INTEGRATION_TOKEN_ENCRYPTION = 'true';
       prismaMock.model.integration.findUnique.mockResolvedValue(null as any);
       prismaMock.model.integration.update.mockResolvedValue({ id: 'int-1' } as any);
 
