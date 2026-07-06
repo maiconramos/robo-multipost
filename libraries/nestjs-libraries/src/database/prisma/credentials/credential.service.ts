@@ -7,6 +7,10 @@ const SENTINEL = '__REDACTED__';
 @Injectable()
 export class CredentialService {
   private readonly _logger = new Logger(CredentialService.name);
+  // Chaves (provider:org:profile) de credenciais ilegiveis ja reportadas, para
+  // nao repetir o log a cada requisicao de webhook (a mesma credencial ruim
+  // reincidiria em toda chamada ate o admin re-salvar a credencial).
+  private readonly _warnedUndecryptable = new Set<string>();
 
   constructor(
     private _credentialRepository: CredentialRepository,
@@ -179,14 +183,44 @@ export class CredentialService {
     const records = await this._credentialRepository.findAllByProviderAcrossOrgs(
       provider
     );
-    return records.map((r) => ({
-      organizationId: r.organizationId,
-      profileId: r.profileId,
-      data: this._encryptionService.decryptJson(r.encryptedData) as Record<
-        string,
-        string
-      >,
-    }));
+    const decrypted: Array<{
+      organizationId: string;
+      profileId: string | null;
+      data: Record<string, string>;
+    }> = [];
+    for (const r of records) {
+      try {
+        decrypted.push({
+          organizationId: r.organizationId,
+          profileId: r.profileId,
+          data: this._encryptionService.decryptJson(r.encryptedData) as Record<
+            string,
+            string
+          >,
+        });
+      } catch (e) {
+        // Uma credencial ilegivel (ex.: ENCRYPTION_KEY trocada, dado corrompido)
+        // NAO pode derrubar o sweep cross-org. Sem isso, uma credencial
+        // problematica de QUALQUER workspace quebraria consumidores globais como
+        // o webhook do Instagram (verifySignature) para todos. Pula a linha ruim.
+        // Log em nivel error (mais alto) e uma vez por credencial, para nao
+        // spammar a cada webhook mas ainda sinalizar o problema ao operador.
+        const key = `${provider}:${r.organizationId}:${r.profileId ?? 'org'}`;
+        if (!this._warnedUndecryptable.has(key)) {
+          this._warnedUndecryptable.add(key);
+          this._logger.error(
+            `findAllDecrypted: credencial ${provider} ilegivel pulada (org=${
+              r.organizationId
+            } profile=${
+              r.profileId ?? 'org'
+            }) — provavel ENCRYPTION_KEY trocada apos salvar; re-salve a credencial. Detalhe: ${
+              (e as Error).message
+            }`
+          );
+        }
+      }
+    }
+    return decrypted;
   }
 
   async delete(organizationId: string, provider: string, profileId?: string) {
