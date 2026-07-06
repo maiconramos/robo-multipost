@@ -20,6 +20,7 @@ const makeService = (repo: any) =>
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
     {} as any
   );
 

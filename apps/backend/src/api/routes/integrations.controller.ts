@@ -36,6 +36,8 @@ import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integration
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -46,7 +48,8 @@ export class IntegrationsController {
     private _postService: PostsService,
     private _refreshIntegrationService: RefreshIntegrationService,
     private _organizationService: OrganizationService,
-    private _profileService: ProfileService
+    private _profileService: ProfileService,
+    private _encryption: EncryptionService
   ) {}
 
   @Post('/provider/:id/connect')
@@ -170,6 +173,10 @@ export class IntegrationsController {
     if (!integration) {
       throw new Error('Invalid integration');
     }
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
 
     const manager = this._integrationManager.getSocialIntegration(
       integration.providerIdentifier
@@ -322,7 +329,9 @@ export class IntegrationsController {
           await this._integrationService.getIntegrationsByInternalId(refresh);
         const existing = matches.find((i) => i.organizationId === org.id);
         if (existing?.token) {
-          await integrationProvider.revokeToken(existing.token);
+          await integrationProvider.revokeToken(
+            decryptIntegrationToken(this._encryption, existing.token)
+          );
         }
       }
 
@@ -440,6 +449,10 @@ export class IntegrationsController {
     if (!getIntegration) {
       throw new Error('Invalid integration');
     }
+    getIntegration.token = decryptIntegrationToken(
+      this._encryption,
+      getIntegration.token
+    );
 
     const integrationProvider = this._integrationManager.getSocialIntegration(
       getIntegration.providerIdentifier

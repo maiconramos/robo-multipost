@@ -24,6 +24,8 @@ import {
 } from '@gitroom/nestjs-libraries/temporal/temporal.search.attribute';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { FlowsService } from '@gitroom/nestjs-libraries/database/prisma/flows/flows.service';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 @Injectable()
 @Activity()
@@ -37,7 +39,8 @@ export class PostActivity {
     private _webhookService: WebhooksService,
     private _temporalService: TemporalService,
     private _subscriptionService: SubscriptionService,
-    private _flowsService: FlowsService
+    private _flowsService: FlowsService,
+    private _encryption: EncryptionService
   ) {}
 
   @ActivityMethod()
@@ -149,6 +152,10 @@ export class PostActivity {
     integration: Integration,
     posts: Post[]
   ) {
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
     const getIntegration = this._integrationManager.getSocialIntegration(
       integration.providerIdentifier
     );
@@ -188,6 +195,10 @@ export class PostActivity {
 
   @ActivityMethod()
   async postSocial(integration: Integration, posts: Post[]) {
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
     const getIntegration = this._integrationManager.getSocialIntegration(
       integration.providerIdentifier
     );

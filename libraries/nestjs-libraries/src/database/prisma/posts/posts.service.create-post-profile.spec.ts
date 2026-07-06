@@ -51,7 +51,8 @@ const buildService = (
     null as any, // openaiService
     null as any, // temporalService
     null as any, // refreshIntegrationService
-    null as any // aiTextService
+    null as any, // aiTextService
+    {} as any // encryption
   );
   // startWorkflow dispara Temporal (fire-and-forget); neutraliza no teste.
   jest.spyOn(service as any, 'startWorkflow').mockResolvedValue(undefined);

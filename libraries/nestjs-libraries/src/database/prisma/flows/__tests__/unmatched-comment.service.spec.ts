@@ -52,6 +52,7 @@ describe('UnmatchedCommentService', () => {
   let integrationService: jest.Mocked<IntegrationService>;
   let instagramProvider: jest.Mocked<InstagramProvider>;
   let messagingService: jest.Mocked<InstagramMessagingService>;
+  let encryption: { decrypt: jest.Mock; encrypt: jest.Mock };
 
   beforeEach(() => {
     jest.resetAllMocks();
@@ -83,11 +84,18 @@ describe('UnmatchedCommentService', () => {
 
     messagingService = {} as any;
 
+    // decrypt marca o valor para provar que passou pelo ponto de uso.
+    encryption = {
+      decrypt: jest.fn((cipher: string) => `DEC:${cipher}`),
+      encrypt: jest.fn(),
+    };
+
     service = new UnmatchedCommentService(
       repo,
       integrationService,
       instagramProvider,
-      messagingService
+      messagingService,
+      encryption as any
     );
   });
 
@@ -347,6 +355,42 @@ describe('UnmatchedCommentService', () => {
           isAd: false,
           enrichmentError: null,
         })
+      );
+    });
+
+    it('descriptografa o token da integracao (prefixado) antes do resolveIgRoute (B1)', async () => {
+      repo.findUnmatchedByIdInternal.mockResolvedValue({
+        id: 'uc-1',
+        igMediaId: 'media-X',
+        organizationId: 'org-1',
+        integrationId: 'int-1',
+      } as any);
+      ioRedis.get.mockResolvedValue(null);
+      integrationService.getIntegrationById.mockResolvedValue({
+        id: 'int-1',
+        token: 'enc:v1:CIPHER',
+        providerIdentifier: 'instagram',
+        organizationId: 'org-1',
+        internalId: 'ig-acc',
+      } as any);
+      resolveIgRoute.mockResolvedValue({
+        token: 'route-token',
+        host: 'graph.facebook.com',
+        useIgGraph: false,
+        source: 'page-access-token',
+      });
+      instagramProvider.getMediaMetadata.mockResolvedValue({
+        id: 'media-X',
+      } as any);
+
+      await service.enrich('uc-1');
+
+      // decrypt foi chamado com o corpo do token (sem o prefixo enc:v1:)
+      expect(encryption.decrypt).toHaveBeenCalledWith('CIPHER');
+      // resolveIgRoute recebeu a integracao ja com token descriptografado
+      expect(resolveIgRoute).toHaveBeenCalledWith(
+        expect.objectContaining({ token: 'DEC:CIPHER' }),
+        expect.anything()
       );
     });
 

@@ -51,6 +51,8 @@ import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integration
 import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 // Exemplos prontos exibidos no Swagger para POST /public/v1/posts. O body e
 // processado como `any` (mapeado para CreatePostDto), entao fornecemos exemplos
@@ -122,7 +124,8 @@ export class PublicIntegrationsController {
     private _mediaService: MediaService,
     private _notificationService: NotificationService,
     private _integrationManager: IntegrationManager,
-    private _refreshIntegrationService: RefreshIntegrationService
+    private _refreshIntegrationService: RefreshIntegrationService,
+    private _encryption: EncryptionService
   ) {}
 
   @Post('/upload')
@@ -656,6 +659,10 @@ export class PublicIntegrationsController {
     if (!getIntegration) {
       throw new HttpException({ msg: 'Integration not found' }, 404);
     }
+    getIntegration.token = decryptIntegrationToken(
+      this._encryption,
+      getIntegration.token
+    );
 
     const integrationProvider = socialIntegrationList.find(
       (p) => p.identifier === getIntegration.providerIdentifier

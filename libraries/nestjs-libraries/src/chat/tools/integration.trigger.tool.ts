@@ -12,13 +12,16 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.context.helper';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 @Injectable()
 export class IntegrationTriggerTool implements AgentToolInterface {
   constructor(
     private _integrationManager: IntegrationManager,
     private _integrationService: IntegrationService,
-    private _refreshIntegrationService: RefreshIntegrationService
+    private _refreshIntegrationService: RefreshIntegrationService,
+    private _encryption: EncryptionService
   ) {}
   name = 'triggerTool';
 
@@ -62,6 +65,10 @@ export class IntegrationTriggerTool implements AgentToolInterface {
             output: 'Integration not found',
           };
         }
+        getIntegration.token = decryptIntegrationToken(
+          this._encryption,
+          getIntegration.token
+        );
 
         const integrationProvider = socialIntegrationList.find(
           (p) => p.identifier === getIntegration.providerIdentifier

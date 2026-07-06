@@ -19,6 +19,8 @@ import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/me
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 export interface RepostCycleResult {
   ruleDisabled?: boolean;
@@ -66,7 +68,8 @@ export class RepostActivity {
     private _integrationManager: IntegrationManager,
     private _instagramMessagingService: InstagramMessagingService,
     private _postsService: PostsService,
-    private _mediaService: MediaService
+    private _mediaService: MediaService,
+    private _encryption: EncryptionService
   ) {}
 
   @ActivityMethod()
@@ -92,6 +95,10 @@ export class RepostActivity {
         await this._repostService.touchLastRun(ruleId);
         return { intervalMinutes };
       }
+      integration.token = decryptIntegrationToken(
+        this._encryption,
+        integration.token
+      );
 
       const route = await resolveIgRoute(
         integration as any,
@@ -435,6 +442,10 @@ export class RepostActivity {
         integrationId
       );
       if (!integration?.token) return null;
+      integration.token = decryptIntegrationToken(
+        this._encryption,
+        integration.token
+      );
       const provider = this._integrationManager.getSocialIntegration(
         providerIdentifier
       ) as any;

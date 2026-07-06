@@ -34,6 +34,8 @@ import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/s
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/instagram-route.resolver';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 import * as crypto from 'crypto';
 
 // Janela de 24h da Meta para trocar mensagens apos interacao do usuario.
@@ -51,7 +53,8 @@ export class FlowsService {
     private _integrationManager: IntegrationManager,
     private _credentialService: CredentialService,
     private _instagramMessaging: InstagramMessagingService,
-    private _profileService: ProfileService
+    private _profileService: ProfileService,
+    private _encryption: EncryptionService
   ) {}
 
   /**
@@ -530,6 +533,10 @@ export class FlowsService {
       if (!integration || integration.providerIdentifier !== 'instagram') {
         return;
       }
+      integration.token = decryptIntegrationToken(
+        this._encryption,
+        integration.token
+      );
 
       const provider = this._integrationManager.getSocialIntegration(
         'instagram'
@@ -571,6 +578,10 @@ export class FlowsService {
     if (!integration || integration.providerIdentifier !== 'instagram') {
       return [];
     }
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
 
     const provider = this._integrationManager.getSocialIntegration(
       'instagram'
@@ -928,6 +939,10 @@ export class FlowsService {
     if (!integration || integration.providerIdentifier !== 'instagram') {
       return { posts: [], nextCursor: null };
     }
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
 
     const provider = this._integrationManager.getSocialIntegration(
       'instagram'
@@ -972,6 +987,10 @@ export class FlowsService {
     if (!integration || integration.providerIdentifier !== 'instagram') {
       return { stories: [] };
     }
+    integration.token = decryptIntegrationToken(
+      this._encryption,
+      integration.token
+    );
 
     const provider = this._integrationManager.getSocialIntegration(
       'instagram'

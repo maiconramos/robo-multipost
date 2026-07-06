@@ -25,6 +25,8 @@ import utc from 'dayjs/plugin/utc';
 import { AutopostRepository } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.repository';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { TemporalService } from 'nestjs-temporal-core';
+import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
 dayjs.extend(utc);
 
@@ -38,7 +40,8 @@ export class IntegrationService {
     private _notificationService: NotificationService,
     @Inject(forwardRef(() => RefreshIntegrationService))
     private _refreshIntegrationService: RefreshIntegrationService,
-    private _temporalService: TemporalService
+    private _temporalService: TemporalService,
+    private _encryption: EncryptionService
   ) {}
 
   async changeActiveCron(orgId: string) {
@@ -253,7 +256,7 @@ export class IntegrationService {
 
       const data = await this.refreshToken(
         provider,
-        integration.refreshToken!,
+        decryptIntegrationToken(this._encryption, integration.refreshToken),
         integration.organizationId,
         integration.profileId
       );
@@ -368,6 +371,10 @@ export class IntegrationService {
       );
     }
 
+    getIntegration.token = decryptIntegrationToken(
+      this._encryption,
+      getIntegration.token
+    );
     const getIntegrationInformation = await provider.fetchPageInformation(
       getIntegration.token,
       data
@@ -471,6 +478,12 @@ export class IntegrationService {
 
     if (integrationProvider.analytics) {
       try {
+        // Decifra in-place: analytics recebe o objeto getIntegration e pode ler
+        // .token internamente. No-op se :457 ja reatribuiu um accessToken puro.
+        getIntegration.token = decryptIntegrationToken(
+          this._encryption,
+          getIntegration.token
+        );
         const loadAnalytics = await integrationProvider.analytics(
           getIntegration.internalId,
           getIntegration.token,
@@ -533,6 +546,15 @@ export class IntegrationService {
     if (!getIntegration || !originalIntegration) {
       return;
     }
+    // Plug methods leem .token de AMBAS as integracoes internamente.
+    getIntegration.token = decryptIntegrationToken(
+      this._encryption,
+      getIntegration.token
+    );
+    originalIntegration.token = decryptIntegrationToken(
+      this._encryption,
+      originalIntegration.token
+    );
 
     const getAllInternalPlugs = this._integrationManager
       .getInternalPlugs(getIntegration.providerIdentifier)
@@ -568,6 +590,11 @@ export class IntegrationService {
     if (!getPlugById) {
       return true;
     }
+    // Plug method le getPlugById.integration.token internamente.
+    getPlugById.integration.token = decryptIntegrationToken(
+      this._encryption,
+      getPlugById.integration.token
+    );
 
     const integration = this._integrationManager.getSocialIntegration(
       getPlugById.integration.providerIdentifier
