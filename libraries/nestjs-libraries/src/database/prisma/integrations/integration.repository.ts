@@ -22,13 +22,15 @@ export class IntegrationRepository {
     private _encryption: EncryptionService
   ) {}
 
-  // B1 Etapa 2: criptografia dos tokens de canal em repouso, gate-ada por env
-  // (rollback instantaneo). encryptIntegrationToken e idempotente (valor ja
-  // prefixado ou vazio volta inalterado), entao reescrever um token ja cifrado
-  // ou um accessToken novo (pos-refresh) e seguro. A leitura (Etapa 1) decide
-  // por prefixo, entao tokens antigos em texto puro seguem funcionando.
+  // B1 Etapa 2: criptografia dos tokens de canal em repouso. LIGADA por padrao
+  // (igual as credenciais/chaves de IA, que ja sao cifradas sem config). Sem
+  // variavel obrigatoria. Freio de emergencia OPCIONAL: setar
+  // DISABLE_INTEGRATION_TOKEN_ENCRYPTION=true faz novas escritas voltarem a
+  // texto puro (os ja cifrados seguem sendo lidos pelo prefixo). encrypt e
+  // idempotente (token ja prefixado ou vazio volta inalterado); a leitura
+  // (Etapa 1) decide por prefixo, entao tokens antigos em texto puro funcionam.
   private get shouldEncryptTokens(): boolean {
-    return process.env.ENCRYPT_INTEGRATION_TOKENS === 'true';
+    return process.env.DISABLE_INTEGRATION_TOKEN_ENCRYPTION !== 'true';
   }
 
   getMentions(platform: string, q: string) {
