@@ -208,6 +208,33 @@ export class ProfileService {
     return member?.role ?? null;
   }
 
+  // Valida que o ator pode CONCEDER `targetRole` neste perfil (usado ao
+  // convidar um membro para o perfil): admin da org concede qualquer papel;
+  // org-USER (Dono/Gerente) nao concede papel acima do proprio.
+  async assertCanGrantProfileRole(
+    orgId: string,
+    profileId: string,
+    actor: { userId: string; orgRole: Role },
+    targetRole: ProfileRole
+  ) {
+    if (!(targetRole in ProfileService.ROLE_RANK)) {
+      throw new HttpException('Invalid profile role', 400);
+    }
+    if (actor.orgRole === 'ADMIN' || actor.orgRole === 'SUPERADMIN') {
+      return;
+    }
+    const actorRole = await this.getEffectiveProfileRole(
+      orgId,
+      profileId,
+      actor.userId,
+      actor.orgRole
+    );
+    this.assertRankAllowed(
+      ProfileService.rankOf(actorRole),
+      ProfileService.rankOf(targetRole)
+    );
+  }
+
   async assertProfileAccess(
     orgId: string,
     profileId: string,

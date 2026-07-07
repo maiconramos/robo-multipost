@@ -6,6 +6,11 @@ const makeService = () => ({
   getMembers: jest.fn(),
   addMember: jest.fn(),
   removeMember: jest.fn(),
+  assertCanGrantProfileRole: jest.fn(),
+});
+
+const makeOrgService = () => ({
+  inviteTeamMember: jest.fn(),
 });
 
 const orgAdmin = { id: 'org-1', users: [{ role: 'ADMIN' }] } as any;
@@ -15,10 +20,12 @@ const user = { id: 'user-1' } as any;
 describe('ProfilesController', () => {
   let controller: ProfilesController;
   let service: ReturnType<typeof makeService>;
+  let orgService: ReturnType<typeof makeOrgService>;
 
   beforeEach(() => {
     service = makeService();
-    controller = new ProfilesController(service as any);
+    orgService = makeOrgService();
+    controller = new ProfilesController(service as any, orgService as any);
   });
 
   describe('getProfiles', () => {
@@ -98,6 +105,46 @@ describe('ProfilesController', () => {
         'u-2',
         { userId: 'user-1', orgRole: 'USER' }
       );
+    });
+  });
+
+  describe('inviteMember', () => {
+    it('valida o papel e convida escopado ao perfil (role USER)', async () => {
+      service.assertCanGrantProfileRole.mockResolvedValue(undefined);
+      orgService.inviteTeamMember.mockResolvedValue({ ok: true });
+
+      await controller.inviteMember(orgUser, user, 'prof-1', {
+        email: 'novo@cliente.com',
+        profileRole: 'EDITOR',
+        sendEmail: true,
+      });
+
+      expect(service.assertCanGrantProfileRole).toHaveBeenCalledWith(
+        'org-1',
+        'prof-1',
+        { userId: 'user-1', orgRole: 'USER' },
+        'EDITOR'
+      );
+      expect(orgService.inviteTeamMember).toHaveBeenCalledWith('org-1', {
+        email: 'novo@cliente.com',
+        role: 'USER',
+        sendEmail: true,
+        profileIds: ['prof-1'],
+        profileRole: 'EDITOR',
+      });
+    });
+
+    it('nao convida se a validacao de papel falhar', async () => {
+      service.assertCanGrantProfileRole.mockRejectedValue(new Error('escalation'));
+
+      await expect(
+        controller.inviteMember(orgUser, user, 'prof-1', {
+          email: 'x@y.com',
+          profileRole: 'OWNER',
+          sendEmail: true,
+        })
+      ).rejects.toBeTruthy();
+      expect(orgService.inviteTeamMember).not.toHaveBeenCalled();
     });
   });
 });

@@ -39,6 +39,7 @@ import { AiCreditsSettingsSection } from '@gitroom/frontend/components/settings/
 import { AiProviderSettingsSection } from '@gitroom/frontend/components/settings/ai-provider/ai-provider.settings.component';
 import { ProfilePersonaSettingsSection } from '@gitroom/frontend/components/settings/profile-persona.settings.component';
 import { KnowledgeBaseSettingsSection } from '@gitroom/frontend/components/settings/knowledge-base.settings.component';
+import { ProfileMembersSettingsSection } from '@gitroom/frontend/components/settings/profile-members.settings.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -113,6 +114,13 @@ export const SettingsPopup: FC<{
     if (canManageAgent) {
       arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Persona de IA') });
     }
+    // Dono/Gerente gerencia membros do proprio perfil (admin tambem ve).
+    if (canManageProfile) {
+      arr.push({
+        tab: 'profile_members',
+        label: t('profile_members_title', 'Membros do perfil'),
+      });
+    }
     if (isOrgAdmin) {
       arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'Créditos de IA') });
       arr.push({ tab: 'ai_provider', label: t('ai_provider_title', 'Modelos de IA') });
@@ -138,7 +146,16 @@ export const SettingsPopup: FC<{
     }
 
     return arr;
-  }, [user, isGeneral, showLogout, t, isOrgAdmin, canWrite, canManageAgent]);
+  }, [
+    user,
+    isGeneral,
+    showLogout,
+    t,
+    isOrgAdmin,
+    canWrite,
+    canManageAgent,
+    canManageProfile,
+  ]);
 
   // Se a aba atual nao esta disponivel para este papel, cai na primeira aba
   // permitida (ex.: org-USER nao ve 'global_settings').
@@ -265,6 +282,10 @@ export const SettingsPopup: FC<{
                   <hr className="border-newTableBorder my-[24px]" />
                   <KnowledgeBaseSettingsSection />
                 </div>
+              )}
+
+              {tab === 'profile_members' && canManageProfile && (
+                <ProfileMembersSettingsSection />
               )}
 
               {tab === 'profiles' && isOrgAdmin && (

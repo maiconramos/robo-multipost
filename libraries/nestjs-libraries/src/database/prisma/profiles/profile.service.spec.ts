@@ -396,4 +396,65 @@ describe('ProfileService', () => {
       expect(repo.removeMember).toHaveBeenCalledWith('prof-1', 'u-editor');
     });
   });
+
+  describe('assertCanGrantProfileRole', () => {
+    it('admin da org concede qualquer papel sem checar membership', async () => {
+      await service.assertCanGrantProfileRole(
+        'org-1',
+        'prof-1',
+        { userId: 'admin-1', orgRole: 'ADMIN' },
+        'OWNER'
+      );
+      expect(repo.getMemberRole).not.toHaveBeenCalled();
+    });
+
+    it('Dono (OWNER) concede MANAGER', async () => {
+      repo.getProfileById.mockResolvedValue({ id: 'prof-1', organizationId: 'org-1' });
+      repo.getMemberRole.mockResolvedValue({ role: 'OWNER' });
+
+      await service.assertCanGrantProfileRole(
+        'org-1',
+        'prof-1',
+        { userId: 'owner-1', orgRole: 'USER' },
+        'MANAGER'
+      );
+    });
+
+    it('Gerente (MANAGER) nao concede OWNER (escalonamento -> 403)', async () => {
+      repo.getProfileById.mockResolvedValue({ id: 'prof-1', organizationId: 'org-1' });
+      repo.getMemberRole.mockResolvedValue({ role: 'MANAGER' });
+
+      await expect(
+        service.assertCanGrantProfileRole(
+          'org-1',
+          'prof-1',
+          { userId: 'manager-1', orgRole: 'USER' },
+          'OWNER'
+        )
+      ).rejects.toBeInstanceOf(HttpException);
+    });
+
+    it('Gerente concede EDITOR', async () => {
+      repo.getProfileById.mockResolvedValue({ id: 'prof-1', organizationId: 'org-1' });
+      repo.getMemberRole.mockResolvedValue({ role: 'MANAGER' });
+
+      await service.assertCanGrantProfileRole(
+        'org-1',
+        'prof-1',
+        { userId: 'manager-1', orgRole: 'USER' },
+        'EDITOR'
+      );
+    });
+
+    it('rejeita papel invalido com 400', async () => {
+      await expect(
+        service.assertCanGrantProfileRole(
+          'org-1',
+          'prof-1',
+          { userId: 'admin-1', orgRole: 'ADMIN' },
+          'SUPERBOSS' as any
+        )
+      ).rejects.toBeInstanceOf(HttpException);
+    });
+  });
 });

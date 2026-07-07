@@ -20,11 +20,16 @@ import {
 import { ProfileManage } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
 import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
 import { AddProfileMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/add.profile-member.dto';
+import { InviteProfileMemberDto } from '@gitroom/nestjs-libraries/dtos/settings/invite.profile-member.dto';
+import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 
 @ApiTags('Profiles')
 @Controller('/profiles')
 export class ProfilesController {
-  constructor(private _profileService: ProfileService) {}
+  constructor(
+    private _profileService: ProfileService,
+    private _organizationService: OrganizationService
+  ) {}
 
   @Get('/')
   async getProfiles(
@@ -83,6 +88,32 @@ export class ProfilesController {
       getOrgRole(org)
     );
     return this._profileService.getMembers(org.id, id);
+  }
+
+  // Convida por e-mail um novo membro para ESTE perfil (org-USER restrito ao
+  // perfil). Papel concedido limitado ao do convidante (Dono convida ate Dono;
+  // Gerente ate Gerente). Admin da org convida qualquer papel.
+  @Post('/:id/members/invite')
+  @ProfileManage({ param: 'id' })
+  async inviteMember(
+    @GetOrgFromRequest() org: Organization,
+    @GetUserFromRequest() user: User,
+    @Param('id') id: string,
+    @Body() body: InviteProfileMemberDto
+  ) {
+    await this._profileService.assertCanGrantProfileRole(
+      org.id,
+      id,
+      { userId: user.id, orgRole: getOrgRole(org) },
+      body.profileRole
+    );
+    return this._organizationService.inviteTeamMember(org.id, {
+      email: body.email,
+      role: 'USER',
+      sendEmail: body.sendEmail,
+      profileIds: [id],
+      profileRole: body.profileRole,
+    });
   }
 
   @Post('/:id/members')

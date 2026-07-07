@@ -36,6 +36,6 @@ export class AddTeamMemberDto {
 
   @IsOptional()
   @IsString()
-  @IsIn(['MANAGER', 'EDITOR', 'VIEWER'])
-  profileRole?: 'MANAGER' | 'EDITOR' | 'VIEWER';
+  @IsIn(['OWNER', 'MANAGER', 'EDITOR', 'VIEWER'])
+  profileRole?: 'OWNER' | 'MANAGER' | 'EDITOR' | 'VIEWER';
 }

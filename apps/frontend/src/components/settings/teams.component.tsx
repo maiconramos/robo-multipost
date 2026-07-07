@@ -31,6 +31,7 @@ const roles = [
   },
 ];
 const profileRoles = [
+  { key: 'profile_role_owner', name: 'Owner', value: 'OWNER' },
   { key: 'profile_role_editor', name: 'Editor', value: 'EDITOR' },
   { key: 'profile_role_manager', name: 'Manager', value: 'MANAGER' },
   { key: 'profile_role_viewer', name: 'Viewer', value: 'VIEWER' },
