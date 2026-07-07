@@ -48,7 +48,7 @@ export class FlowsController {
     // Settings > Credenciais > Facebook. Falls back to the platform default
     // so that fresh installs keep working without any configuration.
     const creds = await this._credentialService
-      .getRaw(org.id, 'facebook', profile?.id)
+      .getRawShared(org.id, 'facebook', profile?.id)
       .catch(() => null);
     const verifyToken = creds?.webhookVerifyToken || 'multipost';
 

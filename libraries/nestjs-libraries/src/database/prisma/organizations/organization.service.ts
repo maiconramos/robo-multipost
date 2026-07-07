@@ -336,4 +336,19 @@ export class OrganizationService {
   async updateShareZernioWithProfiles(orgId: string, enabled: boolean) {
     return this._organizationRepository.updateShareZernioWithProfiles(orgId, enabled);
   }
+
+  async getShareProviderCredentials(orgId: string) {
+    return {
+      enabled: await this._organizationRepository.getShareProviderCredentials(
+        orgId
+      ),
+    };
+  }
+
+  async updateShareProviderCredentials(orgId: string, enabled: boolean) {
+    return this._organizationRepository.updateShareProviderCredentials(
+      orgId,
+      enabled
+    );
+  }
 }

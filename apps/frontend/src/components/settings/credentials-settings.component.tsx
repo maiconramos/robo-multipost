@@ -7,6 +7,8 @@ import { ProviderCredentialForm } from '@gitroom/frontend/components/settings/pr
 import { MetaCredentialsCard } from '@gitroom/frontend/components/settings/meta-credentials.component';
 import { ZernioCredentialsCard } from '@gitroom/frontend/components/settings/zernio-settings.component';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
+import { useCurrentProfile } from '@gitroom/frontend/hooks/use-current-profile.hook';
+import ShareProviderCredentialsComponent from '@gitroom/frontend/components/settings/share-provider-credentials.component';
 import clsx from 'clsx';
 
 interface CallbackPathEntry {
@@ -281,6 +283,7 @@ const ProviderCard: React.FC<{
 export const CredentialsSettingsSection: React.FC = () => {
   const { data, isLoading, mutate } = useCredentialsList();
   const { data: zernio, mutate: mutateZernio } = useZernioSettings();
+  const { profile: currentProfile } = useCurrentProfile();
 
   const handleMutate = useCallback(() => {
     mutate();
@@ -307,6 +310,7 @@ export const CredentialsSettingsSection: React.FC = () => {
         Isso permite que cada workspace use seus próprios apps em vez das
         variáveis de ambiente globais.
       </div>
+      {currentProfile?.isDefault && <ShareProviderCredentialsComponent />}
       <div className="my-[16px] mt-[16px] flex flex-col gap-[8px]">
         <MetaCredentialsCard
           configured={configuredMap.get('facebook') || false}

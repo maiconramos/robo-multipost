@@ -153,6 +153,23 @@ export class SettingsController {
     return this._organizationService.updateShareZernioWithProfiles(org.id, enabled);
   }
 
+  @Get('/share-provider-credentials')
+  async getShareProviderCredentials(@GetOrgFromRequest() org: Organization) {
+    return this._organizationService.getShareProviderCredentials(org.id);
+  }
+
+  @Post('/share-provider-credentials')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  async updateShareProviderCredentials(
+    @GetOrgFromRequest() org: Organization,
+    @Body('enabled') enabled: boolean
+  ) {
+    return this._organizationService.updateShareProviderCredentials(
+      org.id,
+      enabled
+    );
+  }
+
   @Get('/profiles/:profileId/ai-credits')
   @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async getProfileAiCredits(

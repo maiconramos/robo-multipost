@@ -229,6 +229,8 @@
   "video_made_with_ai": "Video made with AI",
   "please_add_at_least": "Please add at least 20 characters",
   "send_invitation_via_email": "Send invitation via email?",
+  "share_provider_credentials": "Share credentials with profiles",
+  "share_provider_credentials_description": "When enabled, profiles without their own credentials use this (Default) profile's credentials. When disabled, each profile must configure its own (or falls back to environment variables).",
   "invite": "Invite",
   "profile_members_title": "Profile members",
   "profile_members_desc": "Invite and manage who has access to this profile.",

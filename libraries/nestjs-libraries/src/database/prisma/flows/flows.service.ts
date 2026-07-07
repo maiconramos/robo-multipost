@@ -210,7 +210,7 @@ export class FlowsService {
     // FACEBOOK_APP_ID + graph.facebook.com). When the chosen host has no IG
     // subscription we transparently retry on the other host before failing,
     // covering edge cases where the user filled the wrong credential field.
-    const creds = await this._credentialService.getRaw(
+    const creds = await this._credentialService.getRawShared(
       integration.organizationId,
       'facebook',
       integration.profileId ?? undefined

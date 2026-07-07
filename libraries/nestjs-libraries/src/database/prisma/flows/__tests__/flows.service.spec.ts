@@ -89,6 +89,9 @@ const mockIntegrationManager = {
 
 const mockCredentialService = {
   getRaw: jest.fn().mockResolvedValue(null),
+  // flows.service resolve credenciais para CONSUMO via getRawShared (heranca
+  // do perfil Default), nao getRaw.
+  getRawShared: jest.fn().mockResolvedValue(null),
 } as any;
 
 const mockInstagramMessaging = {
@@ -137,7 +140,7 @@ describe('FlowsService', () => {
     mockIntegrationManager.getSocialIntegration.mockReturnValue({
       ensureWebhookSubscription: mockEnsureWebhookSubscription,
     });
-    mockCredentialService.getRaw.mockResolvedValue(null);
+    mockCredentialService.getRawShared.mockResolvedValue(null);
     mockInstagramMessaging.resolveIgUserToken.mockResolvedValue(null);
     mockProfileService.getProfileById.mockResolvedValue({
       id: 'profile-1',
@@ -288,7 +291,7 @@ describe('FlowsService', () => {
     it('should delegate to repository when webhook check passes', async () => {
       const body = { name: 'New Flow', integrationId: 'int-1' };
       mockRepository.createFlow.mockResolvedValue({ id: 'flow-1' });
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app',
         clientSecret: 'fb-secret',
       });
@@ -355,7 +358,7 @@ describe('FlowsService', () => {
         profileId: null,
       });
       mockRepository.createFlow.mockResolvedValue({ id: 'flow-1' });
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app',
         clientSecret: 'fb-secret',
       });
@@ -441,7 +444,7 @@ describe('FlowsService', () => {
       }) as any;
 
     beforeEach(() => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app',
         clientSecret: 'fb-secret',
       });
@@ -1267,7 +1270,7 @@ describe('FlowsService', () => {
     });
 
     it('queries graph.facebook.com when only clientId/clientSecret are configured (Facebook app)', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app-1',
         clientSecret: 'fb-secret-1',
       });
@@ -1283,7 +1286,7 @@ describe('FlowsService', () => {
     });
 
     it('queries graph.instagram.com when instagramAppId is set (Instagram-only app)', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app-1',
         clientSecret: 'fb-secret-1',
         instagramAppId: 'ig-app-2',
@@ -1301,7 +1304,7 @@ describe('FlowsService', () => {
     });
 
     it('falls back to graph.facebook.com when graph.instagram.com errors (e.g. wrong field filled)', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         instagramAppId: 'wrong-host-app',
         instagramAppSecret: 'wrong-host-secret',
       });
@@ -1331,7 +1334,7 @@ describe('FlowsService', () => {
     });
 
     it('falls back to the other host when primary returns subs without an instagram one', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-only-page',
         clientSecret: 'fb-secret',
       });
@@ -1356,7 +1359,7 @@ describe('FlowsService', () => {
     });
 
     it('queries graph.instagram.com when only INSTAGRAM_APP_ID env is set', async () => {
-      mockCredentialService.getRaw.mockResolvedValue(null);
+      mockCredentialService.getRawShared.mockResolvedValue(null);
       process.env.INSTAGRAM_APP_ID = 'env-ig-app';
       process.env.INSTAGRAM_APP_SECRET = 'env-ig-secret';
       fetchMock.mockResolvedValueOnce(respond([igSubscriptionOk]));
@@ -1369,7 +1372,7 @@ describe('FlowsService', () => {
     });
 
     it('queries graph.facebook.com when only FACEBOOK_APP_ID env is set', async () => {
-      mockCredentialService.getRaw.mockResolvedValue(null);
+      mockCredentialService.getRawShared.mockResolvedValue(null);
       process.env.FACEBOOK_APP_ID = 'env-fb-app';
       process.env.FACEBOOK_APP_SECRET = 'env-fb-secret';
       fetchMock.mockResolvedValueOnce(respond([igSubscriptionOk]));
@@ -1387,7 +1390,7 @@ describe('FlowsService', () => {
         organizationId: 'org-1',
         profileId: 'profile-42',
       });
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app',
         clientSecret: 'fb-secret',
       });
@@ -1395,7 +1398,7 @@ describe('FlowsService', () => {
 
       await service.checkIntegrationWebhook('org-1', 'int-1');
 
-      expect(mockCredentialService.getRaw).toHaveBeenCalledWith(
+      expect(mockCredentialService.getRawShared).toHaveBeenCalledWith(
         'org-1',
         'facebook',
         'profile-42'
@@ -1403,7 +1406,7 @@ describe('FlowsService', () => {
     });
 
     it('returns clear error when no Meta credentials exist anywhere (replaces silent ok:true)', async () => {
-      mockCredentialService.getRaw.mockResolvedValue(null);
+      mockCredentialService.getRawShared.mockResolvedValue(null);
 
       const result = await service.checkIntegrationWebhook('org-1', 'int-1');
 
@@ -1414,7 +1417,7 @@ describe('FlowsService', () => {
     });
 
     it('lists subscriptions actually present on both hosts when instagram object is missing', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app-x',
         clientSecret: 'fb-secret-x',
       });
@@ -1443,7 +1446,7 @@ describe('FlowsService', () => {
     });
 
     it('reports inactive subscription with appId context', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app-y',
         clientSecret: 'fb-secret-y',
       });
@@ -1466,7 +1469,7 @@ describe('FlowsService', () => {
     });
 
     it('reports missing fields (comments/messages) with appId context', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app-z',
         clientSecret: 'fb-secret-z',
       });
@@ -1495,7 +1498,7 @@ describe('FlowsService', () => {
       // ("Cannot get application info"). Blocking flow creation here would
       // be a false negative — the webhook may be working fine, the API
       // /{app_id}/subscriptions endpoint just isn't queryable for this app.
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         instagramAppId: '2882877478718411',
         instagramAppSecret: 'ig-only-secret',
       });
@@ -1517,7 +1520,7 @@ describe('FlowsService', () => {
     });
 
     it('blocks when subscriptions are readable on at least one host but no instagram object exists anywhere', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app-readable',
         clientSecret: 'fb-secret-readable',
       });
@@ -1543,7 +1546,7 @@ describe('FlowsService', () => {
     });
 
     it('fails open when one host errors and the other returns no IG subscription (inconclusive)', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'fb-app-mixed',
         clientSecret: 'fb-secret-mixed',
       });
@@ -1581,7 +1584,7 @@ describe('FlowsService', () => {
     });
 
     it('does not url-encode the pipe in the app access token (Meta rejects %7C)', async () => {
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         clientId: 'pipe-app',
         clientSecret: 'pipe-secret',
       });
@@ -1600,7 +1603,7 @@ describe('FlowsService', () => {
       // returns "Error validating application. Cannot get application info due
       // to a system error" because that domain doesn't recognize Instagram-only
       // app IDs. The check must hit graph.instagram.com directly.
-      mockCredentialService.getRaw.mockResolvedValue({
+      mockCredentialService.getRawShared.mockResolvedValue({
         instagramAppId: '2882877478718411',
         instagramAppSecret: 'ig-only-secret',
       });

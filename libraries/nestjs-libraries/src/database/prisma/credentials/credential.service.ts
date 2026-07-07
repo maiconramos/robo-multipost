@@ -1,6 +1,8 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CredentialRepository } from './credential.repository';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository';
+import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
 
 const SENTINEL = '__REDACTED__';
 
@@ -14,8 +16,39 @@ export class CredentialService {
 
   constructor(
     private _credentialRepository: CredentialRepository,
-    private _encryptionService: EncryptionService
+    private _encryptionService: EncryptionService,
+    private _organizationRepository: OrganizationRepository,
+    private _profileRepository: ProfileRepository
   ) {}
+
+  // Resolucao PARA CONSUMO (OAuth/posting/refresh/flows): credencial propria do
+  // perfil -> credencial do perfil Default (se o compartilhamento estiver
+  // ligado) -> null (o chamador cai nas variaveis de ambiente). Diferente de
+  // getRaw (match exato), que continua sendo usado por save/getRedacted para
+  // nunca herdar ao editar. Chamada org-level (sem profileId) nao herda.
+  async getRawShared(
+    organizationId: string,
+    provider: string,
+    profileId?: string
+  ): Promise<Record<string, string> | null> {
+    const own = await this.getRaw(organizationId, provider, profileId);
+    if (own || !profileId) {
+      return own;
+    }
+    const shares = await this._organizationRepository.getShareProviderCredentials(
+      organizationId
+    );
+    if (!shares) {
+      return null;
+    }
+    const defaultProfile = await this._profileRepository.getDefaultProfile(
+      organizationId
+    );
+    if (!defaultProfile || defaultProfile.id === profileId) {
+      return null;
+    }
+    return this.getRaw(organizationId, provider, defaultProfile.id);
+  }
 
   private redact(data: Record<string, string>): Record<string, string> {
     return Object.fromEntries(

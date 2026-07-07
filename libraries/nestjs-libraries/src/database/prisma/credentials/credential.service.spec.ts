@@ -1,6 +1,8 @@
 import { CredentialService } from './credential.service';
 import { CredentialRepository } from './credential.repository';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository';
+import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
 import { createMock } from '@gitroom/nestjs-libraries/test';
 import { MockProxy } from 'jest-mock-extended';
 
@@ -10,6 +12,8 @@ describe('CredentialService', () => {
   let service: CredentialService;
   let repository: MockProxy<CredentialRepository> & CredentialRepository;
   let encryption: MockProxy<EncryptionService> & EncryptionService;
+  let orgRepository: MockProxy<OrganizationRepository> & OrganizationRepository;
+  let profileRepository: MockProxy<ProfileRepository> & ProfileRepository;
 
   const buildExistingRecord = (data: Record<string, string>): any => ({
     id: 'rec-1',
@@ -30,7 +34,15 @@ describe('CredentialService', () => {
       (s: string) => JSON.parse(s) as Record<string, any>
     );
 
-    service = new CredentialService(repository, encryption);
+    orgRepository = createMock<OrganizationRepository>();
+    profileRepository = createMock<ProfileRepository>();
+
+    service = new CredentialService(
+      repository,
+      encryption,
+      orgRepository,
+      profileRepository
+    );
   });
 
   describe('save', () => {
@@ -257,6 +269,72 @@ describe('CredentialService', () => {
       const result = await service.findAllDecrypted('facebook');
 
       expect(result).toHaveLength(2);
+    });
+  });
+
+  describe('getRawShared (heranca do perfil Default)', () => {
+    const rec = (data: Record<string, string>): any => ({
+      encryptedData: JSON.stringify(data),
+    });
+
+    it('usa a credencial propria do perfil quando existe (sem herdar)', async () => {
+      repository.findByProvider.mockResolvedValueOnce(
+        rec({ clientId: 'own' })
+      );
+
+      const res = await service.getRawShared('org-1', 'facebook', 'prof-2');
+
+      expect(res).toEqual({ clientId: 'own' });
+      expect(orgRepository.getShareProviderCredentials).not.toHaveBeenCalled();
+    });
+
+    it('herda do Default quando o perfil nao tem credencial e o share esta ligado', async () => {
+      repository.findByProvider
+        .mockResolvedValueOnce(null) // proprio perfil: sem credencial
+        .mockResolvedValueOnce(rec({ clientId: 'default' })); // Default
+      orgRepository.getShareProviderCredentials.mockResolvedValue(true);
+      profileRepository.getDefaultProfile.mockResolvedValue({
+        id: 'prof-default',
+      } as any);
+
+      const res = await service.getRawShared('org-1', 'facebook', 'prof-2');
+
+      expect(res).toEqual({ clientId: 'default' });
+    });
+
+    it('NAO herda quando o compartilhamento esta desligado (cai no env do chamador)', async () => {
+      repository.findByProvider.mockResolvedValueOnce(null);
+      orgRepository.getShareProviderCredentials.mockResolvedValue(false);
+
+      const res = await service.getRawShared('org-1', 'facebook', 'prof-2');
+
+      expect(res).toBeNull();
+      expect(profileRepository.getDefaultProfile).not.toHaveBeenCalled();
+    });
+
+    it('NAO herda quando o proprio perfil e o Default', async () => {
+      repository.findByProvider.mockResolvedValueOnce(null);
+      orgRepository.getShareProviderCredentials.mockResolvedValue(true);
+      profileRepository.getDefaultProfile.mockResolvedValue({
+        id: 'prof-default',
+      } as any);
+
+      const res = await service.getRawShared(
+        'org-1',
+        'facebook',
+        'prof-default'
+      );
+
+      expect(res).toBeNull();
+    });
+
+    it('chamada org-level (sem profileId) nao herda', async () => {
+      repository.findByProvider.mockResolvedValueOnce(null);
+
+      const res = await service.getRawShared('org-1', 'facebook', undefined);
+
+      expect(res).toBeNull();
+      expect(orgRepository.getShareProviderCredentials).not.toHaveBeenCalled();
     });
   });
 });

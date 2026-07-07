@@ -690,4 +690,20 @@ export class OrganizationRepository {
       data: { shareZernioWithProfiles: enabled },
     });
   }
+
+  async getShareProviderCredentials(orgId: string) {
+    const org = await this._organization.model.organization.findUnique({
+      where: { id: orgId },
+      select: { shareProviderCredentialsWithProfiles: true },
+    });
+    // Fail-open para o padrao ligado se a org sumir (nunca deveria aqui).
+    return org?.shareProviderCredentialsWithProfiles ?? true;
+  }
+
+  updateShareProviderCredentials(orgId: string, enabled: boolean) {
+    return this._organization.model.organization.update({
+      where: { id: orgId },
+      data: { shareProviderCredentialsWithProfiles: enabled },
+    });
+  }
 }

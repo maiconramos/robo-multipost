@@ -25,6 +25,11 @@ model Organization {
   shareLateWithProfiles   Boolean              @default(false)
   zernioApiKey            String?
   shareZernioWithProfiles Boolean              @default(false)
+  // Perfil Default compartilha suas credenciais OAuth (Meta/Google/etc.) com os
+  // demais perfis que nao configuraram as proprias. Nasce ligado para espelhar
+  // o comportamento esperado em producao (Default = base compartilhada); o
+  // fallback final continua sendo as variaveis de ambiente.
+  shareProviderCredentialsWithProfiles Boolean         @default(true)
   language                String?
   autoPost                AutoPost[]
   Comments                Comments[]

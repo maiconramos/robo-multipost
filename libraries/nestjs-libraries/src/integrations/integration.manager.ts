@@ -172,7 +172,7 @@ export class IntegrationManager {
     const credentialKey = CREDENTIAL_ALIAS[provider] || provider;
 
     if (this._credentialService) {
-      const dbCredentials = await this._credentialService.getRaw(
+      const dbCredentials = await this._credentialService.getRawShared(
         organizationId,
         credentialKey,
         profileId
