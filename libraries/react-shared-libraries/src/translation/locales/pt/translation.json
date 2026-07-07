@@ -231,6 +231,7 @@
   "send_invitation_via_email": "Enviar convite por e-mail?",
   "share_provider_credentials": "Compartilhar credenciais com os perfis",
   "share_provider_credentials_description": "Quando ligado, perfis sem credenciais próprias usam as credenciais deste perfil (Default). Quando desligado, cada perfil precisa configurar as suas (ou cai nas variáveis de ambiente).",
+  "team": "Equipe",
   "invite": "Convidar",
   "profile_members_title": "Membros do perfil",
   "profile_members_desc": "Convide e gerencie quem tem acesso a este perfil.",

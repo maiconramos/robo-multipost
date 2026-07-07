@@ -105,21 +105,19 @@ export const SettingsPopup: FC<{
       arr.push({ tab: 'global_settings', label: t('global_settings', 'Global Settings') });
       arr.push({ tab: 'profiles', label: t('profiles_tab', 'Perfis') });
     }
-    if (user?.tier?.team_members && isGeneral && isOrgAdmin) {
-      arr.push({ tab: 'teams', label: t('teams', 'Teams') });
+    // Aba unica "Equipe": admin ve o time inteiro da org (todos os perfis);
+    // Dono/Gerente (org-USER) ve/gerencia os membros do proprio perfil.
+    if (
+      (user?.tier?.team_members && isGeneral && isOrgAdmin) ||
+      (!isOrgAdmin && canManageProfile)
+    ) {
+      arr.push({ tab: 'teams', label: t('team', 'Equipe') });
     }
     if (isOrgAdmin) {
       arr.push({ tab: 'credentials', label: t('credentials_tab', 'Credenciais') });
     }
     if (canManageAgent) {
       arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Persona de IA') });
-    }
-    // Dono/Gerente gerencia membros do proprio perfil (admin tambem ve).
-    if (canManageProfile) {
-      arr.push({
-        tab: 'profile_members',
-        label: t('profile_members_title', 'Membros do perfil'),
-      });
     }
     if (isOrgAdmin) {
       arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'Créditos de IA') });
@@ -220,13 +218,18 @@ export const SettingsPopup: FC<{
                 </div>
               )}
               {tab === 'teams' &&
-                !!user?.tier?.team_members &&
-                isGeneral &&
-                isOrgAdmin && (
-                  <div>
-                    <TeamsComponent />
-                  </div>
-                )}
+                (isOrgAdmin
+                  ? !!user?.tier?.team_members &&
+                    isGeneral && (
+                      <div>
+                        <TeamsComponent />
+                      </div>
+                    )
+                  : canManageProfile && (
+                      <div>
+                        <ProfileMembersSettingsSection />
+                      </div>
+                    ))}
 
               {tab === 'webhooks' && !!user?.tier?.webhooks && isOrgAdmin && (
                 <div>
@@ -284,9 +287,6 @@ export const SettingsPopup: FC<{
                 </div>
               )}
 
-              {tab === 'profile_members' && canManageProfile && (
-                <ProfileMembersSettingsSection />
-              )}
 
               {tab === 'profiles' && isOrgAdmin && (
                 <div>
