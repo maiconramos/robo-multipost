@@ -104,6 +104,12 @@ export class UsersController {
       profileApiKey: organization?.users[0]?.role === 'SUPERADMIN' || organization?.users[0]?.role === 'ADMIN' ? (profile?.apiKey ?? null) : null,
       profileId: profile?.id || null,
       profileName: profile?.name || null,
+      // Papel no perfil ativo (VIEWER/EDITOR/MANAGER/OWNER; admin da org =
+      // OWNER implicito). Usado pelo frontend para esconder acoes de escrita.
+      // @ts-ignore
+      profileRole: req.profileRole ?? null,
+      // @ts-ignore
+      profileAccess: req.profileAccess ?? null,
     };
   }
 

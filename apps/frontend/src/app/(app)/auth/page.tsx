@@ -13,12 +13,13 @@ export const metadata: Metadata = {
 };
 export default async function Auth(params: {searchParams: Promise<{provider: string}>}) {
   const t = await getT();
+  // Convite presente (cookie `org`, setado pelo proxy a partir do `?org=`):
+  // esconde o campo Empresa (convidado nao cria workspace proprio).
+  const hasInvite = !!(await cookies()).get('org')?.value;
   if (process.env.DISABLE_REGISTRATION === 'true') {
-    // Convite presente (cookie `org`, setado pelo proxy a partir do `?org=`)
-    // libera o formulario de registro mesmo com o registro publico desativado.
-    // A validade do convite (assinatura + expiracao do JWT) e reforcada pelo
-    // backend em /auth/register; aqui e apenas UX.
-    const hasInvite = !!(await cookies()).get('org')?.value;
+    // Um convite valido tambem libera o formulario de registro mesmo com o
+    // registro publico desativado. A validade do convite (assinatura +
+    // expiracao do JWT) e reforcada pelo backend em /auth/register; aqui e UX.
     const canRegister =
       hasInvite ||
       (await (await internalFetch('/auth/can-register')).json()).register;
@@ -37,5 +38,5 @@ export default async function Auth(params: {searchParams: Promise<{provider: str
       );
     }
   }
-  return <Register />;
+  return <Register invited={hasInvite} />;
 }

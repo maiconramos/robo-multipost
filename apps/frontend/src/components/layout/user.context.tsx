@@ -22,6 +22,8 @@ export const UserContext = createContext<
       profileId: string | null;
       profileName: string | null;
       profileApiKey: string | null;
+      profileRole: 'OWNER' | 'MANAGER' | 'EDITOR' | 'VIEWER' | null;
+      profileAccess: 'implicit' | 'member' | 'none' | null;
     })
 >(undefined);
 export const ContextWrapper: FC<{

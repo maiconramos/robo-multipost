@@ -2,6 +2,7 @@
 
 import { FC, ReactNode, useCallback } from 'react';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
@@ -336,6 +337,7 @@ export const useMenuItem = () => {
 
 export const TopMenu: FC = () => {
   const user = useUser();
+  const { isViewer } = useProfilePermissions();
   const { firstMenu, secondMenu } = useMenuItem();
   const { isGeneral, billingEnabled } = useVariables();
   return (
@@ -355,6 +357,11 @@ export const TopMenu: FC = () => {
                   return false;
                 }
                 if (f.name === 'Billing' && user?.isLifetime) {
+                  return false;
+                }
+                // Visualizador (cliente convidado por agencia) so acessa o
+                // Calendario para acompanhar; nada de midia/agente/automacoes.
+                if (isViewer && f.path !== '/launches') {
                   return false;
                 }
                 if (f.role) {
@@ -383,6 +390,11 @@ export const TopMenu: FC = () => {
               return false;
             }
             if (f.name === 'Billing' && user?.isLifetime) {
+              return false;
+            }
+            // Visualizador nao tem nada em Configuracoes (todas as abas exigem
+            // Editor+ ou admin da org) — esconde o item do menu.
+            if (isViewer && f.path === '/settings') {
               return false;
             }
             if (f.role) {

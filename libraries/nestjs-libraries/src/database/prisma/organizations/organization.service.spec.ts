@@ -8,6 +8,8 @@ const makeRepo = () => ({
   updateLanguage: jest.fn(),
   getFirstOrgLanguageByUserId: jest.fn(),
   isInviteConsumed: jest.fn(),
+  createUserForInvite: jest.fn(),
+  createOrgForUser: jest.fn(),
 });
 
 const makeNotifications = () => ({
@@ -45,6 +47,17 @@ describe('OrganizationService', () => {
 
       expect(result).toBe(true);
       expect(repo.isInviteConsumed).toHaveBeenCalledWith('inv-1');
+    });
+  });
+
+  describe('createOrgForUser', () => {
+    it('delega ao repositorio normalizando o idioma', async () => {
+      repo.createOrgForUser.mockResolvedValue({ id: 'org-fb' });
+
+      const result = await service.createOrgForUser('u-1', 'ACME', 'pt-BR');
+
+      expect(result).toEqual({ id: 'org-fb' });
+      expect(repo.createOrgForUser).toHaveBeenCalledWith('u-1', 'ACME', 'pt');
     });
   });
 
@@ -165,6 +178,37 @@ describe('OrganizationService', () => {
       } as any);
 
       expect(result.url).toContain('/?org=');
+    });
+
+    it('e-mail de convite USER menciona o perfil e a funcao', async () => {
+      profiles.getProfileById.mockResolvedValue({ id: 'prof-1', name: 'Dell' });
+      repo.getLanguage.mockResolvedValue({ language: 'pt' });
+
+      await service.inviteTeamMember('org-1', {
+        email: 'a@b.com',
+        role: 'USER',
+        sendEmail: true,
+        profileIds: ['prof-1'],
+        profileRole: 'VIEWER',
+      } as any);
+
+      const [, subject, html] = notifications.sendEmail.mock.calls[0];
+      expect(subject).toContain('perfil');
+      expect(html).toContain('Dell');
+      expect(html).toContain('Visualizador');
+    });
+
+    it('e-mail de convite ADMIN usa o texto generico de organizacao', async () => {
+      repo.getLanguage.mockResolvedValue({ language: 'pt' });
+
+      await service.inviteTeamMember('org-1', {
+        email: 'a@b.com',
+        role: 'ADMIN',
+        sendEmail: true,
+      } as any);
+
+      const [, subject] = notifications.sendEmail.mock.calls[0];
+      expect(subject).toContain('organização');
     });
 
     it('nao exige perfis para role ADMIN', async () => {

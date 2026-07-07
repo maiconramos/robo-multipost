@@ -40,6 +40,7 @@ import { Integration, Post, State, Tags } from '@prisma/client';
 import { useAddProvider } from '@gitroom/frontend/components/launches/add.provider.component';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 import isSameOrAfter from 'dayjs/plugin/isSameOrAfter';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
 import { groupBy, random, sortBy } from 'lodash';
@@ -590,6 +591,7 @@ export const CalendarColumn: FC<{
   const { getDate, randomHour } = props;
   const [num, setNum] = useState(0);
   const user = useUser();
+  const { canWrite } = useProfilePermissions();
   const {
     integrations,
     posts,
@@ -899,7 +901,7 @@ export const CalendarColumn: FC<{
             </div>
           )}
         </div>
-        {!isBeforeNow && (
+        {!isBeforeNow && canWrite && (
           <div
             className="pb-[2.5px] px-[5px] flex-1 flex"
             onClick={integrations.length ? addModal : addProvider}

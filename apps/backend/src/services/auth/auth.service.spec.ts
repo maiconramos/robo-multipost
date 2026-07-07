@@ -27,8 +27,12 @@ const makeDeps = () => ({
     isInviteConsumed: jest.fn().mockResolvedValue(false),
     createOrgAndUser: jest.fn().mockResolvedValue({
       id: 'org-new',
-      users: [{ user: { id: 'u-new', email: 'a@b.com' } }],
+      users: [{ user: { id: 'u-self', email: 'a@b.com' } }],
     }),
+    createUserForInvite: jest
+      .fn()
+      .mockResolvedValue({ id: 'u-new', email: 'a@b.com' }),
+    createOrgForUser: jest.fn().mockResolvedValue({ id: 'org-fallback' }),
     addUserToOrg: jest.fn().mockResolvedValue({ organizationId: 'org-invited' }),
   },
   notificationService: {},
@@ -80,7 +84,7 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
       expect(deps.orgService.createOrgAndUser).not.toHaveBeenCalled();
     });
 
-    it('permite registro com convite valido e cria as memberships do convite', async () => {
+    it('registro via convite NAO cria workspace pessoal, so entra no convidado', async () => {
       await service.routeAuth(
         Provider.LOCAL,
         localBody(),
@@ -89,7 +93,8 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
         INVITE
       );
 
-      expect(deps.orgService.createOrgAndUser).toHaveBeenCalled();
+      expect(deps.orgService.createUserForInvite).toHaveBeenCalled();
+      expect(deps.orgService.createOrgAndUser).not.toHaveBeenCalled();
       expect(deps.orgService.addUserToOrg).toHaveBeenCalledWith(
         'u-new',
         'inv-1',
@@ -98,6 +103,43 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
         ['prof-1'],
         'EDITOR'
       );
+    });
+
+    it('cria workspace pessoal de fallback quando a entrada no convite falha', async () => {
+      // addUserToOrg falha (ex.: tier sem team / convite consumido / corrida)
+      deps.orgService.addUserToOrg.mockResolvedValue(false);
+
+      await service.routeAuth(
+        Provider.LOCAL,
+        localBody(),
+        '127.0.0.1',
+        'agent',
+        INVITE
+      );
+
+      expect(deps.orgService.createUserForInvite).toHaveBeenCalled();
+      expect(deps.orgService.createOrgForUser).toHaveBeenCalledWith(
+        'u-new',
+        'ACME',
+        undefined
+      );
+    });
+
+    it('auto-cadastro (sem convite) cria workspace pessoal', async () => {
+      // registro publico permitido
+      process.env.DISABLE_REGISTRATION = 'false';
+
+      await service.routeAuth(
+        Provider.LOCAL,
+        localBody(),
+        '127.0.0.1',
+        'agent',
+        false
+      );
+
+      expect(deps.orgService.createOrgAndUser).toHaveBeenCalled();
+      expect(deps.orgService.createUserForInvite).not.toHaveBeenCalled();
+      expect(deps.orgService.addUserToOrg).not.toHaveBeenCalled();
     });
 
     it('nao consulta getCount quando ha convite valido (bypassa canRegister)', async () => {
@@ -145,7 +187,8 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
 
       await service.routeAuth(Provider.LOCAL, body, '127.0.0.1', 'agent', INVITE);
 
-      expect(deps.orgService.createOrgAndUser).toHaveBeenCalled();
+      expect(deps.orgService.createUserForInvite).toHaveBeenCalled();
+      expect(deps.orgService.createOrgAndUser).not.toHaveBeenCalled();
     });
   });
 
@@ -169,7 +212,7 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
       expect(deps.orgService.createOrgAndUser).not.toHaveBeenCalled();
     });
 
-    it('permite registro OAuth com convite valido e email casando', async () => {
+    it('registro OAuth via convite NAO cria workspace pessoal', async () => {
       await service.routeAuth(
         Provider.GOOGLE,
         oauthBody(),
@@ -178,9 +221,51 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
         googleInvite
       );
 
-      expect(deps.orgService.createOrgAndUser).toHaveBeenCalled();
+      expect(deps.orgService.createUserForInvite).toHaveBeenCalled();
+      expect(deps.orgService.createOrgAndUser).not.toHaveBeenCalled();
       expect(deps.orgService.addUserToOrg).toHaveBeenCalledWith(
         'u-new',
+        'inv-1',
+        'org-invited',
+        'USER',
+        ['prof-1'],
+        'EDITOR'
+      );
+    });
+
+    it('auto-cadastro OAuth (sem convite) cria workspace pessoal', async () => {
+      process.env.DISABLE_REGISTRATION = 'false';
+
+      await service.routeAuth(
+        Provider.GOOGLE,
+        oauthBody(),
+        '127.0.0.1',
+        'agent',
+        false
+      );
+
+      expect(deps.orgService.createOrgAndUser).toHaveBeenCalled();
+      expect(deps.orgService.createUserForInvite).not.toHaveBeenCalled();
+    });
+
+    it('usuario OAuth existente com convite entra no workspace convidado', async () => {
+      deps.userService.getUserByProvider.mockResolvedValue({
+        id: 'u-existing',
+        email: 'a@gmail.com',
+      });
+
+      await service.routeAuth(
+        Provider.GOOGLE,
+        oauthBody(),
+        '127.0.0.1',
+        'agent',
+        googleInvite
+      );
+
+      expect(deps.orgService.createOrgAndUser).not.toHaveBeenCalled();
+      expect(deps.orgService.createUserForInvite).not.toHaveBeenCalled();
+      expect(deps.orgService.addUserToOrg).toHaveBeenCalledWith(
+        'u-existing',
         'inv-1',
         'org-invited',
         'USER',

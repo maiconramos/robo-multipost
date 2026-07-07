@@ -102,7 +102,10 @@ export class AuthMiddleware implements NestMiddleware {
       const setOrg =
         organization.find((org) => org.id === orgHeader) || organization[0];
 
-      if (!organization) {
+      // Usuario sem nenhuma organizacao (estado invalido): nega de forma limpa
+      // em vez de estourar TypeError ao acessar setOrg.apiKey abaixo. O array
+      // e sempre truthy, entao a checagem antiga (`!organization`) nunca pegava.
+      if (!setOrg) {
         throw new HttpForbiddenException();
       }
 

@@ -1,5 +1,10 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
-import { Role, ShortLinkPreference, SubscriptionTier } from '@prisma/client';
+import {
+  ProfileRole,
+  Role,
+  ShortLinkPreference,
+  SubscriptionTier,
+} from '@prisma/client';
 import { Injectable } from '@nestjs/common';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
@@ -331,6 +336,60 @@ export class OrganizationRepository {
     });
   }
 
+  // Cria SOMENTE a conta do usuario (sem workspace pessoal). Usado no registro
+  // via convite: a pessoa entra apenas no workspace de quem convidou (via
+  // addUserToOrg), como membro — modelo agencia/equipe. O auto-cadastro (sem
+  // convite) continua usando createOrgAndUser (comportamento SaaS multi-tenant).
+  async createUserForInvite(
+    body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string },
+    hasEmail: boolean,
+    ip: string,
+    userAgent: string
+  ) {
+    return this._user.model.user.create({
+      data: {
+        activated: body.provider !== 'LOCAL' || !hasEmail,
+        email: body.email,
+        password: body.password
+          ? AuthService.hashPassword(body.password)
+          : '',
+        providerName: body.provider,
+        providerId: body.providerId || '',
+        timezone: 0,
+        ip,
+        agent: userAgent,
+      },
+    });
+  }
+
+  // Cria um workspace pessoal para um usuario JA existente. Usado como fallback
+  // quando a entrada no workspace do convite falha (org em tier sem team,
+  // convite ja consumido, corrida) — garante que o usuario nunca fica orfao
+  // (sem nenhuma org), estado que quebraria o AuthMiddleware.
+  async createOrgForUser(
+    userId: string,
+    company: string,
+    language?: string | null
+  ) {
+    return this._organization.model.organization.create({
+      data: {
+        name: company,
+        apiKey: AuthService.fixedEncryption(makeSecureId(20)),
+        language: language ?? null,
+        allowTrial: true,
+        isTrailing: true,
+        profilesBootstrappedAt: new Date(),
+        profiles: {
+          create: { name: 'Default', slug: 'default', isDefault: true },
+        },
+        users: {
+          create: { role: Role.SUPERADMIN, user: { connect: { id: userId } } },
+        },
+      },
+      select: { id: true },
+    });
+  }
+
   getOrgByCustomerId(customerId: string) {
     return this._organization.model.organization.findFirst({
       where: {
@@ -374,6 +433,15 @@ export class OrganizationRepository {
                 sendSuccessEmails: true,
                 sendFailureEmails: true,
                 sendStreakEmails: true,
+                // Perfis (e funcao no perfil) do membro NESTA org — para a tela
+                // de equipe mostrar "Fulano = Visualizador no Dell".
+                profileMembers: {
+                  where: { profile: { organizationId: orgId, deletedAt: null } },
+                  select: {
+                    role: true,
+                    profile: { select: { id: true, name: true } },
+                  },
+                },
               },
             },
           },
@@ -421,7 +489,13 @@ export class OrganizationRepository {
                       // escopa a membership a ESTA org (um usuario pode ter
                       // perfis em varias orgs) — defense-in-depth caso um
                       // (orgId, profileId) inconsistente chegue aqui.
-                      some: { profileId, profile: { organizationId: orgId } },
+                      // VIEWER e somente leitura: nao recebe e-mail de
+                      // sucesso/falha de post (isso e para Editor+).
+                      some: {
+                        profileId,
+                        profile: { organizationId: orgId },
+                        role: { not: ProfileRole.VIEWER },
+                      },
                     },
                   },
                 },

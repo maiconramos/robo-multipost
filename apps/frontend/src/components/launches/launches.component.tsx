@@ -10,6 +10,7 @@ import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import clsx from 'clsx';
 import { useUser } from '../layout/user.context';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 import { Menu } from '@gitroom/frontend/components/launches/menu/menu';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { Integration } from '@prisma/client';
@@ -343,6 +344,7 @@ export const MenuComponent: FC<
 export const LaunchesComponent = () => {
   const fetch = useFetch();
   const user = useUser();
+  const { canWrite } = useProfilePermissions();
   const { billingEnabled } = useVariables();
   const router = useRouter();
   const search = useSearchParams();
@@ -527,10 +529,11 @@ export const LaunchesComponent = () => {
               </div>
             </div>
             <div className="flex flex-col gap-[8px] group-[.sidebar]:mx-auto group-[.sidebar]:w-[44px]">
-              <AddProviderButton update={() => update(true)} />
+              {canWrite && <AddProviderButton update={() => update(true)} />}
               <div className="flex gap-[8px] group-[.sidebar]:flex-col">
-                {sortedIntegrations?.length > 0 && <NewPost />}
-                {sortedIntegrations?.length > 0 &&
+                {canWrite && sortedIntegrations?.length > 0 && <NewPost />}
+                {canWrite &&
+                  sortedIntegrations?.length > 0 &&
                   user?.tier?.ai &&
                   billingEnabled && <GeneratorComponent />}
               </div>

@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { OnboardingModal } from '@gitroom/frontend/components/onboarding/onboarding.modal';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 
 export const Onboarding: FC = () => {
   const query = useSearchParams();
@@ -12,6 +13,9 @@ export const Onboarding: FC = () => {
   const router = useRouter();
   const modalOpen = useRef(false);
   const t = useT();
+  // Membro restrito (ex.: Visualizador convidado por uma agencia) nao conecta
+  // canais — o onboarding de "conectar Instagram/Facebook" nao se aplica.
+  const { canWrite } = useProfilePermissions();
 
   const handleClose = useCallback(() => {
     modal.closeAll();
@@ -20,7 +24,7 @@ export const Onboarding: FC = () => {
 
   useEffect(() => {
     const onboarding = query.get('onboarding');
-    if (!onboarding) {
+    if (!onboarding || !canWrite) {
       if (modalOpen.current) {
         modalOpen.current = false;
         modal.closeAll();

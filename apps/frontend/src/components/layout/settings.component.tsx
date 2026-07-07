@@ -19,6 +19,7 @@ import { useSWRConfig } from 'swr';
 import clsx from 'clsx';
 import { TeamsComponent } from '@gitroom/frontend/components/settings/teams.component';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 import { LogoutComponent } from '@gitroom/frontend/components/layout/logout.component';
 import { useSearchParams } from 'next/navigation';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
@@ -47,6 +48,10 @@ export const SettingsPopup: FC<{
   const toast = useToaster();
   const swr = useSWRConfig();
   const user = useUser();
+  const { canWrite } = useProfilePermissions();
+  // Abas de administracao do workspace: so admin/superadmin da org. Um membro
+  // org-USER (Editor/Visualizador) nao gerencia credenciais, equipe, etc.
+  const isOrgAdmin = user?.role !== 'USER';
   const resolver = useMemo(() => {
     return classValidatorResolver(UserDetailDto);
   }, []);
@@ -92,42 +97,49 @@ export const SettingsPopup: FC<{
   const t = useT();
   const list = useMemo(() => {
     const arr = [];
-    arr.push({ tab: 'global_settings', label: t('global_settings', 'Global Settings') });
-    if (user?.role !== 'USER') {
+    if (isOrgAdmin) {
+      arr.push({ tab: 'global_settings', label: t('global_settings', 'Global Settings') });
       arr.push({ tab: 'profiles', label: t('profiles_tab', 'Perfis') });
     }
-    if (user?.tier?.team_members && isGeneral) {
+    if (user?.tier?.team_members && isGeneral && isOrgAdmin) {
       arr.push({ tab: 'teams', label: t('teams', 'Teams') });
     }
-    arr.push({ tab: 'credentials', label: t('credentials_tab', 'Credenciais') });
-    if (user?.role !== 'USER') {
+    if (isOrgAdmin) {
+      arr.push({ tab: 'credentials', label: t('credentials_tab', 'Credenciais') });
       arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Persona de IA') });
-    }
-    if (user?.role !== 'USER') {
       arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'Créditos de IA') });
-    }
-    if (user?.role !== 'USER') {
       arr.push({ tab: 'ai_provider', label: t('ai_provider_title', 'Modelos de IA') });
     }
-    if (user?.tier?.webhooks) {
+    if (user?.tier?.webhooks && isOrgAdmin) {
       arr.push({ tab: 'webhooks', label: t('webhooks_1', 'Webhooks') });
     }
-    if (user?.tier?.autoPost) {
+    // Conteudo por perfil: Editor pode usar; Visualizador nao.
+    if (user?.tier?.autoPost && canWrite) {
       arr.push({ tab: 'autopost', label: t('auto_post', 'Auto Post') });
     }
-    if (user?.tier.current !== 'FREE') {
+    if (user?.tier.current !== 'FREE' && canWrite) {
       arr.push({ tab: 'sets', label: t('sets', 'Sets') });
     }
-    if (user?.tier.current !== 'FREE') {
+    if (user?.tier.current !== 'FREE' && canWrite) {
       arr.push({ tab: 'signatures', label: t('signatures', 'Signatures') });
     }
-    if (user?.tier?.public_api && isGeneral && showLogout) {
+    if (user?.tier?.public_api && isGeneral && showLogout && isOrgAdmin) {
       arr.push({ tab: 'api', label: t('integrations_menu', 'Integrações') });
     }
-    arr.push({ tab: 'approved_apps', label: t('approved_apps', 'Approved Apps') });
+    if (isOrgAdmin) {
+      arr.push({ tab: 'approved_apps', label: t('approved_apps', 'Approved Apps') });
+    }
 
     return arr;
-  }, [user, isGeneral, showLogout, t]);
+  }, [user, isGeneral, showLogout, t, isOrgAdmin, canWrite]);
+
+  // Se a aba atual nao esta disponivel para este papel, cai na primeira aba
+  // permitida (ex.: org-USER nao ve 'global_settings').
+  useEffect(() => {
+    if (list.length && !list.find((l) => l.tab === tab)) {
+      setTab(list[0].tab);
+    }
+  }, [list, tab]);
 
   useEffect(() => {
     loadProfile();
@@ -178,63 +190,69 @@ export const SettingsPopup: FC<{
                 !getRef && 'rounded-[4px]'
               )}
             >
-              {tab === 'global_settings' && (
+              {tab === 'global_settings' && isOrgAdmin && (
                 <div>
                   <GlobalSettings />
                 </div>
               )}
-              {tab === 'teams' && !!user?.tier?.team_members && isGeneral && (
-                <div>
-                  <TeamsComponent />
-                </div>
-              )}
+              {tab === 'teams' &&
+                !!user?.tier?.team_members &&
+                isGeneral &&
+                isOrgAdmin && (
+                  <div>
+                    <TeamsComponent />
+                  </div>
+                )}
 
-              {tab === 'webhooks' && !!user?.tier?.webhooks && (
+              {tab === 'webhooks' && !!user?.tier?.webhooks && isOrgAdmin && (
                 <div>
                   <Webhooks />
                 </div>
               )}
 
-              {tab === 'autopost' && !!user?.tier?.autoPost && (
+              {tab === 'autopost' && !!user?.tier?.autoPost && canWrite && (
                 <div>
                   <Autopost />
                 </div>
               )}
 
-              {tab === 'sets' && user?.tier.current !== 'FREE' && (
+              {tab === 'sets' && user?.tier.current !== 'FREE' && canWrite && (
                 <div>
                   <Sets />
                 </div>
               )}
 
-              {tab === 'signatures' && user?.tier.current !== 'FREE' && (
-                <div>
-                  <SignaturesComponent />
-                </div>
-              )}
+              {tab === 'signatures' &&
+                user?.tier.current !== 'FREE' &&
+                canWrite && (
+                  <div>
+                    <SignaturesComponent />
+                  </div>
+                )}
 
               {tab === 'api' &&
                 !!user?.tier?.public_api &&
                 isGeneral &&
-                showLogout && (
+                showLogout &&
+                isOrgAdmin && (
                   <div>
                     <PublicComponent />
                   </div>
                 )}
 
-              {tab === 'ai_credits' && user?.role !== 'USER' && (
+              {tab === 'ai_credits' && isOrgAdmin && (
                 <div>
                   <AiCreditsSettingsSection />
                 </div>
               )}
 
-              {tab === 'ai_provider' && user?.role !== 'USER' && (
+              {tab === 'ai_provider' && isOrgAdmin && (
                 <div>
                   <AiProviderSettingsSection />
                 </div>
               )}
 
-              {tab === 'ai_agent' && user?.role !== 'USER' && (
+              {tab === 'ai_agent' && isOrgAdmin && (
                 <div className="flex flex-col gap-[0px]">
                   <ProfilePersonaSettingsSection />
                   <hr className="border-newTableBorder my-[24px]" />
@@ -242,19 +260,19 @@ export const SettingsPopup: FC<{
                 </div>
               )}
 
-              {tab === 'profiles' && user?.role !== 'USER' && (
+              {tab === 'profiles' && isOrgAdmin && (
                 <div>
                   <ProfilesSettingsComponent />
                 </div>
               )}
 
-              {tab === 'credentials' && (
+              {tab === 'credentials' && isOrgAdmin && (
                 <div className="flex flex-col">
                   <CredentialsSettingsSection />
                 </div>
               )}
 
-              {tab === 'approved_apps' && (
+              {tab === 'approved_apps' && isOrgAdmin && (
                 <div>
                   <ApprovedAppsComponent />
                 </div>

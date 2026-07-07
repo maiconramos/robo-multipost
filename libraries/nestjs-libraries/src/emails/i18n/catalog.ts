@@ -41,6 +41,12 @@ const pt: EmailCatalog = {
   email_invite_subject: 'Você foi convidado para uma organização',
   email_invite_html:
     'Você foi convidado para participar de uma organização. Clique <a href="{{link}}">aqui</a> para entrar.<br />O link expira em 1 hora.',
+  email_invite_profile_subject: 'Você foi convidado para um perfil',
+  email_invite_profile_html:
+    'Você foi convidado para o(s) perfil(is) <strong>{{profiles}}</strong> como <strong>{{role}}</strong>. Clique <a href="{{link}}">aqui</a> para entrar.<br />O link expira em 1 hora.',
+  email_role_viewer: 'Visualizador',
+  email_role_manager: 'Gerente',
+  email_role_editor: 'Editor',
 
   // --- Rodapé do wrapper compartilhado ---
   email_footer_preferences:
@@ -89,6 +95,12 @@ const en: EmailCatalog = {
   email_invite_subject: 'You have been invited to join an organization',
   email_invite_html:
     'You have been invited to join an organization. Click <a href="{{link}}">here</a> to join.<br />The link will expire in 1 hour.',
+  email_invite_profile_subject: 'You have been invited to a profile',
+  email_invite_profile_html:
+    'You have been invited to the profile(s) <strong>{{profiles}}</strong> as <strong>{{role}}</strong>. Click <a href="{{link}}">here</a> to join.<br />The link will expire in 1 hour.',
+  email_role_viewer: 'Viewer',
+  email_role_manager: 'Manager',
+  email_role_editor: 'Editor',
 
   // --- Shared wrapper footer ---
   email_footer_preferences:

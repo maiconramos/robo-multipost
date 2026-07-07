@@ -20,10 +20,12 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 const roles = [
   {
+    key: 'user',
     name: 'User',
     value: 'USER',
   },
   {
+    key: 'admin',
     name: 'Admin',
     value: 'ADMIN',
   },
@@ -130,10 +132,16 @@ export const AddMember = () => {
             <option value="">{t('select_role', 'Select Role')}</option>
             {roles.map((role) => (
               <option key={role.value} value={role.value}>
-                {role.name}
+                {t(role.key, role.name)}
               </option>
             ))}
           </Select>
+          <div className="text-[12px] text-customColor18 -mt-[4px]">
+            {t(
+              'invite_role_help',
+              'Papel na organização inteira. Administrador gerencia tudo; Usuário fica restrito aos perfis abaixo.'
+            )}
+          </div>
           {role === 'USER' && (
             <>
               <div className="flex flex-col gap-[6px]">
@@ -176,6 +184,12 @@ export const AddMember = () => {
                   </option>
                 ))}
               </Select>
+              <div className="text-[12px] text-customColor18 -mt-[4px]">
+                {t(
+                  'invite_profile_role_help',
+                  'O que o membro pode fazer dentro dos perfis selecionados. Visualizador só lê; Editor cria e edita; Gerente também gerencia o perfil.'
+                )}
+              </div>
             </>
           )}
           <div className="flex gap-[5px]">
@@ -212,9 +226,25 @@ export const TeamsComponent = () => {
       user: {
         email: string;
         id: string;
+        profileMembers?: Array<{
+          role: 'OWNER' | 'MANAGER' | 'EDITOR' | 'VIEWER';
+          profile: { id: string; name: string };
+        }>;
       };
     }>;
   }, []);
+  const profileRoleLabel = useCallback(
+    (role: string) => {
+      const map: Record<string, string> = {
+        OWNER: t('profile_role_owner', 'Proprietário'),
+        MANAGER: t('profile_role_manager', 'Gerente'),
+        EDITOR: t('profile_role_editor', 'Editor'),
+        VIEWER: t('profile_role_viewer', 'Visualizador'),
+      };
+      return map[role] ?? role;
+    },
+    [t]
+  );
   const addMember = useCallback(() => {
     modals.openModal({
       classNames: {
@@ -274,6 +304,17 @@ export const TeamsComponent = () => {
                   : p.role === 'ADMIN'
                   ? t('admin', 'Admin')
                   : t('super_admin', 'Super Admin')}
+              </div>
+              <div className="flex-1 text-[12px] text-customColor18">
+                {p.role === 'ADMIN' || p.role === 'SUPERADMIN'
+                  ? t('all_profiles', 'Todos os perfis')
+                  : (p.user.profileMembers || []).length
+                  ? (p.user.profileMembers || [])
+                      .map(
+                        (pm) => `${pm.profile.name} (${profileRoleLabel(pm.role)})`
+                      )
+                      .join(', ')
+                  : t('no_profile_assigned_short', 'Sem perfil')}
               </div>
               {+myLevel > +getLevel(p.role) ? (
                 <div className="flex-1 flex justify-end">

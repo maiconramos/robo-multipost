@@ -37,7 +37,7 @@ type Inputs = {
   providerToken: string;
   provider: string;
 };
-export function Register() {
+export function Register({ invited = false }: { invited?: boolean }) {
   const getQuery = useSearchParams();
   const fetch = useFetch();
   const [provider] = useState(getQuery?.get('provider')?.toUpperCase());
@@ -63,13 +63,17 @@ export function Register() {
     }
   }, [provider, code]);
   if (!code && !provider) {
-    return <RegisterAfter token="" provider="LOCAL" />;
+    return <RegisterAfter token="" provider="LOCAL" invited={invited} />;
   }
   if (!show) {
     return <LoadingComponent />;
   }
   return (
-    <RegisterAfter token={code} provider={provider?.toUpperCase() || 'LOCAL'} />
+    <RegisterAfter
+      token={code}
+      provider={provider?.toUpperCase() || 'LOCAL'}
+      invited={invited}
+    />
   );
 }
 function getHelpfulReasonForRegistrationFailure(httpCode: number, t: (key: string, defaultValue: string) => string) {
@@ -84,9 +88,11 @@ function getHelpfulReasonForRegistrationFailure(httpCode: number, t: (key: strin
 export function RegisterAfter({
   token,
   provider,
+  invited = false,
 }: {
   token: string;
   provider: string;
+  invited?: boolean;
 }) {
   const t = useT();
   const { isGeneral, genericOauth, neynarClientId, billingEnabled } =
@@ -107,6 +113,9 @@ export function RegisterAfter({
     defaultValues: {
       providerToken: token,
       provider: provider,
+      // Convidado nao cria workspace proprio, entao o campo Empresa e escondido
+      // e preenchido com um placeholder (o backend ignora este valor).
+      ...(invited ? { company: 'Invited' } : {}),
     },
   });
   const fetchData = useFetch();
@@ -203,14 +212,16 @@ export function RegisterAfter({
                     />
                   </>
                 )}
-                <Input
-                  label="Company"
-                  translationKey="label_company"
-                  {...form.register('company')}
-                  autoComplete="off"
-                  type="text"
-                  placeholder={t('label_company', 'Company')}
-                />
+                {!invited && (
+                  <Input
+                    label="Company"
+                    translationKey="label_company"
+                    {...form.register('company')}
+                    autoComplete="off"
+                    type="text"
+                    placeholder={t('label_company', 'Company')}
+                  />
+                )}
               </div>
               <div className={clsx('text-[12px]')}>
                 {t(

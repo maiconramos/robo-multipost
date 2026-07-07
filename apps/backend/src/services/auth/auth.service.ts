@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
 import { Provider, User } from '@prisma/client';
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { LoginUserDto } from '@gitroom/nestjs-libraries/dtos/auth/login.user.dto';
@@ -18,6 +18,7 @@ import {
 
 @Injectable()
 export class AuthService {
+  private readonly _logger = new Logger(AuthService.name);
   constructor(
     private _userService: UsersService,
     private _organizationService: OrganizationService,
@@ -71,26 +72,50 @@ export class AuthService {
           throw new Error('Registration is disabled');
         }
 
-        const create = await this._organizationService.createOrgAndUser(
-          body,
-          ip,
-          userAgent,
-          lang
-        );
+        // Registro via convite NAO cria workspace pessoal: a pessoa entra
+        // apenas no workspace de quem convidou (modelo agencia/equipe). Só o
+        // auto-cadastro (sem convite) cria um workspace proprio (SaaS).
+        const joinInvite = await this.resolveInviteJoin(addToOrg, body.email);
+        let createdUser: User;
+        let addedOrg: any = false;
+        if (joinInvite && addToOrg && typeof addToOrg !== 'boolean') {
+          createdUser = (await this._organizationService.createUserForInvite(
+            body,
+            ip,
+            userAgent
+          )) as User;
+          addedOrg = await this._organizationService.addUserToOrg(
+            createdUser.id,
+            addToOrg.id,
+            addToOrg.orgId,
+            addToOrg.role,
+            addToOrg.profileIds,
+            addToOrg.profileRole
+          );
+          if (!addedOrg) {
+            // Entrada no workspace do convite falhou (tier sem team, convite
+            // consumido, corrida): cria um workspace pessoal para nao deixar a
+            // conta orfa (sem org — estado que quebraria o AuthMiddleware).
+            this._logger.warn(
+              `Invite join failed for org ${addToOrg.orgId}; created a personal workspace fallback instead.`
+            );
+            await this._organizationService.createOrgForUser(
+              createdUser.id,
+              body.company,
+              lang
+            );
+          }
+        } else {
+          const create = await this._organizationService.createOrgAndUser(
+            body,
+            ip,
+            userAgent,
+            lang
+          );
+          createdUser = create.users[0].user;
+        }
 
-        const addedOrg =
-          addToOrg && typeof addToOrg !== 'boolean'
-            ? await this._organizationService.addUserToOrg(
-                create.users[0].user.id,
-                addToOrg.id,
-                addToOrg.orgId,
-                addToOrg.role,
-                addToOrg.profileIds,
-                addToOrg.profileRole
-              )
-            : false;
-
-        const obj = { addedOrg, jwt: await this.jwt(create.users[0].user) };
+        const obj = { addedOrg, jwt: await this.jwt(createdUser) };
         const orgLang = normalizeLang(lang);
         await this._emailService.sendEmail(
           body.email,
@@ -116,7 +141,7 @@ export class AuthService {
       return { addedOrg: false, jwt: await this.jwt(user) };
     }
 
-    const user = await this.loginOrRegisterProvider(
+    const { user, addedOrg } = await this.loginOrRegisterProvider(
       provider,
       body as CreateOrgUserDto,
       ip,
@@ -125,17 +150,6 @@ export class AuthService {
       addToOrg
     );
 
-    const addedOrg =
-      addToOrg && typeof addToOrg !== 'boolean'
-        ? await this._organizationService.addUserToOrg(
-            user.id,
-            addToOrg.id,
-            addToOrg.orgId,
-            addToOrg.role,
-            addToOrg.profileIds,
-            addToOrg.profileRole
-          )
-        : false;
     return { addedOrg, jwt: await this.jwt(user) };
   }
 
@@ -162,6 +176,32 @@ export class AuthService {
     const invitedEmail = addToOrg.email?.trim().toLowerCase();
     const normalizedRegistrant = registrantEmail?.trim().toLowerCase();
     if (!invitedEmail || !normalizedRegistrant || invitedEmail !== normalizedRegistrant) {
+      return false;
+    }
+    if (await this._organizationService.isInviteConsumed(addToOrg.id)) {
+      return false;
+    }
+    return true;
+  }
+
+  // Decide se o registro deve ENTRAR no workspace do convite (e portanto NAO
+  // criar workspace pessoal). Honra convite por email (email precisa bater) e
+  // convite por link sem email (bearer). Convite ja consumido nao vale.
+  // Diferente de inviteAllowsRegistration (que exige email para o bypass de
+  // DISABLE_REGISTRATION): aqui, link sem email tambem entra.
+  private async resolveInviteJoin(
+    addToOrg:
+      | boolean
+      | { email?: string; id: string; [key: string]: unknown }
+      | undefined,
+    registrantEmail?: string
+  ): Promise<boolean> {
+    if (!addToOrg || typeof addToOrg === 'boolean') {
+      return false;
+    }
+    const invitedEmail = addToOrg.email?.trim().toLowerCase();
+    const normalizedRegistrant = registrantEmail?.trim().toLowerCase();
+    if (invitedEmail && invitedEmail !== normalizedRegistrant) {
       return false;
     }
     if (await this._organizationService.isInviteConsumed(addToOrg.id)) {
@@ -202,7 +242,14 @@ export class AuthService {
     lang?: string,
     addToOrg?:
       | boolean
-      | { email?: string; id: string; [key: string]: unknown }
+      | {
+          email?: string;
+          orgId: string;
+          role: 'USER' | 'ADMIN';
+          id: string;
+          profileIds?: string[];
+          profileRole?: 'MANAGER' | 'EDITOR' | 'VIEWER';
+        }
   ) {
     const providerInstance = this._providerManager.getProvider(provider);
     const providerUser = await providerInstance.getUser(body.providerToken);
@@ -216,7 +263,24 @@ export class AuthService {
       provider
     );
     if (user) {
-      return user;
+      // Usuario OAuth ja existe: login. Se veio por convite valido, entra no
+      // workspace convidado (sem criar nada novo).
+      const joinInvite = await this.resolveInviteJoin(
+        addToOrg,
+        providerUser.email
+      );
+      const addedOrg =
+        joinInvite && addToOrg && typeof addToOrg !== 'boolean'
+          ? await this._organizationService.addUserToOrg(
+              user.id,
+              addToOrg.id,
+              addToOrg.orgId,
+              addToOrg.role,
+              addToOrg.profileIds,
+              addToOrg.profileRole
+            )
+          : false;
+      return { user, addedOrg };
     }
 
     // Email-lock: o convite so libera o registro para a identidade OAuth cujo
@@ -229,19 +293,60 @@ export class AuthService {
       throw new Error('Registration is disabled');
     }
 
-    const create = await this._organizationService.createOrgAndUser(
-      {
-        company: body.company,
-        email: providerUser.email,
-        password: '',
-        provider,
-        providerId: providerUser.id,
-        datafast_visitor_id: body.datafast_visitor_id,
-      },
-      ip,
-      userAgent,
-      lang
+    const dtoLike = {
+      company: body.company,
+      email: providerUser.email,
+      password: '',
+      provider,
+      providerId: providerUser.id,
+      datafast_visitor_id: body.datafast_visitor_id,
+    };
+
+    // Registro via convite nao cria workspace pessoal (igual ao LOCAL).
+    const joinInvite = await this.resolveInviteJoin(
+      addToOrg,
+      providerUser.email
     );
+    let createdUser: User;
+    let addedOrg: any = false;
+    let postRegOrgId: string;
+    if (joinInvite && addToOrg && typeof addToOrg !== 'boolean') {
+      createdUser = (await this._organizationService.createUserForInvite(
+        dtoLike,
+        ip,
+        userAgent
+      )) as User;
+      addedOrg = await this._organizationService.addUserToOrg(
+        createdUser.id,
+        addToOrg.id,
+        addToOrg.orgId,
+        addToOrg.role,
+        addToOrg.profileIds,
+        addToOrg.profileRole
+      );
+      postRegOrgId = addToOrg.orgId;
+      if (!addedOrg) {
+        // Fallback: entrada no convite falhou -> workspace pessoal (nao orfao).
+        this._logger.warn(
+          `Invite join failed for org ${addToOrg.orgId} (OAuth); created a personal workspace fallback instead.`
+        );
+        const fallback = await this._organizationService.createOrgForUser(
+          createdUser.id,
+          dtoLike.company,
+          lang
+        );
+        postRegOrgId = fallback.id;
+      }
+    } else {
+      const create = await this._organizationService.createOrgAndUser(
+        dtoLike,
+        ip,
+        userAgent,
+        lang
+      );
+      createdUser = create.users[0].user;
+      postRegOrgId = create.id;
+    }
 
     this._track('register', providerUser.email, body.datafast_visitor_id).catch(
       (err) => {}
@@ -251,13 +356,13 @@ export class AuthService {
 
     try {
       if (providerInstance?.postRegistration) {
-        await providerInstance.postRegistration(body.providerToken, create.id);
+        await providerInstance.postRegistration(body.providerToken, postRegOrgId);
       }
     } catch (err) {
       // Don't fail registration if postRegistration fails
     }
 
-    return create.users[0].user;
+    return { user: createdUser, addedOrg };
   }
 
   private async _track(

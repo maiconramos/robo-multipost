@@ -99,6 +99,27 @@ describe('OrganizationRepository', () => {
     });
   });
 
+  describe('createOrgForUser', () => {
+    it('cria org com perfil default e vincula o usuario existente como superadmin', async () => {
+      mockOrgCreate.mockResolvedValue({ id: 'org-fb' });
+
+      const result = await repository.createOrgForUser('u-1', 'ACME', 'pt');
+
+      expect(result).toEqual({ id: 'org-fb' });
+      const args = mockOrgCreate.mock.calls[0][0];
+      expect(args.data.name).toBe('ACME');
+      expect(args.data.profilesBootstrappedAt).toBeInstanceOf(Date);
+      expect(args.data.profiles.create).toMatchObject({
+        name: 'Default',
+        isDefault: true,
+      });
+      expect(args.data.users.create).toMatchObject({
+        role: 'SUPERADMIN',
+        user: { connect: { id: 'u-1' } },
+      });
+    });
+  });
+
   describe('deleteTeamMember', () => {
     it('remove as memberships de perfil junto com o vinculo da org', async () => {
       mockMemberDeleteMany.mockResolvedValue({ count: 2 });
@@ -204,6 +225,7 @@ describe('OrganizationRepository', () => {
               some: {
                 profileId: 'prof-1',
                 profile: { organizationId: 'org-1' },
+                role: { not: 'VIEWER' },
               },
             },
           },

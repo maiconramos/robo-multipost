@@ -38,6 +38,34 @@ export class OrganizationService {
     );
   }
 
+  // Cria a conta sem workspace pessoal (registro via convite).
+  async createUserForInvite(
+    body: Omit<CreateOrgUserDto, 'providerToken'> & { providerId?: string },
+    ip: string,
+    userAgent: string
+  ) {
+    return this._organizationRepository.createUserForInvite(
+      body,
+      this._notificationsService.hasEmailProvider(),
+      ip,
+      userAgent
+    );
+  }
+
+  // Fallback: cria workspace pessoal para um usuario ja existente quando a
+  // entrada no workspace do convite falha (evita conta orfa sem org).
+  async createOrgForUser(
+    userId: string,
+    company: string,
+    language?: string | null
+  ) {
+    return this._organizationRepository.createOrgForUser(
+      userId,
+      company,
+      language ? normalizeLang(language) : null
+    );
+  }
+
   async getCount() {
     return this._organizationRepository.getCount();
   }
@@ -126,7 +154,8 @@ export class OrganizationService {
 
   async inviteTeamMember(orgId: string, body: AddTeamMemberDto) {
     // Perfis do convite precisam pertencer a esta org (payload vai assinado
-    // no JWT e vira membership no aceite).
+    // no JWT e vira membership no aceite). Coletamos os nomes para o e-mail.
+    const profileNames: string[] = [];
     if (body.role === 'USER' && body.profileIds?.length) {
       for (const profileId of body.profileIds) {
         const profile = await this._profileService.getProfileById(
@@ -139,6 +168,7 @@ export class OrganizationService {
             400
           );
         }
+        profileNames.push(profile.name);
       }
     }
     const timeLimit = dayjs().add(1, 'hour').format('YYYY-MM-DD HH:mm:ss');
@@ -150,13 +180,34 @@ export class OrganizationService {
       const lang = resolveOrgLang(
         await this._organizationRepository.getLanguage(orgId)
       );
-      await this._notificationsService.sendEmail(
-        body.email,
-        emailT('email_invite_subject', lang),
-        emailT('email_invite_html', lang, { link: url }),
-        undefined,
-        lang
-      );
+      // Convite para perfil especifico (role USER) diz o perfil e a funcao;
+      // convite de ADMIN usa o texto generico de organizacao.
+      const isProfileInvite = body.role === 'USER' && profileNames.length > 0;
+      if (isProfileInvite) {
+        const roleLabel = emailT(
+          `email_role_${(body.profileRole ?? 'EDITOR').toLowerCase()}`,
+          lang
+        );
+        await this._notificationsService.sendEmail(
+          body.email,
+          emailT('email_invite_profile_subject', lang),
+          emailT('email_invite_profile_html', lang, {
+            link: url,
+            profiles: profileNames.join(', '),
+            role: roleLabel,
+          }),
+          undefined,
+          lang
+        );
+      } else {
+        await this._notificationsService.sendEmail(
+          body.email,
+          emailT('email_invite_subject', lang),
+          emailT('email_invite_html', lang, { link: url }),
+          undefined,
+          lang
+        );
+      }
     }
     return { url };
   }
