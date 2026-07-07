@@ -30,6 +30,8 @@ import {
   AuthorizationActions,
   Sections,
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import { AllowViewer } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
+import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
 
 @ApiTags('Posts')
 @Controller('/posts')
@@ -71,14 +73,37 @@ export class PostsController {
     return { ask: this._shortLinkService.askShortLinkedin(body.messages) };
   }
 
+  // Revisao do cliente in-app: aprovar / pedir alteracao / comentar. Liberado
+  // ao Visualizador (@AllowViewer) e escopado ao perfil dele (org-USER).
   @Post('/:id/comments')
+  @AllowViewer()
   async createComment(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string,
-    @Body() body: { comment: string }
+    @Body()
+    body: { comment?: string; kind?: 'COMMENT' | 'APPROVAL' | 'CHANGE_REQUEST' }
   ) {
-    return this._postsService.createComment(org.id, user.id, id, body.comment);
+    return this._postsService.createReview(org.id, user.id, id, {
+      kind: body.kind ?? 'COMMENT',
+      content: body.comment ?? '',
+      requireProfileId:
+        getOrgRole(org) === 'USER' ? profile?.id ?? null : undefined,
+    });
+  }
+
+  @Get('/:id/comments')
+  async getComments(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string
+  ) {
+    return this._postsService.getReviewComments(
+      org.id,
+      id,
+      getOrgRole(org) === 'USER' ? profile?.id ?? null : undefined
+    );
   }
 
   @Post('/:id/review-links')

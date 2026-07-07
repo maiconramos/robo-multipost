@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  HttpException,
   Injectable,
   ValidationPipe,
 } from '@nestjs/common';
@@ -7,7 +8,14 @@ import { PostsRepository } from '@gitroom/nestjs-libraries/database/prisma/posts
 import { CreatePostDto } from '@gitroom/nestjs-libraries/dtos/posts/create.post.dto';
 import dayjs from 'dayjs';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
-import { Integration, Post, Media, From, State } from '@prisma/client';
+import {
+  CommentKind,
+  Integration,
+  Post,
+  Media,
+  From,
+  State,
+} from '@prisma/client';
 import { GetPostsDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.dto';
 import { GetPostsListDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.list.dto';
 import { shuffle } from 'lodash';
@@ -1009,8 +1017,58 @@ export class PostsService {
     return date.clone().add(num, 'minutes').format('YYYY-MM-DDTHH:mm:00');
   }
 
+  // Fluxo guest (review link publico) — sem contexto de org.
   getComments(postId: string) {
     return this._postRepository.getComments(postId);
+  }
+
+  // Fluxo autenticado (membro da org) — escopado por org e perfil.
+  async getReviewComments(
+    orgId: string,
+    postId: string,
+    requireProfileId?: string | null
+  ) {
+    await this.assertPostReviewAccess(orgId, postId, requireProfileId);
+    return this._postRepository.getComments(postId, orgId);
+  }
+
+  // Valida que o post pertence a org e, para membro restrito (org-USER), que
+  // esta no perfil dele — impede revisar/ler comentarios de outro perfil.
+  private async assertPostReviewAccess(
+    orgId: string,
+    postId: string,
+    requireProfileId?: string | null
+  ) {
+    const post = await this._postRepository.getPostProfileScope(orgId, postId);
+    if (!post) {
+      throw new HttpException('Post not found', 404);
+    }
+    if (requireProfileId !== undefined && post.profileId !== requireProfileId) {
+      throw new HttpException('Post is not in your profile', 403);
+    }
+  }
+
+  async createReview(
+    orgId: string,
+    userId: string,
+    postId: string,
+    params: {
+      kind: CommentKind;
+      content: string;
+      requireProfileId?: string | null;
+    }
+  ) {
+    await this.assertPostReviewAccess(orgId, postId, params.requireProfileId);
+    if (params.kind === 'COMMENT' && !params.content?.trim()) {
+      throw new HttpException('Comment is required', 400);
+    }
+    return this._postRepository.createComment(
+      orgId,
+      userId,
+      postId,
+      params.content ?? '',
+      params.kind
+    );
   }
 
   getTags(orgId: string, profileId?: string) {

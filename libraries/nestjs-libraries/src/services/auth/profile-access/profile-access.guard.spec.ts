@@ -6,6 +6,7 @@ import {
   ProfileReadOnlyException,
 } from './profile-access.exception';
 import {
+  ALLOW_VIEWER_KEY,
   PROFILE_MANAGE_KEY,
   SKIP_PROFILE_ACCESS_KEY,
 } from './profile-access.decorators';
@@ -140,6 +141,18 @@ describe('ProfileAccessGuard', () => {
     await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
       ProfileReadOnlyException
     );
+  });
+
+  it('permite escrita de VIEWER quando a rota tem @AllowViewer (revisao)', async () => {
+    const guard = makeGuard({ [ALLOW_VIEWER_KEY]: true });
+    const context = makeContext({
+      org: orgWithRole('USER'),
+      user,
+      profile: { id: 'prof-1' },
+      profileRole: 'VIEWER',
+      method: 'POST',
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
   });
 
   it('permite leitura de VIEWER', async () => {

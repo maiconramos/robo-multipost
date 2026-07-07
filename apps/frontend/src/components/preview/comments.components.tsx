@@ -5,8 +5,9 @@ import { Button } from '@gitroom/react/form/button';
 import { FC, useCallback, useEffect, useMemo, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
-import { FieldValues, SubmitHandler, useForm } from 'react-hook-form';
+import { useForm } from 'react-hook-form';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 
 type ReviewInfo =
   | { valid: false }
@@ -19,6 +20,8 @@ type CommentItem = {
   guestName: string | null;
   kind: 'COMMENT' | 'APPROVAL' | 'CHANGE_REQUEST';
   createdAt: string;
+  // Presente apenas no caminho autenticado (nao no publico/guest).
+  user?: { email?: string | null; name?: string | null } | null;
 };
 
 const GUEST_NAME_KEY = 'robo-multipost:guest-name';
@@ -58,9 +61,13 @@ const CommentsList: FC<{
       )}
       {comments.map((comment) => {
         const isGuest = !comment.userId;
+        // No caminho autenticado o comentario traz user.name/email (autor
+        // real); no publico/guest cai no rotulo anonimo "Usuario N".
+        const realName = comment.user?.name || comment.user?.email || null;
         const authorLabel = isGuest
           ? comment.guestName || t('guest', 'Guest')
-          : `${t('user', 'User')}${
+          : realName ||
+            `${t('user', 'User')}${
               comment.userId ? anonymousUserMap[comment.userId] || '' : ''
             }`;
         const badge =
@@ -120,11 +127,16 @@ const LoggedRenderComponents: FC<{
   postId: string;
 }> = ({ postId }) => {
   const fetch = useFetch();
+  // Visualizador (cliente convidado) tambem aprova/pede alteracao aqui, na
+  // mesma tela onde ve o post na integra.
+  const { isViewer } = useProfilePermissions();
+  // Caminho autenticado: traz o autor real (nome/e-mail), escopado por org e
+  // perfil no backend. O publico/guest continua no endpoint anonimo.
   const fetchComments = useCallback(async () => {
-    return (await fetch(`/public/posts/${postId}/comments`)).json();
+    return { comments: await (await fetch(`/posts/${postId}/comments`)).json() };
   }, [postId]);
   const { data, mutate, isLoading } = useSWR(
-    `comments-${postId}`,
+    `comments-auth-${postId}`,
     fetchComments
   );
   const anonymousUserMap = useMemo(() => {
@@ -139,19 +151,31 @@ const LoggedRenderComponents: FC<{
       { users: {}, counter: 1 }
     ).users;
   }, [data]);
-  const { handleSubmit, register, setValue } = useForm();
+  const { register, setValue, getValues } = useForm();
   const t = useT();
+  const [submitting, setSubmitting] = useState<
+    null | 'COMMENT' | 'APPROVAL' | 'CHANGE_REQUEST'
+  >(null);
 
-  const submit: SubmitHandler<FieldValues> = useCallback(
-    async (e) => {
-      setValue('comment', '');
-      await fetch(`/posts/${postId}/comments`, {
-        method: 'POST',
-        body: JSON.stringify(e),
-      });
-      mutate();
+  const submitKind = useCallback(
+    (kind: 'COMMENT' | 'APPROVAL' | 'CHANGE_REQUEST') => async () => {
+      const comment = (getValues('comment') || '').trim();
+      if (kind === 'COMMENT' && !comment) {
+        return;
+      }
+      setSubmitting(kind);
+      try {
+        await fetch(`/posts/${postId}/comments`, {
+          method: 'POST',
+          body: JSON.stringify({ kind, comment }),
+        });
+        setValue('comment', '');
+        await mutate();
+      } finally {
+        setSubmitting(null);
+      }
     },
-    [postId, mutate, setValue]
+    [postId, mutate, setValue, getValues]
   );
 
   if (isLoading) return <></>;
@@ -159,18 +183,45 @@ const LoggedRenderComponents: FC<{
   return (
     <>
       <div className="mb-6 flex space-x-3">
-        <form className="flex-1 space-y-2" onSubmit={handleSubmit(submit)}>
+        <div className="flex-1 space-y-2">
           <textarea
-            {...register('comment', { required: true })}
+            {...register('comment')}
             className="flex w-full px-3 py-2 h-[98px] text-sm ring-offset-background placeholder:text-muted-foreground outline-none focus-visible:ring-2 focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 min-h-[80px] resize-none text-white bg-third border border-tableBorder placeholder-gray-500 focus:ring-0"
             placeholder={t('add_a_comment_dot', 'Add a comment...')}
             defaultValue={''}
             maxLength={2000}
           />
-          <div className="flex justify-end">
-            <Button type="submit">{t('post', 'Post')}</Button>
+          <div className="flex flex-wrap gap-2 justify-end">
+            <Button
+              type="button"
+              onClick={submitKind('COMMENT')}
+              loading={submitting === 'COMMENT'}
+              secondary={isViewer}
+            >
+              {t('post', 'Post')}
+            </Button>
+            {isViewer && (
+              <>
+                <Button
+                  type="button"
+                  onClick={submitKind('CHANGE_REQUEST')}
+                  loading={submitting === 'CHANGE_REQUEST'}
+                  className="!bg-amber-600 hover:!bg-amber-700 !text-white"
+                >
+                  {t('request_changes', 'Pedir alterações')}
+                </Button>
+                <Button
+                  type="button"
+                  onClick={submitKind('APPROVAL')}
+                  loading={submitting === 'APPROVAL'}
+                  className="!bg-green-600 hover:!bg-green-700 !text-white"
+                >
+                  {t('approve', 'Aprovar')}
+                </Button>
+              </>
+            )}
           </div>
-        </form>
+        </div>
       </div>
       <CommentsList
         comments={(data?.comments || []) as CommentItem[]}

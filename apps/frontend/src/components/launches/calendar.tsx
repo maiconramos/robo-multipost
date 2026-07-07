@@ -988,6 +988,7 @@ const CalendarItem: FC<{
   };
 }> = memo((props) => {
   const t = useT();
+  const { canWrite } = useProfilePermissions();
   const {
     editPost,
     statistics,
@@ -1004,9 +1005,12 @@ const CalendarItem: FC<{
   } = props;
   const { disableXAnalytics } = useVariables();
   const modals = useModals();
+  // Revisao unificada na pagina /p/:id (post na integra + aprovar/comentar). O
+  // Visualizador nao recebe ?share (sem botao de compartilhar link); a agencia
+  // recebe, para tambem gerar o link externo.
   const preview = useCallback(() => {
-    window.open(`/p/` + post.id + '?share=true', '_blank');
-  }, [post]);
+    window.open(`/p/${post.id}${canWrite ? '?share=true' : ''}`, '_blank');
+  }, [post.id, canWrite]);
   const openReviewLinks = useCallback(() => {
     modals.openModal({
       id: `review-links-${post.id}`,
@@ -1015,6 +1019,8 @@ const CalendarItem: FC<{
       children: <ReviewLinksModal postId={post.id} />,
     });
   }, [post.id, modals, t]);
+  const reviewStatus: 'APPROVAL' | 'CHANGE_REQUEST' | null =
+    (post as any)?.comments?.[0]?.kind ?? null;
   const [{ opacity }, dragRef] = useDrag(
     () => ({
       type: 'post',
@@ -1078,15 +1084,17 @@ const CalendarItem: FC<{
             <CopyDebug />
           </div>
         )}
-        <div
-          className={clsx(
-            'hidden group-hover:block hover:underline cursor-pointer',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-          )}
-          onClick={duplicatePost}
-        >
-          <Duplicate />
-        </div>
+        {canWrite && (
+          <div
+            className={clsx(
+              'hidden group-hover:block hover:underline cursor-pointer',
+              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+            )}
+            onClick={duplicatePost}
+          >
+            <Duplicate />
+          </div>
+        )}
         <div
           className={clsx(
             'hidden group-hover:block hover:underline cursor-pointer',
@@ -1096,15 +1104,17 @@ const CalendarItem: FC<{
         >
           <Preview />
         </div>{' '}
-        <div
-          className={clsx(
-            'hidden group-hover:block hover:underline cursor-pointer',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-          )}
-          onClick={openReviewLinks}
-        >
-          <ReviewShare />
-        </div>{' '}
+        {canWrite && (
+          <div
+            className={clsx(
+              'hidden group-hover:block hover:underline cursor-pointer',
+              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+            )}
+            onClick={openReviewLinks}
+          >
+            <ReviewShare />
+          </div>
+        )}{' '}
         {((post.integration.providerIdentifier === 'x' && disableXAnalytics) || !post.releaseId) ? (
           <></>
         ) : post.releaseId === 'missing' && missingRelease ? (
@@ -1130,18 +1140,40 @@ const CalendarItem: FC<{
         ) : (
           <></>
         )}{' '}
-        <div
-          className={clsx(
-            'hidden group-hover:block hover:underline cursor-pointer',
-            post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
-          )}
-          onClick={deletePost}
-        >
-          <DeletePost />
-        </div>
+        {canWrite && (
+          <div
+            className={clsx(
+              'hidden group-hover:block hover:underline cursor-pointer',
+              post?.tags?.[0]?.tag?.color && 'mix-blend-difference'
+            )}
+            onClick={deletePost}
+          >
+            <DeletePost />
+          </div>
+        )}
       </div>
+      {reviewStatus && (
+        <div
+          className="absolute -top-[6px] -right-[6px] z-20 w-[16px] h-[16px] rounded-full flex items-center justify-center text-white text-[10px] cursor-pointer"
+          style={{
+            backgroundColor: reviewStatus === 'APPROVAL' ? '#22c55e' : '#f59e0b',
+          }}
+          data-tooltip-id="tooltip"
+          data-tooltip-content={
+            reviewStatus === 'APPROVAL'
+              ? t('review_approved', 'Aprovado')
+              : t('review_changes_requested', 'Alterações solicitadas')
+          }
+          onClick={(e) => {
+            e.stopPropagation();
+            preview();
+          }}
+        >
+          {reviewStatus === 'APPROVAL' ? '✓' : '!'}
+        </div>
+      )}
       <div
-        onClick={editPost}
+        onClick={canWrite ? editPost : preview}
         className={clsx(
           'gap-[5px] w-full flex h-full flex-1 rounded-br-[10px] rounded-bl-[10px] p-[8px] text-[14px] bg-newColColor',
           'relative',

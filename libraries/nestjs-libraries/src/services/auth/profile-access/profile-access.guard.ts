@@ -10,6 +10,7 @@ import {
   ProfileReadOnlyException,
 } from './profile-access.exception';
 import {
+  ALLOW_VIEWER_KEY,
   PROFILE_MANAGE_KEY,
   ProfileManageOptions,
   SKIP_PROFILE_ACCESS_KEY,
@@ -88,7 +89,15 @@ export class ProfileAccessGuard implements CanActivate {
     }
 
     if (request.profileRole === 'VIEWER' && request.method !== 'GET') {
-      throw new ProfileReadOnlyException();
+      // Acoes de revisao (aprovar/comentar) sao liberadas ao VIEWER via
+      // @AllowViewer, apesar do bloqueio geral de escrita.
+      const allowViewer = this._reflector.getAllAndOverride<boolean>(
+        ALLOW_VIEWER_KEY,
+        [context.getHandler(), context.getClass()]
+      );
+      if (!allowViewer) {
+        throw new ProfileReadOnlyException();
+      }
     }
 
     return true;

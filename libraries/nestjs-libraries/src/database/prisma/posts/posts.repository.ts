@@ -1,7 +1,12 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
 import { Injectable } from '@nestjs/common';
 import { Post as PostBody } from '@gitroom/nestjs-libraries/dtos/posts/create.post.dto';
-import { APPROVED_SUBMIT_FOR_ORDER, Post, State } from '@prisma/client';
+import {
+  APPROVED_SUBMIT_FOR_ORDER,
+  CommentKind,
+  Post,
+  State,
+} from '@prisma/client';
 import { GetPostsDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.dto';
 import { GetPostsListDto } from '@gitroom/nestjs-libraries/dtos/posts/get.posts.list.dto';
 import dayjs from 'dayjs';
@@ -186,6 +191,17 @@ export class PostsRepository {
             name: true,
             picture: true,
           },
+        },
+        // Ultima acao de revisao do cliente (aprovar/pedir alteracao) — para o
+        // selo de status no calendario. Leve: so o registro mais recente.
+        comments: {
+          where: {
+            kind: { in: ['APPROVAL', 'CHANGE_REQUEST'] },
+            deletedAt: null,
+          },
+          orderBy: { createdAt: 'desc' },
+          take: 1,
+          select: { kind: true, createdAt: true },
         },
       },
     });
@@ -768,10 +784,11 @@ export class PostsRepository {
     );
   }
 
-  async getComments(postId: string) {
+  async getComments(postId: string, orgId?: string) {
     return this._comments.model.comments.findMany({
       where: {
         postId,
+        ...(orgId ? { organizationId: orgId } : {}),
         deletedAt: null,
       },
       orderBy: {
@@ -784,7 +801,19 @@ export class PostsRepository {
         guestName: true,
         kind: true,
         createdAt: true,
+        // Identidade do autor só no caminho autenticado (orgId presente). O
+        // endpoint publico/guest (sem orgId) NAO expoe e-mail/nome da equipe.
+        ...(orgId ? { user: { select: { email: true, name: true } } } : {}),
       },
+    });
+  }
+
+  // profileId do post — usado para escopar acoes de revisao ao perfil do
+  // membro (um VIEWER de Dell so revisa posts do Dell).
+  async getPostProfileScope(orgId: string, postId: string) {
+    return this._post.model.post.findFirst({
+      where: { id: postId, organizationId: orgId, deletedAt: null },
+      select: { id: true, profileId: true },
     });
   }
 
@@ -840,7 +869,8 @@ export class PostsRepository {
     orgId: string,
     userId: string,
     postId: string,
-    content: string
+    content: string,
+    kind: CommentKind = 'COMMENT'
   ) {
     return this._comments.model.comments.create({
       data: {
@@ -848,6 +878,7 @@ export class PostsRepository {
         userId,
         postId,
         content,
+        kind,
       },
     });
   }
