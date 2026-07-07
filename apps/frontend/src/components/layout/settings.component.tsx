@@ -48,10 +48,13 @@ export const SettingsPopup: FC<{
   const toast = useToaster();
   const swr = useSWRConfig();
   const user = useUser();
-  const { canWrite } = useProfilePermissions();
+  const { canWrite, canManageProfile } = useProfilePermissions();
   // Abas de administracao do workspace: so admin/superadmin da org. Um membro
   // org-USER (Editor/Visualizador) nao gerencia credenciais, equipe, etc.
   const isOrgAdmin = user?.role !== 'USER';
+  // Gerente (OWNER/MANAGER do perfil) gerencia a Persona/Base de conhecimento
+  // do PROPRIO perfil (backend @ProfileManage) — e o que o distingue do Editor.
+  const canManageAgent = isOrgAdmin || canManageProfile;
   const resolver = useMemo(() => {
     return classValidatorResolver(UserDetailDto);
   }, []);
@@ -106,7 +109,11 @@ export const SettingsPopup: FC<{
     }
     if (isOrgAdmin) {
       arr.push({ tab: 'credentials', label: t('credentials_tab', 'Credenciais') });
+    }
+    if (canManageAgent) {
       arr.push({ tab: 'ai_agent', label: t('ai_agent_tab', 'Persona de IA') });
+    }
+    if (isOrgAdmin) {
       arr.push({ tab: 'ai_credits', label: t('ai_credits_title', 'Créditos de IA') });
       arr.push({ tab: 'ai_provider', label: t('ai_provider_title', 'Modelos de IA') });
     }
@@ -131,7 +138,7 @@ export const SettingsPopup: FC<{
     }
 
     return arr;
-  }, [user, isGeneral, showLogout, t, isOrgAdmin, canWrite]);
+  }, [user, isGeneral, showLogout, t, isOrgAdmin, canWrite, canManageAgent]);
 
   // Se a aba atual nao esta disponivel para este papel, cai na primeira aba
   // permitida (ex.: org-USER nao ve 'global_settings').
@@ -252,7 +259,7 @@ export const SettingsPopup: FC<{
                 </div>
               )}
 
-              {tab === 'ai_agent' && isOrgAdmin && (
+              {tab === 'ai_agent' && canManageAgent && (
                 <div className="flex flex-col gap-[0px]">
                   <ProfilePersonaSettingsSection />
                   <hr className="border-newTableBorder my-[24px]" />
