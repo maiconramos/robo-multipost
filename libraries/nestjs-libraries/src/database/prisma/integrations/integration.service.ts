@@ -27,6 +27,7 @@ import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integration
 import { TemporalService } from 'nestjs-temporal-core';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
+import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
 
 dayjs.extend(utc);
 
@@ -41,7 +42,8 @@ export class IntegrationService {
     @Inject(forwardRef(() => RefreshIntegrationService))
     private _refreshIntegrationService: RefreshIntegrationService,
     private _temporalService: TemporalService,
-    private _encryption: EncryptionService
+    private _encryption: EncryptionService,
+    private _statusEventService: StatusEventService
   ) {}
 
   async changeActiveCron(orgId: string) {
@@ -255,6 +257,20 @@ export class IntegrationService {
     );
     if (transitioned) {
       await this.informAboutRefreshError(orgId, integration);
+      // Histórico (fail-soft): registra a queda no log só na transição real
+      // (o gate `transitioned` evita duplicar quando vários call-sites atingem
+      // a mesma integration). `reason` já vem sanitizado (name+message).
+      await this._statusEventService.record({
+        organizationId: orgId,
+        type: 'CHANNEL_DISCONNECT',
+        severity: 'CRITICAL',
+        message: reason ?? null,
+        profileId: integration.profileId ?? null,
+        integrationId: integration.id,
+        channelName: integration.name,
+        channelPicture: integration.picture ?? null,
+        providerIdentifier: integration.providerIdentifier,
+      });
     }
   }
 

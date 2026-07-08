@@ -76,3 +76,45 @@ export interface StatusProblemsResponse {
   automations: StatusAutomationProblem[];
   summary: StatusProblemsSummary;
 }
+
+/**
+ * Contrato do endpoint GET /status/history (Fase 2) — aba "Histórico".
+ *
+ * Read-model do log append-only `StatusEvent`: eventos de falha de DOMINIO que
+ * SOBREVIVEM à resolução (diferente da aba Problemas, que é estado derivado e
+ * some quando resolve). Cada item carrega o snapshot do canal (name/picture/
+ * identifier — o `identifier` alimenta o badge de plataforma) e o perfil de
+ * origem, resolvido em leitura.
+ *
+ * `message` já vem SANITIZADO da origem (name+message, cap 500) — NUNCA o token
+ * nem o corpo cru da exceção (mesma disciplina da Fase 1). `entityId` é o alvo
+ * do link de depuração: postId (POST_FAILED → /p/:id + Temporal) ou flowId
+ * (AUTOMATION_FAILED → /automacoes/:id); null para CHANNEL_DISCONNECT.
+ */
+export type StatusEventType =
+  | 'CHANNEL_DISCONNECT'
+  | 'POST_FAILED'
+  | 'AUTOMATION_FAILED';
+
+export interface StatusHistoryChannel {
+  name: string | null;
+  picture: string | null;
+  identifier: string | null; // providerIdentifier — alimenta o badge
+}
+
+export interface StatusHistoryItem {
+  id: string;
+  type: StatusEventType;
+  severity: StatusSeverity;
+  message: string | null;
+  createdAt: string; // ISO
+  channel: StatusHistoryChannel | null;
+  profile: StatusProfileRef | null;
+  entityId: string | null; // postId / flowExecutionId — link de depuração
+}
+
+export interface StatusHistoryResponse {
+  items: StatusHistoryItem[];
+  nextCursor: string | null; // id do último item; passar em ?cursor= para a próxima página
+  hasMore: boolean;
+}

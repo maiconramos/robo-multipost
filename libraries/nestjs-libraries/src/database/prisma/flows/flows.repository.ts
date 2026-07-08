@@ -282,6 +282,34 @@ export class FlowsRepository {
     });
   }
 
+  // Contexto mínimo (org/perfil/flow + snapshot do canal) para emitir o
+  // StatusEvent AUTOMATION_FAILED. Lido SÓ na transição FAILED (rara) para não
+  // onerar o `updateExecution`, chamado a cada nó do fluxo.
+  getExecutionEventContext(id: string) {
+    return this._flowExecution.model.flowExecution.findUnique({
+      where: { id },
+      select: {
+        id: true,
+        flow: {
+          select: {
+            id: true,
+            name: true,
+            organizationId: true,
+            profileId: true,
+            integration: {
+              select: {
+                id: true,
+                providerIdentifier: true,
+                name: true,
+                picture: true,
+              },
+            },
+          },
+        },
+      },
+    });
+  }
+
   getExecution(id: string, orgId: string) {
     return this._flowExecution.model.flowExecution.findFirst({
       where: { id, flow: { organizationId: orgId } },

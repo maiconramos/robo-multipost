@@ -7,12 +7,17 @@ import {
   Sections,
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import { StatusService } from '@gitroom/nestjs-libraries/database/prisma/status/status.service';
+import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
+import { StatusHistoryQueryDto } from '@gitroom/nestjs-libraries/dtos/status/status-history.query.dto';
 import { ApiTags } from '@nestjs/swagger';
 
 @ApiTags('Status')
 @Controller('/status')
 export class StatusController {
-  constructor(private _statusService: StatusService) {}
+  constructor(
+    private _statusService: StatusService,
+    private _statusEventService: StatusEventService
+  ) {}
 
   /**
    * Problemas pendentes do workspace (canais desconectados, posts com erro,
@@ -28,5 +33,20 @@ export class StatusController {
     @Query('profileId') profileId?: string
   ) {
     return this._statusService.getProblems(org, profileId);
+  }
+
+  /**
+   * Histórico de eventos de falha (canal caído, post falho, automação falha) que
+   * SOBREVIVEM à resolução — paginado por cursor, filtrável por tipo/severidade/
+   * perfil. Mesmo guard admin-only do /problems. `message` já vem sanitizado da
+   * origem; a leitura é sempre escopada à org via @GetOrgFromRequest.
+   */
+  @Get('/history')
+  @CheckPolicies([AuthorizationActions.Read, Sections.ADMIN])
+  async getHistory(
+    @GetOrgFromRequest() org: Organization,
+    @Query() query: StatusHistoryQueryDto
+  ) {
+    return this._statusEventService.list(org.id, query);
   }
 }

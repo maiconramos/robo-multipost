@@ -35,6 +35,7 @@ import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/cre
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/instagram-route.resolver';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
+import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 import * as crypto from 'crypto';
 
@@ -54,7 +55,8 @@ export class FlowsService {
     private _credentialService: CredentialService,
     private _instagramMessaging: InstagramMessagingService,
     private _profileService: ProfileService,
-    private _encryption: EncryptionService
+    private _encryption: EncryptionService,
+    private _statusEventService: StatusEventService
   ) {}
 
   /**
@@ -1034,7 +1036,7 @@ export class FlowsService {
     return this._flowsRepository.getExecutions(flowId, orgId, page, limit);
   }
 
-  updateExecution(
+  async updateExecution(
     id: string,
     data: {
       status?: FlowExecutionStatus;
@@ -1043,7 +1045,34 @@ export class FlowsService {
       completedAt?: Date;
     }
   ) {
-    return this._flowsRepository.updateExecution(id, data);
+    const result = await this._flowsRepository.updateExecution(id, data);
+
+    if (data.status === 'FAILED') {
+      // Histórico (fail-soft): AUTOMATION_FAILED. Este é o ÚNICO choke point de
+      // toda transição FAILED (workflow via activity + catches do backend, que
+      // foram reroteados para cá). Contexto lido só aqui (transição rara), não
+      // no caminho quente de `currentNodeId`. `error` já vem sanitizado
+      // (err.message) dos call-sites.
+      const ctx = await this._flowsRepository.getExecutionEventContext(id);
+      if (ctx?.flow) {
+        await this._statusEventService.record({
+          organizationId: ctx.flow.organizationId,
+          type: 'AUTOMATION_FAILED',
+          severity: 'WARNING',
+          message: data.error ?? null,
+          profileId: ctx.flow.profileId ?? null,
+          integrationId: ctx.flow.integration?.id ?? null,
+          channelName: ctx.flow.integration?.name ?? null,
+          channelPicture: ctx.flow.integration?.picture ?? null,
+          providerIdentifier: ctx.flow.integration?.providerIdentifier ?? null,
+          // entityId = flowId: alvo do link de depuração (/automacoes/:flowId),
+          // onde ficam as execuções — não há página por execução.
+          entityId: ctx.flow.id,
+        });
+      }
+    }
+
+    return result;
   }
 
   async handleIncomingComment(payload: {
@@ -1151,7 +1180,7 @@ export class FlowsService {
         this._logger.error(
           `Temporal client unavailable — orchestrator offline? Marking execution ${execution.id} (flow=${flow.id}) as FAILED`
         );
-        await this._flowsRepository.updateExecution(execution.id, {
+        await this.updateExecution(execution.id, {
           status: FlowExecutionStatus.FAILED,
           error: 'Temporal client unavailable (orchestrator offline)',
           completedAt: new Date(),
@@ -1185,7 +1214,7 @@ export class FlowsService {
             ]),
           });
       } catch (err) {
-        await this._flowsRepository.updateExecution(execution.id, {
+        await this.updateExecution(execution.id, {
           status: FlowExecutionStatus.FAILED,
           error: err instanceof Error ? err.message : 'Failed to start workflow',
           completedAt: new Date(),
@@ -1435,7 +1464,7 @@ export class FlowsService {
         this._logger.error(
           `Temporal client unavailable — orchestrator offline? Marking execution ${execution.id} (flow=${flow.id}) as FAILED`
         );
-        await this._flowsRepository.updateExecution(execution.id, {
+        await this.updateExecution(execution.id, {
           status: FlowExecutionStatus.FAILED,
           error: 'Temporal client unavailable (orchestrator offline)',
           completedAt: new Date(),
@@ -1471,7 +1500,7 @@ export class FlowsService {
             ]),
           });
       } catch (err) {
-        await this._flowsRepository.updateExecution(execution.id, {
+        await this.updateExecution(execution.id, {
           status: FlowExecutionStatus.FAILED,
           error: err instanceof Error ? err.message : 'Failed to start workflow',
           completedAt: new Date(),

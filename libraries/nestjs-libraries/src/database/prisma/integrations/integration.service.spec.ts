@@ -21,6 +21,7 @@ const makeService = (repo: any) =>
     {} as any,
     {} as any,
     {} as any,
+    {} as any,
     {} as any
   );
 
@@ -98,7 +99,7 @@ describe('IntegrationService', () => {
   });
 
   describe('disconnectChannel', () => {
-    const buildService = (repo: any, notification: any) =>
+    const buildService = (repo: any, notification: any, statusEvent: any = {}) =>
       new IntegrationService(
         repo,
         {} as any,
@@ -106,19 +107,22 @@ describe('IntegrationService', () => {
         notification,
         {} as any,
         {} as any,
-        {} as any
+        {} as any,
+        statusEvent
       );
 
     const integration = {
       id: 'int-1',
       name: 'Canal X',
+      picture: 'https://cdn/x.jpg',
       providerIdentifier: 'linkedin',
-      profileId: null,
+      profileId: 'prof-9',
     } as any;
 
-    it('notifica uma unica vez e repassa o motivo (reason) ao marcar desconectado', async () => {
+    it('notifica, registra no historico e repassa o motivo (reason) ao marcar desconectado', async () => {
       const repo = { markRefreshNeeded: jest.fn().mockResolvedValue(true) };
-      const service = buildService(repo, {});
+      const statusEvent = { record: jest.fn().mockResolvedValue(undefined) };
+      const service = buildService(repo, {}, statusEvent);
       const notify = jest
         .spyOn(service, 'informAboutRefreshError')
         .mockResolvedValue(undefined as any);
@@ -135,11 +139,25 @@ describe('IntegrationService', () => {
         'ApplicationFailure: expired'
       );
       expect(notify).toHaveBeenCalledTimes(1);
+      // Evento CHANNEL_DISCONNECT com snapshot do canal + perfil de origem.
+      expect(statusEvent.record).toHaveBeenCalledTimes(1);
+      expect(statusEvent.record).toHaveBeenCalledWith({
+        organizationId: 'org-1',
+        type: 'CHANNEL_DISCONNECT',
+        severity: 'CRITICAL',
+        message: 'ApplicationFailure: expired',
+        profileId: 'prof-9',
+        integrationId: 'int-1',
+        channelName: 'Canal X',
+        channelPicture: 'https://cdn/x.jpg',
+        providerIdentifier: 'linkedin',
+      });
     });
 
-    it('nao notifica quando o canal ja estava desconectado (sem transicao)', async () => {
+    it('nao notifica nem registra quando o canal ja estava desconectado (sem transicao)', async () => {
       const repo = { markRefreshNeeded: jest.fn().mockResolvedValue(false) };
-      const service = buildService(repo, {});
+      const statusEvent = { record: jest.fn().mockResolvedValue(undefined) };
+      const service = buildService(repo, {}, statusEvent);
       const notify = jest
         .spyOn(service, 'informAboutRefreshError')
         .mockResolvedValue(undefined as any);
@@ -147,6 +165,7 @@ describe('IntegrationService', () => {
       await service.disconnectChannel('org-1', integration);
 
       expect(notify).not.toHaveBeenCalled();
+      expect(statusEvent.record).not.toHaveBeenCalled();
     });
   });
 
@@ -159,6 +178,7 @@ describe('IntegrationService', () => {
       };
       const service = new IntegrationService(
         repo as any,
+        {} as any,
         {} as any,
         {} as any,
         {} as any,
@@ -197,6 +217,7 @@ describe('IntegrationService', () => {
         repo,
         {} as any,
         manager,
+        {} as any,
         {} as any,
         {} as any,
         {} as any,

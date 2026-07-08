@@ -76,4 +76,32 @@ describe('FlowsRepository', () => {
       expect(arg.where.flow.profileId).toBe('prof-2');
     });
   });
+
+  describe('getExecutionEventContext', () => {
+    it('traz org/perfil/flow + snapshot do canal para o StatusEvent', async () => {
+      (flowExecution.model.flowExecution as any).findUnique = jest
+        .fn()
+        .mockResolvedValue(null);
+
+      await repo.getExecutionEventContext('exec-1');
+
+      const arg = (flowExecution.model.flowExecution as any).findUnique.mock
+        .calls[0][0] as any;
+      expect(arg.where).toEqual({ id: 'exec-1' });
+      expect(arg.select.flow.select).toEqual({
+        id: true,
+        name: true,
+        organizationId: true,
+        profileId: true,
+        integration: {
+          select: {
+            id: true,
+            providerIdentifier: true,
+            name: true,
+            picture: true,
+          },
+        },
+      });
+    });
+  });
 });

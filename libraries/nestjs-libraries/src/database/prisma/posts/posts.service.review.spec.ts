@@ -31,6 +31,7 @@ const buildService = (repo: ReturnType<typeof createMock<PostsRepository>>) =>
     null as any,
     null as any,
     null as any,
+    {} as any,
     {} as any
   );
 

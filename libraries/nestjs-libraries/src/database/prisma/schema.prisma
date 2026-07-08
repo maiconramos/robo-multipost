@@ -1597,3 +1597,42 @@ model RepostLog {
   @@unique([ruleId, sourceItemId])
   @@index([ruleId, status])
 }
+
+enum StatusEventType {
+  CHANNEL_DISCONNECT
+  POST_FAILED
+  AUTOMATION_FAILED
+}
+
+enum StatusEventSeverity {
+  CRITICAL
+  WARNING
+}
+
+// Log append-only de eventos de falha de DOMINIO para a aba Status > Historico
+// (admin-only). DENORMALIZADO de proposito: sem relacao FK para
+// Integration/Profile/Organization — o historico precisa SOBREVIVER a exclusao
+// do canal/perfil e ao reconnect (que zera Integration.refreshError). Grava um
+// snapshot (channelName/channelPicture/providerIdentifier/profileId) no momento
+// do evento; profileName e resolvido em leitura. `message` e SANITIZADO na
+// origem (name+message, cap 500) — NUNCA token/refreshToken/body. Retencao de
+// 90 dias via StartupMigrationService.cleanupExpiredStatusEvents (autoprune).
+model StatusEvent {
+  id                 String              @id @default(cuid())
+  organizationId     String
+  profileId          String?
+  integrationId      String?
+  type               StatusEventType
+  severity           StatusEventSeverity
+  message            String?
+  channelName        String?
+  channelPicture     String?
+  providerIdentifier String?
+  entityId           String?
+  createdAt          DateTime            @default(now())
+
+  @@index([organizationId, createdAt])
+  @@index([organizationId, type])
+  @@index([organizationId, profileId])
+  @@index([createdAt])
+}

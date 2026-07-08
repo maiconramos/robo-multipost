@@ -38,7 +38,8 @@ describe('PostsService.separatePosts', () => {
       null as any, // temporalService
       null as any, // refreshIntegrationService
       aiText,
-      {} as any // encryption
+      {} as any, // encryption
+      {} as any // statusEventService
     );
 
     const result = await service.separatePosts('org-1', 'texto', 280);
@@ -65,7 +66,8 @@ describe('PostsService.separatePosts', () => {
       null as any,
       null as any,
       aiText,
-      {} as any // encryption
+      {} as any, // encryption
+      {} as any // statusEventService
     );
 
     await service.separatePosts('org-1', 'conteudo', 240, 'profile-9');

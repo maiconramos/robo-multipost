@@ -25,6 +25,7 @@ const mockRepository = {
   getExecutions: jest.fn(),
   createExecution: jest.fn(),
   updateExecution: jest.fn(),
+  getExecutionEventContext: jest.fn(),
   findExistingExecution: jest.fn(),
   getActiveFlowsForIntegration: jest.fn(),
   findPendingNextPublicationFlows: jest.fn(),
@@ -163,7 +164,8 @@ describe('FlowsService', () => {
       mockCredentialService,
       mockInstagramMessaging,
       mockProfileService,
-      {} as any
+      {} as any,
+      { record: jest.fn() } as any // statusEventService
     );
   });
 

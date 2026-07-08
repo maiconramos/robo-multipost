@@ -59,3 +59,35 @@ describe('PostsRepository.getErrorPosts', () => {
     expect(arg().where.profileId).toBeUndefined();
   });
 });
+
+describe('PostsRepository.changeState', () => {
+  let repo: PostsRepository;
+  let prismaMock: ReturnType<typeof createPrismaRepositoryMock<'post'>>;
+
+  beforeEach(() => {
+    prismaMock = createPrismaRepositoryMock('post');
+    (prismaMock.model.post as any).update = jest
+      .fn()
+      .mockResolvedValue({ id: 'p1', integration: {} } as any);
+    repo = new PostsRepository(
+      prismaMock as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+  });
+
+  it('inclui name/picture do canal (snapshot do StatusEvent) alem do providerIdentifier', async () => {
+    // Estado nao-ERROR: nao aciona o ramo da tabela `errors`, isola o include.
+    await repo.changeState('p1', 'PUBLISHED' as any);
+
+    const call = prismaMock.model.post.update.mock.calls[0][0] as any;
+    expect(call.include.integration.select).toEqual({
+      providerIdentifier: true,
+      name: true,
+      picture: true,
+    });
+  });
+});

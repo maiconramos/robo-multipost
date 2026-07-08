@@ -46,6 +46,7 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
+import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
@@ -67,7 +68,8 @@ export class PostsService {
     private _temporalService: TemporalService,
     private _refreshIntegrationService: RefreshIntegrationService,
     private _aiTextService: AiTextService,
-    private _encryption: EncryptionService
+    private _encryption: EncryptionService,
+    private _statusEventService: StatusEventService
   ) {}
 
   searchForMissingThreeHoursPosts() {
@@ -833,7 +835,44 @@ export class PostsService {
   }
 
   async changeState(id: string, state: State, err?: any, body?: any) {
-    return this._postRepository.changeState(id, state, err, body);
+    const updated = await this._postRepository.changeState(id, state, err, body);
+
+    if (state === 'ERROR') {
+      // Histórico (fail-soft): registra a falha de publicação com snapshot do
+      // canal. Mensagem SANITIZADA (name+message) — NUNCA `JSON.stringify(err)`
+      // (o corpo cru pode conter refresh_token/client_secret, é o vazamento que
+      // a Fase 1 tirou da API). O snapshot vem do próprio retorno, sem query extra.
+      await this._statusEventService.record({
+        organizationId: updated.organizationId,
+        type: 'POST_FAILED',
+        severity: 'CRITICAL',
+        message: this.sanitizeErrorMessage(err),
+        profileId: updated.profileId ?? null,
+        integrationId: updated.integrationId ?? null,
+        channelName: updated.integration?.name ?? null,
+        channelPicture: updated.integration?.picture ?? null,
+        providerIdentifier: updated.integration?.providerIdentifier ?? null,
+        entityId: updated.id,
+      });
+    }
+
+    return updated;
+  }
+
+  // Extrai apenas name+message do erro de publicação para o log — NUNCA o corpo
+  // serializado (que pode carregar o token). Objetos sem forma de Error viram
+  // null (não serializamos). O cap de tamanho final é aplicado no StatusEventService.
+  private sanitizeErrorMessage(err?: any): string | null {
+    if (err == null) {
+      return null;
+    }
+    if (typeof err === 'string') {
+      return err;
+    }
+    if (err instanceof Error || (err?.name && err?.message)) {
+      return `${err.name}: ${err.message}`;
+    }
+    return null;
   }
 
   async changeDate(

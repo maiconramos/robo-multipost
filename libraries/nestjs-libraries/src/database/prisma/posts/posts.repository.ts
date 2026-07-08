@@ -455,6 +455,10 @@ export class PostsRepository {
         integration: {
           select: {
             providerIdentifier: true,
+            // name/picture alimentam o snapshot do StatusEvent (POST_FAILED) —
+            // emitido pelo PostsService a partir deste retorno, sem query extra.
+            name: true,
+            picture: true,
           },
         },
       },

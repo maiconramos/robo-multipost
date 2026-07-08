@@ -18,9 +18,39 @@ export class StartupMigrationService implements OnModuleInit {
     await this.migrateLateToZernio();
     await this.backfillRepostDestinations();
     await this.cleanupExpiredUnmatchedComments();
+    await this.cleanupExpiredStatusEvents();
     await this.backfillFlowsToDefaultProfile();
     await this.reconcileRepostWorkflows();
     await this.reconcileRefreshTokensCron();
+  }
+
+  /**
+   * Autoprune do log de eventos de status (aba Status > Histórico): remove
+   * StatusEvent com mais de 90 dias. Idempotente via count guard; swallow-and-log
+   * como os demais passos. Roda em backend e orchestrator (DatabaseModule é
+   * @Global) — a 2ª execução vira no-op via count guard.
+   */
+  private async cleanupExpiredStatusEvents() {
+    try {
+      const cutoff = new Date();
+      cutoff.setDate(cutoff.getDate() - 90);
+
+      const count = await this.prisma.statusEvent.count({
+        where: { createdAt: { lt: cutoff } },
+      });
+      if (count === 0) {
+        return;
+      }
+
+      const result = await this.prisma.statusEvent.deleteMany({
+        where: { createdAt: { lt: cutoff } },
+      });
+      this.logger.log(
+        `cleanupExpiredStatusEvents: ${result.count} evento(s) > 90d removidos`
+      );
+    } catch (error) {
+      this.logger.error('cleanupExpiredStatusEvents falhou:', error);
+    }
   }
 
   /**
