@@ -116,7 +116,10 @@ export const ProblemsComponent: FC = () => {
 
   if (isLoading) return <LoadingComponent />;
 
-  if (error) {
+  // `error` cobre o fetch que rejeita; `!data?.summary` cobre uma resposta
+  // malformada — ex.: um corpo de erro (4xx/5xx) que o `useFetch` devolve sem
+  // rejeitar, cujo JSON nao tem o shape de StatusProblemsResponse.
+  if (error || !data?.summary) {
     return (
       <div className="border border-fifth rounded-[8px] bg-sixth p-[24px] text-[14px] text-customColor18">
         {t('status_error_loading', 'Erro ao carregar o status.')}
@@ -124,7 +127,7 @@ export const ProblemsComponent: FC = () => {
     );
   }
 
-  if (!data || data.summary.total === 0) {
+  if (data.summary.total === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-[64px] gap-[12px] border border-fifth rounded-[8px] bg-sixth text-center">
         <div className="w-[44px] h-[44px] rounded-full bg-green-500/15 grid place-items-center text-green-500 text-[20px]">
