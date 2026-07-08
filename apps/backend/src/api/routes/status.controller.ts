@@ -8,6 +8,7 @@ import {
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
 import { StatusService } from '@gitroom/nestjs-libraries/database/prisma/status/status.service';
 import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
+import { InfraHealthService } from '@gitroom/nestjs-libraries/database/prisma/status/infra-health.service';
 import { StatusHistoryQueryDto } from '@gitroom/nestjs-libraries/dtos/status/status-history.query.dto';
 import { ApiTags } from '@nestjs/swagger';
 
@@ -16,7 +17,8 @@ import { ApiTags } from '@nestjs/swagger';
 export class StatusController {
   constructor(
     private _statusService: StatusService,
-    private _statusEventService: StatusEventService
+    private _statusEventService: StatusEventService,
+    private _infraHealthService: InfraHealthService
   ) {}
 
   /**
@@ -48,5 +50,20 @@ export class StatusController {
     @Query() query: StatusHistoryQueryDto
   ) {
     return this._statusEventService.list(org.id, query);
+  }
+
+  /**
+   * Sonda ativa de saúde da infra (PostgreSQL/Redis/Temporal/Storage). Mesmo
+   * guard admin-only. Health é global (infra compartilhada do self-host); o
+   * `@GetOrgFromRequest` mantém o padrão do guard. `?refresh=true` ignora o
+   * cache de 30s (botão "Verificar agora").
+   */
+  @Get('/health')
+  @CheckPolicies([AuthorizationActions.Read, Sections.ADMIN])
+  async getHealth(
+    @GetOrgFromRequest() _org: Organization,
+    @Query('refresh') refresh?: string
+  ) {
+    return this._infraHealthService.getHealth(refresh === 'true');
   }
 }

@@ -6,11 +6,12 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { ProblemsComponent } from '@gitroom/frontend/components/status/problems.component';
 import { HistoryComponent } from '@gitroom/frontend/components/status/history.component';
+import { InfraComponent } from '@gitroom/frontend/components/status/infra.component';
 
 /**
- * Area "Status" (admin-only). Abas: "Problemas" (estado atual derivado) e
- * "Historico" (log de eventos que sobrevive a resolucao). A barra de abas
- * aparece quando ha mais de uma; Saude da infra entra numa proxima fase.
+ * Area "Status" (admin-only). Abas: "Problemas" (estado atual derivado),
+ * "Historico" (log de eventos que sobrevive a resolucao) e "Saude da infra"
+ * (sonda ativa de PostgreSQL/Redis/Temporal/Storage).
  */
 export const StatusComponent: FC = () => {
   const t = useT();
@@ -28,6 +29,11 @@ export const StatusComponent: FC = () => {
         key: 'history',
         label: t('status_tab_history', 'Histórico'),
         render: () => <HistoryComponent />,
+      },
+      {
+        key: 'infra',
+        label: t('status_tab_infra', 'Saúde da infra'),
+        render: () => <InfraComponent />,
       },
     ],
     [t]
