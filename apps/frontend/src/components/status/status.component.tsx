@@ -58,19 +58,9 @@ export const StatusComponent: FC = () => {
   const active = tabs.find((x) => x.key === tab) ?? tabs[0];
 
   return (
-    <div className="flex flex-col gap-[16px] p-[24px] flex-1">
-      <div>
-        <h1 className="text-[20px] font-semibold text-textColor">
-          {t('status_title', 'Status')}
-        </h1>
-        <p className="text-[14px] text-customColor18 mt-[4px]">
-          {t(
-            'status_description',
-            'Problemas que precisam da sua atenção no workspace.'
-          )}
-        </p>
-      </div>
-
+    // Sem título próprio: renderizado como aba dentro de Settings, que já rotula
+    // "Status" na navegação lateral (evita o cabeçalho duplicado).
+    <div className="flex flex-col gap-[16px] flex-1">
       {tabs.length > 1 && (
         <div className="flex gap-[4px] border-b border-fifth">
           {tabs.map((tb) => (
