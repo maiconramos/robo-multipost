@@ -109,4 +109,21 @@ describe('FlowsService.updateExecution (StatusEvent AUTOMATION_FAILED)', () => {
 
     expect(statusEvent.record).not.toHaveBeenCalled();
   });
+
+  it('e fail-soft: falha ao ler o contexto NAO derruba o updateExecution (write FAILED ja ocorreu; e activity Temporal)', async () => {
+    const repo = {
+      updateExecution: jest.fn().mockResolvedValue({ id: 'exec-1' }),
+      getExecutionEventContext: jest
+        .fn()
+        .mockRejectedValue(new Error('db hiccup')),
+    };
+    const statusEvent = { record: jest.fn() };
+    const service = buildService(repo, statusEvent);
+    jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+    await expect(
+      service.updateExecution('exec-1', { status: 'FAILED' as any })
+    ).resolves.toEqual({ id: 'exec-1' });
+    expect(statusEvent.record).not.toHaveBeenCalled();
+  });
 });

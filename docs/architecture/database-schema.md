@@ -3,7 +3,7 @@
 > **Canonical source:** [`libraries/nestjs-libraries/src/database/prisma/schema.prisma`](../../libraries/nestjs-libraries/src/database/prisma/schema.prisma).
 > This document is a **navigation map**, not the source of truth. When in doubt, read the schema.
 
-The repo has **63 Prisma models** total: ~55 domain models + 8 Mastra framework-internal models (prefixed `mastra_*`). Repositories live under `libraries/nestjs-libraries/src/database/prisma/<dir>/`. Some directories cover multiple related models; some models are accessed directly through framework code (Mastra, marketplace utilities) and have no dedicated repository.
+The repo has **64 Prisma models** total: ~56 domain models + 8 Mastra framework-internal models (prefixed `mastra_*`). Repositories live under `libraries/nestjs-libraries/src/database/prisma/<dir>/`. Some directories cover multiple related models; some models are accessed directly through framework code (Mastra, marketplace utilities) and have no dedicated repository.
 
 ## How to read this doc
 
@@ -88,6 +88,7 @@ The Flow engine that powers follow-gate, comment auto-replies, and DMs.
 | `Announcement` | `announcements/` | Banner announcements (`AnnouncementColor` enum). | Parent |
 | `ReviewLink` | `review-links/` | Public review/feedback links. | Parent |
 | `Errors` | (no dedicated dir) | Error log table. Usually written via Sentry pipeline, not domain code. | Parent |
+| `StatusEvent` | `status/` | Append-only domain-failure log powering **Status > Histórico** (admin). `StatusEventType`/`StatusEventSeverity` enums. **Denormalized/no-FK on purpose** — snapshots channel name/picture/`providerIdentifier`+`profileId` at emit time so history survives channel/profile deletion. Written fail-soft from 3 service choke points (`disconnectChannel`, `posts.changeState`, `flows.updateExecution`); `message` sanitized (name+message, never raw body/token). 90-day autoprune via `StartupMigrationService.cleanupExpiredStatusEvents`. | Parent |
 | `ThirdParty` | `third-party/` | Generic third-party integration config (e.g., HeyGen, ImageSlides, Tavily — currently used as the boundary for non-social integrations). | Parent |
 
 ## 8. Marketplace (disabled by default — `DISABLE_MARKETPLACE=true`)
@@ -164,6 +165,7 @@ For quick reference. Source: `schema.prisma`.
 | `Role` | `UserOrganization` (org role) |
 | `ShortLinkPreference` | `Organization`, `Profile` |
 | `State` | Generic state |
+| `StatusEventType` / `StatusEventSeverity` | `StatusEvent` (Status > Histórico log) |
 | `SubscriptionTier` | `Subscription` |
 
 ## When this map is not enough

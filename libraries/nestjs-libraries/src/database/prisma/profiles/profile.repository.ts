@@ -44,6 +44,17 @@ export class ProfileRepository {
     });
   }
 
+  // Resolve nome de perfil por id (escopado à org). NÃO filtra deletedAt de
+  // propósito: usado pelo log de Status > Histórico, onde um evento de um perfil
+  // soft-deletado ainda precisa mostrar o nome de origem (o req é "identificar de
+  // qual perfil veio"). Busca só os ids da página (sem N+1 nem varrer a org toda).
+  getProfileNamesByIds(orgId: string, ids: string[]) {
+    return this._profile.model.profile.findMany({
+      where: { organizationId: orgId, id: { in: ids } },
+      select: { id: true, name: true },
+    });
+  }
+
   getProfileById(orgId: string, profileId: string) {
     return this._profile.model.profile.findFirst({
       where: { id: profileId, organizationId: orgId, deletedAt: null },

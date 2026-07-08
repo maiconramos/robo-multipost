@@ -103,21 +103,26 @@ export class StatusEventService {
   }
 
   /**
-   * Resolve o nome do perfil em batch (1 query escopada à org). O log guarda só
-   * o `profileId` (snapshot leve); o nome atual vem daqui. Perfil apagado ou não
-   * encontrado => ausente no mapa => o item cai para "Workspace" no frontend.
+   * Resolve o nome do perfil em batch (1 query escopada à org, só os ids da
+   * página). O log guarda o `profileId`; o nome vem daqui. Resolve inclusive
+   * perfis SOFT-DELETADOS (o método não filtra deletedAt) — um evento histórico
+   * de um perfil apagado mantém a origem (req: "de qual perfil veio"). Só cai
+   * para "Workspace" (null) se a linha do perfil realmente não existir mais.
    */
   private async resolveProfileNames(
     organizationId: string,
     rows: { profileId: string | null }[]
   ): Promise<Map<string, string>> {
-    const ids = [...new Set(rows.map((r) => r.profileId).filter(Boolean))];
+    const ids = [
+      ...new Set(rows.map((r) => r.profileId).filter(Boolean)),
+    ] as string[];
     const map = new Map<string, string>();
     if (!ids.length) {
       return map;
     }
-    const profiles = await this._profileRepository.getProfilesByOrgId(
-      organizationId
+    const profiles = await this._profileRepository.getProfileNamesByIds(
+      organizationId,
+      ids
     );
     for (const p of profiles) {
       map.set(p.id, p.name);

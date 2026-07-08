@@ -129,7 +129,11 @@ export const HistoryComponent: FC = () => {
 
   if (isLoading) return <LoadingComponent />;
 
-  if (error) {
+  // `error` cobre o fetch que rejeita; a checagem de shape cobre uma resposta
+  // malformada — ex.: um corpo de erro (4xx/5xx) que o `useFetch` devolve sem
+  // rejeitar, cujo JSON não tem o formato de StatusHistoryResponse (sem `items`).
+  const malformed = (data ?? []).some((p) => p && !Array.isArray(p.items));
+  if (error || malformed) {
     return (
       <div className="border border-fifth rounded-[8px] bg-sixth p-[24px] text-[14px] text-customColor18">
         {t('status_error_loading', 'Erro ao carregar o status.')}

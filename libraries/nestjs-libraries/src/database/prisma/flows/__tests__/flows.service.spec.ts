@@ -56,6 +56,7 @@ const mockRepository = {
   deleteUnmatchedOlderThan: jest.fn(),
 } as any;
 
+const mockStatusEventService = { record: jest.fn() };
 const mockWorkflowStart = jest.fn().mockResolvedValue({ workflowId: 'wf-1' });
 const mockRawClient = {
   workflow: {
@@ -165,7 +166,7 @@ describe('FlowsService', () => {
       mockInstagramMessaging,
       mockProfileService,
       {} as any,
-      { record: jest.fn() } as any // statusEventService
+      mockStatusEventService as any // statusEventService
     );
   });
 
@@ -852,6 +853,22 @@ describe('FlowsService', () => {
       mockRepository.findExistingExecution.mockResolvedValue(null);
       mockRepository.createExecution.mockResolvedValue({ id: 'exec-offline' });
       mockTemporalService.client.getRawClient.mockReturnValue(null);
+      // Contexto para o StatusEvent AUTOMATION_FAILED (prova o reroteamento:
+      // este catch do backend agora funila por this.updateExecution).
+      mockRepository.getExecutionEventContext.mockResolvedValue({
+        flow: {
+          id: 'flow-1',
+          name: 'F',
+          organizationId: 'org-1',
+          profileId: 'profile-1',
+          integration: {
+            id: 'int-1',
+            providerIdentifier: 'instagram',
+            name: 'IG',
+            picture: null,
+          },
+        },
+      });
 
       const results = await service.handleIncomingComment(commentPayload);
 
@@ -860,6 +877,16 @@ describe('FlowsService', () => {
         error: 'Temporal client unavailable (orchestrator offline)',
         completedAt: expect.any(Date),
       });
+      // O reroteamento faz o histórico ser gravado também no caminho do backend.
+      expect(mockStatusEventService.record).toHaveBeenCalledWith(
+        expect.objectContaining({
+          type: 'AUTOMATION_FAILED',
+          severity: 'WARNING',
+          organizationId: 'org-1',
+          entityId: 'flow-1',
+          message: 'Temporal client unavailable (orchestrator offline)',
+        })
+      );
       expect(mockWorkflowStart).not.toHaveBeenCalled();
       expect(results).toHaveLength(1);
     });
