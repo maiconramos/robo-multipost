@@ -285,6 +285,13 @@ export class FlowsRepository {
   // Contexto mínimo (org/perfil/flow + snapshot do canal) para emitir o
   // StatusEvent AUTOMATION_FAILED. Lido SÓ na transição FAILED (rara) para não
   // onerar o `updateExecution`, chamado a cada nó do fluxo.
+  //
+  // Sem filtro de organizationId de propósito: `id` é um executionId INTERNO
+  // (gerado por createExecution e propagado via Temporal/serviço), nunca vem de
+  // um parâmetro de request — não há "org do chamador" a comparar. O evento é
+  // gravado na própria org da execução (self-consistente). Se um dia esta rota
+  // for exposta a um id vindo do cliente, adicionar `flow: { organizationId }`
+  // ao where (ver getExecution logo abaixo, que já é escopado).
   getExecutionEventContext(id: string) {
     return this._flowExecution.model.flowExecution.findUnique({
       where: { id },

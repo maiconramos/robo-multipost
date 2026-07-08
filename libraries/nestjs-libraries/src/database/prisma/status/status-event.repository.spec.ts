@@ -13,6 +13,9 @@ describe('StatusEventRepository', () => {
     (prismaMock.model.statusEvent as any).findMany = jest
       .fn()
       .mockResolvedValue([] as any);
+    (prismaMock.model.statusEvent as any).findFirst = jest
+      .fn()
+      .mockResolvedValue(null as any);
     repo = new StatusEventRepository(prismaMock as any);
   });
 
@@ -75,12 +78,36 @@ describe('StatusEventRepository', () => {
       expect(a.take).toBe(21);
     });
 
-    it('pagina por cursor (skip 1) quando cursorId informado', async () => {
+    it('resolve o cursor escopado a org e pagina por (createdAt,id) < ancora', async () => {
+      const at = new Date('2026-07-08T10:00:00.000Z');
+      (prismaMock.model.statusEvent as any).findFirst = jest
+        .fn()
+        .mockResolvedValue({ createdAt: at, id: 'evt-50' });
+
       await repo.list({ organizationId: 'org-1', cursorId: 'evt-50', limit: 50 });
 
+      // lookup da ancora e ESCOPADO a org (fecha oracle / robusto a cursor podado)
+      const ff = prismaMock.model.statusEvent.findFirst.mock.calls[0][0] as any;
+      expect(ff.where).toEqual({ id: 'evt-50', organizationId: 'org-1' });
+
       const a = arg();
-      expect(a.cursor).toEqual({ id: 'evt-50' });
-      expect(a.skip).toBe(1);
+      expect(a.where.OR).toEqual([
+        { createdAt: { lt: at } },
+        { createdAt: at, id: { lt: 'evt-50' } },
+      ]);
+      // nao usa mais o cursor/skip do Prisma
+      expect(a.cursor).toBeUndefined();
+      expect(a.skip).toBeUndefined();
+    });
+
+    it('ignora cursor nao encontrado / de outra org (volta para a 1a pagina)', async () => {
+      (prismaMock.model.statusEvent as any).findFirst = jest
+        .fn()
+        .mockResolvedValue(null);
+
+      await repo.list({ organizationId: 'org-1', cursorId: 'foreign', limit: 50 });
+
+      expect(arg().where.OR).toBeUndefined();
     });
   });
 });
