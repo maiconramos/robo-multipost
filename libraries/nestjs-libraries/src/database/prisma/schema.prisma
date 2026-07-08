@@ -361,6 +361,8 @@ model Integration {
   updatedAt             DateTime?              @updatedAt
   inBetweenSteps        Boolean                @default(false)
   refreshNeeded         Boolean                @default(false)
+  refreshError          String?
+  refreshErrorAt        DateTime?
   postingTimes          String                 @default("[{\"time\":120}, {\"time\":400}, {\"time\":700}]")
   customInstanceDetails String?
   customerId            String?

@@ -162,7 +162,18 @@ export class IntegrationRepository {
       (params.picture.indexOf(process.env.CLOUDFLARE_BUCKET_URL!) === -1 ||
         params.picture.indexOf(process.env.FRONTEND_URL!) === -1)
     ) {
-      params.picture = await this.storage.uploadSimple(params.picture);
+      try {
+        params.picture = await this.storage.uploadSimple(params.picture);
+      } catch (err) {
+        // Avatar e cosmetico: uma falha de storage (ex.: credencial R2 errada)
+        // NAO pode derrubar a selecao de pagina / conexao do canal. Mantem a
+        // URL original do provider (publica e utilizavel).
+        console.error(
+          `[integration] falha ao subir avatar na selecao de pagina (mantendo original): ${
+            (err as Error)?.name || 'Error'
+          }: ${(err as Error)?.message || 'sem detalhe'}`
+        );
+      }
     }
 
     const existing = await this._integration.model.integration.findUnique({
@@ -243,8 +254,16 @@ export class IntegrationRepository {
    * unica vez) e false quando o canal ja estava marcado — evitando e-mail/sininho
    * duplicados quando o batch de refresh e o post-time colidem na mesma
    * integration (o filtro no `where` faz o guard sem read-then-write).
+   *
+   * `reason` (ja sanitizado — name+message, NUNCA o token) e persistido em
+   * refreshError/refreshErrorAt na MESMA escrita atomica, para a tela de Status
+   * mostrar o "porque" da desconexao.
    */
-  async markRefreshNeeded(org: string, id: string): Promise<boolean> {
+  async markRefreshNeeded(
+    org: string,
+    id: string,
+    reason?: string
+  ): Promise<boolean> {
     const { count } = await this._integration.model.integration.updateMany({
       where: {
         id,
@@ -253,6 +272,8 @@ export class IntegrationRepository {
       },
       data: {
         refreshNeeded: true,
+        refreshError: reason ?? null,
+        refreshErrorAt: new Date(),
       },
     });
     return count > 0;
@@ -326,6 +347,8 @@ export class IntegrationRepository {
         ...postTimes,
         organizationId: org,
         refreshNeeded: false,
+        refreshError: null,
+        refreshErrorAt: null,
         rootInternalId: internalId.split('_').pop(),
         ...(customInstanceDetails ? { customInstanceDetails } : {}),
         ...(profileId ? { profileId } : {}),
@@ -357,6 +380,8 @@ export class IntegrationRepository {
         organizationId: org,
         deletedAt: null,
         refreshNeeded: false,
+        refreshError: null,
+        refreshErrorAt: null,
       },
     });
 
@@ -383,6 +408,8 @@ export class IntegrationRepository {
           refreshToken: encRefreshToken,
           tokenEncrypted,
           refreshNeeded: false,
+          refreshError: null,
+          refreshErrorAt: null,
           ...(expiresIn
             ? { tokenExpiration: new Date(Date.now() + expiresIn * 1000) }
             : {}),
@@ -587,6 +614,37 @@ export class IntegrationRepository {
       },
       include: {
         customer: true,
+      },
+    });
+  }
+
+  /**
+   * Canais que precisam de atencao para a tela de Status: token morto
+   * (refreshNeeded) OU desativado (disabled). Escopado por org; `profileId`
+   * opcional para drill-down futuro. `select` EXPLICITO — nunca retorna
+   * token/refreshToken. Traz o perfil de origem embutido (sem N+1). Indices em
+   * refreshNeeded/disabled ja existem.
+   */
+  getProblemChannels(org: string, profileId?: string) {
+    return this._integration.model.integration.findMany({
+      where: {
+        organizationId: org,
+        deletedAt: null,
+        OR: [{ refreshNeeded: true }, { disabled: true }],
+        ...(profileId ? { profileId } : {}),
+      },
+      orderBy: { updatedAt: 'desc' },
+      select: {
+        id: true,
+        name: true,
+        providerIdentifier: true,
+        internalId: true,
+        picture: true,
+        refreshNeeded: true,
+        disabled: true,
+        refreshError: true,
+        refreshErrorAt: true,
+        clientProfile: { select: { id: true, name: true } },
       },
     });
   }

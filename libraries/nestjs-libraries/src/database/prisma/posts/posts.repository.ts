@@ -62,6 +62,45 @@ export class PostsRepository {
     });
   }
 
+  /**
+   * Posts que falharam ao publicar (state=ERROR) nos ultimos 30 dias, para a
+   * tela de Status. Escopado por org; `profileId` opcional (drill-down futuro).
+   * Traz canal + perfil de origem embutidos. Limite defensivo: um unico canal
+   * caido gera muitos erros, entao capamos e ordenamos pelos mais recentes.
+   */
+  getErrorPosts(orgId: string, profileId?: string, limit = 50) {
+    return this._post.model.post.findMany({
+      where: {
+        organizationId: orgId,
+        deletedAt: null,
+        parentPostId: null,
+        state: 'ERROR',
+        updatedAt: { gte: dayjs.utc().subtract(30, 'day').toDate() },
+        ...(profileId ? { profileId } : {}),
+      },
+      orderBy: { updatedAt: 'desc' },
+      take: limit,
+      select: {
+        // NAO selecionar `error`: Post.error e uma serializacao completa da
+        // excecao e pode conter refresh_token/client_secret (details[].body de
+        // RefreshToken/BadBody). A tela de Status so precisa da contagem por canal.
+        id: true,
+        updatedAt: true,
+        integration: {
+          select: {
+            id: true,
+            providerIdentifier: true,
+            name: true,
+            picture: true,
+          },
+        },
+        profile: {
+          select: { id: true, name: true },
+        },
+      },
+    });
+  }
+
   getOldPosts(orgId: string, date: string) {
     return this._post.model.post.findMany({
       where: {

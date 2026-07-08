@@ -297,6 +297,42 @@ export class FlowsRepository {
     });
   }
 
+  /**
+   * Execucoes de automacao (IG flows) que FALHARAM, CROSS-FLOW por org, para a
+   * tela de Status (o `getExecutions` acima e por-flow). `profileId` opcional; o
+   * perfil de origem vem via flow.profile. Limite defensivo pelos mais recentes.
+   */
+  getFailedExecutions(orgId: string, profileId?: string, limit = 50) {
+    // Janela de 30 dias (espelha getErrorPosts): FAILED e terminal, entao sem
+    // corte a tela de "Problemas" (estado ATUAL) acumularia execucoes antigas
+    // indefinidamente.
+    const since = new Date(Date.now() - 30 * 24 * 60 * 60 * 1000);
+    return this._flowExecution.model.flowExecution.findMany({
+      where: {
+        status: 'FAILED',
+        createdAt: { gte: since },
+        flow: {
+          organizationId: orgId,
+          ...(profileId ? { profileId } : {}),
+        },
+      },
+      orderBy: { createdAt: 'desc' },
+      take: limit,
+      select: {
+        id: true,
+        error: true,
+        createdAt: true,
+        flow: {
+          select: {
+            id: true,
+            name: true,
+            profile: { select: { id: true, name: true } },
+          },
+        },
+      },
+    });
+  }
+
   async appendExecutionLog(
     id: string,
     entry: { nodeId: string; nodeType: string; status: string; timestamp: string; error?: string }

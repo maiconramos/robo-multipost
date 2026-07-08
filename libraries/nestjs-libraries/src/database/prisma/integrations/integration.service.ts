@@ -114,11 +114,29 @@ export class IntegrationService {
     customInstanceDetails?: string,
     profileId?: string
   ) {
-    const uploadedPicture = picture
-      ? picture?.indexOf('imagedelivery.net') > -1 || picture?.startsWith('/icons/')
-        ? picture
-        : await this.storage.uploadSimple(picture)
-      : undefined;
+    let uploadedPicture: string | undefined;
+    if (picture) {
+      if (
+        picture.indexOf('imagedelivery.net') > -1 ||
+        picture.startsWith('/icons/')
+      ) {
+        uploadedPicture = picture;
+      } else {
+        try {
+          uploadedPicture = await this.storage.uploadSimple(picture);
+        } catch (err) {
+          // Avatar e cosmetico: uma falha de storage (ex.: credencial R2 errada)
+          // NAO pode derrubar a conexao do canal — o OAuth ja deu certo. Mantem a
+          // URL original do provider (publica e utilizavel).
+          console.error(
+            `[integration] falha ao subir avatar na conexao (mantendo original): ${
+              (err as Error)?.name || 'Error'
+            }: ${(err as Error)?.message || 'sem detalhe'}`
+          );
+          uploadedPicture = picture;
+        }
+      }
+    }
 
     return this._integrationRepository.createOrUpdateIntegration(
       additionalSettings,
@@ -225,10 +243,15 @@ export class IntegrationService {
    * e-mail/sininho duplicados quando o batch de refresh e o post-time (ou os
    * varios call-sites de disconnectChannel) atingem a mesma integration.
    */
-  async disconnectChannel(orgId: string, integration: Integration) {
+  async disconnectChannel(
+    orgId: string,
+    integration: Integration,
+    reason?: string
+  ) {
     const transitioned = await this._integrationRepository.markRefreshNeeded(
       orgId,
-      integration.id
+      integration.id,
+      reason
     );
     if (transitioned) {
       await this.informAboutRefreshError(orgId, integration);
@@ -281,7 +304,11 @@ export class IntegrationService {
           // Nao conseguiu renovar: marca desconectado + notifica uma vez.
           // `continue` (NAO `return`) para nao abortar o lote inteiro por causa
           // de um unico canal quebrado.
-          await this.disconnectChannel(integration.organizationId, integration);
+          await this.disconnectChannel(
+            integration.organizationId,
+            integration,
+            'Automatic token refresh failed'
+          );
           continue;
         }
 

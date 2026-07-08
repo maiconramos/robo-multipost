@@ -58,6 +58,7 @@ import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/re
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
 import { RepostRepository } from '@gitroom/nestjs-libraries/database/prisma/repost/repost.repository';
 import { RepostService } from '@gitroom/nestjs-libraries/database/prisma/repost/repost.service';
+import { StatusService } from '@gitroom/nestjs-libraries/database/prisma/status/status.service';
 import { AiModule } from '@gitroom/nestjs-libraries/ai/ai.module';
 
 @Global()
@@ -126,6 +127,7 @@ import { AiModule } from '@gitroom/nestjs-libraries/ai/ai.module';
     InstagramMessagingService,
     RepostRepository,
     RepostService,
+    StatusService,
   ],
   get exports() {
     return this.providers;
