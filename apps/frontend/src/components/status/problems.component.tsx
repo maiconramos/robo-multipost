@@ -1,11 +1,12 @@
 'use client';
 
-import { FC, useCallback, useMemo } from 'react';
+import { FC, ReactNode, useCallback, useMemo } from 'react';
 import useSWR from 'swr';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
 import { Button } from '@gitroom/react/form/button';
+import { PlatformIconBadge } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import {
   StatusChannelProblem,
   StatusPostProblem,
@@ -13,10 +14,23 @@ import {
   StatusProfileRef,
 } from '@gitroom/nestjs-libraries/dtos/status/status.dto';
 
+// Link opcional para o Temporal Web UI (depuracao). Sem a env, o link nao
+// aparece. Busca pelo search attribute `postId` (indexado) — robusto ao sufixo
+// aleatorio do workflowId.
+const TEMPORAL_WEB_URL = process.env.NEXT_PUBLIC_TEMPORAL_WEB_URL;
+const TEMPORAL_NAMESPACE =
+  process.env.NEXT_PUBLIC_TEMPORAL_NAMESPACE || 'default';
+const temporalPostUrl = (postId: string): string | null =>
+  TEMPORAL_WEB_URL
+    ? `${TEMPORAL_WEB_URL.replace(/\/$/, '')}/namespaces/${TEMPORAL_NAMESPACE}/workflows?query=${encodeURIComponent(
+        `postId="${postId}"`
+      )}`
+    : null;
+
 /**
  * Aba "Problemas": estado atual derivado (some quando resolve), agrupado por
- * severidade, cada item com o PERFIL de origem. Reusa o fluxo de "Reconectar"
- * dos canais (mesmo endpoint da tela de lançamentos).
+ * severidade, cada item com o PERFIL de origem, o BADGE da plataforma e links
+ * de depuracao (post / Temporal / automacao). Reusa o "Reconectar" dos canais.
  */
 export const ProblemsComponent: FC = () => {
   const t = useT();
@@ -42,8 +56,8 @@ export const ProblemsComponent: FC = () => {
     [fetch]
   );
 
-  // Dedup: um canal caído gera N posts em erro — agrupa por canal para não
-  // virar uma muralha de linhas.
+  // Dedup: um canal caído gera N posts em erro — agrupa por canal. Guarda o id
+  // do post mais recente (posts vêm ordenados por updatedAt desc) para os links.
   const postsByChannel = useMemo(() => {
     const map = new Map<
       string,
@@ -51,13 +65,20 @@ export const ProblemsComponent: FC = () => {
         channel: StatusPostProblem['channel'];
         profile: StatusProfileRef | null;
         count: number;
+        latestId: string;
       }
     >();
     for (const p of data?.posts ?? []) {
       const key = p.channel?.id ?? 'no-channel';
       const cur = map.get(key);
       if (cur) cur.count++;
-      else map.set(key, { channel: p.channel, profile: p.profile, count: 1 });
+      else
+        map.set(key, {
+          channel: p.channel,
+          profile: p.profile,
+          count: 1,
+          latestId: p.id,
+        });
     }
     return [...map.values()];
   }, [data]);
@@ -71,17 +92,42 @@ export const ProblemsComponent: FC = () => {
     [t]
   );
 
-  const avatar = useCallback(
-    (picture: string | null, name: string) =>
-      picture ? (
-        <img
-          src={picture}
-          alt={name}
-          className="w-[28px] h-[28px] rounded-full object-cover flex-none"
-        />
-      ) : (
-        <div className="w-[28px] h-[28px] rounded-full bg-newBgColorInner flex-none" />
-      ),
+  // Avatar do canal com o badge da plataforma sobreposto (canto inferior direito)
+  // — deixa claro de qual rede é o canal. `identifier` null (canal removido) =>
+  // sem badge.
+  const channelAvatar = useCallback(
+    (picture: string | null, name: string, identifier?: string | null) => (
+      <div className="relative flex-none w-[28px] h-[28px]">
+        {picture ? (
+          <img
+            src={picture}
+            alt={name}
+            className="w-[28px] h-[28px] rounded-full object-cover"
+          />
+        ) : (
+          <div className="w-[28px] h-[28px] rounded-full bg-newBgColorInner" />
+        )}
+        {identifier && (
+          <span className="absolute -bottom-[3px] -end-[3px] rounded-full bg-sixth p-[1px] flex">
+            <PlatformIconBadge identifier={identifier} size={14} />
+          </span>
+        )}
+      </div>
+    ),
+    []
+  );
+
+  const debugLink = useCallback(
+    (href: string, label: ReactNode) => (
+      <a
+        href={href}
+        target="_blank"
+        rel="noreferrer"
+        className="text-[12px] text-btnPrimary hover:underline whitespace-nowrap"
+      >
+        {label}
+      </a>
+    ),
     []
   );
 
@@ -91,7 +137,7 @@ export const ProblemsComponent: FC = () => {
         key={c.id}
         className="flex items-center gap-[12px] px-[16px] py-[12px] border-t border-fifth first:border-t-0"
       >
-        {avatar(c.picture, c.name)}
+        {channelAvatar(c.picture, c.name, c.identifier)}
         <div className="flex-1 min-w-0">
           <div className="text-[14px] text-textColor truncate">{c.name}</div>
           <div className="text-[12px] text-customColor18 truncate">
@@ -111,7 +157,7 @@ export const ProblemsComponent: FC = () => {
         )}
       </div>
     ),
-    [avatar, profileChip, reconnect, t]
+    [channelAvatar, profileChip, reconnect, t]
   );
 
   if (isLoading) return <LoadingComponent />;
@@ -146,8 +192,7 @@ export const ProblemsComponent: FC = () => {
   const warningChannels = data.channels.filter((c) => c.severity === 'warning');
 
   const hasCritical = criticalChannels.length > 0 || postsByChannel.length > 0;
-  const hasWarning =
-    warningChannels.length > 0 || data.automations.length > 0;
+  const hasWarning = warningChannels.length > 0 || data.automations.length > 0;
 
   return (
     <div className="flex flex-col gap-[24px]">
@@ -163,7 +208,11 @@ export const ProblemsComponent: FC = () => {
                 key={`post-${p.channel?.id ?? i}`}
                 className="flex items-center gap-[12px] px-[16px] py-[12px] border-t border-fifth first:border-t-0"
               >
-                {avatar(p.channel?.picture ?? null, p.channel?.name ?? '')}
+                {channelAvatar(
+                  p.channel?.picture ?? null,
+                  p.channel?.name ?? '',
+                  p.channel?.identifier
+                )}
                 <div className="flex-1 min-w-0">
                   <div className="text-[14px] text-textColor truncate">
                     {p.channel
@@ -177,6 +226,17 @@ export const ProblemsComponent: FC = () => {
                           '{{count}} posts falharam',
                           { count: p.count }
                         )}
+                  </div>
+                  <div className="flex items-center gap-[12px] mt-[3px]">
+                    {debugLink(
+                      `/p/${p.latestId}`,
+                      <>{t('status_view_post', 'Ver post')} ↗</>
+                    )}
+                    {temporalPostUrl(p.latestId) &&
+                      debugLink(
+                        temporalPostUrl(p.latestId)!,
+                        <>{t('status_view_temporal', 'Temporal')} ↗</>
+                      )}
                   </div>
                 </div>
                 {profileChip(p.profile)}
@@ -206,11 +266,17 @@ export const ProblemsComponent: FC = () => {
                     {t('status_automation_failed', 'Automação falhou')}:{' '}
                     {a.flowName}
                   </div>
-                  {a.error && (
-                    <div className="text-[12px] text-customColor18 truncate">
-                      {a.error}
-                    </div>
-                  )}
+                  <div className="flex items-center gap-[12px] mt-[3px]">
+                    {a.error && (
+                      <span className="text-[12px] text-customColor18 truncate">
+                        {a.error}
+                      </span>
+                    )}
+                    {debugLink(
+                      `/automacoes/${a.flowId}`,
+                      <>{t('status_view_automation', 'Ver automação')} ↗</>
+                    )}
+                  </div>
                 </div>
                 {profileChip(a.profile)}
               </div>
