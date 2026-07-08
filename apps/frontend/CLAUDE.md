@@ -104,6 +104,7 @@ The `--color-custom*` variables are **deprecated**. Use `--new-*` tokens and Tai
 | `src/components/automations/hooks/use-unmatched-comments.ts` | SWR hooks (`useInbox`, `useAliases`, `useAliasLookup`) + `createInboxActions(fetch, mutators)` mutation factory (mutate-as-parameter pattern — see SWR section above) |
 | `src/components/launches/ai.image.tsx` / `ai.video.tsx` / `ai.search.tsx` | AI generation modals — all 700px width, sticky header without `-mt`/`pt` quirks, X inside same flex row as `TopTitle` |
 | `src/components/settings/` | Settings panels (AI Models, AI Persona, AI Credits, Credentials, Profiles, etc.) |
+| `src/components/status/` | Admin-only "Status" area (`/status`, menu item gated `role: ['ADMIN','SUPERADMIN']` in `layout/top.menu.tsx`) — `status.component.tsx` is the tab shell (Fase 1: single "Problemas" tab), `problems.component.tsx` renders derived, per-profile problems (disconnected channels, failed posts, failed IG automations). Contract in `nestjs-libraries/src/dtos/status/status.dto.ts` |
 | `src/components/new-layout/` | Current sidebar + topbar |
 | `src/components/new-layout/sentry.feedback.component.tsx` | Sentry feedback widget |
 | `src/components/layout/no-profile-assigned.component.tsx` | Blocking "waiting for profile assignment" screen for org `USER` with no resolved profile membership (closed-by-default gate); rendered by `new-layout/layout.component.tsx` when the backend's `AuthMiddleware`/`ProfileAccessGuard` resolves no profile |

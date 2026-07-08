@@ -111,6 +111,9 @@ export class RefreshIntegrationService {
         }
       : undefined;
 
+    // Motivo sanitizado (name+message) capturado do .catch para persistir em
+    // Integration.refreshError (tela de Status). NUNCA contem o token.
+    let reason: string | undefined;
     const refresh: false | AuthTokenDetails = await socialProvider
       .refreshToken(
         decryptIntegrationToken(this._encryption, integration.refreshToken),
@@ -123,21 +126,23 @@ export class RefreshIntegrationService {
         // (social.abstract) carrega em `details[].body` o corpo da requisicao,
         // que contem o refresh_token/client_secret. `message` costuma vir vazio,
         // por isso NAO ha fallback para `err` (serializar o objeto vazaria o token).
+        reason = `${(err as Error)?.name || 'Error'}: ${
+          (err as Error)?.message || 'sem detalhe'
+        }`;
         console.error(
-          `[refresh] provider=${integration.providerIdentifier} integration=${integration.id} org=${integration.organizationId} refresh falhou: ${
-            (err as Error)?.name || 'Error'
-          }: ${(err as Error)?.message || 'sem detalhe'}`
+          `[refresh] provider=${integration.providerIdentifier} integration=${integration.id} org=${integration.organizationId} refresh falhou: ${reason}`
         );
         return false as const;
       });
 
     if (!refresh || !refresh.accessToken) {
-      // Ponto unico: marca desconectado (transicao atomica) + notifica uma vez.
-      // Substitui o antigo refreshNeeded + informAboutRefreshError +
+      // Ponto unico: marca desconectado (transicao atomica) + notifica uma vez +
+      // persiste o motivo. Substitui o antigo refreshNeeded + informAboutRefreshError +
       // disconnectChannel, que disparava a notificacao/e-mail em duplicidade.
       await this._integrationService.disconnectChannel(
         integration.organizationId,
-        integration
+        integration,
+        reason ?? 'Refresh returned no access token'
       );
 
       return false;

@@ -34,6 +34,7 @@ import { MonitorController } from '@gitroom/backend/api/routes/monitor.controlle
 import { NoAuthIntegrationsController } from '@gitroom/backend/api/routes/no.auth.integrations.controller';
 import { EnterpriseController } from '@gitroom/backend/api/routes/enterprise.controller';
 import { CredentialsController } from '@gitroom/backend/api/routes/credentials.controller';
+import { StatusController } from '@gitroom/backend/api/routes/status.controller';
 import { AiCredentialsController } from '@gitroom/backend/api/routes/ai-credentials.controller';
 import { AiCatalogController } from '@gitroom/backend/api/routes/ai-catalog.controller';
 import { AiTextController } from '@gitroom/backend/api/routes/ai-text.controller';
@@ -73,6 +74,7 @@ const authenticatedController = [
   SetsController,
   ThirdPartyController,
   CredentialsController,
+  StatusController,
   AiCredentialsController,
   AiCatalogController,
   AiTextController,

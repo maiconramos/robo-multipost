@@ -87,7 +87,8 @@ describe('RefreshIntegrationService', () => {
       expect(integrationService.disconnectChannel).toHaveBeenCalledTimes(1);
       expect(integrationService.disconnectChannel).toHaveBeenCalledWith(
         'org-1',
-        integration
+        integration,
+        'Refresh returned no access token'
       );
       expect(
         integrationService.createOrUpdateIntegration
@@ -109,6 +110,12 @@ describe('RefreshIntegrationService', () => {
       // carregaria o refresh_token no body). A causa real aparece na mensagem.
       expect(String(errorSpy.mock.calls[0][0])).toContain('invalid_grant');
       expect(integrationService.disconnectChannel).toHaveBeenCalledTimes(1);
+      // O motivo sanitizado (name: message) e repassado para persistir em refreshError.
+      expect(integrationService.disconnectChannel).toHaveBeenCalledWith(
+        'org-1',
+        integration,
+        expect.stringContaining('invalid_grant')
+      );
       errorSpy.mockRestore();
     });
   });

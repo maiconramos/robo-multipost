@@ -116,16 +116,24 @@ describe('IntegrationService', () => {
       profileId: null,
     } as any;
 
-    it('notifica uma unica vez quando transiciona de conectado para desconectado', async () => {
+    it('notifica uma unica vez e repassa o motivo (reason) ao marcar desconectado', async () => {
       const repo = { markRefreshNeeded: jest.fn().mockResolvedValue(true) };
       const service = buildService(repo, {});
       const notify = jest
         .spyOn(service, 'informAboutRefreshError')
         .mockResolvedValue(undefined as any);
 
-      await service.disconnectChannel('org-1', integration);
+      await service.disconnectChannel(
+        'org-1',
+        integration,
+        'ApplicationFailure: expired'
+      );
 
-      expect(repo.markRefreshNeeded).toHaveBeenCalledWith('org-1', 'int-1');
+      expect(repo.markRefreshNeeded).toHaveBeenCalledWith(
+        'org-1',
+        'int-1',
+        'ApplicationFailure: expired'
+      );
       expect(notify).toHaveBeenCalledTimes(1);
     });
 
@@ -139,6 +147,47 @@ describe('IntegrationService', () => {
       await service.disconnectChannel('org-1', integration);
 
       expect(notify).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('createOrUpdateIntegration (fail-soft do avatar)', () => {
+    it('persiste a integracao com a picture original quando o upload do avatar falha', async () => {
+      const repo = {
+        createOrUpdateIntegration: jest
+          .fn()
+          .mockResolvedValue({ id: 'int-1' }),
+      };
+      const service = new IntegrationService(
+        repo as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+      (service as any).storage = {
+        uploadSimple: jest.fn().mockRejectedValue(new Error('R2 403')),
+      };
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      await service.createOrUpdateIntegration(
+        undefined,
+        false,
+        'org-1',
+        'Canal X',
+        'https://provider.example/avatar.jpg',
+        'social',
+        'internal-1',
+        'linkedin',
+        'tok'
+      );
+
+      // 5o arg posicional (indice 4) do repo = a picture; deve ser a original.
+      expect(repo.createOrUpdateIntegration).toHaveBeenCalledTimes(1);
+      expect(repo.createOrUpdateIntegration.mock.calls[0][4]).toBe(
+        'https://provider.example/avatar.jpg'
+      );
     });
   });
 
@@ -201,7 +250,11 @@ describe('IntegrationService', () => {
 
       // canal 1 desconectado, canal 2 renovado — prova que o loop nao abortou.
       expect(disconnect).toHaveBeenCalledTimes(1);
-      expect(disconnect).toHaveBeenCalledWith('org-1', integrations[0]);
+      expect(disconnect).toHaveBeenCalledWith(
+        'org-1',
+        integrations[0],
+        'Automatic token refresh failed'
+      );
       expect(upsert).toHaveBeenCalledTimes(1);
     });
 

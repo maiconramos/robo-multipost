@@ -45,4 +45,35 @@ describe('FlowsRepository', () => {
       });
     });
   });
+
+  describe('getFailedExecutions', () => {
+    it('filtra status=FAILED cross-flow por org e traz o perfil de origem', async () => {
+      flowExecution.model.flowExecution.findMany.mockResolvedValue([]);
+
+      await repo.getFailedExecutions('org-1', undefined, 50);
+
+      const arg = flowExecution.model.flowExecution.findMany.mock
+        .calls[0][0] as any;
+      expect(arg.where.status).toBe('FAILED');
+      expect(arg.where.createdAt.gte).toBeInstanceOf(Date);
+      expect(arg.where.flow.organizationId).toBe('org-1');
+      expect(arg.where.flow.profileId).toBeUndefined();
+      expect(arg.orderBy).toEqual({ createdAt: 'desc' });
+      expect(arg.take).toBe(50);
+      expect(arg.select.flow.select.profile.select).toEqual({
+        id: true,
+        name: true,
+      });
+    });
+
+    it('aplica profileId ao filtro do flow quando informado', async () => {
+      flowExecution.model.flowExecution.findMany.mockResolvedValue([]);
+
+      await repo.getFailedExecutions('org-1', 'prof-2');
+
+      const arg = flowExecution.model.flowExecution.findMany.mock
+        .calls[0][0] as any;
+      expect(arg.where.flow.profileId).toBe('prof-2');
+    });
+  });
 });

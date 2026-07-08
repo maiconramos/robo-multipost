@@ -164,22 +164,36 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
   });
 
   describe('markRefreshNeeded', () => {
-    it('transiciona false->true de forma atomica e retorna true quando afeta 1 linha', async () => {
+    it('transiciona false->true de forma atomica, grava o motivo e retorna true', async () => {
       const updateMany = jest.fn().mockResolvedValue({ count: 1 });
       (prismaMock.model.integration as any).updateMany = updateMany;
 
-      const result = await repo.markRefreshNeeded('org-1', 'int-1');
+      const result = await repo.markRefreshNeeded(
+        'org-1',
+        'int-1',
+        'ApplicationFailure: expired'
+      );
 
       expect(result).toBe(true);
       const arg = updateMany.mock.calls[0][0] as any;
-      // O guard `refreshNeeded: false` no where garante a transicao atomica
-      // (sem read-then-write) e evita notificacao duplicada.
+      // Guard atomico (sem read-then-write) + persistencia do motivo na MESMA escrita.
       expect(arg.where).toEqual({
         id: 'int-1',
         organizationId: 'org-1',
         refreshNeeded: false,
       });
-      expect(arg.data).toEqual({ refreshNeeded: true });
+      expect(arg.data.refreshNeeded).toBe(true);
+      expect(arg.data.refreshError).toBe('ApplicationFailure: expired');
+      expect(arg.data.refreshErrorAt).toBeInstanceOf(Date);
+    });
+
+    it('grava refreshError=null quando nao ha motivo', async () => {
+      const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+      (prismaMock.model.integration as any).updateMany = updateMany;
+
+      await repo.markRefreshNeeded('org-1', 'int-1');
+
+      expect(updateMany.mock.calls[0][0].data.refreshError).toBeNull();
     });
 
     it('retorna false quando o canal ja estava desconectado (0 linhas afetadas)', async () => {
@@ -189,6 +203,61 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
       const result = await repo.markRefreshNeeded('org-1', 'int-1');
 
       expect(result).toBe(false);
+    });
+  });
+
+  describe('getProblemChannels', () => {
+    it('filtra refreshNeeded OR disabled por org e embute o perfil (sem token)', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      (prismaMock.model.integration as any).findMany = findMany;
+
+      await repo.getProblemChannels('org-1');
+
+      const arg = findMany.mock.calls[0][0] as any;
+      expect(arg.where.organizationId).toBe('org-1');
+      expect(arg.where.deletedAt).toBeNull();
+      expect(arg.where.OR).toEqual([
+        { refreshNeeded: true },
+        { disabled: true },
+      ]);
+      // select EXPLICITO — nunca token/refreshToken
+      expect(arg.select.token).toBeUndefined();
+      expect(arg.select.refreshToken).toBeUndefined();
+      expect(arg.select.refreshError).toBe(true);
+      expect(arg.select.clientProfile.select).toEqual({ id: true, name: true });
+    });
+
+    it('aplica profileId ao filtro quando informado', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      (prismaMock.model.integration as any).findMany = findMany;
+
+      await repo.getProblemChannels('org-1', 'prof-2');
+
+      expect(findMany.mock.calls[0][0].where.profileId).toBe('prof-2');
+    });
+  });
+
+  describe('updateIntegration (fail-soft do avatar)', () => {
+    it('mantem a picture original quando o upload do avatar falha (nao derruba a conexao)', async () => {
+      (repo as any).storage = {
+        uploadSimple: jest.fn().mockRejectedValue(new Error('R2 403')),
+      };
+      prismaMock.model.integration.findUnique.mockResolvedValue(null as any);
+      prismaMock.model.integration.update.mockResolvedValue({
+        id: 'int-1',
+      } as any);
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      await expect(
+        repo.updateIntegration('int-1', {
+          organizationId: 'org-1',
+          internalId: 'internal-1',
+          picture: 'https://provider.example/avatar.jpg',
+        } as any)
+      ).resolves.toEqual({ id: 'int-1' });
+
+      const arg = prismaMock.model.integration.update.mock.calls[0][0] as any;
+      expect(arg.data.picture).toBe('https://provider.example/avatar.jpg');
     });
   });
 });

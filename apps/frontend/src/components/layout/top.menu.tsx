@@ -160,6 +160,28 @@ export const useMenuItem = () => {
       path: '/automacoes',
     },
     {
+      name: t('status_title', 'Status'),
+      icon: (
+        <svg
+          xmlns="http://www.w3.org/2000/svg"
+          width="20"
+          height="20"
+          viewBox="0 0 24 24"
+          fill="none"
+        >
+          <path
+            d="M3 12h4l2 5 4-12 2 7h6"
+            stroke="currentColor"
+            strokeWidth="1.5"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          />
+        </svg>
+      ),
+      path: '/status',
+      role: ['ADMIN', 'SUPERADMIN'],
+    },
+    {
       name: t('integrations', 'Integrations'),
       icon: (
         <svg

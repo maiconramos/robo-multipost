@@ -18,7 +18,7 @@
 
 | Subdomain | Content |
 |---|---|
-| `database/prisma/` | Prisma schema + repositories per table (`agencies`, `posts`, `credentials`, `profiles`, `users`, `sets`, `flows`, `subscriptions`, etc.) |
+| `database/prisma/` | Prisma schema + repositories per table (`agencies`, `posts`, `credentials`, `profiles`, `users`, `sets`, `flows`, `subscriptions`, etc.); also read-only aggregation services with no table of their own (e.g. `status/status.service.ts`, composing `IntegrationRepository`/`PostsRepository`/`FlowsRepository` via `Promise.all` for the admin Status screen) |
 | `integrations/social/` | 40+ social media providers — see [child](src/integrations/social/CLAUDE.md) |
 | `ai/` | AI Provider System, credits, persona, KB — see [child](src/ai/CLAUDE.md) |
 | `chat/` | Mastra agents, MCP tools, IG webhook, knowledge base RAG — see [child](src/chat/CLAUDE.md) |
