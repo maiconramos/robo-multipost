@@ -47,6 +47,7 @@ const pt: EmailCatalog = {
   email_role_viewer: 'Visualizador',
   email_role_manager: 'Gerente',
   email_role_editor: 'Editor',
+  email_role_owner: 'Proprietário',
 
   // --- Rodapé do wrapper compartilhado ---
   email_footer_preferences:
@@ -101,6 +102,7 @@ const en: EmailCatalog = {
   email_role_viewer: 'Viewer',
   email_role_manager: 'Manager',
   email_role_editor: 'Editor',
+  email_role_owner: 'Owner',
 
   // --- Shared wrapper footer ---
   email_footer_preferences:
