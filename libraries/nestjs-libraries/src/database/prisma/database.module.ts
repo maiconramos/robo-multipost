@@ -61,6 +61,8 @@ import { RepostService } from '@gitroom/nestjs-libraries/database/prisma/repost/
 import { StatusService } from '@gitroom/nestjs-libraries/database/prisma/status/status.service';
 import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
 import { StatusEventRepository } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.repository';
+import { InfraHealthService } from '@gitroom/nestjs-libraries/database/prisma/status/infra-health.service';
+import { InfraHealthRepository } from '@gitroom/nestjs-libraries/database/prisma/status/infra-health.repository';
 import { AiModule } from '@gitroom/nestjs-libraries/ai/ai.module';
 
 @Global()
@@ -132,6 +134,8 @@ import { AiModule } from '@gitroom/nestjs-libraries/ai/ai.module';
     StatusService,
     StatusEventService,
     StatusEventRepository,
+    InfraHealthService,
+    InfraHealthRepository,
   ],
   get exports() {
     return this.providers;

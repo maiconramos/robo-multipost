@@ -6,11 +6,12 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { ProblemsComponent } from '@gitroom/frontend/components/status/problems.component';
 import { HistoryComponent } from '@gitroom/frontend/components/status/history.component';
+import { InfraComponent } from '@gitroom/frontend/components/status/infra.component';
 
 /**
- * Area "Status" (admin-only). Abas: "Problemas" (estado atual derivado) e
- * "Historico" (log de eventos que sobrevive a resolucao). A barra de abas
- * aparece quando ha mais de uma; Saude da infra entra numa proxima fase.
+ * Area "Status" (admin-only). Abas: "Problemas" (estado atual derivado),
+ * "Historico" (log de eventos que sobrevive a resolucao) e "Saude da infra"
+ * (sonda ativa de PostgreSQL/Redis/Temporal/Storage).
  */
 export const StatusComponent: FC = () => {
   const t = useT();
@@ -28,6 +29,11 @@ export const StatusComponent: FC = () => {
         key: 'history',
         label: t('status_tab_history', 'Histórico'),
         render: () => <HistoryComponent />,
+      },
+      {
+        key: 'infra',
+        label: t('status_tab_infra', 'Saúde da infra'),
+        render: () => <InfraComponent />,
       },
     ],
     [t]
@@ -52,19 +58,9 @@ export const StatusComponent: FC = () => {
   const active = tabs.find((x) => x.key === tab) ?? tabs[0];
 
   return (
-    <div className="flex flex-col gap-[16px] p-[24px] flex-1">
-      <div>
-        <h1 className="text-[20px] font-semibold text-textColor">
-          {t('status_title', 'Status')}
-        </h1>
-        <p className="text-[14px] text-customColor18 mt-[4px]">
-          {t(
-            'status_description',
-            'Problemas que precisam da sua atenção no workspace.'
-          )}
-        </p>
-      </div>
-
+    // Sem título próprio: renderizado como aba dentro de Settings, que já rotula
+    // "Status" na navegação lateral (evita o cabeçalho duplicado).
+    <div className="flex flex-col gap-[16px] flex-1">
       {tabs.length > 1 && (
         <div className="flex gap-[4px] border-b border-fifth">
           {tabs.map((tb) => (

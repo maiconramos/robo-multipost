@@ -1,4 +1,8 @@
-import { S3Client, PutObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  HeadBucketCommand,
+} from '@aws-sdk/client-s3';
 import 'multer';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import mime from 'mime-types';
@@ -53,6 +57,13 @@ class CloudflareStorage implements IUploadProvider {
           return next(args);
         },
       { step: 'build', name: 'customHeaders' }
+    );
+  }
+
+  async healthCheck(): Promise<void> {
+    // HeadBucket valida credencial R2 + acesso ao bucket SEM escrever nada.
+    await this._client.send(
+      new HeadBucketCommand({ Bucket: this._bucketName })
     );
   }
 

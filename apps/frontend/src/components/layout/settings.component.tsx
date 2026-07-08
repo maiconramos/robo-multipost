@@ -40,6 +40,7 @@ import { AiProviderSettingsSection } from '@gitroom/frontend/components/settings
 import { ProfilePersonaSettingsSection } from '@gitroom/frontend/components/settings/profile-persona.settings.component';
 import { KnowledgeBaseSettingsSection } from '@gitroom/frontend/components/settings/knowledge-base.settings.component';
 import { ProfileMembersSettingsSection } from '@gitroom/frontend/components/settings/profile-members.settings.component';
+import { StatusComponent } from '@gitroom/frontend/components/status/status.component';
 export const SettingsPopup: FC<{
   getRef?: Ref<any>;
 }> = (props) => {
@@ -141,6 +142,10 @@ export const SettingsPopup: FC<{
     }
     if (isOrgAdmin) {
       arr.push({ tab: 'approved_apps', label: t('approved_apps', 'Approved Apps') });
+    }
+    // Observabilidade (admin-only): problemas, histórico e saúde da infra.
+    if (isOrgAdmin) {
+      arr.push({ tab: 'status', label: t('status_title', 'Status') });
     }
 
     return arr;
@@ -303,6 +308,12 @@ export const SettingsPopup: FC<{
               {tab === 'approved_apps' && isOrgAdmin && (
                 <div>
                   <ApprovedAppsComponent />
+                </div>
+              )}
+
+              {tab === 'status' && isOrgAdmin && (
+                <div>
+                  <StatusComponent />
                 </div>
               )}
             </div>
