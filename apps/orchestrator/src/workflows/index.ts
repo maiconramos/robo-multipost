@@ -5,6 +5,7 @@ export * from './digest.email.workflow';
 export * from './missing.post.workflow';
 export * from './send.email.workflow';
 export * from './refresh.token.workflow';
+export * from './refresh.tokens.cron.workflow';
 export * from './streak.workflow';
 export * from './flow.execution.workflow';
 export * from './follow-gate-resolve.workflow';

@@ -1,6 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { PrismaService } from './prisma.service';
 import { RepostService } from './repost/repost.service';
+import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 
 @Injectable()
 export class StartupMigrationService implements OnModuleInit {
@@ -8,7 +9,8 @@ export class StartupMigrationService implements OnModuleInit {
 
   constructor(
     private readonly prisma: PrismaService,
-    private readonly repostService: RepostService
+    private readonly repostService: RepostService,
+    private readonly refreshIntegrationService: RefreshIntegrationService
   ) {}
 
   async onModuleInit() {
@@ -18,6 +20,22 @@ export class StartupMigrationService implements OnModuleInit {
     await this.cleanupExpiredUnmatchedComments();
     await this.backfillFlowsToDefaultProfile();
     await this.reconcileRepostWorkflows();
+    await this.reconcileRefreshTokensCron();
+  }
+
+  /**
+   * Self-heal: garante o workflow SINGLETON de refresh proativo em lote
+   * (`refresh-tokens-cron`) rodando. Idempotente via USE_EXISTING (no-op quando
+   * ja roda). Roda em backend e orchestrator (DatabaseModule eh @Global); a 2a
+   * execucao vira no-op. Sem isto, providers sem `refreshCron` por-canal
+   * (linkedin, instagram-facebook...) nunca tem o token renovado antes de expirar.
+   */
+  private async reconcileRefreshTokensCron() {
+    try {
+      await this.refreshIntegrationService.ensureRefreshTokensCronWorkflow();
+    } catch (error) {
+      this.logger.error('reconcileRefreshTokensCron falhou:', error);
+    }
   }
 
   /**

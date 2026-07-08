@@ -219,24 +219,31 @@ export class IntegrationService {
     }
   }
 
+  /**
+   * Marca o canal como precisando reconectar e notifica o usuario UMA unica
+   * vez — apenas na transicao false->true (guarda atomica no repository). Evita
+   * e-mail/sininho duplicados quando o batch de refresh e o post-time (ou os
+   * varios call-sites de disconnectChannel) atingem a mesma integration.
+   */
   async disconnectChannel(orgId: string, integration: Integration) {
-    await this._integrationRepository.disconnectChannel(orgId, integration.id);
-    await this.informAboutRefreshError(orgId, integration);
+    const transitioned = await this._integrationRepository.markRefreshNeeded(
+      orgId,
+      integration.id
+    );
+    if (transitioned) {
+      await this.informAboutRefreshError(orgId, integration);
+    }
   }
 
-  async informAboutRefreshError(
-    orgId: string,
-    integration: Integration,
-    err = ''
-  ) {
+  async informAboutRefreshError(orgId: string, integration: Integration) {
     await this._notificationService.inAppNotification(
       orgId,
       {
         subjectKey: 'notif_channel_refresh_failed_subject',
         messageKey: 'notif_channel_refresh_failed',
         params: {
+          name: integration.name,
           provider: integration.providerIdentifier,
-          error: err,
           url: `${process.env.FRONTEND_URL}/launches`,
         },
         profileId: integration.profileId ?? null,
@@ -258,44 +265,51 @@ export class IntegrationService {
   async refreshTokens() {
     const integrations = await this._integrationRepository.needsToBeRefreshed();
     for (const integration of integrations) {
-      const provider = this._integrationManager.getSocialIntegration(
-        integration.providerIdentifier
-      );
-
-      const data = await this.refreshToken(
-        provider,
-        decryptIntegrationToken(this._encryption, integration.refreshToken),
-        integration.organizationId,
-        integration.profileId
-      );
-
-      if (!data) {
-        await this.informAboutRefreshError(
-          integration.organizationId,
-          integration
+      try {
+        const provider = this._integrationManager.getSocialIntegration(
+          integration.providerIdentifier
         );
-        await this._integrationRepository.refreshNeeded(
+
+        const data = await this.refreshToken(
+          provider,
+          decryptIntegrationToken(this._encryption, integration.refreshToken),
           integration.organizationId,
-          integration.id
+          integration.profileId
         );
-        return;
+
+        if (!data) {
+          // Nao conseguiu renovar: marca desconectado + notifica uma vez.
+          // `continue` (NAO `return`) para nao abortar o lote inteiro por causa
+          // de um unico canal quebrado.
+          await this.disconnectChannel(integration.organizationId, integration);
+          continue;
+        }
+
+        const { refreshToken, accessToken, expiresIn } = data;
+
+        await this.createOrUpdateIntegration(
+          undefined,
+          !!provider.oneTimeToken,
+          integration.organizationId,
+          integration.name,
+          undefined,
+          'social',
+          integration.internalId,
+          integration.providerIdentifier,
+          accessToken,
+          refreshToken,
+          expiresIn
+        );
+      } catch (err) {
+        // Erro inesperado (ex.: provider desconhecido, decrypt falhou) nao pode
+        // derrubar o refresh dos demais canais. Loga SOMENTE name+message, nunca
+        // o objeto cru (pode carregar corpo de requisicao com refresh_token).
+        console.error(
+          `[refresh-tokens] integration=${integration.id} org=${integration.organizationId} falhou: ${
+            (err as Error)?.name || 'Error'
+          }: ${(err as Error)?.message || 'sem detalhe'}`
+        );
       }
-
-      const { refreshToken, accessToken, expiresIn } = data;
-
-      await this.createOrUpdateIntegration(
-        undefined,
-        !!provider.oneTimeToken,
-        integration.organizationId,
-        integration.name,
-        undefined,
-        'social',
-        integration.internalId,
-        integration.providerIdentifier,
-        accessToken,
-        refreshToken,
-        expiresIn
-      );
     }
   }
 

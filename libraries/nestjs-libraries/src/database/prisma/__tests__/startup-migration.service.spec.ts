@@ -36,9 +36,17 @@ describe('StartupMigrationService.cleanupExpiredUnmatchedComments', () => {
       $transaction: jest.fn(),
       $executeRawUnsafe: jest.fn(),
     };
-    service = new StartupMigrationService(prisma, {
-      reconcileWorkflows: jest.fn().mockResolvedValue({ started: 0 }),
-    } as any);
+    service = new StartupMigrationService(
+      prisma,
+      {
+        reconcileWorkflows: jest.fn().mockResolvedValue({ started: 0 }),
+      } as any,
+      {
+        ensureRefreshTokensCronWorkflow: jest
+          .fn()
+          .mockResolvedValue(undefined),
+      } as any
+    );
   });
 
   it('deve ser no-op quando nao ha PENDING > 30 dias', async () => {
@@ -99,9 +107,17 @@ describe('StartupMigrationService.backfillFlowsToDefaultProfile', () => {
       $transaction: jest.fn(),
       $executeRawUnsafe: jest.fn(),
     };
-    service = new StartupMigrationService(prisma, {
-      reconcileWorkflows: jest.fn().mockResolvedValue({ started: 0 }),
-    } as any);
+    service = new StartupMigrationService(
+      prisma,
+      {
+        reconcileWorkflows: jest.fn().mockResolvedValue({ started: 0 }),
+      } as any,
+      {
+        ensureRefreshTokensCronWorkflow: jest
+          .fn()
+          .mockResolvedValue(undefined),
+      } as any
+    );
   });
 
   it('deve ser no-op quando nao ha flow com profileId null', async () => {
@@ -130,5 +146,49 @@ describe('StartupMigrationService.backfillFlowsToDefaultProfile', () => {
     prisma.$executeRawUnsafe.mockRejectedValue(new Error('DB down'));
 
     await expect(service.onModuleInit()).resolves.toBeUndefined();
+  });
+});
+
+describe('StartupMigrationService.reconcileRefreshTokensCron', () => {
+  const buildPrisma = () => ({
+    providerCredential: { count: jest.fn().mockResolvedValue(0) },
+    organization: { count: jest.fn().mockResolvedValue(0) },
+    integration: {
+      count: jest.fn().mockResolvedValue(0),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    repostRule: {
+      count: jest.fn().mockResolvedValue(0),
+      findMany: jest.fn().mockResolvedValue([]),
+    },
+    repostRuleDestination: { upsert: jest.fn() },
+    unmatchedComment: {
+      count: jest.fn().mockResolvedValue(0),
+      deleteMany: jest.fn(),
+    },
+    flow: { count: jest.fn().mockResolvedValue(0) },
+    $transaction: jest.fn(),
+    $executeRawUnsafe: jest.fn(),
+  });
+
+  const buildService = (ensure: jest.Mock) =>
+    new StartupMigrationService(
+      buildPrisma() as any,
+      { reconcileWorkflows: jest.fn().mockResolvedValue({ started: 0 }) } as any,
+      { ensureRefreshTokensCronWorkflow: ensure } as any
+    );
+
+  it('garante o workflow cron de refresh (singleton) no boot', async () => {
+    const ensure = jest.fn().mockResolvedValue(undefined);
+
+    await buildService(ensure).onModuleInit();
+
+    expect(ensure).toHaveBeenCalledTimes(1);
+  });
+
+  it('nao derruba o boot quando o start do cron falha', async () => {
+    const ensure = jest.fn().mockRejectedValue(new Error('temporal down'));
+
+    await expect(buildService(ensure).onModuleInit()).resolves.toBeUndefined();
   });
 });

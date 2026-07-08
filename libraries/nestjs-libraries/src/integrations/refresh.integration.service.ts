@@ -47,12 +47,11 @@ export class RefreshIntegrationService {
     return refresh;
   }
 
-  public async setBetweenSteps(integration: Integration, cause = '') {
+  public async setBetweenSteps(integration: Integration) {
     await this._integrationService.setBetweenRefreshSteps(integration.id);
     await this._integrationService.informAboutRefreshError(
       integration.organizationId,
-      integration,
-      cause
+      integration
     );
   }
 
@@ -68,6 +67,25 @@ export class RefreshIntegrationService {
         args: [{integrationId: id, organizationId: orgId}],
         taskQueue: 'main',
         workflowIdConflictPolicy: 'TERMINATE_EXISTING',
+      });
+  }
+
+  /**
+   * Self-heal no boot: garante o workflow SINGLETON de refresh proativo em lote
+   * (`refresh-tokens-cron`) rodando. Idempotente via USE_EXISTING (no-op quando
+   * ja roda). Cobre TODOS os providers (linkedin, instagram-facebook, etc.),
+   * nao so os que tem `refreshCron` por-canal. Chamado pelo StartupMigrationService.
+   */
+  public async ensureRefreshTokensCronWorkflow() {
+    const intervalHours = Number(process.env.TOKEN_REFRESH_INTERVAL_HOURS) || 24;
+
+    return this._temporalService.client
+      .getRawClient()
+      ?.workflow.start(`refreshTokensCronWorkflow`, {
+        workflowId: 'refresh-tokens-cron',
+        args: [{ intervalHours }],
+        taskQueue: 'main',
+        workflowIdConflictPolicy: 'USE_EXISTING',
       });
   }
 
@@ -98,20 +116,25 @@ export class RefreshIntegrationService {
         decryptIntegrationToken(this._encryption, integration.refreshToken),
         clientInformation
       )
-      .catch((err) => false);
+      .catch((err) => {
+        // Observabilidade: sem isto o motivo real do refresh (refresh token
+        // expirado, invalid_grant, escopo faltando...) sumia. Loga SOMENTE
+        // name+message — NUNCA o objeto de erro cru: o `RefreshToken`
+        // (social.abstract) carrega em `details[].body` o corpo da requisicao,
+        // que contem o refresh_token/client_secret. `message` costuma vir vazio,
+        // por isso NAO ha fallback para `err` (serializar o objeto vazaria o token).
+        console.error(
+          `[refresh] provider=${integration.providerIdentifier} integration=${integration.id} org=${integration.organizationId} refresh falhou: ${
+            (err as Error)?.name || 'Error'
+          }: ${(err as Error)?.message || 'sem detalhe'}`
+        );
+        return false as const;
+      });
 
     if (!refresh || !refresh.accessToken) {
-      await this._integrationService.refreshNeeded(
-        integration.organizationId,
-        integration.id
-      );
-
-      await this._integrationService.informAboutRefreshError(
-        integration.organizationId,
-        integration,
-        cause
-      );
-
+      // Ponto unico: marca desconectado (transicao atomica) + notifica uma vez.
+      // Substitui o antigo refreshNeeded + informAboutRefreshError +
+      // disconnectChannel, que disparava a notificacao/e-mail em duplicidade.
       await this._integrationService.disconnectChannel(
         integration.organizationId,
         integration
