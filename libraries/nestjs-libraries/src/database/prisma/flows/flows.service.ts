@@ -1053,22 +1053,37 @@ export class FlowsService {
       // foram reroteados para cá). Contexto lido só aqui (transição rara), não
       // no caminho quente de `currentNodeId`. `error` já vem sanitizado
       // (err.message) dos call-sites.
-      const ctx = await this._flowsRepository.getExecutionEventContext(id);
-      if (ctx?.flow) {
-        await this._statusEventService.record({
-          organizationId: ctx.flow.organizationId,
-          type: 'AUTOMATION_FAILED',
-          severity: 'WARNING',
-          message: data.error ?? null,
-          profileId: ctx.flow.profileId ?? null,
-          integrationId: ctx.flow.integration?.id ?? null,
-          channelName: ctx.flow.integration?.name ?? null,
-          channelPicture: ctx.flow.integration?.picture ?? null,
-          providerIdentifier: ctx.flow.integration?.providerIdentifier ?? null,
-          // entityId = flowId: alvo do link de depuração (/automacoes/:flowId),
-          // onde ficam as execuções — não há página por execução.
-          entityId: ctx.flow.id,
-        });
+      //
+      // TODO o bloco em try/catch: o status FAILED real (result) já foi
+      // persistido acima e este método é activity Temporal — um throw aqui
+      // (ex.: falha no getExecutionEventContext, que NÃO é fail-soft) dispararia
+      // retry de uma escrita terminal. Registrar o histórico nunca pode derrubar
+      // o updateExecution.
+      try {
+        const ctx = await this._flowsRepository.getExecutionEventContext(id);
+        if (ctx?.flow) {
+          await this._statusEventService.record({
+            organizationId: ctx.flow.organizationId,
+            type: 'AUTOMATION_FAILED',
+            severity: 'WARNING',
+            message: data.error ?? null,
+            profileId: ctx.flow.profileId ?? null,
+            integrationId: ctx.flow.integration?.id ?? null,
+            channelName: ctx.flow.integration?.name ?? null,
+            channelPicture: ctx.flow.integration?.picture ?? null,
+            providerIdentifier:
+              ctx.flow.integration?.providerIdentifier ?? null,
+            // entityId = flowId: alvo do link de depuração (/automacoes/:flowId),
+            // onde ficam as execuções — não há página por execução.
+            entityId: ctx.flow.id,
+          });
+        }
+      } catch (err) {
+        this._logger.error(
+          `Falha ao registrar StatusEvent AUTOMATION_FAILED: ${
+            (err as Error)?.name
+          }: ${(err as Error)?.message}`
+        );
       }
     }
 

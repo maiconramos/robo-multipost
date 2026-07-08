@@ -52,12 +52,12 @@ describe('StatusEventService', () => {
 
   describe('list', () => {
     const profiles = {
-      getProfilesByOrgId: jest
+      getProfileNamesByIds: jest
         .fn()
         .mockResolvedValue([{ id: 'p1', name: 'Cliente A' }]),
     };
 
-    it('mapeia o row para o DTO, resolve o nome do perfil e converte a severidade', async () => {
+    it('mapeia o row para o DTO, resolve o nome do perfil (por ids) e converte a severidade', async () => {
       const repo = {
         list: jest.fn().mockResolvedValue([
           {
@@ -91,6 +91,11 @@ describe('StatusEventService', () => {
       expect(item.entityId).toBe('post-9');
       expect(res.hasMore).toBe(false);
       expect(res.nextCursor).toBeNull();
+      // resolve por ids (nao varre a org toda) e sem filtrar deletedAt — um
+      // perfil soft-deletado ainda mostra a origem.
+      expect(profiles.getProfileNamesByIds).toHaveBeenCalledWith('org-1', [
+        'p1',
+      ]);
     });
 
     it('sinaliza hasMore e nextCursor quando volta mais que o limit', async () => {
@@ -157,12 +162,12 @@ describe('StatusEventService', () => {
           },
         ]),
       };
-      const localProfiles = { getProfilesByOrgId: jest.fn() };
+      const localProfiles = { getProfileNamesByIds: jest.fn() };
       const service = build(repo, localProfiles);
 
       await service.list('org-1', {});
 
-      expect(localProfiles.getProfilesByOrgId).not.toHaveBeenCalled();
+      expect(localProfiles.getProfileNamesByIds).not.toHaveBeenCalled();
     });
   });
 });

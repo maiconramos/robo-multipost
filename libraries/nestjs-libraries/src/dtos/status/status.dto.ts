@@ -110,7 +110,7 @@ export interface StatusHistoryItem {
   createdAt: string; // ISO
   channel: StatusHistoryChannel | null;
   profile: StatusProfileRef | null;
-  entityId: string | null; // postId / flowExecutionId — link de depuração
+  entityId: string | null; // postId (POST_FAILED) / flowId (AUTOMATION_FAILED) — link de depuração
 }
 
 export interface StatusHistoryResponse {

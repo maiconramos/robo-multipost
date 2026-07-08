@@ -2,12 +2,14 @@ import { ProfileRepository } from './profile.repository';
 
 const mockFindFirst = jest.fn();
 const mockUpdate = jest.fn();
+const mockFindMany = jest.fn();
 
 const mockProfileModel = {
   model: {
     profile: {
       findFirst: mockFindFirst,
       update: mockUpdate,
+      findMany: mockFindMany,
     },
   },
 };
@@ -34,6 +36,23 @@ describe('ProfileRepository', () => {
       mockPersonaModel as any,
       mockUserOrgModel as any
     );
+  });
+
+  describe('getProfileNamesByIds', () => {
+    it('busca por ids escopado a org e NAO filtra deletedAt (resolve perfil soft-deletado)', async () => {
+      mockFindMany.mockResolvedValue([{ id: 'p1', name: 'Cliente A' }]);
+
+      await repository.getProfileNamesByIds('org-1', ['p1', 'p2']);
+
+      const arg = mockFindMany.mock.calls[0][0];
+      expect(arg.where).toEqual({
+        organizationId: 'org-1',
+        id: { in: ['p1', 'p2'] },
+      });
+      // sem deletedAt: um evento historico de perfil apagado ainda mostra origem
+      expect(arg.where.deletedAt).toBeUndefined();
+      expect(arg.select).toEqual({ id: true, name: true });
+    });
   });
 
   describe('getProfileByApiKey', () => {

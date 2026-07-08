@@ -5,11 +5,12 @@ import clsx from 'clsx';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { ProblemsComponent } from '@gitroom/frontend/components/status/problems.component';
+import { HistoryComponent } from '@gitroom/frontend/components/status/history.component';
 
 /**
- * Area "Status" (admin-only). Fase 1 traz apenas a aba "Problemas"; a estrutura
- * de abas ja fica pronta para Saude da infra / Erros (proximas fases) — o array
- * `tabs` cresce e a barra de abas aparece quando houver mais de uma.
+ * Area "Status" (admin-only). Abas: "Problemas" (estado atual derivado) e
+ * "Historico" (log de eventos que sobrevive a resolucao). A barra de abas
+ * aparece quando ha mais de uma; Saude da infra entra numa proxima fase.
  */
 export const StatusComponent: FC = () => {
   const t = useT();
@@ -22,6 +23,11 @@ export const StatusComponent: FC = () => {
         key: 'problems',
         label: t('status_tab_problems', 'Problemas'),
         render: () => <ProblemsComponent />,
+      },
+      {
+        key: 'history',
+        label: t('status_tab_history', 'Histórico'),
+        render: () => <HistoryComponent />,
       },
     ],
     [t]

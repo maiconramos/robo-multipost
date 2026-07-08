@@ -50,22 +50,42 @@ export class StatusEventRepository {
     });
   }
 
-  list(params: ListStatusEventsParams) {
+  async list(params: ListStatusEventsParams) {
     const { organizationId, type, severity, profileId, cursorId, limit } =
       params;
+
+    // Âncora do cursor resolvida com lookup ESCOPADO À ORG: um cursor de outra
+    // org (ou inexistente/já podado pelo autoprune) não é encontrado e a busca
+    // volta para a 1ª página — fecha o oracle de existência e é robusto a
+    // cursores obsoletos (não usa o `cursor` do Prisma, que exige a linha existir).
+    let anchor: { createdAt: Date; id: string } | null = null;
+    if (cursorId) {
+      anchor = await this._statusEvent.model.statusEvent.findFirst({
+        where: { id: cursorId, organizationId },
+        select: { createdAt: true, id: true },
+      });
+    }
+
     return this._statusEvent.model.statusEvent.findMany({
       where: {
         organizationId,
         ...(type ? { type } : {}),
         ...(severity ? { severity } : {}),
         ...(profileId ? { profileId } : {}),
+        // Linhas estritamente "após" a âncora na ordem (createdAt desc, id desc).
+        // O empate por id garante ordem estável quando dois eventos compartilham
+        // o mesmo createdAt (ms) — sem pular nem repetir linhas.
+        ...(anchor
+          ? {
+              OR: [
+                { createdAt: { lt: anchor.createdAt } },
+                { createdAt: anchor.createdAt, id: { lt: anchor.id } },
+              ],
+            }
+          : {}),
       },
-      // Empate por id garante ordem estável quando dois eventos compartilham o
-      // mesmo `createdAt` (ms) — essencial para a paginação por cursor não pular
-      // nem repetir linhas.
       orderBy: [{ createdAt: 'desc' }, { id: 'desc' }],
       take: limit + 1,
-      ...(cursorId ? { cursor: { id: cursorId }, skip: 1 } : {}),
     });
   }
 }
