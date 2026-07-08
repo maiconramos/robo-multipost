@@ -162,4 +162,33 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
       expect(encryption.encrypt).not.toHaveBeenCalled();
     });
   });
+
+  describe('markRefreshNeeded', () => {
+    it('transiciona false->true de forma atomica e retorna true quando afeta 1 linha', async () => {
+      const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+      (prismaMock.model.integration as any).updateMany = updateMany;
+
+      const result = await repo.markRefreshNeeded('org-1', 'int-1');
+
+      expect(result).toBe(true);
+      const arg = updateMany.mock.calls[0][0] as any;
+      // O guard `refreshNeeded: false` no where garante a transicao atomica
+      // (sem read-then-write) e evita notificacao duplicada.
+      expect(arg.where).toEqual({
+        id: 'int-1',
+        organizationId: 'org-1',
+        refreshNeeded: false,
+      });
+      expect(arg.data).toEqual({ refreshNeeded: true });
+    });
+
+    it('retorna false quando o canal ja estava desconectado (0 linhas afetadas)', async () => {
+      const updateMany = jest.fn().mockResolvedValue({ count: 0 });
+      (prismaMock.model.integration as any).updateMany = updateMany;
+
+      const result = await repo.markRefreshNeeded('org-1', 'int-1');
+
+      expect(result).toBe(false);
+    });
+  });
 });

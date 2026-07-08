@@ -400,10 +400,7 @@ export class PostActivity {
 
       return refresh;
     } catch (err) {
-      await this._refreshIntegrationService.setBetweenSteps(
-        integration,
-        cause
-      );
+      await this._refreshIntegrationService.setBetweenSteps(integration);
       return false;
     }
   }

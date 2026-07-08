@@ -237,16 +237,25 @@ export class IntegrationRepository {
     });
   }
 
-  disconnectChannel(org: string, id: string) {
-    return this._integration.model.integration.update({
+  /**
+   * Marca refreshNeeded=true de forma ATOMICA, apenas na transicao false->true.
+   * Retorna true quando de fato transicionou agora (para o service notificar uma
+   * unica vez) e false quando o canal ja estava marcado — evitando e-mail/sininho
+   * duplicados quando o batch de refresh e o post-time colidem na mesma
+   * integration (o filtro no `where` faz o guard sem read-then-write).
+   */
+  async markRefreshNeeded(org: string, id: string): Promise<boolean> {
+    const { count } = await this._integration.model.integration.updateMany({
       where: {
         id,
         organizationId: org,
+        refreshNeeded: false,
       },
       data: {
         refreshNeeded: true,
       },
     });
+    return count > 0;
   }
 
   async createOrUpdateIntegration(

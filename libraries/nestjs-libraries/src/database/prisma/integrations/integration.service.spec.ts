@@ -96,4 +96,157 @@ describe('IntegrationService', () => {
       ).resolves.toBeUndefined();
     });
   });
+
+  describe('disconnectChannel', () => {
+    const buildService = (repo: any, notification: any) =>
+      new IntegrationService(
+        repo,
+        {} as any,
+        {} as any,
+        notification,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+
+    const integration = {
+      id: 'int-1',
+      name: 'Canal X',
+      providerIdentifier: 'linkedin',
+      profileId: null,
+    } as any;
+
+    it('notifica uma unica vez quando transiciona de conectado para desconectado', async () => {
+      const repo = { markRefreshNeeded: jest.fn().mockResolvedValue(true) };
+      const service = buildService(repo, {});
+      const notify = jest
+        .spyOn(service, 'informAboutRefreshError')
+        .mockResolvedValue(undefined as any);
+
+      await service.disconnectChannel('org-1', integration);
+
+      expect(repo.markRefreshNeeded).toHaveBeenCalledWith('org-1', 'int-1');
+      expect(notify).toHaveBeenCalledTimes(1);
+    });
+
+    it('nao notifica quando o canal ja estava desconectado (sem transicao)', async () => {
+      const repo = { markRefreshNeeded: jest.fn().mockResolvedValue(false) };
+      const service = buildService(repo, {});
+      const notify = jest
+        .spyOn(service, 'informAboutRefreshError')
+        .mockResolvedValue(undefined as any);
+
+      await service.disconnectChannel('org-1', integration);
+
+      expect(notify).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('refreshTokens', () => {
+    const buildService = (repo: any, manager: any) =>
+      new IntegrationService(
+        repo,
+        {} as any,
+        manager,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+
+    it('nao aborta o lote quando um canal falha o refresh (continue, nao return)', async () => {
+      const integrations: any[] = [
+        {
+          id: 'int-1',
+          name: 'A',
+          providerIdentifier: 'linkedin',
+          organizationId: 'org-1',
+          refreshToken: 'r1',
+          profileId: null,
+        },
+        {
+          id: 'int-2',
+          name: 'B',
+          providerIdentifier: 'linkedin',
+          organizationId: 'org-1',
+          refreshToken: 'r2',
+          profileId: null,
+        },
+      ];
+      const repo = {
+        needsToBeRefreshed: jest.fn().mockResolvedValue(integrations),
+      };
+      const manager = {
+        getSocialIntegration: jest.fn().mockReturnValue({ oneTimeToken: false }),
+      };
+      const service = buildService(repo, manager);
+
+      // 1o canal falha o refresh, 2o renova com sucesso.
+      jest
+        .spyOn(service, 'refreshToken')
+        .mockResolvedValueOnce(false)
+        .mockResolvedValueOnce({
+          refreshToken: 'nr',
+          accessToken: 'na',
+          expiresIn: 100,
+        } as any);
+      const disconnect = jest
+        .spyOn(service, 'disconnectChannel')
+        .mockResolvedValue(undefined as any);
+      const upsert = jest
+        .spyOn(service, 'createOrUpdateIntegration')
+        .mockResolvedValue(undefined as any);
+
+      await service.refreshTokens();
+
+      // canal 1 desconectado, canal 2 renovado — prova que o loop nao abortou.
+      expect(disconnect).toHaveBeenCalledTimes(1);
+      expect(disconnect).toHaveBeenCalledWith('org-1', integrations[0]);
+      expect(upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('nao derruba o lote quando o processamento de um canal lanca', async () => {
+      const integrations: any[] = [
+        {
+          id: 'int-1',
+          name: 'A',
+          providerIdentifier: 'linkedin',
+          organizationId: 'org-1',
+          refreshToken: 'r1',
+          profileId: null,
+        },
+        {
+          id: 'int-2',
+          name: 'B',
+          providerIdentifier: 'linkedin',
+          organizationId: 'org-1',
+          refreshToken: 'r2',
+          profileId: null,
+        },
+      ];
+      const repo = {
+        needsToBeRefreshed: jest.fn().mockResolvedValue(integrations),
+      };
+      const manager = {
+        getSocialIntegration: jest.fn().mockReturnValue({ oneTimeToken: false }),
+      };
+      const service = buildService(repo, manager);
+
+      jest
+        .spyOn(service, 'refreshToken')
+        .mockRejectedValueOnce(new Error('boom'))
+        .mockResolvedValueOnce({
+          refreshToken: 'nr',
+          accessToken: 'na',
+          expiresIn: 100,
+        } as any);
+      const upsert = jest
+        .spyOn(service, 'createOrUpdateIntegration')
+        .mockResolvedValue(undefined as any);
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+
+      await expect(service.refreshTokens()).resolves.toBeUndefined();
+      expect(upsert).toHaveBeenCalledTimes(1);
+    });
+  });
 });

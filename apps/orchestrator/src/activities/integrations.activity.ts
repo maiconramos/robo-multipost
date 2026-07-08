@@ -20,4 +20,12 @@ export class IntegrationsActivity {
   async refreshToken(integration: Integration) {
     return this._refreshIntegrationService.refresh(integration);
   }
+
+  // Refresh proativo em lote de todos os canais cujo token expira em <= 1 dia.
+  // Acionado pelo refreshTokensCronWorkflow (singleton diario). A logica mora no
+  // service; a activity so embrulha para o Temporal.
+  @ActivityMethod()
+  async refreshExpiringTokens() {
+    return this._integrationService.refreshTokens();
+  }
 }

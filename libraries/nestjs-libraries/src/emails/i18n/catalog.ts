@@ -57,7 +57,7 @@ const pt: EmailCatalog = {
 
   // --- Notificações: assuntos (somente e-mail/digest) ---
   notif_channel_refresh_failed_subject:
-    'Não foi possível renovar seu canal {{provider}} {{error}}',
+    '⚠️ Seu canal {{name}} foi desconectado e parou de publicar',
   notif_post_skipped_subject:
     'Não foi possível publicar no {{provider}} para {{integrationName}}',
   notif_post_published_subject: 'Sua publicação foi feita no {{provider}}',
@@ -69,7 +69,7 @@ const pt: EmailCatalog = {
 
   // --- Notificações: mensagens (sininho + e-mail) — paridade com frontend ---
   notif_channel_refresh_failed:
-    'Não foi possível renovar seu canal {{provider}} {{error}}. Volte ao sistema e conecte-o novamente {{url}}',
+    'O canal {{name}} ({{provider}}) foi desconectado e parou de publicar porque a conexão expirou. Reconecte em {{url}} para voltar a publicar.',
   notif_post_reconnect:
     'Não foi possível publicar no {{provider}} para {{integrationName}} porque você precisa reconectá-lo. Ative-o e tente novamente.',
   notif_post_disabled:
@@ -111,7 +111,7 @@ const en: EmailCatalog = {
 
   // --- Notifications: subjects (email/digest only) ---
   notif_channel_refresh_failed_subject:
-    'Could not refresh your {{provider}} channel {{error}}',
+    '⚠️ Your {{name}} channel was disconnected and stopped publishing',
   notif_post_skipped_subject:
     "We couldn't post to {{provider}} for {{integrationName}}",
   notif_post_published_subject: 'Your post has been published on {{provider}}',
@@ -123,7 +123,7 @@ const en: EmailCatalog = {
 
   // --- Notifications: messages (bell + email) — parity with frontend ---
   notif_channel_refresh_failed:
-    'Could not refresh your {{provider}} channel {{error}}. Please go back to the system and connect it again {{url}}',
+    'The channel {{name}} ({{provider}}) was disconnected and stopped publishing because its connection expired. Reconnect at {{url}} to resume publishing.',
   notif_post_reconnect:
     "We couldn't post to {{provider}} for {{integrationName}} because you need to reconnect it. Please enable it and try again.",
   notif_post_disabled:
