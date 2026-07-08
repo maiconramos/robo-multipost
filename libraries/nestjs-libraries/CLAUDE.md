@@ -18,7 +18,7 @@
 
 | Subdomain | Content |
 |---|---|
-| `database/prisma/` | Prisma schema + repositories per table (`agencies`, `posts`, `credentials`, `profiles`, `users`, `sets`, `flows`, `subscriptions`, `status/status-event.*` — append-only `StatusEvent` failure log, denormalized/no-FK, fail-soft `record()` + cursor-paginated `list()`, etc.); also read-only aggregation services with no table of their own (e.g. `status/status.service.ts`, composing `IntegrationRepository`/`PostsRepository`/`FlowsRepository` via `Promise.all` for the admin Status screen) |
+| `database/prisma/` | Prisma schema + repositories per table (`agencies`, `posts`, `credentials`, `profiles`, `users`, `sets`, `flows`, `subscriptions`, `status/status-event.*` — append-only `StatusEvent` failure log, denormalized/no-FK, fail-soft `record()` + cursor-paginated `list()`, etc.); also read-only aggregation services with no table of their own (e.g. `status/status.service.ts`, composing `IntegrationRepository`/`PostsRepository`/`FlowsRepository` via `Promise.all` for the admin Status screen; `status/infra-health.*` — active liveness probes of PostgreSQL/Redis/Temporal/`IUploadProvider.healthCheck()` for the Status > Saúde da infra tab, 30s cache with `force` bypass, no table of its own) |
 | `integrations/social/` | 40+ social media providers — see [child](src/integrations/social/CLAUDE.md) |
 | `ai/` | AI Provider System, credits, persona, KB — see [child](src/ai/CLAUDE.md) |
 | `chat/` | Mastra agents, MCP tools, IG webhook, knowledge base RAG — see [child](src/chat/CLAUDE.md) |

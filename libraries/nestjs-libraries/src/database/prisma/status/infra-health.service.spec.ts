@@ -122,15 +122,30 @@ describe('InfraHealthService', () => {
     expect(comp(res, 'storage').message).toContain('Access Denied');
   });
 
-  it('cacheia por 30s; force ignora o cache e re-sonda', async () => {
-    const repo = okRepo();
-    const service = build(repo, temporalOk());
+  it('cacheia 30s; force ignora o cache mas respeita o piso de 5s (anti-loop)', async () => {
+    const nowSpy = jest.spyOn(Date, 'now');
+    try {
+      const repo = okRepo();
+      const service = build(repo, temporalOk());
 
-    await service.getHealth(); // sonda
-    await service.getHealth(); // cache hit — nao re-sonda
-    expect(repo.ping).toHaveBeenCalledTimes(1);
+      nowSpy.mockReturnValue(1_000);
+      await service.getHealth(); // sonda (ping 1)
 
-    await service.getHealth(true); // force — re-sonda
-    expect(repo.ping).toHaveBeenCalledTimes(2);
+      nowSpy.mockReturnValue(2_000);
+      await service.getHealth(); // cache hit (dentro dos 30s) — nao re-sonda
+      expect(repo.ping).toHaveBeenCalledTimes(1);
+
+      // force DENTRO do piso de 5s => devolve cache (protege contra loop de refresh)
+      nowSpy.mockReturnValue(3_000);
+      await service.getHealth(true);
+      expect(repo.ping).toHaveBeenCalledTimes(1);
+
+      // force APOS o piso => re-sonda
+      nowSpy.mockReturnValue(10_000);
+      await service.getHealth(true);
+      expect(repo.ping).toHaveBeenCalledTimes(2);
+    } finally {
+      nowSpy.mockRestore();
+    }
   });
 });

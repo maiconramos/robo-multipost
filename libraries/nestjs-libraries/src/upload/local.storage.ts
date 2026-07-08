@@ -1,5 +1,6 @@
 import { IUploadProvider } from './upload.interface';
-import { accessSync, constants, mkdirSync, unlink, writeFileSync } from 'fs';
+import { constants, mkdirSync, unlink, writeFileSync } from 'fs';
+import { access, mkdir } from 'fs/promises';
 import { extname } from 'path';
 import { loadFromUrlOrDataUrl } from './storage.helpers';
 export class LocalStorage implements IUploadProvider {
@@ -9,9 +10,11 @@ export class LocalStorage implements IUploadProvider {
     if (!this.uploadDirectory) {
       throw new Error('UPLOAD_DIRECTORY nao configurado');
     }
-    // Garante o diretorio e confirma que e gravavel — sem escrever arquivo.
-    mkdirSync(this.uploadDirectory, { recursive: true });
-    accessSync(this.uploadDirectory, constants.W_OK);
+    // fs assíncrono: a sonda roda numa rota de rede — não pode bloquear o event
+    // loop num UPLOAD_DIRECTORY lento/NFS. Garante o diretório e confirma que é
+    // gravável, sem escrever arquivo.
+    await mkdir(this.uploadDirectory, { recursive: true });
+    await access(this.uploadDirectory, constants.W_OK);
   }
 
   async uploadSimple(path: string) {

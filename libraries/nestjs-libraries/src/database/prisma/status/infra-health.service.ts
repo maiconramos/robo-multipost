@@ -11,6 +11,10 @@ import {
 } from '@gitroom/nestjs-libraries/dtos/status/infra-health.dto';
 
 const CACHE_TTL_MS = 30_000;
+// Piso curto respeitado MESMO com `force` (botão "Verificar agora"): impede que
+// um loop de ?refresh=true dispare sondas sem backpressure (o throttler global
+// só cobre POST /public/v1/posts, não esta rota).
+const FORCE_FLOOR_MS = 5_000;
 const TIMEOUT_DB_MS = 5000;
 const TIMEOUT_STORAGE_MS = 5000;
 const TIMEOUT_REDIS_MS = 3000;
@@ -38,7 +42,10 @@ export class InfraHealthService {
   ) {}
 
   async getHealth(force = false): Promise<InfraHealthResponse> {
-    if (!force && this.cache && Date.now() - this.cache.at < CACHE_TTL_MS) {
+    // `force` ignora o cache de 30s, mas ainda respeita o piso de 5s — sondar
+    // Temporal/R2 (API cobrada) num loop sem limite seria um vetor de DoS.
+    const ttl = force ? FORCE_FLOOR_MS : CACHE_TTL_MS;
+    if (this.cache && Date.now() - this.cache.at < ttl) {
       return this.cache.result;
     }
 
@@ -156,6 +163,11 @@ export class InfraHealthService {
     message: string | null,
     started: number | null
   ): InfraHealthComponent {
+    // Surfacea a falha no log/Sentry (não só na tela de quem abrir o Status) —
+    // é o propósito da feature. Mensagem já sanitizada (name+message, redigida).
+    if (status === 'error') {
+      this.logger.warn(`sonda ${key} falhou: ${message ?? 'sem detalhe'}`);
+    }
     return {
       key,
       status,
@@ -190,8 +202,19 @@ export class InfraHealthService {
   // vazar credencial numa mensagem de erro de provider).
   private reason(err: unknown): string {
     const e = err as Error;
-    const msg =
+    const raw =
       e?.name && e?.message ? `${e.name}: ${e.message}` : String(err ?? '');
+    const msg = this.redact(raw);
     return msg.length > REASON_CAP ? msg.slice(0, REASON_CAP) : msg;
+  }
+
+  // Defesa em profundidade: raspa padrões de credencial que um SDK poderia
+  // ecoar na mensagem de erro (senha em connection string, AWS access key,
+  // bearer token) antes de trafegar pela API admin.
+  private redact(text: string): string {
+    return text
+      .replace(/(\w+:\/\/[^:/@\s]+):[^@\s]+@/g, '$1:***@') // senha em URL
+      .replace(/AKIA[0-9A-Z]{16}/g, 'AKIA***') // AWS access key id
+      .replace(/Bearer\s+[\w.-]+/gi, 'Bearer ***'); // bearer token
   }
 }
