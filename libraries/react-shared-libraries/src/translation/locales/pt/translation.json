@@ -1893,6 +1893,8 @@
   "status_infra_redis": "Redis",
   "status_infra_temporal": "Temporal",
   "status_infra_storage": "Armazenamento",
+  "status_infra_email": "E-mail",
+  "status_infra_disabled": "Verificação de infraestrutura desativada (STATUS_INFRA_HEALTH_ENABLED=false).",
   "status_infra_ok": "Operacional",
   "status_infra_warning": "Atenção",
   "status_infra_error": "Erro",

@@ -1895,6 +1895,8 @@
   "status_infra_redis": "Redis",
   "status_infra_temporal": "Temporal",
   "status_infra_storage": "Storage",
+  "status_infra_email": "Email",
+  "status_infra_disabled": "Infrastructure health check disabled (STATUS_INFRA_HEALTH_ENABLED=false).",
   "status_infra_ok": "Operational",
   "status_infra_warning": "Warning",
   "status_infra_error": "Error",

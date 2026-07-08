@@ -9,16 +9,25 @@
 
 export type InfraHealthStatus = 'ok' | 'warning' | 'error';
 
-export type InfraHealthKey = 'database' | 'redis' | 'temporal' | 'storage';
+export type InfraHealthKey =
+  | 'database'
+  | 'redis'
+  | 'temporal'
+  | 'storage'
+  | 'email';
 
 export interface InfraHealthComponent {
   key: InfraHealthKey;
   status: InfraHealthStatus;
   message: string | null; // detalhe sanitizado (ex.: "R2", "conexão recusada")
   latencyMs: number | null; // duração da sonda; null quando não sondado
+  note: string | null; // observação (tooltip) — ex.: sonda só de presença, sem validar
 }
 
 export interface InfraHealthResponse {
+  // `false` quando STATUS_INFRA_HEALTH_ENABLED=false — a aba não sonda nada e o
+  // endpoint não expõe estado de infra. Default (env ausente) = habilitado.
+  enabled: boolean;
   components: InfraHealthComponent[];
   checkedAt: string; // ISO — quando as sondas rodaram (pode vir do cache de 30s)
   summary: {

@@ -1,5 +1,6 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { TemporalService } from 'nestjs-temporal-core';
+import { Resend } from 'resend';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { InfraHealthRepository } from '@gitroom/nestjs-libraries/database/prisma/status/infra-health.repository';
@@ -19,6 +20,7 @@ const TIMEOUT_DB_MS = 5000;
 const TIMEOUT_STORAGE_MS = 5000;
 const TIMEOUT_REDIS_MS = 3000;
 const TIMEOUT_TEMPORAL_MS = 3000;
+const TIMEOUT_EMAIL_MS = 5000;
 const REASON_CAP = 200;
 
 /**
@@ -42,6 +44,18 @@ export class InfraHealthService {
   ) {}
 
   async getHealth(force = false): Promise<InfraHealthResponse> {
+    // Gate por env — HABILITADO POR DEFAULT (só STATUS_INFRA_HEALTH_ENABLED=false
+    // desabilita). Desabilitado => não sonda nada e não expõe estado de infra
+    // (mitiga a exposição a admin-de-org numa instância de registro aberto).
+    if (process.env.STATUS_INFRA_HEALTH_ENABLED === 'false') {
+      return {
+        enabled: false,
+        components: [],
+        checkedAt: new Date().toISOString(),
+        summary: { ok: 0, warning: 0, error: 0 },
+      };
+    }
+
     // `force` ignora o cache de 30s, mas ainda respeita o piso de 5s — sondar
     // Temporal/R2 (API cobrada) num loop sem limite seria um vetor de DoS.
     const ttl = force ? FORCE_FLOOR_MS : CACHE_TTL_MS;
@@ -54,9 +68,11 @@ export class InfraHealthService {
       this.checkRedis(),
       this.checkTemporal(),
       this.checkStorage(),
+      this.checkEmail(),
     ]);
 
     const result: InfraHealthResponse = {
+      enabled: true,
       components,
       checkedAt: new Date().toISOString(),
       summary: {
@@ -157,11 +173,77 @@ export class InfraHealthService {
     }
   }
 
+  private async checkEmail(): Promise<InfraHealthComponent> {
+    const started = Date.now();
+    const provider = process.env.EMAIL_PROVIDER;
+
+    // Resend: validação ATIVA da chave via domains.list (GET autenticado — não
+    // envia e-mail). Chave ausente/dummy => só "não configurado".
+    if (provider === 'resend') {
+      const key = process.env.RESEND_API_KEY;
+      if (!key || key === 're_132') {
+        return this.build('email', 'warning', 'Resend sem RESEND_API_KEY', null);
+      }
+      try {
+        const res: any = await this.withTimeout(
+          new Resend(key).domains.list() as Promise<unknown>,
+          TIMEOUT_EMAIL_MS,
+          'email'
+        );
+        if (res?.error) {
+          return this.build(
+            'email',
+            'error',
+            `Resend: ${this.reason(res.error)}`,
+            started
+          );
+        }
+        return this.build('email', 'ok', 'Resend', started);
+      } catch (err) {
+        return this.build(
+          'email',
+          'error',
+          `Resend: ${this.reason(err)}`,
+          started
+        );
+      }
+    }
+
+    // SMTP (nodemailer): sonda só de presença das variáveis (a conexão/entrega
+    // não é testada aqui) — com tooltip explicando. Faltando variável => config
+    // incompleta.
+    if (provider === 'nodemailer') {
+      const required = ['EMAIL_HOST', 'EMAIL_PORT', 'EMAIL_USER', 'EMAIL_PASS'];
+      const missing = required.filter((k) => !process.env[k]);
+      const note =
+        'Validação apenas de presença das variáveis SMTP — a conexão/entrega não é testada aqui.';
+      if (missing.length) {
+        return this.build(
+          'email',
+          'error',
+          `SMTP incompleto: falta ${missing.join(', ')}`,
+          null,
+          note
+        );
+      }
+      return this.build('email', 'ok', 'SMTP (nodemailer)', null, note);
+    }
+
+    // Sem provider (ou desconhecido) => EmptyProvider: e-mails viram no-op.
+    return this.build(
+      'email',
+      'warning',
+      'E-mail não configurado (EMAIL_PROVIDER)',
+      null
+    );
+  }
+
   private build(
     key: InfraHealthKey,
     status: InfraHealthStatus,
     message: string | null,
-    started: number | null
+    started: number | null,
+    note: string | null = null
   ): InfraHealthComponent {
     // Surfacea a falha no log/Sentry (não só na tela de quem abrir o Status) —
     // é o propósito da feature. Mensagem já sanitizada (name+message, redigida).
@@ -173,6 +255,7 @@ export class InfraHealthService {
       status,
       message,
       latencyMs: started != null ? Date.now() - started : null,
+      note,
     };
   }
 

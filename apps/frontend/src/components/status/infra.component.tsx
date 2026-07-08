@@ -60,6 +60,8 @@ export const InfraComponent: FC = () => {
           return t('status_infra_temporal', 'Temporal');
         case 'storage':
           return t('status_infra_storage', 'Armazenamento');
+        case 'email':
+          return t('status_infra_email', 'E-mail');
         default:
           return c.key;
       }
@@ -85,6 +87,18 @@ export const InfraComponent: FC = () => {
     return (
       <div className="border border-fifth rounded-[8px] bg-sixth p-[24px] text-[14px] text-customColor18">
         {t('status_error_loading', 'Erro ao carregar o status.')}
+      </div>
+    );
+  }
+
+  // Gate por env (STATUS_INFRA_HEALTH_ENABLED=false): a sonda vem desligada.
+  if (!data.enabled) {
+    return (
+      <div className="border border-fifth rounded-[8px] bg-sixth p-[24px] text-[14px] text-customColor18">
+        {t(
+          'status_infra_disabled',
+          'Verificação de infraestrutura desativada (STATUS_INFRA_HEALTH_ENABLED=false).'
+        )}
       </div>
     );
   }
@@ -120,7 +134,17 @@ export const InfraComponent: FC = () => {
               )}
             />
             <div className="flex-1 min-w-0">
-              <div className="text-[14px] text-textColor">{label(c)}</div>
+              <div className="text-[14px] text-textColor flex items-center gap-[6px]">
+                {label(c)}
+                {c.note && (
+                  <span
+                    title={c.note}
+                    className="text-[10px] text-customColor18 cursor-help border border-fifth rounded-full w-[15px] h-[15px] inline-flex items-center justify-center flex-none"
+                  >
+                    ?
+                  </span>
+                )}
+              </div>
               {c.message && (
                 <div className="text-[12px] text-customColor18 truncate">
                   {c.message}
