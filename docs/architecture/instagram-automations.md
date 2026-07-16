@@ -134,6 +134,14 @@ perfis (override por perfil continua valendo), mas messaging continua
 por-perfil. Env `META_SYSTEM_USER_TOKEN` e o fallback final instance-wide
 do self-heal.
 
+> **Atencao (instancia multi-org):** o fallback de env vale para TODAS as
+> organizacoes da instancia — org sem token proprio tentara curar com o
+> Business Manager do operador. A cura so funciona para Paginas que o BM do
+> token realmente gerencia (`reConnect` resolve contra o `/me/accounts` do
+> proprio System User), entao nao ha vazamento entre BMs — mas em instancias
+> que hospedam organizacoes nao relacionadas, prefira configurar o token por
+> workspace na UI e deixar a env vazia.
+
 ---
 
 ## 3. Roteamento de tokens e hosts (core logic)
