@@ -1,6 +1,6 @@
 {
   "meta_system_user_token_label": "System User Token",
-  "meta_system_user_token_hint": "Generate in Business Settings > System Users. Never expires. Add the user to each Instagram account you want to automate.",
+  "meta_system_user_token_hint": "Generate in Business Settings > System Users. Never expires. Add the user to the assets (Pages and Instagram accounts) you want to use. Besides automations, this token automatically reconnects Facebook/Instagram channels when Meta invalidates the publishing token.",
   "meta_system_user_token_placeholder": "Paste the System User Access Token here (starts with EAA...)",
   "meta_system_user_token_how_to": "How to generate in Business Manager →",
   "meta_system_user_token_invalid": "Invalid token. Check the Meta Dashboard.",

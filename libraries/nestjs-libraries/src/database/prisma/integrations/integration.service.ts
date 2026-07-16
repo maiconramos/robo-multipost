@@ -28,6 +28,7 @@ import { TemporalService } from 'nestjs-temporal-core';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
+import { MetaSystemUserService } from '@gitroom/nestjs-libraries/integrations/meta-system-user.service';
 
 dayjs.extend(utc);
 
@@ -43,7 +44,8 @@ export class IntegrationService {
     private _refreshIntegrationService: RefreshIntegrationService,
     private _temporalService: TemporalService,
     private _encryption: EncryptionService,
-    private _statusEventService: StatusEventService
+    private _statusEventService: StatusEventService,
+    private _metaSystemUser: MetaSystemUserService
   ) {}
 
   async changeActiveCron(orgId: string) {
@@ -317,6 +319,41 @@ export class IntegrationService {
         );
 
         if (!data) {
+          // Self-heal Meta: com token de Usuario do Sistema configurado,
+          // re-deriva o Page Access Token (FB/IG via Facebook Login) e
+          // persiste sem desconectar.
+          const healed = await this._metaSystemUser.resolveHealedToken(
+            integration,
+            provider
+          );
+          if (healed) {
+            await this.createOrUpdateIntegration(
+              undefined,
+              !!provider.oneTimeToken,
+              integration.organizationId,
+              integration.name,
+              undefined,
+              'social',
+              integration.internalId,
+              integration.providerIdentifier,
+              healed.accessToken,
+              healed.refreshToken,
+              healed.expiresIn
+            );
+            continue;
+          }
+
+          if (provider.noNativeRefresh) {
+            // FB/IG (Facebook Login) nao tem refresh nativo: o stub retorna
+            // vazio SEMPRE. Sem System User token nao ha como renovar em
+            // lote — mas o Page Access Token pode continuar valido (a
+            // expiracao registrada e sintetica). Desconectar aqui era falso
+            // positivo que derrubava canal saudavel na janela de expiracao.
+            // A morte real do token e detectada e tratada no post-time
+            // (RefreshIntegrationService.refreshProcess).
+            continue;
+          }
+
           // Nao conseguiu renovar: marca desconectado + notifica uma vez.
           // `continue` (NAO `return`) para nao abortar o lote inteiro por causa
           // de um unico canal quebrado.

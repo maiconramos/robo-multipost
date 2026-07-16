@@ -365,6 +365,8 @@ Como gerar:
 
 Com isso feito, **todas** as automacoes de story passam a funcionar imediatamente. O token nao precisa ser atualizado ate o admin revogar no Meta Dashboard.
 
+> **Bonus — reconexao automatica dos canais (self-heal de publicacao).** O mesmo System User Token tambem protege a **publicacao** dos canais Facebook/Instagram conectados via Facebook Login: se a Meta invalidar o token de publicacao (acontece quando a conta que conectou os canais sofre um checkpoint de seguranca — troca de senha, pedido de 2FA, login de dispositivo novo — o que derruba todos os tokens da conta de uma vez), o Robo MultiPost re-deriva o token da Pagina pelo System User e **o post sai na retentativa, sem desconectar o canal e sem reconexao manual**. Requisitos: as Paginas/Instagrams precisam estar atribuidas ao System User no Business Manager (passo 3 acima) e o token precisa dos escopos de publicacao `pages_manage_posts` + `instagram_content_publish` (adicione-os no passo 4 junto com os de messaging). Cole o token no perfil **Default** para valer para todos os perfis (override por perfil continua possivel); ha ainda o fallback instance-wide via env `META_SYSTEM_USER_TOKEN`.
+
 ### Opcao B — Instagram User Access Token por conta
 
 Vantagens:

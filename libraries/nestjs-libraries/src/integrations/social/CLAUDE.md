@@ -63,9 +63,11 @@ const route = await resolveIgRoute(integration, instagramMessagingService);
 |---|---|---|
 | **App credentials** (workspace) | `Credentials.clientId/clientSecret`, `instagramAppId/instagramAppSecret`, `threadsAppId/threadsAppSecret` | OAuth (`generateAuthUrl`/`authenticate`) and webhook HMAC validation |
 | **Integration token** | `Integration.token` is a Page Access Token (`providerIdentifier='instagram'`) **OR** an IG User Token (`providerIdentifier='instagram-standalone'`) | Posting, comments, refresh |
-| **Messaging tokens** (Settings > Credenciais > Instagram) | `Credentials.metaSystemUserToken` + `Credentials.instagramTokens` (per-account JSON) | DM and follow-check activities via the registered IG User Token |
+| **Messaging tokens** (Settings > Credenciais > Instagram) | `Credentials.metaSystemUserToken` + `Credentials.instagramTokens` (per-account JSON) | DM and follow-check activities via the registered IG User Token. `metaSystemUserToken` ALSO powers the **publish self-heal**: when the human OAuth token dies (Meta account checkpoint), `MetaSystemUserService.resolveHealedToken` re-derives the Page Access Token via `reConnect(internalId, internalId, suToken)` instead of disconnecting the channel |
 
 Details: [`docs/architecture/instagram-automations.md`](../../../../../docs/architecture/instagram-automations.md).
+
+**Credential resolution differs between the two uses of `metaSystemUserToken` (intentional):** messaging reads via `getMessagingTokens` (`getRaw` — exact profile match, no inheritance); publish self-heal reads via `CredentialService.getSystemUserToken` (`getRawShared` — inherits from the Default profile when `shareProviderCredentialsWithProfiles` is on, then falls back to env `META_SYSTEM_USER_TOKEN`). `facebook`/`instagram` providers carry `noNativeRefresh = true` (their `refreshToken()` is a stub — a Page Access Token has no refresh_token flow), which tells the batch cron (`IntegrationService.refreshTokens`) to skip disconnecting them when no heal is available (the false-disconnect fix); real token death is still detected and handled at post time (`RefreshIntegrationService.refreshProcess`).
 
 ## Zernio (formerly Late / getlate.dev)
 
