@@ -58,6 +58,9 @@ export class InstagramProvider
   identifier = 'instagram';
   name = 'Instagram\n(Facebook Business)';
   isBetweenSteps = true;
+  // refreshToken() abaixo e stub: Page Access Token nao se renova por
+  // refresh_token. Ver noNativeRefresh na interface.
+  noNativeRefresh = true;
   toolTip = 'Instagram must be business and connected to a Facebook page';
   scopes = [
     'instagram_basic',

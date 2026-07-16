@@ -50,6 +50,30 @@ export class CredentialService {
     return this.getRaw(organizationId, provider, defaultProfile.id);
   }
 
+  /**
+   * Token de Usuario do Sistema (Meta) para o SELF-HEAL de publicacao FB/IG.
+   * Resolucao com heranca: credencial do proprio perfil -> credencial do
+   * perfil Default (se shareProviderCredentialsWithProfiles) -> env
+   * META_SYSTEM_USER_TOKEN. Diverge de getMessagingTokens (getRaw, match
+   * exato, sem heranca) DE PROPOSITO: DM/follow-check continua por-perfil;
+   * ver docs/architecture/instagram-automations.md (camada 3).
+   */
+  async getSystemUserToken(
+    organizationId: string,
+    profileId?: string
+  ): Promise<string | undefined> {
+    const shared = await this.getRawShared(
+      organizationId,
+      'facebook',
+      profileId
+    );
+    return (
+      shared?.metaSystemUserToken ||
+      process.env.META_SYSTEM_USER_TOKEN ||
+      undefined
+    );
+  }
+
   private redact(data: Record<string, string>): Record<string, string> {
     return Object.fromEntries(
       Object.entries(data).map(([key, value]) => [

@@ -106,6 +106,34 @@ Armazenados em `Credentials.instagramTokens` (JSON) e
 e DM privada — mas e um token separado que o aluno gera direto no Meta
 Dashboard.
 
+**Self-heal de publicacao (segundo uso do System User token).** Alem de
+messaging, `Credentials.metaSystemUserToken` agora tambem re-deriva o Page
+Access Token de canais `facebook`/`instagram` (FB Login) quando o token
+OAuth humano e invalidado pela Meta (checkpoint de seguranca na conta que
+conectou — troca de senha, 2FA, login suspeito derrubam TODOS os tokens da
+conta de uma vez). Fluxo: post falha com erro de token ->
+`RefreshIntegrationService.refreshProcess` chama
+`MetaSystemUserService.resolveHealedToken` -> `reConnect(internalId,
+internalId, systemUserToken)` do provider -> token novo persistido na mesma
+`Integration` -> o retry do workflow republica. Sem System User token, o
+comportamento continua o legado (canal desconecta e pede reconexao manual).
+O cron em lote (`refresh-tokens-cron`) usa o mesmo heal; e canais FB/IG
+sem heal disponivel NAO sao mais desconectados pelo cron (era falso
+positivo — o stub de refresh deles sempre retornou vazio; a morte real do
+token e detectada no post-time).
+
+**Resolucao do token difere entre os dois usos (de proposito):**
+
+| Uso | Metodo | Heranca de perfil |
+|---|---|---|
+| Messaging/DM/follow-check | `CredentialService.getMessagingTokens` (`getRaw`) | NAO herda — match exato do perfil |
+| Self-heal de publicacao | `CredentialService.getSystemUserToken` (`getRawShared`) | Herda do perfil Default (se `shareProviderCredentialsWithProfiles`) e cai na env `META_SYSTEM_USER_TOKEN` |
+
+Ou seja: um token colado no perfil Default cura a publicacao de TODOS os
+perfis (override por perfil continua valendo), mas messaging continua
+por-perfil. Env `META_SYSTEM_USER_TOKEN` e o fallback final instance-wide
+do self-heal.
+
 ---
 
 ## 3. Roteamento de tokens e hosts (core logic)

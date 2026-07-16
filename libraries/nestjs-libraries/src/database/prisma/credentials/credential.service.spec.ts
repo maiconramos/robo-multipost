@@ -337,4 +337,61 @@ describe('CredentialService', () => {
       expect(orgRepository.getShareProviderCredentials).not.toHaveBeenCalled();
     });
   });
+
+  describe('getSystemUserToken (self-heal de publicacao FB/IG)', () => {
+    let envBackup: string | undefined;
+
+    beforeEach(() => {
+      envBackup = process.env.META_SYSTEM_USER_TOKEN;
+      delete process.env.META_SYSTEM_USER_TOKEN;
+    });
+
+    afterEach(() => {
+      if (envBackup === undefined) {
+        delete process.env.META_SYSTEM_USER_TOKEN;
+      } else {
+        process.env.META_SYSTEM_USER_TOKEN = envBackup;
+      }
+    });
+
+    it('resolve o token da credencial facebook com heranca (getRawShared)', async () => {
+      const sharedSpy = jest
+        .spyOn(service, 'getRawShared')
+        .mockResolvedValue({ metaSystemUserToken: 'EAA-system' });
+
+      const token = await service.getSystemUserToken('org-1', 'prof-2');
+
+      expect(sharedSpy).toHaveBeenCalledWith('org-1', 'facebook', 'prof-2');
+      expect(token).toBe('EAA-system');
+    });
+
+    it('cai no fallback da env META_SYSTEM_USER_TOKEN quando o banco nao tem', async () => {
+      jest.spyOn(service, 'getRawShared').mockResolvedValue(null);
+      process.env.META_SYSTEM_USER_TOKEN = 'EAA-env';
+
+      const token = await service.getSystemUserToken('org-1', 'prof-2');
+
+      expect(token).toBe('EAA-env');
+    });
+
+    it('retorna undefined quando nao ha token em lugar nenhum', async () => {
+      jest.spyOn(service, 'getRawShared').mockResolvedValue({
+        clientId: 'app-id',
+      });
+
+      const token = await service.getSystemUserToken('org-1', 'prof-2');
+
+      expect(token).toBeUndefined();
+    });
+
+    it('retorna undefined quando o campo existe mas esta vazio', async () => {
+      jest.spyOn(service, 'getRawShared').mockResolvedValue({
+        metaSystemUserToken: '',
+      });
+
+      const token = await service.getSystemUserToken('org-1', 'prof-2');
+
+      expect(token).toBeUndefined();
+    });
+  });
 });

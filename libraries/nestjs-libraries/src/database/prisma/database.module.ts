@@ -36,6 +36,7 @@ import { ThirdPartyService } from '@gitroom/nestjs-libraries/database/prisma/thi
 import { VideoManager } from '@gitroom/nestjs-libraries/videos/video.manager';
 import { FalService } from '@gitroom/nestjs-libraries/openai/fal.service';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
+import { MetaSystemUserService } from '@gitroom/nestjs-libraries/integrations/meta-system-user.service';
 import { CredentialRepository } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.repository';
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
@@ -98,6 +99,7 @@ import { AiModule } from '@gitroom/nestjs-libraries/ai/ai.module';
     AgenciesRepository,
     IntegrationManager,
     RefreshIntegrationService,
+    MetaSystemUserService,
     ExtractContentService,
     OpenaiService,
     FalService,

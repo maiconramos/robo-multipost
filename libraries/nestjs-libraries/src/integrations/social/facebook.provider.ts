@@ -33,6 +33,9 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
   identifier = 'facebook';
   name = 'Facebook Page';
   isBetweenSteps = true;
+  // refreshToken() abaixo e stub: Page Access Token nao se renova por
+  // refresh_token. Ver noNativeRefresh na interface.
+  noNativeRefresh = true;
   scopes = [
     'pages_show_list',
     'business_management',
