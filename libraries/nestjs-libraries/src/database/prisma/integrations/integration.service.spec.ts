@@ -12,6 +12,7 @@ jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
 }));
 
 import { IntegrationService } from './integration.service';
+import { SYSTEM_USER_PAGE_TOKEN_TTL } from '@gitroom/nestjs-libraries/integrations/meta-system-user.service';
 
 const makeService = (repo: any) =>
   new IntegrationService(
@@ -317,7 +318,7 @@ describe('IntegrationService', () => {
         name: 'Pagina X',
         accessToken: 'EAA-healed',
         refreshToken: 'EAA-healed',
-        expiresIn: 315360000,
+        expiresIn: SYSTEM_USER_PAGE_TOKEN_TTL,
         picture: '',
         username: '',
       };
@@ -354,7 +355,7 @@ describe('IntegrationService', () => {
         'facebook',
         'EAA-healed',
         'EAA-healed',
-        315360000
+        SYSTEM_USER_PAGE_TOKEN_TTL
       );
       expect(disconnect).not.toHaveBeenCalled();
     });

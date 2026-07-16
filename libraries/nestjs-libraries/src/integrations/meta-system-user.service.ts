@@ -41,15 +41,18 @@ export class MetaSystemUserService {
       return null;
     }
 
-    const systemUserToken = await this._credentialService.getSystemUserToken(
-      integration.organizationId,
-      integration.profileId || undefined
-    );
-    if (!systemUserToken) {
-      return null;
-    }
-
     try {
+      // Leitura da credencial DENTRO do try: um decrypt ilegivel (ex.:
+      // ENCRYPTION_KEY trocada apos salvar) lanca — o heal falha suave
+      // (null) e o caller segue para o disconnectChannel legado.
+      const systemUserToken = await this._credentialService.getSystemUserToken(
+        integration.organizationId,
+        integration.profileId || undefined
+      );
+      if (!systemUserToken) {
+        return null;
+      }
+
       // reConnect de facebook/instagram ignora o 1o argumento (id) e resolve
       // pelo 2o (requiredId): Page ID no facebook, IG business account id no
       // instagram — que e exatamente o internalId de cada um. Mesmo padrao do

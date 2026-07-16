@@ -12,6 +12,7 @@ jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
 }));
 
 import { RefreshIntegrationService } from './refresh.integration.service';
+import { SYSTEM_USER_PAGE_TOKEN_TTL } from './meta-system-user.service';
 
 const integration = {
   id: 'int-1',
@@ -108,7 +109,7 @@ describe('RefreshIntegrationService', () => {
         name: 'Pagina X',
         accessToken: 'EAA-healed',
         refreshToken: 'EAA-healed',
-        expiresIn: 315360000,
+        expiresIn: SYSTEM_USER_PAGE_TOKEN_TTL,
         picture: 'https://pic',
         username: '',
       };

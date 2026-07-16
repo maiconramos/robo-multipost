@@ -35,6 +35,14 @@ describe('FacebookProvider', () => {
     jest.resetAllMocks();
   });
 
+  describe('flags do provider', () => {
+    it('declara noNativeRefresh pois o refreshToken e stub (Page token nao renova)', () => {
+      // Consumido por IntegrationService.refreshTokens: sem esta flag o cron
+      // em lote volta a desconectar canal saudavel por falso positivo.
+      expect(provider.noNativeRefresh).toBe(true);
+    });
+  });
+
   describe('post (feed)', () => {
     it('deve publicar imagem no feed via /photos e /feed quando nao for story', async () => {
       const fetchMock = jest.fn().mockImplementation((url: string) => {

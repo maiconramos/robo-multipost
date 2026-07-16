@@ -165,6 +165,29 @@ describe('MetaSystemUserService', () => {
       errorSpy.mockRestore();
     });
 
+    it('retorna null quando a leitura da credencial lanca (credencial ilegivel)', async () => {
+      // ENCRYPTION_KEY trocada apos salvar torna o decrypt da credencial
+      // facebook ilegivel — o heal deve falhar suave (null) para o caller
+      // seguir para o disconnectChannel legado, nunca propagar o throw.
+      credentialService.getSystemUserToken.mockRejectedValue(
+        new Error('Unsupported state or unable to authenticate data')
+      );
+      const provider = buildProvider();
+      const errorSpy = jest
+        .spyOn(console, 'error')
+        .mockImplementation(() => undefined);
+
+      const result = await service.resolveHealedToken(
+        integration,
+        provider as any
+      );
+
+      expect(result).toBeNull();
+      expect(provider.reConnect).not.toHaveBeenCalled();
+      expect(errorSpy).toHaveBeenCalled();
+      errorSpy.mockRestore();
+    });
+
     it('retorna null quando reConnect devolve sem accessToken', async () => {
       credentialService.getSystemUserToken.mockResolvedValue('EAA-system');
       const provider = buildProvider({
