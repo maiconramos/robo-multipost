@@ -308,6 +308,19 @@ export class InstagramProvider
       };
     }
 
+    const isInvalidMetaUserSession =
+      /(?:"code"\s*:\s*190|\b190\b)/.test(body) &&
+      /(?:"error_subcode"\s*:\s*(?:460|464)|\b190\s*\/\s*(?:460|464)\b)/.test(
+        body
+      );
+    if (isInvalidMetaUserSession) {
+      return {
+        type: 'refresh-token' as const,
+        value:
+          'The connected Facebook user session is no longer valid, please reconnect the account',
+      };
+    }
+
     if (body.indexOf('190,') > -1) {
       return {
         type: 'bad-body' as const,

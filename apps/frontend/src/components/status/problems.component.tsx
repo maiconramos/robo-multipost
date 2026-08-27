@@ -187,6 +187,17 @@ export const ProblemsComponent: FC = () => {
                   </div>
                 </div>
                 <ProfileChip profile={p.profile} />
+                {p.channel && (
+                  <Button
+                    className="!px-[16px] !py-[8px] text-[13px]"
+                    onClick={reconnect(
+                      p.channel.identifier,
+                      p.channel.internalId
+                    )}
+                  >
+                    {t('status_force_reconnect', 'Forçar reconexão')}
+                  </Button>
+                )}
               </div>
             ))}
           </div>

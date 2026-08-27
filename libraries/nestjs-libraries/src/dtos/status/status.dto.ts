@@ -25,6 +25,7 @@ export interface StatusProfileRef {
 export interface StatusChannelRef {
   id: string;
   identifier: string;
+  internalId: string;
   name: string;
   picture: string | null;
 }

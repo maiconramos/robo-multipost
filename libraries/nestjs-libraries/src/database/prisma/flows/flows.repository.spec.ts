@@ -57,6 +57,11 @@ describe('FlowsRepository', () => {
       expect(arg.where.status).toBe('FAILED');
       expect(arg.where.createdAt.gte).toBeInstanceOf(Date);
       expect(arg.where.flow.organizationId).toBe('org-1');
+      expect(arg.where.flow.deletedAt).toBeNull();
+      expect(arg.where.flow.OR).toEqual([
+        { profileId: null },
+        { profile: { deletedAt: null } },
+      ]);
       expect(arg.where.flow.profileId).toBeUndefined();
       expect(arg.orderBy).toEqual({ createdAt: 'desc' });
       expect(arg.take).toBe(50);

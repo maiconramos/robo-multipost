@@ -91,8 +91,12 @@ export class RepostRepository {
   }
 
   getRuleFresh(id: string) {
-    return this._repostRule.model.repostRule.findUnique({
-      where: { id },
+    return this._repostRule.model.repostRule.findFirst({
+      where: {
+        id,
+        deletedAt: null,
+        profile: { deletedAt: null },
+      },
       include: RULE_INCLUDE,
     });
   }
@@ -102,7 +106,11 @@ export class RepostRepository {
   // @@index([enabled]) / @@index([deletedAt]).
   findAllEnabled() {
     return this._repostRule.model.repostRule.findMany({
-      where: { enabled: true, deletedAt: null },
+      where: {
+        enabled: true,
+        deletedAt: null,
+        profile: { deletedAt: null },
+      },
       select: { id: true, organizationId: true },
     });
   }

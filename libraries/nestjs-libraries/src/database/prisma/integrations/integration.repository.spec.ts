@@ -216,6 +216,9 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
       const arg = findMany.mock.calls[0][0] as any;
       expect(arg.where.organizationId).toBe('org-1');
       expect(arg.where.deletedAt).toBeNull();
+      expect(arg.where.AND).toContainEqual({
+        OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }],
+      });
       expect(arg.where.OR).toEqual([
         { refreshNeeded: true },
         { disabled: true },
@@ -234,6 +237,91 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
       await repo.getProblemChannels('org-1', 'prof-2');
 
       expect(findMany.mock.calls[0][0].where.profileId).toBe('prof-2');
+    });
+  });
+
+  describe('needsToBeRefreshed', () => {
+    it('ignora canais de perfis cancelados', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      (prismaMock.model.integration as any).findMany = findMany;
+
+      await repo.needsToBeRefreshed();
+
+      expect(findMany.mock.calls[0][0].where.OR).toEqual([
+        { profileId: null },
+        { clientProfile: { deletedAt: null } },
+      ]);
+    });
+  });
+
+  describe('getIntegrationsList', () => {
+    it('ignora perfis cancelados sem esconder canais compartilhados do workspace', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      (prismaMock.model.integration as any).findMany = findMany;
+
+      await repo.getIntegrationsList('org-1', 'prof-2');
+
+      expect(findMany.mock.calls[0][0].where.AND).toEqual([
+        {
+          OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }],
+        },
+        { OR: [{ profileId: 'prof-2' }, { profileId: null }] },
+      ]);
+    });
+  });
+
+  describe('getIntegrationById', () => {
+    it('exige canal e perfil ativos sem esconder canal compartilhado', async () => {
+      prismaMock.model.integration.findFirst.mockResolvedValue(null);
+
+      await repo.getIntegrationById('org-1', 'int-1', 'prof-2');
+
+      const where = prismaMock.model.integration.findFirst.mock.calls[0][0].where;
+      expect(where.deletedAt).toBeNull();
+      expect(where.AND).toEqual([
+        {
+          OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }],
+        },
+        { OR: [{ profileId: 'prof-2' }, { profileId: null }] },
+      ]);
+    });
+  });
+
+  describe('perfis cancelados legados', () => {
+    it('nao despacha webhooks para canais de perfil cancelado', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      (prismaMock.model.integration as any).findMany = findMany;
+
+      await repo.getIntegrationsByInternalId('ig-1');
+
+      expect(findMany.mock.calls[0][0].where.OR).toEqual([
+        { profileId: null },
+        { clientProfile: { deletedAt: null } },
+      ]);
+    });
+
+    it('libera o internalId antigo para uma nova conexao', async () => {
+      const updateMany = jest.fn().mockResolvedValue({ count: 1 });
+      (prismaMock.model.integration as any).updateMany = updateMany;
+
+      await repo.checkForDeletedOnceAndUpdate('org-1', 'ig-1');
+
+      expect(updateMany.mock.calls[0][0].where.OR).toEqual([
+        { deletedAt: { not: null } },
+        { clientProfile: { deletedAt: { not: null } } },
+      ]);
+    });
+
+    it('nao usa canais cancelados ao reduzir a cota do plano', async () => {
+      const findMany = jest.fn().mockResolvedValue([]);
+      (prismaMock.model.integration as any).findMany = findMany;
+
+      await repo.disableIntegrations('org-1', 2);
+
+      expect(findMany.mock.calls[0][0].where.OR).toEqual([
+        { profileId: null },
+        { clientProfile: { deletedAt: null } },
+      ]);
     });
   });
 

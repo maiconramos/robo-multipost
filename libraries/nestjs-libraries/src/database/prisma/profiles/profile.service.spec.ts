@@ -12,15 +12,53 @@ const makeRepo = () => ({
   getUserProfileIds: jest.fn(),
   getMemberRole: jest.fn(),
   isUserInOrg: jest.fn(),
+  deleteProfile: jest.fn(),
 });
 
 describe('ProfileService', () => {
   let service: ProfileService;
   let repo: ReturnType<typeof makeRepo>;
+  let temporal: { terminateWorkflow: jest.Mock };
 
   beforeEach(() => {
     repo = makeRepo();
-    service = new ProfileService(repo as any);
+    temporal = { terminateWorkflow: jest.fn().mockResolvedValue(true) };
+    service = new ProfileService(repo as any, temporal as any);
+  });
+
+  describe('deleteProfile', () => {
+    it('encerra os workflows retornados pelo ciclo de vida e mantem o contrato da API', async () => {
+      const deletedProfile = { id: 'prof-1', isDefault: false };
+      repo.getProfileById.mockResolvedValue(deletedProfile);
+      repo.deleteProfile.mockResolvedValue({
+        profile: deletedProfile,
+        workflowIds: ['post-p1', 'autopost-a1'],
+      });
+
+      await expect(service.deleteProfile('org-1', 'prof-1')).resolves.toEqual(
+        deletedProfile
+      );
+      expect(temporal.terminateWorkflow).toHaveBeenCalledTimes(2);
+      expect(temporal.terminateWorkflow).toHaveBeenNthCalledWith(1, 'post-p1');
+      expect(temporal.terminateWorkflow).toHaveBeenNthCalledWith(
+        2,
+        'autopost-a1'
+      );
+    });
+
+    it('nao falha a exclusao quando um workflow ja nao existe', async () => {
+      const deletedProfile = { id: 'prof-1', isDefault: false };
+      repo.getProfileById.mockResolvedValue(deletedProfile);
+      repo.deleteProfile.mockResolvedValue({
+        profile: deletedProfile,
+        workflowIds: ['post-p1'],
+      });
+      temporal.terminateWorkflow.mockRejectedValue(new Error('not found'));
+
+      await expect(service.deleteProfile('org-1', 'prof-1')).resolves.toEqual(
+        deletedProfile
+      );
+    });
   });
 
   describe('getProfileByApiKey', () => {

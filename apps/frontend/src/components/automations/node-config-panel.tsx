@@ -5,6 +5,7 @@ import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import useSWR from 'swr';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { AdAliasesField } from '@gitroom/frontend/components/automations/ad-aliases-field.component';
+import { CommaSeparatedKeywordsInput } from '@gitroom/frontend/components/automations/comma-separated-keywords-input.component';
 
 interface NodeConfigPanelProps {
   node: any;
@@ -62,16 +63,11 @@ const KeywordsField: FC<{
     </label>
     {/* Comma-separated input */}
     <div className={inputWrapperClass}>
-      <input
-        type="text"
+      <CommaSeparatedKeywordsInput
         className={inputClass + ' h-[42px]'}
         placeholder={t('wizard_keywords_input_placeholder', 'Digite uma ou mais palavras')}
-        value={keywords.join(', ')}
-        onChange={(e) =>
-          onKeywordsChange(
-            e.target.value.split(',').map((k) => k.trim()).filter(Boolean)
-          )
-        }
+        keywords={keywords}
+        onKeywordsChange={onKeywordsChange}
       />
     </div>
     <p className="text-[11px] text-customColor18 mt-[4px] mb-[8px]">

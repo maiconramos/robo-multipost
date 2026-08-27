@@ -72,6 +72,7 @@ export class StatusService {
         ? {
             id: p.integration.id,
             identifier: p.integration.providerIdentifier,
+            internalId: p.integration.internalId,
             name: p.integration.name,
             picture: p.integration.picture ?? null,
           }

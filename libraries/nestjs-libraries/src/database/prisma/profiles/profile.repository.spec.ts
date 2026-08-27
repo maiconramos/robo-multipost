@@ -24,6 +24,7 @@ const mockUserOrgModel = {
   model: { userOrganization: { findFirst: mockUserOrgFindFirst } },
 };
 const mockPersonaModel = { model: { profilePersona: {} } };
+const mockTransaction = { model: { $transaction: jest.fn() } };
 
 describe('ProfileRepository', () => {
   let repository: ProfileRepository;
@@ -34,8 +35,134 @@ describe('ProfileRepository', () => {
       mockProfileModel as any,
       mockProfileMemberModel as any,
       mockPersonaModel as any,
-      mockUserOrgModel as any
+      mockUserOrgModel as any,
+      mockTransaction as any
     );
+  });
+
+  describe('deleteProfile', () => {
+    it('encerra recursos ativos e preserva o historico publicado em uma transacao', async () => {
+      const tx = {
+        post: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'post-queue' }]),
+          updateMany: jest.fn().mockResolvedValue({ count: 2 }),
+        },
+        autoPost: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'auto-1' }]),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        repostRule: {
+          findMany: jest.fn().mockResolvedValue([{ id: 'repost-1' }]),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        flowExecution: {
+          findMany: jest
+            .fn()
+            .mockResolvedValue([{ temporalWorkflowId: 'flow-exec-1' }]),
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        pendingPostback: {
+          updateMany: jest.fn().mockResolvedValue({ count: 1 }),
+        },
+        integration: { updateMany: jest.fn().mockResolvedValue({ count: 2 }) },
+        flow: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        webhooks: { updateMany: jest.fn().mockResolvedValue({ count: 1 }) },
+        profile: {
+          update: jest.fn().mockResolvedValue({
+            id: 'prof-1',
+            deletedAt: new Date(),
+          }),
+        },
+      };
+      mockTransaction.model.$transaction.mockImplementation((callback) =>
+        callback(tx)
+      );
+
+      const result = await repository.deleteProfile('org-1', 'prof-1');
+
+      expect(tx.post.findMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          profileId: 'prof-1',
+          deletedAt: null,
+          parentPostId: null,
+          state: 'QUEUE',
+        },
+        select: { id: true },
+      });
+      expect(tx.post.updateMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          profileId: 'prof-1',
+          deletedAt: null,
+          state: { in: ['QUEUE', 'DRAFT'] },
+        },
+        data: { deletedAt: expect.any(Date) },
+      });
+      expect(tx.integration.updateMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          profileId: 'prof-1',
+          deletedAt: null,
+        },
+        data: { disabled: true, deletedAt: expect.any(Date) },
+      });
+      expect(tx.flow.updateMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          profileId: 'prof-1',
+          deletedAt: null,
+        },
+        data: { status: 'ARCHIVED', deletedAt: expect.any(Date) },
+      });
+      expect(tx.autoPost.updateMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          profileId: 'prof-1',
+          deletedAt: null,
+        },
+        data: { active: false, deletedAt: expect.any(Date) },
+      });
+      expect(tx.repostRule.updateMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          profileId: 'prof-1',
+          deletedAt: null,
+        },
+        data: { enabled: false, deletedAt: expect.any(Date) },
+      });
+      expect(tx.webhooks.updateMany).toHaveBeenCalledWith({
+        where: {
+          organizationId: 'org-1',
+          profileId: 'prof-1',
+          deletedAt: null,
+        },
+        data: { deletedAt: expect.any(Date) },
+      });
+      expect(tx.flowExecution.updateMany).toHaveBeenCalledWith({
+        where: {
+          flow: { organizationId: 'org-1', profileId: 'prof-1' },
+          status: { in: ['RUNNING', 'WAITING_POSTBACK'] },
+        },
+        data: { status: 'CANCELLED', completedAt: expect.any(Date) },
+      });
+      expect(tx.pendingPostback.updateMany).toHaveBeenCalledWith({
+        where: {
+          flow: { organizationId: 'org-1', profileId: 'prof-1' },
+          status: 'PENDING',
+        },
+        data: { status: 'ABANDONED' },
+      });
+      expect(result).toMatchObject({
+        profile: { id: 'prof-1' },
+        workflowIds: [
+          'post_post-queue',
+          'autopost-auto-1',
+          'repost-rule-repost-1',
+          'flow-exec-1',
+        ],
+      });
+    });
   });
 
   describe('getProfileNamesByIds', () => {

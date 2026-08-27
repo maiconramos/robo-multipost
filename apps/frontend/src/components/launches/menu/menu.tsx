@@ -415,7 +415,7 @@ export const Menu: FC<{
           </div>
           {canWrite &&
             canDisable &&
-            findIntegration?.refreshNeeded &&
+            findIntegration &&
             !findIntegration.customFields && (
               <div
                 className="flex gap-[12px] items-center py-[8px] px-[10px]"
@@ -436,7 +436,9 @@ export const Menu: FC<{
                   </svg>
                 </div>
                 <div className="text-[14px]">
-                  {t('reconnect_channel', 'Reconnect channel')}
+                  {findIntegration.refreshNeeded
+                    ? t('reconnect_channel', 'Reconnect channel')
+                    : t('force_reconnect_channel', 'Force reconnect')}
                 </div>
               </div>
             )}

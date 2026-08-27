@@ -25,10 +25,36 @@ describe('RepostRepository', () => {
       const result = await repository.findAllEnabled();
 
       expect(prismaMock.model.repostRule.findMany).toHaveBeenCalledWith({
-        where: { enabled: true, deletedAt: null },
+        where: {
+          enabled: true,
+          deletedAt: null,
+          profile: { deletedAt: null },
+        },
         select: { id: true, organizationId: true },
       });
       expect(result).toEqual([{ id: 'r1', organizationId: 'o1' }]);
+    });
+  });
+
+  describe('getRuleFresh', () => {
+    it('nao devolve regra pertencente a perfil cancelado', async () => {
+      (prismaMock.model.repostRule as any).findFirst = jest
+        .fn()
+        .mockResolvedValue(null);
+
+      await repository.getRuleFresh('rule-1');
+
+      expect(
+        (prismaMock.model.repostRule as any).findFirst
+      ).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: {
+            id: 'rule-1',
+            deletedAt: null,
+            profile: { deletedAt: null },
+          },
+        })
+      );
     });
   });
 });

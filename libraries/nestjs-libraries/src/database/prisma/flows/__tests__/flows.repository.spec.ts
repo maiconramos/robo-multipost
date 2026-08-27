@@ -338,6 +338,7 @@ describe('FlowsRepository', () => {
           integrationId: 'int-1',
           status: FlowStatus.ACTIVE,
           deletedAt: null,
+          OR: [{ profileId: null }, { profile: { deletedAt: null } }],
         },
         include: {
           nodes: true,

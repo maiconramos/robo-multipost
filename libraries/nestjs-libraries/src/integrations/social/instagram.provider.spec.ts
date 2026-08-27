@@ -247,3 +247,41 @@ describe('InstagramProvider.getMediaMetadata', () => {
   });
 
 });
+
+describe('InstagramProvider.handleErrors', () => {
+  let provider: InstagramProvider;
+
+  beforeEach(() => {
+    provider = new InstagramProvider();
+  });
+
+  it.each([460, 464])(
+    'classifica Meta 190/%s como token que exige reconexao',
+    (subcode) => {
+      const body = JSON.stringify({
+        error: {
+          message: 'Error validating access token',
+          type: 'OAuthException',
+          code: 190,
+          error_subcode: subcode,
+        },
+      });
+
+      expect(provider.handleErrors(body, 400)).toEqual({
+        type: 'refresh-token',
+        value:
+          'The connected Facebook user session is no longer valid, please reconnect the account',
+      });
+    }
+  );
+
+  it('mantem outros erros 190 como permissao insuficiente', () => {
+    expect(
+      provider.handleErrors('OAuthException 190, permissions', 400)
+    ).toEqual({
+      type: 'bad-body',
+      value:
+        'The account is missing some permissions to perform this action, please re-add the account and allow all permissions',
+    });
+  });
+});

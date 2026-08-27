@@ -6,10 +6,14 @@ import {
 import { ProfileRole, Role, ShortLinkPreference } from '@prisma/client';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import Zernio from '@zernio/node';
+import { TemporalService } from 'nestjs-temporal-core';
 
 @Injectable()
 export class ProfileService {
-  constructor(private _profileRepository: ProfileRepository) {}
+  constructor(
+    private _profileRepository: ProfileRepository,
+    private _temporalService: TemporalService
+  ) {}
 
   getProfilesByOrgId(orgId: string) {
     return this._profileRepository.getProfilesByOrgId(orgId);
@@ -62,7 +66,17 @@ export class ProfileService {
     if (profile.isDefault) {
       throw new HttpException('Cannot delete the default profile', 400);
     }
-    return this._profileRepository.deleteProfile(orgId, profileId);
+    const deleted = await this._profileRepository.deleteProfile(orgId, profileId);
+
+    // A row is already archived in the database, so a missing/already-finished
+    // workflow is valid. Attempt all of them without one failure blocking the rest.
+    await Promise.allSettled(
+      deleted.workflowIds.map((workflowId) =>
+        this._temporalService.terminateWorkflow(workflowId)
+      )
+    );
+
+    return deleted.profile;
   }
 
   private static readonly ROLE_RANK: Record<ProfileRole, number> = {

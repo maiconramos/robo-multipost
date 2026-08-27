@@ -10,6 +10,7 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { WizardPhonePreview } from '@gitroom/frontend/components/automations/wizard-phone-preview.component';
 import { AddLinkModal } from '@gitroom/frontend/components/automations/add-link-modal.component';
 import { AdAliasesField } from '@gitroom/frontend/components/automations/ad-aliases-field.component';
+import { CommaSeparatedKeywordsInput } from '@gitroom/frontend/components/automations/comma-separated-keywords-input.component';
 
 const FOLLOW_GATE_DEFAULT_PT =
   'Olá! Esse conteúdo é exclusivo para seguidores. Me segue aqui e responde o story de novo para eu te enviar 💙';
@@ -525,15 +526,12 @@ export const AutomationWizardComponent: FC<Props> = ({ flowId, initialFlow }) =>
                   <div onClick={e => e.stopPropagation()}>
                     {/* Single text input for comma-separated keywords */}
                     <div className={inputWrapperClass}>
-                      <input
-                        type="text"
+                      <CommaSeparatedKeywordsInput
                         className={inputClass + ' h-[42px]'}
                         placeholder={t('wizard_keywords_input_placeholder', 'Digite uma ou mais palavras')}
-                        value={keywords.join(', ')}
+                        keywords={keywords}
+                        onKeywordsChange={setKeywords}
                         onFocus={() => setActivePreviewTab('comments')}
-                        onChange={(e) => setKeywords(
-                          e.target.value.split(',').map(k => k.trim()).filter(Boolean)
-                        )}
                       />
                     </div>
                     <p className="text-[11px] text-customColor18 mt-[4px] mb-[8px]">

@@ -308,7 +308,11 @@ export const ProfilesSettingsComponent = () => {
         toast.show('Nao e possivel excluir o perfil padrao', 'warning');
         return;
       }
-      if (!(await deleteDialog('Tem certeza que deseja excluir este perfil?'))) {
+      if (
+        !(await deleteDialog(
+          'Tem certeza que deseja excluir este perfil? Canais e automações serão desativados, e posts agendados ou em rascunho serão removidos. O histórico publicado será preservado.'
+        ))
+      ) {
         return;
       }
       try {

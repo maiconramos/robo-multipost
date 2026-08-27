@@ -14,7 +14,7 @@ describe('ProfileService - Persona', () => {
 
   beforeEach(() => {
     repo = makeRepo();
-    service = new ProfileService(repo as any);
+    service = new ProfileService(repo as any, {} as any);
   });
 
   describe('getPersona', () => {

@@ -48,6 +48,7 @@ export class PostsRepository {
         state: 'QUEUE',
         deletedAt: null,
         parentPostId: null,
+        OR: [{ profileId: null }, { profile: { deletedAt: null } }],
       },
       select: {
         id: true,
@@ -75,6 +76,7 @@ export class PostsRepository {
         deletedAt: null,
         parentPostId: null,
         state: 'ERROR',
+        OR: [{ profileId: null }, { profile: { deletedAt: null } }],
         updatedAt: { gte: dayjs.utc().subtract(30, 'day').toDate() },
         ...(profileId ? { profileId } : {}),
       },
@@ -90,6 +92,7 @@ export class PostsRepository {
           select: {
             id: true,
             providerIdentifier: true,
+            internalId: true,
             name: true,
             picture: true,
           },
@@ -397,6 +400,9 @@ export class PostsRepository {
         id,
         ...(orgId ? { organizationId: orgId } : {}),
         deletedAt: null,
+        ...(isFirst
+          ? { OR: [{ profileId: null }, { profile: { deletedAt: null } }] }
+          : {}),
       },
       include: {
         ...(includeIntegration

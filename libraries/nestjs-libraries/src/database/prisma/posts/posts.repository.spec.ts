@@ -29,6 +29,10 @@ describe('PostsRepository.getErrorPosts', () => {
     expect(a.where.organizationId).toBe('org-1');
     expect(a.where.state).toBe('ERROR');
     expect(a.where.deletedAt).toBeNull();
+    expect(a.where.OR).toEqual([
+      { profileId: null },
+      { profile: { deletedAt: null } },
+    ]);
     expect(a.where.parentPostId).toBeNull();
     expect(a.where.updatedAt.gte).toBeInstanceOf(Date);
     expect(a.orderBy).toEqual({ updatedAt: 'desc' });
@@ -40,6 +44,7 @@ describe('PostsRepository.getErrorPosts', () => {
     expect(a.select.integration.select).toEqual({
       id: true,
       providerIdentifier: true,
+      internalId: true,
       name: true,
       picture: true,
     });
@@ -89,5 +94,49 @@ describe('PostsRepository.changeState', () => {
       name: true,
       picture: true,
     });
+  });
+});
+
+describe('PostsRepository.searchForMissingThreeHoursPosts', () => {
+  it('ignora posts de perfis cancelados e preserva posts legados de workspace', async () => {
+    const prismaMock = createPrismaRepositoryMock('post');
+    prismaMock.model.post.findMany.mockResolvedValue([] as any);
+    const repo = new PostsRepository(
+      prismaMock as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+
+    await repo.searchForMissingThreeHoursPosts();
+
+    expect(prismaMock.model.post.findMany.mock.calls[0][0].where.OR).toEqual([
+      { profileId: null },
+      { profile: { deletedAt: null } },
+    ]);
+  });
+});
+
+describe('PostsRepository.getPost for publishing', () => {
+  it('ignora a raiz quando o perfil foi cancelado', async () => {
+    const prismaMock = createPrismaRepositoryMock('post');
+    prismaMock.model.post.findUnique.mockResolvedValue(null);
+    const repo = new PostsRepository(
+      prismaMock as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+
+    await repo.getPost('post-1', true, 'org-1', true);
+
+    expect(prismaMock.model.post.findUnique.mock.calls[0][0].where.OR).toEqual([
+      { profileId: null },
+      { profile: { deletedAt: null } },
+    ]);
   });
 });

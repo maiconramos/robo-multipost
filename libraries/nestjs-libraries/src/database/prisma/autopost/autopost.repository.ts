@@ -13,6 +13,7 @@ export class AutopostRepository {
         organizationId: orgId,
         ...(profileId ? { profileId } : {}),
         deletedAt: null,
+        OR: [{ profileId: null }, { profile: { deletedAt: null } }],
       },
     });
   }
@@ -23,6 +24,7 @@ export class AutopostRepository {
         organizationId: orgId,
         ...(profileId ? { profileId } : {}),
         deletedAt: null,
+        OR: [{ profileId: null }, { profile: { deletedAt: null } }],
       },
     });
   }
@@ -41,10 +43,11 @@ export class AutopostRepository {
   }
 
   getAutopost(id: string) {
-    return this._autoPost.model.autoPost.findUnique({
+    return this._autoPost.model.autoPost.findFirst({
       where: {
         id,
         deletedAt: null,
+        OR: [{ profileId: null }, { profile: { deletedAt: null } }],
       },
       include: {
         profile: {

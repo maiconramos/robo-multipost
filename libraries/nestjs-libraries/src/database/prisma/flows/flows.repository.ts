@@ -348,6 +348,8 @@ export class FlowsRepository {
         createdAt: { gte: since },
         flow: {
           organizationId: orgId,
+          deletedAt: null,
+          OR: [{ profileId: null }, { profile: { deletedAt: null } }],
           ...(profileId ? { profileId } : {}),
         },
       },
@@ -404,6 +406,7 @@ export class FlowsRepository {
         integrationId,
         status: FlowStatus.ACTIVE,
         deletedAt: null,
+        OR: [{ profileId: null }, { profile: { deletedAt: null } }],
       },
       include: {
         nodes: true,
@@ -424,6 +427,7 @@ export class FlowsRepository {
         status: FlowStatus.ACTIVE,
         deletedAt: null,
         triggerPostIds: null,
+        OR: [{ profileId: null }, { profile: { deletedAt: null } }],
       },
       include: {
         nodes: true,

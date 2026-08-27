@@ -429,6 +429,7 @@ export class IntegrationRepository {
         inBetweenSteps: false,
         deletedAt: null,
         refreshNeeded: false,
+        OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }],
       },
     });
   }
@@ -472,7 +473,11 @@ export class IntegrationRepository {
       where: {
         organizationId: org,
         id,
-        ...(profileId ? { OR: [{ profileId }, { profileId: null }] } : {}),
+        deletedAt: null,
+        AND: [
+          { OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }] },
+          ...(profileId ? [{ OR: [{ profileId }, { profileId: null }] }] : []),
+        ],
       },
     });
   }
@@ -483,6 +488,7 @@ export class IntegrationRepository {
         internalId,
         deletedAt: null,
         disabled: false,
+        OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }],
       },
     });
   }
@@ -496,6 +502,7 @@ export class IntegrationRepository {
         organizationId: org,
         internalId,
         deletedAt: null,
+        OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }],
       },
       include: {
         clientProfile: {
@@ -610,7 +617,10 @@ export class IntegrationRepository {
       where: {
         organizationId: org,
         deletedAt: null,
-        ...(profileId ? { OR: [{ profileId }, { profileId: null }] } : {}),
+        AND: [
+          { OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }] },
+          ...(profileId ? [{ OR: [{ profileId }, { profileId: null }] }] : []),
+        ],
       },
       include: {
         customer: true,
@@ -631,6 +641,9 @@ export class IntegrationRepository {
         organizationId: org,
         deletedAt: null,
         OR: [{ refreshNeeded: true }, { disabled: true }],
+        AND: [
+          { OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }] },
+        ],
         ...(profileId ? { profileId } : {}),
       },
       orderBy: { updatedAt: 'desc' },
@@ -701,9 +714,10 @@ export class IntegrationRepository {
       where: {
         organizationId: org,
         internalId: page,
-        deletedAt: {
-          not: null,
-        },
+        OR: [
+          { deletedAt: { not: null } },
+          { clientProfile: { deletedAt: { not: null } } },
+        ],
       },
       data: {
         internalId: makeId(10),
@@ -717,6 +731,7 @@ export class IntegrationRepository {
         organizationId: org,
         disabled: false,
         deletedAt: null,
+        OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }],
       },
       take: totalChannels,
       select: {
@@ -819,6 +834,7 @@ export class IntegrationRepository {
         organizationId: orgId,
         disabled: false,
         deletedAt: null,
+        OR: [{ profileId: null }, { clientProfile: { deletedAt: null } }],
       },
       select: {
         postingTimes: true,
