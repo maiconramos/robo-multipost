@@ -253,6 +253,12 @@ Nenhuma delas deve entrar no sync da tag por acidente.
 
 ## 10. Ordem segura de implementação
 
+Antes do primeiro porte, a baseline de CI precisa ficar verde. O build da
+`main` falhava em uma instalação limpa porque o frontend importava Blueprint
+diretamente sem declará-lo no próprio workspace, enquanto o workflow ainda
+instalava pnpm 8 para um projeto fixado em pnpm 10.6.1 e lockfile v9. Esse
+saneamento deve permanecer em PR isolada, sem misturar código do upstream.
+
 1. **PR 1 — segurança de uploads:** `79360622` + limite/falha de upload por
    URL (`a21a7d4b`, `c96935a0`).
 2. **PR 2 — Meta:** Graph v25 + métricas novas + Story `upload_complete`,
@@ -268,6 +274,7 @@ Nenhuma delas deve entrar no sync da tag por acidente.
 ## 11. Gates antes de produção
 
 - specs co-localizadas para cada service/provider alterado;
+- instalação reproduzível com pnpm 10.6.1 e `pnpm install --frozen-lockfile`;
 - `pnpm test`, builds de backend, frontend e orchestrator;
 - teste de replay/compatibilidade no Temporal para qualquer workflow novo;
 - smoke tests reais de Facebook, Instagram, LinkedIn, Pinterest e GMB quando o
@@ -276,8 +283,10 @@ Nenhuma delas deve entrar no sync da tag por acidente.
 - somente depois: merge em `main`; `release` continua intocada até aprovação e
   tag SemVer do Robô MultiPost.
 
-## 12. Estado desta branch
+## 12. Estado da triagem
 
-Esta branch contém apenas a triagem/documentação. Nenhum commit do upstream foi
-cherry-picked, nenhuma branch `postiz`, `main` ou `release` foi atualizada e
-nenhuma alteração foi enviada para produção.
+A triagem foi incorporada à `main` pela PR `#201`, sem cherry-pick nem código do
+upstream. As branches `postiz` e `release` continuam intocadas, e nenhuma
+alteração foi enviada para produção. O saneamento da baseline de CI e cada
+porte listado acima permanecem mudanças independentes, com seus próprios
+testes e revisão.
