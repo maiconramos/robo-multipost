@@ -133,7 +133,7 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
 | Facebook Story | `7edeadd5` | Adotar manualmente: reconhecer `upload_complete` evita polling preso. Preservar implementação própria de Stories. |
 | Payload/Workers Temporal | `cc79e129`, `5b0288fd`, `6e1c103e` | Portar em PR de infraestrutura: limita erro serializado e impede workers de provider de carregar workflows desnecessariamente. Validar filas `main` e por-provider. |
 | LinkedIn | `b0c8da12`, `5daee690`, `c8d8de8b`, `84bee82b`, `db1f84ff`, `671946b5` | Implementado cirurgicamente em `codex/upstream-linkedin-provider`, incluindo os follow-ups `60ffa4df` e `c98ea046` e a dependência de HTTP Range. Preserva OAuth por perfil e SSRF; smoke test real ainda obrigatório. Ver [`linkedin-upstream-audit-2026-09.md`](./linkedin-upstream-audit-2026-09.md). |
-| Pinterest | `5015dbb1`, `be413ec2`, `205f1b80` | Adotar: janela de analytics de 90 dias e upload correto do MP4. Revalidar os fixes de cinco imagens já portados em junho. |
+| Pinterest | `5015dbb1`, `be413ec2`, `205f1b80` | Implementado cirurgicamente em `codex/upstream-pinterest-provider`, junto aos limites/falhas do polling e OAuth por perfil. Mantém SSRF e não traz o pipeline Temporal. Smoke real ainda obrigatório. Ver [`pinterest-upstream-audit-2026-09.md`](./pinterest-upstream-audit-2026-09.md). |
 | Google Meu Negócio | `f700b8a1`, `1d965049` | Adotar: não declarar sucesso quando o Google responde `REJECTED` ou resposta não confirmada. |
 | Analytics dos providers | `907e3399` | Revisar provider por provider. O upstream troca `this.fetch` por `fetch` para evitar mapeamento indevido, mas o fork depende do tratamento próprio de erros e tokens; não aplicar globalmente. |
 | Leitura de mídia YouTube/TikTok | `5a9b1cc9` | Pequeno porte manual para solicitar `identity` e evitar respostas comprimidas incompatíveis com leitura por range. Validar junto aos testes de streaming. |
@@ -299,9 +299,9 @@ mudança em análise, não dívida anterior da instalação.
    System User fallback e reconexão 190/460/464.
 3. **PR 3 — SSRF cumulativo:** Axios/Undici + providers/webhooks, com testes de
    DNS rebinding e self-hosted.
-4. **PR 4 — providers isolados:** LinkedIn implementado isoladamente em
-   `codex/upstream-linkedin-provider`; Pinterest, GMB e WordPress seguem um por
-   vez. Cada provider mantém specs e smoke test real quando necessário.
+4. **PR 4 — providers isolados:** LinkedIn e Pinterest implementados em branches
+   próprias; GMB e WordPress seguem um por vez. Cada provider mantém specs e
+   smoke test real quando necessário.
 5. **PR 5 — dependências:** Next/Nest e pacotes de segurança, sem feature junto.
 6. **Épico Temporal:** desenho/migração V102 → nova versão, replay e teste de
    publicação real antes de qualquer promoção para `release`.

@@ -1,6 +1,7 @@
 import {
   AnalyticsData,
   AuthTokenDetails,
+  ClientInformation,
   PostDetails,
   PostResponse,
   SocialProvider,
@@ -9,10 +10,24 @@ import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { PinterestSettingsDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/pinterest.dto';
 import FormData from 'form-data';
 import { timer } from '@gitroom/helpers/utils/timer';
-import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import {
+  BadBody,
+  SocialAbstract,
+} from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import dayjs from 'dayjs';
 import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
+
+const mediaPathname = (path: string) => {
+  try {
+    return new URL(path).pathname;
+  } catch {
+    return path.split(/[?#]/, 1)[0];
+  }
+};
+
+const hasMediaExtension = (path: string, extension: string) =>
+  mediaPathname(path).toLowerCase().endsWith(`.${extension.toLowerCase()}`);
 
 @Rules(
   'Pinterest requires at least one media, if posting a video, you must have two attachment, one for video, one for the cover picture, When posting a video, there can be only one, if posting images, there can be maximum 5'
@@ -42,7 +57,7 @@ export class PinterestProvider
 
   public override handleErrors(body: string):
     | {
-        type: 'refresh-token' | 'bad-body';
+        type: 'refresh-token' | 'bad-body' | 'retry';
         value: string;
       }
     | undefined {
@@ -50,6 +65,30 @@ export class PinterestProvider
       return {
         type: 'bad-body' as const,
         value: 'You can upload a maximum of 5 images per post on Pinterest.',
+      };
+    }
+    if (body.indexOf('Unable to reach the URL') > -1) {
+      return {
+        type: 'retry',
+        value:
+          'Pinterest was unable to reach the URL provided. Please check the link and try again.',
+      };
+    }
+    if (
+      /board/i.test(body) &&
+      body.indexOf('does not match') > -1 &&
+      body.indexOf('d+$') > -1
+    ) {
+      return {
+        type: 'bad-body',
+        value:
+          'The board ID must be a numeric string. Please check the board ID format.',
+      };
+    }
+    if (body.indexOf('Board not found') > -1) {
+      return {
+        type: 'bad-body',
+        value: 'The specified board was not found. Please check the board ID.',
       };
     }
     if (body.indexOf('cover_image_url or cover_image_content_type') > -1) {
@@ -63,14 +102,21 @@ export class PinterestProvider
     return undefined;
   }
 
-  async refreshToken(refreshToken: string): Promise<AuthTokenDetails> {
+  async refreshToken(
+    refreshToken: string,
+    clientInformation?: ClientInformation
+  ): Promise<AuthTokenDetails> {
+    const clientId =
+      clientInformation?.client_id || process.env.PINTEREST_CLIENT_ID;
+    const clientSecret =
+      clientInformation?.client_secret || process.env.PINTEREST_CLIENT_SECRET;
     const { access_token, expires_in } = await (
       await fetch('https://api.pinterest.com/v5/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Basic ${Buffer.from(
-            `${process.env.PINTEREST_CLIENT_ID}:${process.env.PINTEREST_CLIENT_SECRET}`
+            `${clientId}:${clientSecret}`
           ).toString('base64')}`,
         },
         body: new URLSearchParams({
@@ -102,33 +148,40 @@ export class PinterestProvider
     };
   }
 
-  async generateAuthUrl() {
+  async generateAuthUrl(clientInformation?: ClientInformation) {
     const state = makeId(6);
+    const clientId =
+      clientInformation?.client_id || process.env.PINTEREST_CLIENT_ID;
     return {
-      url: `https://www.pinterest.com/oauth/?client_id=${
-        process.env.PINTEREST_CLIENT_ID
-      }&redirect_uri=${encodeURIComponent(
+      url: `https://www.pinterest.com/oauth/?client_id=${clientId}&redirect_uri=${encodeURIComponent(
         `${process.env.FRONTEND_URL}/integrations/social/pinterest`
       )}&response_type=code&scope=${encodeURIComponent(
-        'boards:read,boards:write,pins:read,pins:write,user_accounts:read'
+        this.scopes.join(',')
       )}&state=${state}`,
       codeVerifier: makeId(10),
       state,
     };
   }
 
-  async authenticate(params: {
-    code: string;
-    codeVerifier: string;
-    refresh: string;
-  }) {
+  async authenticate(
+    params: {
+      code: string;
+      codeVerifier: string;
+      refresh?: string;
+    },
+    clientInformation?: ClientInformation
+  ) {
+    const clientId =
+      clientInformation?.client_id || process.env.PINTEREST_CLIENT_ID;
+    const clientSecret =
+      clientInformation?.client_secret || process.env.PINTEREST_CLIENT_SECRET;
     const { access_token, refresh_token, expires_in, scope } = await (
       await fetch('https://api.pinterest.com/v5/oauth/token', {
         method: 'POST',
         headers: {
           'Content-Type': 'application/x-www-form-urlencoded',
           Authorization: `Basic ${Buffer.from(
-            `${process.env.PINTEREST_CLIENT_ID}:${process.env.PINTEREST_CLIENT_SECRET}`
+            `${clientId}:${clientSecret}`
           ).toString('base64')}`,
         },
         body: new URLSearchParams({
@@ -186,11 +239,11 @@ export class PinterestProvider
     postDetails: PostDetails<PinterestSettingsDto>[]
   ): Promise<PostResponse[]> {
     let mediaId = '';
-    const findMp4 = postDetails?.[0]?.media?.find(
-      (p) => (p.path?.indexOf('mp4') || -1) > -1
+    const findMp4 = postDetails?.[0]?.media?.find((media) =>
+      hasMediaExtension(media.path, 'mp4')
     );
     const picture = postDetails?.[0]?.media?.find(
-      (p) => (p.path?.indexOf('mp4') || -1) === -1
+      (media) => !hasMediaExtension(media.path, 'mp4')
     );
 
     if (findMp4) {
@@ -207,12 +260,9 @@ export class PinterestProvider
         })
       ).json();
 
-      const { data, status } = await this.getSsrfSafeAxios().get(
-        postDetails?.[0]?.media?.[0]?.path!,
-        {
-          responseType: 'stream',
-        }
-      );
+      const { data } = await this.getSsrfSafeAxios().get(findMp4.path, {
+        responseType: 'stream',
+      });
 
       const formData = Object.keys(upload_parameters)
         .filter((f) => f)
@@ -224,8 +274,8 @@ export class PinterestProvider
       formData.append('file', data);
       await this.getSsrfSafeAxios().post(upload_url, formData);
 
-      let statusCode = '';
-      while (statusCode !== 'succeeded') {
+      const maxAttempts = 18;
+      for (let attempt = 0; attempt < maxAttempts; attempt += 1) {
         const mediafile = await (
           await this.fetch(
             'https://api.pinterest.com/v5/media/' + media_id,
@@ -241,11 +291,31 @@ export class PinterestProvider
           )
         ).json();
 
-        await timer(30000);
-        statusCode = mediafile.status;
-      }
+        if (mediafile.status === 'failed') {
+          throw new BadBody(
+            'pinterest',
+            '{}',
+            Buffer.from('{}'),
+            'The file is corrupted and cannot be uploaded'
+          );
+        }
 
-      mediaId = media_id;
+        if (mediafile.status === 'succeeded') {
+          mediaId = media_id;
+          break;
+        }
+
+        if (attempt === maxAttempts - 1) {
+          throw new BadBody(
+            'pinterest',
+            '{}',
+            Buffer.from('{}'),
+            'The file took too long to process, please try again'
+          );
+        }
+
+        await timer(30000);
+      }
     }
 
     const mapImages = postDetails?.[0]?.media?.map((m) => ({
@@ -308,7 +378,9 @@ export class PinterestProvider
     date: number
   ): Promise<AnalyticsData[]> {
     const until = dayjs().format('YYYY-MM-DD');
-    const since = dayjs().subtract(date, 'day').format('YYYY-MM-DD');
+    const since = dayjs()
+      .subtract(Math.min(date, 89), 'day')
+      .format('YYYY-MM-DD');
 
     const {
       all: { daily_metrics },
@@ -373,8 +445,7 @@ export class PinterestProvider
     date: number
   ): Promise<AnalyticsData[]> {
     const today = dayjs().format('YYYY-MM-DD');
-    // Use a very long date range (2 years) to capture lifetime metrics for older posts
-    const since = dayjs().subtract(2, 'year').format('YYYY-MM-DD');
+    const since = dayjs().subtract(89, 'day').format('YYYY-MM-DD');
 
     try {
       // Fetch pin analytics from Pinterest API
