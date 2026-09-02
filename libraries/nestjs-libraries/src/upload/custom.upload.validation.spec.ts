@@ -1,5 +1,8 @@
 import { BadRequestException } from '@nestjs/common';
-import { CustomFileValidationPipe } from './custom.upload.validation';
+import {
+  CustomFileValidationPipe,
+  getMaxUploadSize,
+} from './custom.upload.validation';
 
 // PNG 1x1 valido (assinatura magic-byte real) para o caminho de sucesso.
 const PNG_1x1 = Buffer.from(
@@ -68,5 +71,16 @@ describe('CustomFileValidationPipe', () => {
     await expect(pipe.transform(file)).rejects.toBeInstanceOf(
       BadRequestException
     );
+  });
+});
+
+describe('getMaxUploadSize', () => {
+  it('mantem os limites publicos atuais de imagem e video', () => {
+    expect(getMaxUploadSize('image/png')).toBe(10 * 1024 * 1024);
+    expect(getMaxUploadSize('video/mp4')).toBe(1024 * 1024 * 1024);
+  });
+
+  it('rejeita tipos fora do contrato de upload', () => {
+    expect(() => getMaxUploadSize('text/html')).toThrow(BadRequestException);
   });
 });

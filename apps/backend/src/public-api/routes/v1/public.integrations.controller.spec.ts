@@ -1,4 +1,5 @@
 import { HttpException } from '@nestjs/common';
+import { PIPES_METADATA } from '@nestjs/common/constants';
 
 jest.mock('./public.integrations.controller', () => {
   const actual = jest.requireActual('./public.integrations.controller');
@@ -41,6 +42,12 @@ jest.mock('@gitroom/nestjs-libraries/upload/allowed.upload.mime', () => ({
 }));
 
 import { PublicIntegrationsController } from './public.integrations.controller';
+import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
+import { CustomFileValidationPipe } from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
+import { detectAllowedUploadMime } from '@gitroom/nestjs-libraries/upload/allowed.upload.mime';
+
+const mockIsSafePublicHttpsUrl = isSafePublicHttpsUrl as jest.Mock;
+const mockDetectAllowedUploadMime = detectAllowedUploadMime as jest.Mock;
 
 const makeIntegrationService = () => ({
   getIntegrationsList: jest.fn().mockResolvedValue([]),
@@ -98,6 +105,12 @@ describe('PublicIntegrationsController - upload (escopo por perfil)', () => {
   let mediaService: ReturnType<typeof makeMediaService>;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+    mockIsSafePublicHttpsUrl.mockResolvedValue(true);
+    mockDetectAllowedUploadMime.mockResolvedValue({
+      mime: 'image/jpeg',
+      ext: 'jpg',
+    });
     mediaService = makeMediaService();
     controller = new PublicIntegrationsController(
       makeIntegrationService() as any,
@@ -115,6 +128,17 @@ describe('PublicIntegrationsController - upload (escopo por perfil)', () => {
         .fn()
         .mockResolvedValue({ originalname: 'x.jpg', path: '/uploads/x.jpg' }),
     };
+  });
+
+  it('mantem validacao por magic bytes no upload multipart publico', () => {
+    const pipes = Reflect.getMetadata(
+      PIPES_METADATA,
+      PublicIntegrationsController.prototype.uploadSimple
+    );
+
+    expect(pipes).toEqual(
+      expect.arrayContaining([expect.any(CustomFileValidationPipe)])
+    );
   });
 
   it('uploadSimple com chave de perfil: vincula a midia ao perfil', async () => {
@@ -157,10 +181,9 @@ describe('PublicIntegrationsController - upload (escopo por perfil)', () => {
   });
 
   it('uploadsFromUrl com chave de perfil: vincula a midia ao perfil', async () => {
-    const fetchMock = jest.fn().mockResolvedValue({
-      ok: true,
-      arrayBuffer: async () => new ArrayBuffer(8),
-    });
+    const fetchMock = jest
+      .fn()
+      .mockResolvedValue(new Response(new Uint8Array([1, 2, 3])));
     (global as any).fetch = fetchMock;
 
     await controller.uploadsFromUrl(
@@ -176,6 +199,89 @@ describe('PublicIntegrationsController - upload (escopo por perfil)', () => {
       undefined,
       'prof-1'
     );
+  });
+
+  it('uploadsFromUrl bloqueia URL insegura antes do fetch', async () => {
+    mockIsSafePublicHttpsUrl.mockResolvedValueOnce(false);
+    const fetchMock = jest.fn();
+    (global as any).fetch = fetchMock;
+
+    await expect(
+      controller.uploadsFromUrl(
+        { id: 'org-1' } as any,
+        'prof-1',
+        { url: 'http://169.254.169.254/latest/meta-data' } as any
+      )
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(fetchMock).not.toHaveBeenCalled();
+    expect(mediaService.saveFile).not.toHaveBeenCalled();
+  });
+
+  it('uploadsFromUrl normaliza rejeicao de rede/timeout como 400', async () => {
+    (global as any).fetch = jest.fn().mockRejectedValue(new Error('timeout'));
+
+    await expect(
+      controller.uploadsFromUrl(
+        { id: 'org-1' } as any,
+        'prof-1',
+        { url: 'https://cdn.example.com/x.jpg' } as any
+      )
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(mediaService.saveFile).not.toHaveBeenCalled();
+  });
+
+  it('uploadsFromUrl rejeita Content-Length acima do limite antes de salvar', async () => {
+    (global as any).fetch = jest.fn().mockResolvedValue(
+      new Response(new Uint8Array([1]), {
+        headers: { 'content-length': String(1024 * 1024 * 1024 + 1) },
+      })
+    );
+
+    await expect(
+      controller.uploadsFromUrl(
+        { id: 'org-1' } as any,
+        'prof-1',
+        { url: 'https://cdn.example.com/huge.mp4' } as any
+      )
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(mediaService.saveFile).not.toHaveBeenCalled();
+  });
+
+  it('uploadsFromUrl rejeita transferencia chunked acima do limite do MIME real', async () => {
+    const imageLimit = 10 * 1024 * 1024;
+    (global as any).fetch = jest
+      .fn()
+      .mockResolvedValue(new Response(new Uint8Array(imageLimit + 1)));
+
+    await expect(
+      controller.uploadsFromUrl(
+        { id: 'org-1' } as any,
+        'prof-1',
+        { url: 'https://cdn.example.com/large-image.jpg' } as any
+      )
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(mediaService.saveFile).not.toHaveBeenCalled();
+  });
+
+  it('uploadsFromUrl preserva validacao por magic bytes antes do storage', async () => {
+    mockDetectAllowedUploadMime.mockResolvedValueOnce(null);
+    (global as any).fetch = jest
+      .fn()
+      .mockResolvedValue(new Response(Buffer.from('<svg></svg>')));
+
+    await expect(
+      controller.uploadsFromUrl(
+        { id: 'org-1' } as any,
+        'prof-1',
+        { url: 'https://cdn.example.com/fake.jpg' } as any
+      )
+    ).rejects.toMatchObject({ status: 400 });
+
+    expect(mediaService.saveFile).not.toHaveBeenCalled();
   });
 });
 
