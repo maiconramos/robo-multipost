@@ -7,6 +7,11 @@
 > Última versão publicada pelo upstream: `v2.23.0` (`1e4c8dd5`)
 > Cabeça do upstream analisada: `0f1647f7491a217d43eb5ae7a480484bdf0aff3e`
 
+> Atualização de execução em 02/09/2026: o espelho `postiz` foi avançado para
+> `db1a49e2` (mesma cabeça de `upstream/main`). Não surgiu nova tag estável.
+> A baseline de CI foi saneada na PR `#205`, e o primeiro porte P0 está sendo
+> executado isoladamente em `codex/upstream-p0-upload-security`.
+
 ## 1. Decisão executiva
 
 **Não fazer merge integral de `postiz` em `main`.** O risco de regressão é alto:
@@ -48,6 +53,10 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
   `base + sep`, preservando o 404 atual para arquivo inexistente.
 - **Teste obrigatório:** caminho válido, `../`, segmentos URL-encoded, caminho
   irmão com prefixo semelhante e arquivo inexistente.
+- **Execução em 02/09:** implementado manualmente no PR 1, ampliando o commit
+  upstream com validação do caminho real para também rejeitar symlink interno
+  que aponte para fora. O 404 para arquivo inexistente e diretório foi
+  preservado.
 
 ### 3.2. Meta Graph API v25 + métricas novas do Facebook
 
@@ -77,6 +86,15 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
 - **Teste obrigatório:** imagem válida, MIME falso, `Content-Length` acima do
   limite, transferência chunked acima do limite, timeout/falha DNS e vínculo ao
   perfil da chave pública.
+- **Execução em 02/09:** implementado manualmente no PR 1. Diferente do patch
+  upstream, o limite autoritativo é contado durante o streaming e cancela a
+  resposta assim que ultrapassa o teto, portanto também cobre corpo chunked ou
+  `Content-Length` falso. Depois da detecção por magic bytes, o limite próprio
+  do MIME é reaplicado. A chamada continua usando `isSafePublicHttpsUrl` +
+  `ssrfSafeDispatcher`, mantém o quinto argumento `publicApiProfileId` de
+  `MediaService.saveFile` e normaliza rejeição/timeout para HTTP 400. O caminho
+  de ferramenta de agente citado pelo upstream não existe neste fork; não há
+  segundo consumidor equivalente a portar.
 
 ### 3.4. Expandir DNS-pinning/SSRF para providers e webhooks reais
 
@@ -253,14 +271,14 @@ Nenhuma delas deve entrar no sync da tag por acidente.
 
 ## 10. Ordem segura de implementação
 
-Antes do primeiro porte, a baseline de CI precisa ficar verde. O build da
-`main` falhava em uma instalação limpa porque o frontend importava Blueprint
-diretamente sem declará-lo no próprio workspace, enquanto o workflow ainda
-instalava pnpm 8 para um projeto fixado em pnpm 10.6.1 e lockfile v9. Esse
-saneamento deve permanecer em PR isolada, sem misturar código do upstream.
+A baseline de CI foi corrigida separadamente na PR `#205`: o frontend passou a
+declarar Blueprint no próprio workspace e o workflow usa pnpm 10.6.1 com
+lockfile congelado. Assim, uma falha nos portes abaixo volta a representar a
+mudança em análise, não dívida anterior da instalação.
 
-1. **PR 1 — segurança de uploads:** `79360622` + limite/falha de upload por
-   URL (`a21a7d4b`, `c96935a0`).
+1. **PR 1 — segurança de uploads (em execução):** `79360622` + limite/falha de
+   upload por URL (`a21a7d4b`, `c96935a0`), reimplementados sobre as proteções
+   próprias de perfil, magic bytes e DNS-pinning.
 2. **PR 2 — Meta:** Graph v25 + métricas novas + Story `upload_complete`,
    preservando credenciais por perfil e reconexão 190/460/464.
 3. **PR 3 — SSRF cumulativo:** Axios/Undici + providers/webhooks, com testes de
@@ -286,7 +304,7 @@ saneamento deve permanecer em PR isolada, sem misturar código do upstream.
 ## 12. Estado da triagem
 
 A triagem foi incorporada à `main` pela PR `#201`, sem cherry-pick nem código do
-upstream. As branches `postiz` e `release` continuam intocadas, e nenhuma
-alteração foi enviada para produção. O saneamento da baseline de CI e cada
-porte listado acima permanecem mudanças independentes, com seus próprios
-testes e revisão.
+upstream. A baseline de CI foi saneada na PR `#205`. Em 02/09, o espelho
+`postiz` foi atualizado para `db1a49e2` e enviado ao origin; `release` continua
+intocada. O PR 1 de uploads segue independente, com testes e revisão de impacto
+antes de qualquer merge ou promoção para produção.

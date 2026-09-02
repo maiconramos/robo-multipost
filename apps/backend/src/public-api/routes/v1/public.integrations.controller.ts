@@ -10,6 +10,7 @@ import {
   Query,
   UploadedFile,
   UseInterceptors,
+  UsePipes,
 } from '@nestjs/common';
 import {
   ApiTags,
@@ -44,6 +45,14 @@ import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/we
 import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { Readable } from 'stream';
 import { detectAllowedUploadMime } from '@gitroom/nestjs-libraries/upload/allowed.upload.mime';
+import {
+  CustomFileValidationPipe,
+  getMaxUploadSize,
+} from '@gitroom/nestjs-libraries/upload/custom.upload.validation';
+import {
+  readResponseBodyWithLimit,
+  ResponseBodyTooLargeError,
+} from '@gitroom/nestjs-libraries/upload/bounded.response.reader';
 import * as Sentry from '@sentry/nestjs';
 import { socialIntegrationList, IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
 import { getValidationSchemas } from '@gitroom/nestjs-libraries/chat/validation.schemas.helper';
@@ -145,6 +154,7 @@ export class PublicIntegrationsController {
   @ApiResponse({ status: 400, description: 'Nenhum arquivo enviado.' })
   @ApiResponse({ status: 401, description: 'Chave de API ausente ou inválida.' })
   @UseInterceptors(FileInterceptor('file'))
+  @UsePipes(new CustomFileValidationPipe())
   async uploadSimple(
     @GetOrgFromRequest() org: Organization,
     @GetPublicApiProfileId() publicApiProfileId: string | undefined,
@@ -188,20 +198,41 @@ export class PublicIntegrationsController {
     if (!(await isSafePublicHttpsUrl(body.url))) {
       throw new HttpException({ msg: 'Unsafe URL' }, 400);
     }
-    const response = await fetch(body.url, {
-      // @ts-ignore — undici option, not in lib.dom fetch types
-      dispatcher: ssrfSafeDispatcher,
-    });
+    let response: globalThis.Response;
+    try {
+      response = await fetch(body.url, {
+        // @ts-ignore — undici option, not in lib.dom fetch types
+        dispatcher: ssrfSafeDispatcher,
+        signal: AbortSignal.timeout(30_000),
+      });
+    } catch {
+      throw new HttpException({ msg: 'Failed to fetch URL' }, 400);
+    }
     if (!response.ok) {
       throw new HttpException({ msg: 'Failed to fetch URL' }, 400);
     }
 
-    const buffer = Buffer.from(await response.arrayBuffer());
+    let buffer: Buffer;
+    try {
+      buffer = await readResponseBodyWithLimit(
+        response,
+        getMaxUploadSize('video/mp4')
+      );
+    } catch (error) {
+      if (error instanceof ResponseBodyTooLargeError) {
+        throw new HttpException({ msg: 'File is too large.' }, 400);
+      }
+      throw new HttpException({ msg: 'Failed to fetch URL' }, 400);
+    }
+
     // Valida pelo conteudo real (magic bytes), nao pelo Content-Type/extensao
     // declarados (forjaveis). Rejeita SVG/HTML e outros vetores de XSS.
     const detected = await detectAllowedUploadMime(buffer);
     if (!detected) {
       throw new HttpException({ msg: 'Unsupported file type.' }, 400);
+    }
+    if (buffer.length > getMaxUploadSize(detected.mime)) {
+      throw new HttpException({ msg: 'File is too large.' }, 400);
     }
     const mimetype = detected.mime;
     const ext = detected.ext;

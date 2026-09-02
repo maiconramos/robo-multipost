@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createReadStream, existsSync, statSync } from 'fs';
+import { createReadStream, statSync } from 'fs';
+import { resolveSafeUploadFile } from '@gitroom/nestjs-libraries/upload/safe.upload.path';
 // @ts-ignore
 import mime from 'mime';
 async function* nodeStreamToIterator(stream: any) {
@@ -31,9 +32,11 @@ export const GET = async (
     return new NextResponse('Upload directory not configured', { status: 500 });
   }
   const { path } = await context.params;
-  const filePath =
-    process.env.UPLOAD_DIRECTORY + '/' + (path ?? []).join('/');
-  if (!existsSync(filePath)) {
+  const filePath = resolveSafeUploadFile(
+    process.env.UPLOAD_DIRECTORY,
+    path ?? []
+  );
+  if (!filePath) {
     return new NextResponse('File not found', { status: 404 });
   }
   const fileStats = statSync(filePath);
