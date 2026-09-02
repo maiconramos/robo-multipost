@@ -132,9 +132,9 @@ describe('InstagramProvider.getMediaMetadata', () => {
       }),
     }) as any;
 
-    await expect(
-      provider.getMediaMetadata('bad-id', 'TOK')
-    ).rejects.toThrow(/HTTP 400/);
+    await expect(provider.getMediaMetadata('bad-id', 'TOK')).rejects.toThrow(
+      /HTTP 400/
+    );
   });
 
   it('graph.instagram.com nao deve nem tentar boost_eligibility_info', async () => {
@@ -174,7 +174,7 @@ describe('InstagramProvider.getMediaMetadata', () => {
         json: async () => ({
           error: {
             message:
-              "(#100) Tried accessing nonexisting field (boost_eligibility_info) on node type (Media)",
+              '(#100) Tried accessing nonexisting field (boost_eligibility_info) on node type (Media)',
           },
         }),
       })
@@ -248,12 +248,43 @@ describe('InstagramProvider.getMediaMetadata', () => {
     global.fetch = fetchMock as any;
 
     await expect(
-      provider.authenticate(
-        { code: 'CODE', codeVerifier: 'CV', refresh: '' }
-      )
+      provider.authenticate({ code: 'CODE', codeVerifier: 'CV', refresh: '' })
     ).rejects.toThrow(/Meta token exchange failed/);
   });
+});
 
+describe('InstagramProvider Graph API v25', () => {
+  let originalFetch: typeof fetch;
+
+  beforeEach(() => {
+    originalFetch = global.fetch;
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.resetAllMocks();
+  });
+
+  it('usa v25 nas duas consultas de analytics para ambos os hosts', async () => {
+    const fetchMock = jest.fn().mockResolvedValue({
+      json: async () => ({ data: [] as any[] }),
+    });
+    global.fetch = fetchMock as any;
+
+    await new InstagramProvider().analytics(
+      'ig-1',
+      'TOK',
+      7,
+      undefined,
+      'graph.instagram.com'
+    );
+
+    expect(fetchMock).toHaveBeenCalledTimes(2);
+    for (const [url] of fetchMock.mock.calls) {
+      expect(String(url)).toContain('graph.instagram.com/v25.0/ig-1/insights');
+      expect(String(url)).not.toContain('/v21.0/');
+    }
+  });
 });
 
 describe('InstagramProvider.handleErrors', () => {

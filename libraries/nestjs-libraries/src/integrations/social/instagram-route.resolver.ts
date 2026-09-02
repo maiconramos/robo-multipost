@@ -1,4 +1,8 @@
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
+import {
+  META_FACEBOOK_GRAPH_HOST,
+  META_INSTAGRAM_GRAPH_HOST,
+} from '@gitroom/nestjs-libraries/integrations/social/meta-graph.constants';
 
 // Integrations conectadas via Instagram Login API (graph.instagram.com + IG
 // User Token) devem rotear comentários/DMs/follow-check/stories para
@@ -6,8 +10,8 @@ import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integration
 // acesso Standard ao campo is_user_follow_business nem ao endpoint de
 // messaging. Standard Access no fluxo de IG Login dispensa App Review —
 // crítico para instâncias self-hosted de alunos.
-export const IG_LOGIN_GRAPH = 'graph.instagram.com';
-export const FB_LOGIN_GRAPH = 'graph.facebook.com';
+export const IG_LOGIN_GRAPH = META_INSTAGRAM_GRAPH_HOST;
+export const FB_LOGIN_GRAPH = META_FACEBOOK_GRAPH_HOST;
 
 export type IgRouteSource =
   | 'standalone'

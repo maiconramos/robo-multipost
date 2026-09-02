@@ -33,6 +33,7 @@ import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integ
 import type { InstagramProvider } from '@gitroom/nestjs-libraries/integrations/social/instagram.provider';
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
 import { InstagramMessagingService } from '@gitroom/nestjs-libraries/integrations/social/instagram-messaging.service';
+import { metaGraphUrl } from '@gitroom/nestjs-libraries/integrations/social/meta-graph.constants';
 import { resolveIgRoute } from '@gitroom/nestjs-libraries/integrations/social/instagram-route.resolver';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
@@ -441,7 +442,7 @@ export class FlowsService {
     // CredentialService.configureInstagramWebhook.
     const token = `${appId}|${appSecret}`;
     const res = await fetch(
-      `https://${host}/v25.0/${appId}/subscriptions?access_token=${token}`
+      `${metaGraphUrl(host)}/${appId}/subscriptions?access_token=${token}`
     );
     const body = await res.json();
     if (body.error) {

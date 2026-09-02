@@ -9,8 +9,9 @@
 
 > Atualização de execução em 02/09/2026: o espelho `postiz` foi avançado para
 > `db1a49e2` (mesma cabeça de `upstream/main`). Não surgiu nova tag estável.
-> A baseline de CI foi saneada na PR `#205`, e o primeiro porte P0 está sendo
-> executado isoladamente em `codex/upstream-p0-upload-security`.
+> A baseline de CI foi saneada na PR `#205`, e o primeiro porte P0 foi
+> concluído e incorporado pela PR `#207`. O segundo porte está isolado em
+> `codex/upstream-meta-graph-v25`.
 
 ## 1. Decisão executiva
 
@@ -61,8 +62,9 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
 ### 3.2. Meta Graph API v25 + métricas novas do Facebook
 
 - **Upstream:** `ce32dccb` e `3fab214f` (este último ainda está após a tag).
-- **Problema:** a Graph API v20 expira em 24/09/2026; várias métricas usadas
-  pelo Facebook foram descontinuadas em 15/06/2026.
+- **Problema:** o fork ainda dependia da Graph API v20 enquanto o upstream já
+  havia adotado v25; várias métricas usadas pelo Facebook também deixaram de
+  ser aceitas em produção em junho de 2026.
 - **Estado do fork:** Instagram já usa v25 na maioria das rotas, mas Facebook
   continua em v20 e ainda solicita métricas antigas. Há também rotas de
   analytics/mensagens do Instagram em v21.
@@ -72,6 +74,11 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
   `resolveIgRoute`.
 - **Teste obrigatório:** URLs de OAuth, listagem de páginas/BM, publicação
   feed/reel/story, erro 190/460/464 e analytics de página/post.
+- **Execução em 02/09:** implementado manualmente em
+  `codex/upstream-meta-graph-v25`, com constante compartilhada, Graph v25 em
+  Facebook/Instagram/messaging/webhooks, métricas substitutas e polling de
+  Story de vídeo. As suítes automatizadas e os builds passaram; a promoção
+  continua condicionada ao smoke test real de publicação e analytics.
 
 ### 3.3. Limite de tamanho no upload por URL
 
@@ -195,7 +202,7 @@ perfil próprios. Revisar contratos e segurança em um projeto separado.
 | Upstream | Estado no Robô MultiPost |
 |---|---|
 | `7bf1d8b7` (avatar fail-soft) | Já coberto: falha de storage não derruba mais a conexão do canal. |
-| `3fab214f` (Graph v25) | Instagram já está majoritariamente em v25; falta Facebook e unificação da constante. |
+| `3fab214f` (Graph v25) | Coberto no segundo porte: Facebook/Instagram unificados em v25, sem substituir `resolveIgRoute`, credenciais por perfil ou self-heal. Falta apenas validação real antes da promoção. |
 | `a21a7d4b`/`c96935a0` | SSRF, magic bytes e `profileId` já existem; falta limite de download e normalização de falha. |
 | `db65072f` e sucessores | DNS-pinning base já existe; falta ampliar Axios/providers sem regredir self-hosted. |
 | `eaf866ad` (áudio em Reels) | Backend tem busca de música, mas UI/DTO completos do upstream não existem; feature parcial, opcional. |
@@ -276,11 +283,12 @@ declarar Blueprint no próprio workspace e o workflow usa pnpm 10.6.1 com
 lockfile congelado. Assim, uma falha nos portes abaixo volta a representar a
 mudança em análise, não dívida anterior da instalação.
 
-1. **PR 1 — segurança de uploads (em execução):** `79360622` + limite/falha de
-   upload por URL (`a21a7d4b`, `c96935a0`), reimplementados sobre as proteções
-   próprias de perfil, magic bytes e DNS-pinning.
-2. **PR 2 — Meta:** Graph v25 + métricas novas + Story `upload_complete`,
-   preservando credenciais por perfil e reconexão 190/460/464.
+1. **PR 1 — segurança de uploads (concluída, PR `#207`):** `79360622` +
+   limite/falha de upload por URL (`a21a7d4b`, `c96935a0`), reimplementados
+   sobre as proteções próprias de perfil, magic bytes e DNS-pinning.
+2. **PR 2 — Meta (implementada, aguardando smoke/PR):** Graph v25 + métricas
+   novas + Story `upload_complete`, preservando credenciais por perfil,
+   System User fallback e reconexão 190/460/464.
 3. **PR 3 — SSRF cumulativo:** Axios/Undici + providers/webhooks, com testes de
    DNS rebinding e self-hosted.
 4. **PR 4 — providers isolados:** LinkedIn, Pinterest, GMB e WordPress, um

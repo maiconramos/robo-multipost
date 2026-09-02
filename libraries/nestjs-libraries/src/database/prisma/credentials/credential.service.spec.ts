@@ -14,6 +14,7 @@ describe('CredentialService', () => {
   let encryption: MockProxy<EncryptionService> & EncryptionService;
   let orgRepository: MockProxy<OrganizationRepository> & OrganizationRepository;
   let profileRepository: MockProxy<ProfileRepository> & ProfileRepository;
+  let originalFetch: typeof fetch;
 
   const buildExistingRecord = (data: Record<string, string>): any => ({
     id: 'rec-1',
@@ -26,6 +27,7 @@ describe('CredentialService', () => {
   });
 
   beforeEach(() => {
+    originalFetch = global.fetch;
     repository = createMock<CredentialRepository>();
     encryption = createMock<EncryptionService>();
 
@@ -43,6 +45,67 @@ describe('CredentialService', () => {
       orgRepository,
       profileRepository
     );
+  });
+
+  afterEach(() => {
+    global.fetch = originalFetch;
+    jest.resetAllMocks();
+  });
+
+  describe('configureInstagramWebhook', () => {
+    it('configura a assinatura do app pela Graph v25', async () => {
+      repository.findByProvider.mockResolvedValue(
+        buildExistingRecord({
+          clientId: 'app-id',
+          clientSecret: 'app-secret',
+          webhookVerifyToken: 'verify-me',
+        }) as any
+      );
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+      });
+      global.fetch = fetchMock as any;
+
+      await expect(
+        service.configureInstagramWebhook(
+          'org-1',
+          'https://example.com/webhook'
+        )
+      ).resolves.toEqual({ ok: true });
+
+      expect(String(fetchMock.mock.calls[0][0])).toBe(
+        'https://graph.facebook.com/v25.0/app-id/subscriptions'
+      );
+    });
+
+    it('usa graph.instagram.com quando a credencial e de Instagram Login', async () => {
+      repository.findByProvider.mockResolvedValue(
+        buildExistingRecord({
+          clientId: 'facebook-app-id',
+          clientSecret: 'facebook-app-secret',
+          instagramAppId: 'instagram-app-id',
+          instagramAppSecret: 'instagram-app-secret',
+          webhookVerifyToken: 'verify-me',
+        }) as any
+      );
+      const fetchMock = jest.fn().mockResolvedValue({
+        ok: true,
+        status: 200,
+        json: async () => ({ success: true }),
+      });
+      global.fetch = fetchMock as any;
+
+      await service.configureInstagramWebhook(
+        'org-1',
+        'https://example.com/webhook'
+      );
+
+      expect(String(fetchMock.mock.calls[0][0])).toBe(
+        'https://graph.instagram.com/v25.0/instagram-app-id/subscriptions'
+      );
+    });
   });
 
   describe('save', () => {
@@ -93,7 +156,10 @@ describe('CredentialService', () => {
 
     it('SENTINEL preserva o valor existente do campo', async () => {
       repository.findByProvider.mockResolvedValue(
-        buildExistingRecord({ clientId: 'kept', clientSecret: 'also-kept' }) as any
+        buildExistingRecord({
+          clientId: 'kept',
+          clientSecret: 'also-kept',
+        }) as any
       );
 
       await service.save('org-1', 'facebook', {
@@ -278,9 +344,7 @@ describe('CredentialService', () => {
     });
 
     it('usa a credencial propria do perfil quando existe (sem herdar)', async () => {
-      repository.findByProvider.mockResolvedValueOnce(
-        rec({ clientId: 'own' })
-      );
+      repository.findByProvider.mockResolvedValueOnce(rec({ clientId: 'own' }));
 
       const res = await service.getRawShared('org-1', 'facebook', 'prof-2');
 
