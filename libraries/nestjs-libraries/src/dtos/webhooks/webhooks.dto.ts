@@ -18,10 +18,15 @@ export class WebhooksDto {
   @IsString()
   @IsUrl()
   @IsDefined()
-  @IsSafeWebhookUrl({
-    message:
-      'Webhook URL must be a public HTTPS URL and cannot point to internal network addresses',
-  })
+  @IsSafeWebhookUrl(
+    {
+      message:
+        'Webhook URL must be a public HTTPS URL and cannot point to internal network addresses',
+    },
+    {
+      allowPrivateNetworkOptOut: true,
+    }
+  )
   url: string;
 
   @Type(() => WebhooksIntegrationDto)
@@ -33,10 +38,15 @@ export class OnlyURL {
   @IsString()
   @IsUrl()
   @IsDefined()
-  @IsSafeWebhookUrl({
-    message:
-      'URL must be a public HTTPS URL and cannot point to internal network addresses',
-  })
+  @IsSafeWebhookUrl(
+    {
+      message:
+        'URL must be a public HTTPS URL and cannot point to internal network addresses',
+    },
+    {
+      allowPrivateNetworkOptOut: true,
+    }
+  )
   url: string;
 }
 
@@ -52,10 +62,15 @@ export class UpdateDto {
   @IsString()
   @IsUrl()
   @IsDefined()
-  @IsSafeWebhookUrl({
-    message:
-      'Webhook URL must be a public HTTPS URL and cannot point to internal network addresses',
-  })
+  @IsSafeWebhookUrl(
+    {
+      message:
+        'Webhook URL must be a public HTTPS URL and cannot point to internal network addresses',
+    },
+    {
+      allowPrivateNetworkOptOut: true,
+    }
+  )
   url: string;
 
   @Type(() => WebhooksIntegrationDto)

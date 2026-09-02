@@ -18,7 +18,7 @@ import {
   OnlyURL, UpdateDto, WebhooksDto
 } from '@gitroom/nestjs-libraries/dtos/webhooks/webhooks.dto';
 import { AuthorizationActions, Sections } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
-import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+import { ssrfSafeFetch } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 
 @ApiTags('Webhooks')
 @Controller('/webhooks')
@@ -64,14 +64,10 @@ export class WebhookController {
   @Post('/send')
   async sendWebhook(@Body() body: any, @Query() query: OnlyURL) {
     try {
-      await fetch(query.url, {
+      await ssrfSafeFetch(query.url, {
         method: 'POST',
         body: JSON.stringify(body),
         headers: { 'Content-Type': 'application/json' },
-        // Pin do IP resolvido no connect para fechar DNS rebinding — o DTO
-        // @IsSafeWebhookUrl valida no request, mas o fetch re-resolve o DNS.
-        // @ts-ignore — undici option, not in lib.dom fetch types
-        dispatcher: ssrfSafeDispatcher,
       });
     } catch (err) {
       /** sent **/

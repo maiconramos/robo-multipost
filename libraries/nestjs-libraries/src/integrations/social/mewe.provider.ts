@@ -10,6 +10,7 @@ import dayjs from 'dayjs';
 import { Integration } from '@prisma/client';
 import { MeweDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/mewe.dto';
 import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
+import { ssrfSafeFetch } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 
 export class MeweProvider extends SocialAbstract implements SocialProvider {
   identifier = 'mewe';
@@ -105,7 +106,7 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
 
     try {
       // Exchange loginRequestToken for apiToken
-      const tokenResponse = await fetch(
+      const tokenResponse = await ssrfSafeFetch(
         `${this.meweHost}/api/dev/token?loginRequestToken=${loginRequestToken}`,
         {
           method: 'GET',
@@ -134,10 +135,13 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
       const expiresAt = tokenData.expiresAt;
 
       // Fetch user profile
-      const profileResponse = await fetch(`${this.meweHost}/api/dev/me`, {
-        method: 'GET',
-        headers: this.authHeaders(apiToken),
-      });
+      const profileResponse = await ssrfSafeFetch(
+        `${this.meweHost}/api/dev/me`,
+        {
+          method: 'GET',
+          headers: this.authHeaders(apiToken),
+        }
+      );
 
       if (!profileResponse.ok) {
         return 'Failed to fetch MeWe profile.';
@@ -178,7 +182,7 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
       let nextUrl: string | null = `${this.meweHost}/api/dev/groups`;
 
       while (nextUrl) {
-        const response = await fetch(nextUrl, {
+        const response = await ssrfSafeFetch(nextUrl, {
           method: 'GET',
           headers: this.authHeaders(accessToken),
         });
@@ -203,14 +207,14 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
     accessToken: string,
     mediaPath: string
   ): Promise<string> {
-    const mediaResponse = await fetch(mediaPath);
+    const mediaResponse = await ssrfSafeFetch(mediaPath);
     const blob = await mediaResponse.blob();
     const fileName = mediaPath.split('/').pop() || 'photo.jpg';
 
     const form = new FormData();
     form.append('file', blob, fileName);
 
-    const uploadResponse = await fetch(
+    const uploadResponse = await ssrfSafeFetch(
       `${this.meweHost}/api/dev/photo/upload`,
       {
         method: 'POST',
@@ -264,7 +268,7 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
         : `${this.meweHost}/api/dev/group/${groupId}/post`;
 
     // MeWe post endpoint may return 204 (no content), so use raw fetch
-    const postResponse = await fetch(postUrl, {
+    const postResponse = await ssrfSafeFetch(postUrl, {
       method: 'POST',
       headers: this.authHeaders(accessToken),
       body: JSON.stringify(postBody),
@@ -281,7 +285,10 @@ export class MeweProvider extends SocialAbstract implements SocialProvider {
 
     const postId = makeId(12);
 
-    const releaseURL = postType === 'timeline' ? `https://mewe.com/${integration.profile}/posts` : `https://mewe.com/group/${firstPost.settings.group}`;
+    const releaseURL =
+      postType === 'timeline'
+        ? `https://mewe.com/${integration.profile}/posts`
+        : `https://mewe.com/group/${firstPost.settings.group}`;
 
     return [
       {

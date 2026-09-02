@@ -8,7 +8,6 @@ import {
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import sharp from 'sharp';
 import { lookup } from 'mime-types';
-import { readOrFetch } from '@gitroom/helpers/utils/read.or.fetch';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { Integration } from '@prisma/client';
 import { PostPlug } from '@gitroom/helpers/decorators/post.plug';
@@ -386,7 +385,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     // Fetch all images and get their dimensions
     const images = await Promise.all(
       firstPost.media.map(async (media) => {
-        const raw = await readOrFetch(media.path);
+        const raw = await this.readOrFetch(media.path);
         const image = sharp(raw, { animated: false }).toFormat('jpeg');
         const { width, height } = await image.metadata();
         const buffer = await image.toBuffer();
@@ -403,10 +402,10 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
 
     // Create a PDF sized to the largest image; it fills the page,
     // smaller images are fitted and centered within the same dimensions
-    const pdfStream = imageToPDF(
-      imageBuffers,
-      [largest.width, largest.height]
-    ) as unknown as Readable;
+    const pdfStream = imageToPDF(imageBuffers, [
+      largest.width,
+      largest.height,
+    ]) as unknown as Readable;
     const pdfBuffer = await this.streamToBuffer(pdfStream);
 
     // Replace the first post's media with the single PDF
@@ -488,10 +487,10 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     const isVideo = mediaUrl.indexOf('mp4') > -1;
 
     if (isVideo) {
-      return Buffer.from(await readOrFetch(mediaUrl));
+      return Buffer.from(await this.readOrFetch(mediaUrl));
     }
 
-    return await sharp(await readOrFetch(mediaUrl), {
+    return await sharp(await this.readOrFetch(mediaUrl), {
       animated: lookup(mediaUrl) === 'image/gif',
     })
       .toFormat('jpeg')
@@ -499,7 +498,11 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       .toBuffer();
   }
 
-  private buildPostContent(isPdf: boolean, mediaIds: string[], pdfTitle?: string) {
+  private buildPostContent(
+    isPdf: boolean,
+    mediaIds: string[],
+    pdfTitle?: string
+  ) {
     if (mediaIds.length === 0) {
       return {};
     }

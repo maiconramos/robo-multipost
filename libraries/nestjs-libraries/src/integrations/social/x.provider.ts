@@ -9,7 +9,6 @@ import {
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { lookup } from 'mime-types';
 import sharp from 'sharp';
-import { readOrFetch } from '@gitroom/helpers/utils/read.or.fetch';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { Plug } from '@gitroom/helpers/decorators/plug.decorator';
 import { Integration } from '@prisma/client';
@@ -447,7 +446,8 @@ export class XProvider extends SocialAbstract implements SocialProvider {
         postDetails.flatMap((p) =>
           p?.media?.flatMap(async (m) => {
             const mime = (lookup(m.path) || '').toString();
-            const isVideo = mime.startsWith('video/') || /\.mp4($|\?)/i.test(m.path);
+            const isVideo =
+              mime.startsWith('video/') || /\.mp4($|\?)/i.test(m.path);
             const isGif = mime === 'image/gif';
 
             // Buffer final + media_type coerentes:
@@ -460,16 +460,20 @@ export class XProvider extends SocialAbstract implements SocialProvider {
             let mediaType: string;
 
             if (isVideo) {
-              buffer = Buffer.from(await readOrFetch(m.path));
+              buffer = Buffer.from(await this.readOrFetch(m.path));
               mediaType = 'video/mp4';
             } else if (isGif) {
-              buffer = await sharp(await readOrFetch(m.path), { animated: true })
+              buffer = await sharp(await this.readOrFetch(m.path), {
+                animated: true,
+              })
                 .resize({ width: 1000 })
                 .gif()
                 .toBuffer();
               mediaType = 'image/gif';
             } else {
-              const img = sharp(await readOrFetch(m.path)).resize({ width: 1000 });
+              const img = sharp(await this.readOrFetch(m.path)).resize({
+                width: 1000,
+              });
               if (mime === 'image/webp') {
                 buffer = await img.webp().toBuffer();
                 mediaType = 'image/webp';

@@ -10,6 +10,7 @@ import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { WhopDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/whop.dto';
+import { ssrfSafeFetch } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { Integration } from '@prisma/client';
 import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
 
@@ -17,7 +18,14 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
   identifier = 'whop';
   name = 'Whop';
   isBetweenSteps = false;
-  scopes = ['openid', 'profile', 'email', 'forum:post:create', 'forum:read', 'company:basic:read'];
+  scopes = [
+    'openid',
+    'profile',
+    'email',
+    'forum:post:create',
+    'forum:read',
+    'company:basic:read',
+  ];
   refreshCron = false;
   editor = 'markdown' as const;
   dto = WhopDto;
@@ -33,9 +41,7 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
 
   override handleErrors(
     body: string
-  ):
-    | { type: 'refresh-token' | 'bad-body'; value: string }
-    | undefined {
+  ): { type: 'refresh-token' | 'bad-body'; value: string } | undefined {
     if (body.includes('invalid_grant')) {
       return {
         type: 'refresh-token' as const,
@@ -225,7 +231,7 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
     const attachments: { id: string }[] = [];
 
     for (const item of media) {
-      const fileResponse = await fetch(item.path);
+      const fileResponse = await ssrfSafeFetch(item.path);
       const fileBuffer = await fileResponse.arrayBuffer();
       const fileName = item.path.split('/').pop() || 'file';
 
@@ -247,7 +253,7 @@ export class WhopProvider extends SocialAbstract implements SocialProvider {
       ).json();
 
       if (createFileResponse.upload_url) {
-        await fetch(createFileResponse.upload_url, {
+        await ssrfSafeFetch(createFileResponse.upload_url, {
           method: 'PUT',
           headers: createFileResponse.upload_headers || {},
           body: fileBuffer,

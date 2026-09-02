@@ -10,10 +10,10 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { groupBy } from 'lodash';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { lookup } from 'mime-types';
-import axios from 'axios';
 import WebSocket from 'ws';
 import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
 import { Integration } from '@prisma/client';
+import { ssrfSafeFetch } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 
 // @ts-ignore
 global.WebSocket = WebSocket;
@@ -150,7 +150,7 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
       )
     ).json();
 
-    const { data } = await axios.get(path, {
+    const { data } = await this.getSsrfSafeAxios().get(path, {
       responseType: 'arraybuffer',
     });
 
@@ -167,7 +167,7 @@ export class RedditProvider extends SocialAbstract implements SocialProvider {
       new Blob([Buffer.from(data)], { type: mimeType as string })
     );
 
-    const d = await fetch('https:' + action, {
+    const d = await ssrfSafeFetch('https:' + action, {
       method: 'POST',
       body: upload,
     });
