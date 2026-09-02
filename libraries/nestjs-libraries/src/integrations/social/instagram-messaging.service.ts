@@ -1,9 +1,11 @@
 import { Injectable, Logger } from '@nestjs/common';
 import { CredentialService } from '@gitroom/nestjs-libraries/database/prisma/credentials/credential.service';
 import { InstagramDmButton } from '@gitroom/nestjs-libraries/integrations/social/instagram-dm-button.type';
+import {
+  META_FACEBOOK_GRAPH_URL as GRAPH_FB,
+  META_INSTAGRAM_GRAPH_URL as GRAPH_IG,
+} from '@gitroom/nestjs-libraries/integrations/social/meta-graph.constants';
 
-const GRAPH_FB = 'https://graph.facebook.com/v25.0';
-const GRAPH_IG = 'https://graph.instagram.com/v25.0';
 const GRAPH_IG_REFRESH = 'https://graph.instagram.com/refresh_access_token';
 
 const DAY = 86_400_000;

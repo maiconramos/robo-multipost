@@ -3,6 +3,10 @@ import { CredentialRepository } from './credential.repository';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { OrganizationRepository } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.repository';
 import { ProfileRepository } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.repository';
+import {
+  META_FACEBOOK_GRAPH_URL,
+  META_INSTAGRAM_GRAPH_URL,
+} from '@gitroom/nestjs-libraries/integrations/social/meta-graph.constants';
 
 const SENTINEL = '__REDACTED__';
 
@@ -191,8 +195,13 @@ export class CredentialService {
     // API with Instagram Login" product — Meta expects the Instagram app ID
     // and secret there. Falls back to the Facebook App credentials for
     // classic Graph API setups.
-    const appId = creds?.instagramAppId || creds?.clientId;
-    const appSecret = creds?.instagramAppSecret || creds?.clientSecret;
+    const usesInstagramLogin = Boolean(
+      creds?.instagramAppId && creds?.instagramAppSecret
+    );
+    const appId = usesInstagramLogin ? creds?.instagramAppId : creds?.clientId;
+    const appSecret = usesInstagramLogin
+      ? creds?.instagramAppSecret
+      : creds?.clientSecret;
     if (!appId || !appSecret) {
       return {
         ok: false,
@@ -214,7 +223,11 @@ export class CredentialService {
         access_token: appAccessToken,
       });
       const res = await fetch(
-        `https://graph.facebook.com/v20.0/${appId}/subscriptions`,
+        `${
+          usesInstagramLogin
+            ? META_INSTAGRAM_GRAPH_URL
+            : META_FACEBOOK_GRAPH_URL
+        }/${appId}/subscriptions`,
         {
           method: 'POST',
           headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
