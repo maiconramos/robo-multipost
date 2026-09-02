@@ -95,7 +95,7 @@ export class LinkedinPageProvider
     integration: Integration,
     originalIntegration: Integration,
     postId: string,
-    information: any,
+    information: any
   ) {
     return super.addComment(
       integration,
@@ -139,7 +139,7 @@ export class LinkedinPageProvider
   async companies(accessToken: string) {
     const { elements, ...all } = await (
       await fetch(
-        'https://api.linkedin.com/v2/organizationalEntityAcls?q=roleAssignee&role=ADMINISTRATOR&projection=(elements*(organizationalTarget~(localizedName,vanityName,logoV2(original~:playableStreams))))',
+        'https://api.linkedin.com/v2/organizationalEntityAcls?q=roleAssignee&state=APPROVED&projection=(elements*(role,organizationalTarget~(localizedName,vanityName,logoV2(original~:playableStreams))))',
         {
           headers: {
             Authorization: `Bearer ${accessToken}`,
@@ -150,15 +150,22 @@ export class LinkedinPageProvider
       )
     ).json();
 
-    return (elements || []).map((e: any) => ({
-      id: e.organizationalTarget.split(':').pop(),
-      page: e.organizationalTarget.split(':').pop(),
-      username: e['organizationalTarget~'].vanityName,
-      name: e['organizationalTarget~'].localizedName,
-      picture:
-        e['organizationalTarget~'].logoV2?.['original~']?.elements?.[0]
-          ?.identifiers?.[0]?.identifier,
-    }));
+    return (elements || [])
+      .filter(
+        (e: any) =>
+          e.organizationalTarget &&
+          e['organizationalTarget~'] &&
+          ['ADMINISTRATOR', 'CONTENT_ADMINISTRATOR'].includes(e.role)
+      )
+      .map((e: any) => ({
+        id: e.organizationalTarget.split(':').pop(),
+        page: e.organizationalTarget.split(':').pop(),
+        username: e['organizationalTarget~'].vanityName,
+        name: e['organizationalTarget~'].localizedName,
+        picture:
+          e['organizationalTarget~'].logoV2?.['original~']?.elements?.[0]
+            ?.identifiers?.[0]?.identifier,
+      }));
   }
 
   async reConnect(
@@ -431,13 +438,11 @@ export class LinkedinPageProvider
     postId: string,
     date: number
   ): Promise<AnalyticsData[]> {
-    const endDate = dayjs().unix() * 1000;
-    const startDate = dayjs().subtract(date, 'days').unix() * 1000;
-
-    // Fetch share statistics for the specific post
+    // LinkedIn does not support timeIntervals for a specific share query.
+    // This endpoint therefore returns lifetime statistics without timeRange.
     const shareStatsUrl = `https://api.linkedin.com/v2/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(
       `urn:li:organization:${integrationId}`
-    )}&shares=List(${encodeURIComponent(postId)})&timeIntervals=(timeRange:(start:${startDate},end:${endDate}),timeGranularityType:DAY)`;
+    )}&shares=List(${encodeURIComponent(postId)})`;
 
     const { elements: shareElements }: { elements: PostShareStatElement[] } =
       await (
@@ -473,7 +478,7 @@ export class LinkedinPageProvider
     const analytics = (shareElements || []).reduce(
       (all, current) => {
         if (typeof current?.totalShareStatistics !== 'undefined') {
-          const dateStr = dayjs(current.timeRange.start).format('YYYY-MM-DD');
+          const dateStr = dayjs(current.timeRange?.start).format('YYYY-MM-DD');
 
           all['Impressions'].push({
             total: current.totalShareStatistics.impressionCount || 0,
@@ -912,7 +917,7 @@ export interface PostShareStatElement {
     impressionCount: number;
     commentCount: number;
   };
-  timeRange: TimeRange;
+  timeRange?: TimeRange;
 }
 
 export interface SocialActionsResponse {

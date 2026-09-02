@@ -132,7 +132,7 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
 |---|---|---|
 | Facebook Story | `7edeadd5` | Adotar manualmente: reconhecer `upload_complete` evita polling preso. Preservar implementação própria de Stories. |
 | Payload/Workers Temporal | `cc79e129`, `5b0288fd`, `6e1c103e` | Portar em PR de infraestrutura: limita erro serializado e impede workers de provider de carregar workflows desnecessariamente. Validar filas `main` e por-provider. |
-| LinkedIn | `b0c8da12`, `5daee690`, `c8d8de8b`, `84bee82b`, `db1f84ff`, `671946b5` | Alto valor: ajustes de upload, limite correto de 36 MP, preservação de PNG, streaming de vídeo e páginas de Content Admin. Portar sobre o provider divergente e testar com conta real. |
+| LinkedIn | `b0c8da12`, `5daee690`, `c8d8de8b`, `84bee82b`, `db1f84ff`, `671946b5` | Implementado cirurgicamente em `codex/upstream-linkedin-provider`, incluindo os follow-ups `60ffa4df` e `c98ea046` e a dependência de HTTP Range. Preserva OAuth por perfil e SSRF; smoke test real ainda obrigatório. Ver [`linkedin-upstream-audit-2026-09.md`](./linkedin-upstream-audit-2026-09.md). |
 | Pinterest | `5015dbb1`, `be413ec2`, `205f1b80` | Adotar: janela de analytics de 90 dias e upload correto do MP4. Revalidar os fixes de cinco imagens já portados em junho. |
 | Google Meu Negócio | `f700b8a1`, `1d965049` | Adotar: não declarar sucesso quando o Google responde `REJECTED` ou resposta não confirmada. |
 | Analytics dos providers | `907e3399` | Revisar provider por provider. O upstream troca `this.fetch` por `fetch` para evitar mapeamento indevido, mas o fork depende do tratamento próprio de erros e tokens; não aplicar globalmente. |
@@ -299,8 +299,9 @@ mudança em análise, não dívida anterior da instalação.
    System User fallback e reconexão 190/460/464.
 3. **PR 3 — SSRF cumulativo:** Axios/Undici + providers/webhooks, com testes de
    DNS rebinding e self-hosted.
-4. **PR 4 — providers isolados:** LinkedIn, Pinterest, GMB e WordPress, um
-   provider por vez com specs e smoke test real quando necessário.
+4. **PR 4 — providers isolados:** LinkedIn implementado isoladamente em
+   `codex/upstream-linkedin-provider`; Pinterest, GMB e WordPress seguem um por
+   vez. Cada provider mantém specs e smoke test real quando necessário.
 5. **PR 5 — dependências:** Next/Nest e pacotes de segurança, sem feature junto.
 6. **Épico Temporal:** desenho/migração V102 → nova versão, replay e teste de
    publicação real antes de qualquer promoção para `release`.
