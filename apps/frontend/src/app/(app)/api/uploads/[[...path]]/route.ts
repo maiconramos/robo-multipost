@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createReadStream, statSync } from 'fs';
 import { resolveSafeUploadFile } from '@gitroom/nestjs-libraries/upload/safe.upload.path';
+import { parseHttpByteRange } from '@gitroom/nestjs-libraries/upload/http.byte.range';
 // @ts-ignore
 import mime from 'mime';
 async function* nodeStreamToIterator(stream: any) {
@@ -40,14 +41,39 @@ export const GET = async (
     return new NextResponse('File not found', { status: 404 });
   }
   const fileStats = statSync(filePath);
+  const byteRange = parseHttpByteRange(
+    request.headers.get('range'),
+    fileStats.size
+  );
+  if ('unsatisfiable' in byteRange) {
+    return new NextResponse(null, {
+      status: 416,
+      headers: {
+        'Accept-Ranges': 'bytes',
+        'Content-Range': `bytes */${fileStats.size}`,
+      },
+    });
+  }
   const contentType = mime.getType(filePath) || 'application/octet-stream';
-  const response = createReadStream(filePath);
+  const response = byteRange.partial
+    ? createReadStream(filePath, {
+        start: byteRange.start,
+        end: byteRange.end,
+      })
+    : createReadStream(filePath);
   const iterator = nodeStreamToIterator(response);
   const webStream = iteratorToStream(iterator);
   return new Response(webStream, {
+    status: byteRange.partial ? 206 : 200,
     headers: {
       'Content-Type': contentType,
-      'Content-Length': fileStats.size.toString(),
+      'Content-Length': byteRange.length.toString(),
+      'Accept-Ranges': 'bytes',
+      ...(byteRange.partial
+        ? {
+            'Content-Range': `bytes ${byteRange.start}-${byteRange.end}/${fileStats.size}`,
+          }
+        : {}),
       'Last-Modified': fileStats.mtime.toUTCString(),
       'Cache-Control': 'public, max-age=31536000, immutable',
     },
