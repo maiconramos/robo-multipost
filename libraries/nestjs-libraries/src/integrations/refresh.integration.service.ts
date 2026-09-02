@@ -9,6 +9,7 @@ import {
 import { TemporalService } from 'nestjs-temporal-core';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
+import { MetaSystemUserService } from '@gitroom/nestjs-libraries/integrations/meta-system-user.service';
 
 @Injectable()
 export class RefreshIntegrationService {
@@ -17,7 +18,8 @@ export class RefreshIntegrationService {
     @Inject(forwardRef(() => IntegrationService))
     private _integrationService: IntegrationService,
     private _temporalService: TemporalService,
-    private _encryption: EncryptionService
+    private _encryption: EncryptionService,
+    private _metaSystemUser: MetaSystemUserService
   ) {}
   async refresh(integration: Integration, cause = ''): Promise<false | AuthTokenDetails> {
     const socialProvider = this._integrationManager.getSocialIntegration(
@@ -136,6 +138,19 @@ export class RefreshIntegrationService {
       });
 
     if (!refresh || !refresh.accessToken) {
+      // Self-heal Meta: o token OAuth humano morreu (checkpoint da Meta
+      // invalidou a sessao), mas com um token de Usuario do Sistema
+      // configurado da para re-derivar o Page Access Token sem reconexao
+      // manual. Retorna AQUI (antes do bloco reConnect legado abaixo): o
+      // heal ja veio do reConnect, e o caller refresh() persiste o token.
+      const healed = await this._metaSystemUser.resolveHealedToken(
+        integration,
+        socialProvider
+      );
+      if (healed?.accessToken) {
+        return healed;
+      }
+
       // Ponto unico: marca desconectado (transicao atomica) + notifica uma vez +
       // persiste o motivo. Substitui o antigo refreshNeeded + informAboutRefreshError +
       // disconnectChannel, que disparava a notificacao/e-mail em duplicidade.

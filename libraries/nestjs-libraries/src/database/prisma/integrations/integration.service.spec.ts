@@ -12,10 +12,12 @@ jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
 }));
 
 import { IntegrationService } from './integration.service';
+import { SYSTEM_USER_PAGE_TOKEN_TTL } from '@gitroom/nestjs-libraries/integrations/meta-system-user.service';
 
 const makeService = (repo: any) =>
   new IntegrationService(
     repo,
+    {} as any,
     {} as any,
     {} as any,
     {} as any,
@@ -108,7 +110,8 @@ describe('IntegrationService', () => {
         {} as any,
         {} as any,
         {} as any,
-        statusEvent
+        statusEvent,
+        {} as any
       );
 
     const integration = {
@@ -184,6 +187,7 @@ describe('IntegrationService', () => {
         {} as any,
         {} as any,
         {} as any,
+        {} as any,
         {} as any
       );
       (service as any).storage = {
@@ -212,7 +216,15 @@ describe('IntegrationService', () => {
   });
 
   describe('refreshTokens', () => {
-    const buildService = (repo: any, manager: any) =>
+    // Sem system user token por padrao — preserva o comportamento legado
+    // (desconectar quando o refresh falha) nos testes existentes.
+    const buildService = (
+      repo: any,
+      manager: any,
+      metaSystemUser: any = {
+        resolveHealedToken: jest.fn().mockResolvedValue(null),
+      }
+    ) =>
       new IntegrationService(
         repo,
         {} as any,
@@ -221,7 +233,8 @@ describe('IntegrationService', () => {
         {} as any,
         {} as any,
         {} as any,
-        {} as any
+        {} as any,
+        metaSystemUser
       );
 
     it('nao aborta o lote quando um canal falha o refresh (continue, nao return)', async () => {
@@ -277,6 +290,113 @@ describe('IntegrationService', () => {
         'Automatic token refresh failed'
       );
       expect(upsert).toHaveBeenCalledTimes(1);
+    });
+
+    it('cura canal facebook via system user no lote sem desconectar', async () => {
+      const fbIntegration: any = {
+        id: 'int-fb',
+        name: 'Pagina X',
+        providerIdentifier: 'facebook',
+        organizationId: 'org-1',
+        internalId: '755639424460731',
+        refreshToken: 'r1',
+        profileId: 'prof-1',
+      };
+      const repo = {
+        needsToBeRefreshed: jest.fn().mockResolvedValue([fbIntegration]),
+      };
+      const provider = {
+        identifier: 'facebook',
+        oneTimeToken: false,
+        noNativeRefresh: true,
+      };
+      const manager = {
+        getSocialIntegration: jest.fn().mockReturnValue(provider),
+      };
+      const healed = {
+        id: '755639424460731',
+        name: 'Pagina X',
+        accessToken: 'EAA-healed',
+        refreshToken: 'EAA-healed',
+        expiresIn: SYSTEM_USER_PAGE_TOKEN_TTL,
+        picture: '',
+        username: '',
+      };
+      const metaSystemUser = {
+        resolveHealedToken: jest.fn().mockResolvedValue(healed),
+      };
+      const service = buildService(repo, manager, metaSystemUser);
+
+      // Stub sem refresh nativo: o refresh interno falha.
+      jest.spyOn(service, 'refreshToken').mockResolvedValue(false);
+      const disconnect = jest
+        .spyOn(service, 'disconnectChannel')
+        .mockResolvedValue(undefined as any);
+      const upsert = jest
+        .spyOn(service, 'createOrUpdateIntegration')
+        .mockResolvedValue(undefined as any);
+
+      await service.refreshTokens();
+
+      expect(metaSystemUser.resolveHealedToken).toHaveBeenCalledWith(
+        fbIntegration,
+        provider
+      );
+      // Curou: persiste o token novo com a expiracao longa e NAO desconecta.
+      expect(upsert).toHaveBeenCalledTimes(1);
+      expect(upsert).toHaveBeenCalledWith(
+        undefined,
+        false,
+        'org-1',
+        'Pagina X',
+        undefined,
+        'social',
+        '755639424460731',
+        'facebook',
+        'EAA-healed',
+        'EAA-healed',
+        SYSTEM_USER_PAGE_TOKEN_TTL
+      );
+      expect(disconnect).not.toHaveBeenCalled();
+    });
+
+    it('pula canal sem refresh nativo e sem system user (nao desconecta — falso positivo)', async () => {
+      const fbIntegration: any = {
+        id: 'int-fb',
+        name: 'Pagina X',
+        providerIdentifier: 'facebook',
+        organizationId: 'org-1',
+        internalId: '755639424460731',
+        refreshToken: 'r1',
+        profileId: null,
+      };
+      const repo = {
+        needsToBeRefreshed: jest.fn().mockResolvedValue([fbIntegration]),
+      };
+      const manager = {
+        getSocialIntegration: jest.fn().mockReturnValue({
+          identifier: 'facebook',
+          oneTimeToken: false,
+          noNativeRefresh: true,
+        }),
+      };
+      const service = buildService(repo, manager);
+
+      jest.spyOn(service, 'refreshToken').mockResolvedValue(false);
+      const disconnect = jest
+        .spyOn(service, 'disconnectChannel')
+        .mockResolvedValue(undefined as any);
+      const upsert = jest
+        .spyOn(service, 'createOrUpdateIntegration')
+        .mockResolvedValue(undefined as any);
+
+      await service.refreshTokens();
+
+      // O token de Pagina pode continuar valido (a expiracao registrada e
+      // sintetica); desconectar aqui era o falso positivo que derrubava
+      // canal saudavel. A morte real do token e tratada no post-time.
+      expect(disconnect).not.toHaveBeenCalled();
+      expect(upsert).not.toHaveBeenCalled();
     });
 
     it('nao derruba o lote quando o processamento de um canal lanca', async () => {

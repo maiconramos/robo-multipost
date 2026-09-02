@@ -12,6 +12,7 @@ jest.mock('@gitroom/nestjs-libraries/upload/upload.factory', () => ({
 }));
 
 import { RefreshIntegrationService } from './refresh.integration.service';
+import { SYSTEM_USER_PAGE_TOKEN_TTL } from './meta-system-user.service';
 
 const integration = {
   id: 'int-1',
@@ -29,6 +30,7 @@ const buildService = (opts: {
   provider?: any;
   integrationService?: any;
   temporal?: any;
+  metaSystemUser?: any;
 }) => {
   const provider = opts.provider ?? {
     identifier: 'linkedin',
@@ -45,13 +47,19 @@ const buildService = (opts: {
     createOrUpdateIntegration: jest.fn().mockResolvedValue(undefined),
   };
   const encryption = { decrypt: jest.fn((x: string) => x) };
+  // Sem system user token por padrao — preserva o comportamento legado
+  // (desconectar) nos testes existentes.
+  const metaSystemUser = opts.metaSystemUser ?? {
+    resolveHealedToken: jest.fn().mockResolvedValue(null),
+  };
   const service = new RefreshIntegrationService(
     manager as any,
     integrationService as any,
     (opts.temporal ?? {}) as any,
-    encryption as any
+    encryption as any,
+    metaSystemUser as any
   );
-  return { service, provider, manager, integrationService };
+  return { service, provider, manager, integrationService, metaSystemUser };
 };
 
 describe('RefreshIntegrationService', () => {
@@ -93,6 +101,78 @@ describe('RefreshIntegrationService', () => {
       expect(
         integrationService.createOrUpdateIntegration
       ).not.toHaveBeenCalled();
+    });
+
+    it('cura o canal via system user quando o refresh nativo falha (nao desconecta)', async () => {
+      const healed = {
+        id: '755639424460731',
+        name: 'Pagina X',
+        accessToken: 'EAA-healed',
+        refreshToken: 'EAA-healed',
+        expiresIn: SYSTEM_USER_PAGE_TOKEN_TTL,
+        picture: 'https://pic',
+        username: '',
+      };
+      const metaSystemUser = {
+        resolveHealedToken: jest.fn().mockResolvedValue(healed),
+      };
+      const { service, provider, integrationService } = buildService({
+        provider: {
+          identifier: 'facebook',
+          refreshToken: jest.fn().mockResolvedValue({
+            accessToken: '',
+            refreshToken: '',
+            expiresIn: 0,
+          }),
+          reConnect: jest.fn(),
+          oneTimeToken: false,
+        },
+        metaSystemUser,
+      });
+
+      const fbIntegration = {
+        ...integration,
+        providerIdentifier: 'facebook',
+      };
+      const result = await service.refresh(fbIntegration);
+
+      expect(metaSystemUser.resolveHealedToken).toHaveBeenCalledWith(
+        fbIntegration,
+        expect.objectContaining({ identifier: 'facebook' })
+      );
+      expect(result).toEqual(healed);
+      // Curou: persiste o token novo e NAO desconecta.
+      expect(
+        integrationService.createOrUpdateIntegration
+      ).toHaveBeenCalledTimes(1);
+      expect(integrationService.disconnectChannel).not.toHaveBeenCalled();
+      // O heal ja veio do reConnect dentro do MetaSystemUserService; o bloco
+      // reConnect legado do refreshProcess nao pode rodar de novo.
+      expect(provider.reConnect).not.toHaveBeenCalled();
+    });
+
+    it('desconecta quando o heal via system user tambem falha (retorna null)', async () => {
+      const metaSystemUser = {
+        resolveHealedToken: jest.fn().mockResolvedValue(null),
+      };
+      const { service, integrationService } = buildService({
+        provider: {
+          identifier: 'facebook',
+          refreshToken: jest.fn().mockResolvedValue(false),
+          reConnect: jest.fn(),
+          oneTimeToken: false,
+        },
+        metaSystemUser,
+      });
+
+      const result = await service.refresh({
+        ...integration,
+        providerIdentifier: 'facebook',
+      });
+
+      expect(result).toBe(false);
+      expect(metaSystemUser.resolveHealedToken).toHaveBeenCalledTimes(1);
+      expect(integrationService.disconnectChannel).toHaveBeenCalledTimes(1);
     });
 
     it('loga o motivo real e marca desconectado quando o provider lanca (observabilidade)', async () => {

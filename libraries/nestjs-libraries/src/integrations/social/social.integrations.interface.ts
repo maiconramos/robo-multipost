@@ -147,6 +147,12 @@ export interface SocialProvider
   refreshWait?: boolean;
   convertToJPEG?: boolean;
   refreshCron?: boolean;
+  // Provider cujo refreshToken() e stub (sem mecanismo nativo de renovacao —
+  // ex.: facebook/instagram via Facebook Login, cujo Page Access Token nao se
+  // renova por refresh_token). O cron em lote NAO deve tratar o retorno vazio
+  // do stub como falha real e desconectar (falso positivo); a renovacao
+  // acontece via MetaSystemUserService (System User token) ou no post-time.
+  noNativeRefresh?: boolean;
   dto?: any;
   maxLength: (additionalSettings?: any) => number;
   isWeb3?: boolean;

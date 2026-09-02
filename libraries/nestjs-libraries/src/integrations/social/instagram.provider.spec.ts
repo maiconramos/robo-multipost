@@ -1,6 +1,14 @@
 import 'reflect-metadata';
 import { InstagramProvider } from './instagram.provider';
 
+describe('InstagramProvider (flags)', () => {
+  it('declara noNativeRefresh pois o refreshToken e stub (Page token nao renova)', () => {
+    // Consumido por IntegrationService.refreshTokens: sem esta flag o cron
+    // em lote volta a desconectar canal saudavel por falso positivo.
+    expect(new InstagramProvider().noNativeRefresh).toBe(true);
+  });
+});
+
 describe('InstagramProvider.getMediaMetadata', () => {
   let provider: InstagramProvider;
   let originalFetch: typeof fetch;
