@@ -155,13 +155,12 @@ const CREDENTIAL_ALIAS: Record<string, string> = {
   threads: 'facebook',
   'linkedin-page': 'linkedin',
   x: 'twitter',
+  gmb: 'youtube',
 };
 
 @Injectable()
 export class IntegrationManager {
-  constructor(
-    @Optional() private _credentialService?: CredentialService
-  ) {}
+  constructor(@Optional() private _credentialService?: CredentialService) {}
 
   async getProviderCredentials(
     provider: string,
@@ -210,9 +209,7 @@ export class IntegrationManager {
         isExternal: !!p.externalUrl,
         isWeb3: !!p.isWeb3,
         isChromeExtension: !!p.isChromeExtension,
-        ...(p.extensionCookies
-          ? { extensionCookies: p.extensionCookies }
-          : {}),
+        ...(p.extensionCookies ? { extensionCookies: p.extensionCookies } : {}),
         ...(p.customFields ? { customFields: await p.customFields() } : {}),
       }))
     );
