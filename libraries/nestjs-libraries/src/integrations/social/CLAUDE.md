@@ -106,6 +106,7 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 | `instagram.standalone.provider.ts` | IG via Instagram Login (IG User Token, host `graph.instagram.com`) — preferred for self-hosted |
 | `instagram-route.resolver.ts` | `resolveIgRoute` — picks the correct host/token |
 | `meta-graph.constants.ts` | Single source of truth for Meta Graph API version, Facebook/Instagram hosts and versioned base URLs. OAuth exchange/refresh endpoints remain deliberately unversioned. |
+| `gmb.provider.ts` + `gmb.provider.spec.ts` | Native Google Business Profile — shared per-profile Google credentials, location discovery, confirmed local-post creation and reconnect-safe refresh tokens |
 | `instagram-messaging.service.ts` | Registered tokens (Meta System User Token + per-account IG User Tokens) |
 | `instagram-dm-button.type.ts` | Types for the follow-gate postback button |
 | `pinterest.provider.ts` + `pinterest.provider.spec.ts` | Native Pinterest — per-profile OAuth credentials, image/video pin upload, bounded video-processing polling and 89-day analytics window |
@@ -155,6 +156,8 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 9. **Symptom:** a Meta feature works in one subsystem but another still calls an older Graph version → **Cause:** a provider/service embedded `v20.0`, `v21.0` or `v25.0` directly. **Fix:** use `META_GRAPH_API_VERSION`, `META_FACEBOOK_GRAPH_URL`, `META_INSTAGRAM_GRAPH_URL` or `metaGraphUrl(host)` from `meta-graph.constants.ts`. Do not version the dedicated Instagram token exchange/refresh endpoints (`api.instagram.com/oauth/access_token`, `graph.instagram.com/access_token`, `graph.instagram.com/refresh_access_token`). Version choice never replaces `resolveIgRoute`; host/token routing remains separate.
 
 10. **Symptom:** Pinterest video fails as corrupted when a cover image is attached before the MP4, or a workspace credential is ignored → **Cause:** the upload used `media[0]` instead of the detected MP4 and older OAuth methods read only `PINTEREST_CLIENT_ID/SECRET`. **Fix:** preserve the `findMp4.path` upload and propagate `ClientInformation` through `generateAuthUrl`, `authenticate` and `refreshToken`. Keep video download/upload on `getSsrfSafeAxios`; do not replace it with raw Axios. Pinterest analytics accepts at most 90 days, so the provider deliberately uses 89 days as a UTC safety margin.
+
+11. **Symptom:** GMB appears published with an empty external ID, or works immediately after reconnect and falls again about one hour later → **Cause:** the v4 API may answer HTTP 200 with `state: REJECTED`, no `name`, an empty/non-JSON body, or the reconnect may discard the newly issued Google `refresh_token`. **Fix:** treat only a named, non-rejected local post as success; keep `keepReconnectAuthTokens`, `include_granted_scopes: false` and best-effort revocation aligned with YouTube. GMB intentionally resolves the per-profile credential under the `youtube` alias because the settings card represents the shared Google OAuth app. Register both `/integrations/social/youtube` and `/integrations/social/gmb` as authorized redirect URIs.
 
 ## Commands
 
