@@ -24,14 +24,19 @@ import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import sharp from 'sharp';
 import { Plug } from '@gitroom/helpers/decorators/plug.decorator';
 import { timer } from '@gitroom/helpers/utils/timer';
-import axios from 'axios';
+import {
+  getSsrfSafeAxios,
+  ssrfSafeFetch,
+} from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
 
 async function reduceImageBySize(url: string, maxSizeKB = 976) {
   try {
     // Fetch the image from the URL
-    const response = await axios.get(url, { responseType: 'arraybuffer' });
+    const response = await getSsrfSafeAxios().get(url, {
+      responseType: 'arraybuffer',
+    });
     let imageBuffer = Buffer.from(response.data);
 
     // Use sharp to get the metadata of the image
@@ -74,7 +79,7 @@ async function uploadVideo(
   async function downloadVideo(
     url: string
   ): Promise<{ video: Buffer; size: number }> {
-    const response = await fetch(url);
+    const response = await ssrfSafeFetch(url);
     if (!response.ok) {
       throw new Error(`Failed to fetch video: ${response.statusText}`);
     }
@@ -94,7 +99,7 @@ async function uploadVideo(
   uploadUrl.searchParams.append('did', agent.session!.did);
   uploadUrl.searchParams.append('name', videoPath.split('/').pop()!);
 
-  const uploadResponse = await fetch(uploadUrl, {
+  const uploadResponse = await ssrfSafeFetch(uploadUrl, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${serviceAuth.token}`,
@@ -107,7 +112,10 @@ async function uploadVideo(
   const jobStatus = (await uploadResponse.json()) as AppBskyVideoDefs.JobStatus;
   console.log('JobId:', jobStatus.jobId);
   let blob: BlobRef | undefined = jobStatus.blob;
-  const videoAgent = new AtpAgent({ service: 'https://video.bsky.app' });
+  const videoAgent = new AtpAgent({
+    service: 'https://video.bsky.app',
+    fetch: ssrfSafeFetch,
+  });
 
   while (!blob) {
     const { data: status } = await videoAgent.app.bsky.video.getJobStatus({
@@ -149,7 +157,8 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
   override maxConcurrentJob = 2; // Bluesky has moderate rate limits
   identifier = 'bluesky';
   name = 'Bluesky';
-  toolTip = "We don’t currently support two-factor authentication. If it’s enabled on Bluesky, you’ll need to disable it."
+  toolTip =
+    'We don’t currently support two-factor authentication. If it’s enabled on Bluesky, you’ll need to disable it.';
   isBetweenSteps = false;
   scopes = ['write:statuses', 'profile', 'write:media'];
   editor = 'normal' as const;
@@ -212,6 +221,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     try {
       const agent = new BskyAgent({
         service: body.service,
+        fetch: ssrfSafeFetch,
       });
 
       const {
@@ -246,6 +256,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     );
     const agent = new BskyAgent({
       service: body.service,
+      fetch: ssrfSafeFetch,
     });
 
     try {
@@ -339,7 +350,9 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
         id: firstPost.id,
         postId: uri,
         status: 'completed',
-        releaseURL: `https://bsky.app/profile/${id}/post/${uri.split('/').pop()}`,
+        releaseURL: `https://bsky.app/profile/${id}/post/${uri
+          .split('/')
+          .pop()}`,
       },
     ];
   }
@@ -372,12 +385,22 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
       depth: 0,
     });
 
-    // @ts-ignore
-    const parentCid = parentThread.data.thread.post?.cid;
-    // @ts-ignore
-    const rootUri = parentThread.data.thread.post?.record?.reply?.root?.uri || postId;
-    // @ts-ignore
-    const rootCid = parentThread.data.thread.post?.record?.reply?.root?.cid || parentCid;
+    const thread = parentThread.data.thread;
+    if (!('post' in thread) || !thread.post) {
+      throw new BadBody(
+        this.identifier,
+        JSON.stringify(thread),
+        {} as BodyInit,
+        'Could not find the Bluesky post being replied to'
+      );
+    }
+
+    const parentCid = thread.post.cid;
+    const record = thread.post.record as {
+      reply?: { root?: { uri?: string; cid?: string } };
+    };
+    const rootUri = record.reply?.root?.uri || postId;
+    const rootCid = record.reply?.root?.cid || parentCid;
 
     // @ts-ignore
     const { cid, uri, commit } = await agent.post({
@@ -402,7 +425,9 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
         id: commentPost.id,
         postId: uri,
         status: 'completed',
-        releaseURL: `https://bsky.app/profile/${id}/post/${uri.split('/').pop()}`,
+        releaseURL: `https://bsky.app/profile/${id}/post/${uri
+          .split('/')
+          .pop()}`,
       },
     ];
   }
@@ -434,6 +459,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     );
     const agent = new BskyAgent({
       service: body.service,
+      fetch: ssrfSafeFetch,
     });
 
     await agent.login({
@@ -495,6 +521,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
     );
     const agent = new BskyAgent({
       service: body.service,
+      fetch: ssrfSafeFetch,
     });
 
     await agent.login({
@@ -551,6 +578,7 @@ export class BlueskyProvider extends SocialAbstract implements SocialProvider {
 
     const agent = new BskyAgent({
       service: body.service,
+      fetch: ssrfSafeFetch,
     });
 
     await agent.login({

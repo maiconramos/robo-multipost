@@ -117,6 +117,14 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
   precisa ser explícito e documentado.
 - **Teste obrigatório:** IPv4/IPv6 privado, IP literal, DNS rebinding, redirect
   para IP privado, Axios e Undici, com e sem opt-out permitido.
+- **Execução em 02/09:** implementado manualmente na PR 3 sobre o helper já
+  existente do fork. Undici e Axios compartilham o mesmo lookup pinado; o
+  `SocialAbstract`, o SDK do Bluesky, providers self-hosted, downloads de mídia,
+  URLs intermediárias de upload e webhooks de saída foram cobertos. O opt-out
+  `DISABLE_SSRF_PROTECTION=true` ficou explícito e documentado para redes
+  self-hosted confiáveis, sem liberar upload/importação pública por URL. Foram
+  adicionados testes de IPv4/IPv6, resposta DNS mista, rebinding, clientes
+  Axios/Undici e isolamento do opt-out.
 
 ## 4. Prioridade P1 — alto valor, PRs separados
 

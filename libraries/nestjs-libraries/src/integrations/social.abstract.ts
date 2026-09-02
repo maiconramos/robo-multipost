@@ -1,6 +1,12 @@
 import { timer } from '@gitroom/helpers/utils/timer';
 import { Integration } from '@prisma/client';
 import { ApplicationFailure } from '@temporalio/activity';
+import {
+  getSsrfSafeAxios,
+  ssrfSafeFetch,
+} from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+import { AxiosInstance } from 'axios';
+import { readFileSync } from 'fs';
 
 export class RefreshToken extends ApplicationFailure {
   constructor(identifier: string, json: string, body: BodyInit, message = '') {
@@ -51,9 +57,26 @@ export abstract class SocialAbstract {
   maxConcurrentJob = 1;
   hiddenFromList = false;
 
+  protected getSsrfSafeAxios(): AxiosInstance {
+    return getSsrfSafeAxios();
+  }
+
+  protected async readOrFetch(path: string): Promise<Buffer> {
+    if (path.indexOf('http') === 0) {
+      const response = await this.getSsrfSafeAxios()({
+        url: path,
+        method: 'GET',
+        responseType: 'arraybuffer',
+      });
+      return Buffer.from(response.data);
+    }
+
+    return readFileSync(path);
+  }
+
   public handleErrors(
     body: string,
-    status: number,
+    status: number
   ):
     | { type: 'refresh-token' | 'bad-body' | 'retry'; value: string }
     | undefined {
@@ -116,7 +139,7 @@ export abstract class SocialAbstract {
     totalRetries = 0,
     ignoreConcurrency = false
   ): Promise<Response> {
-    const request = await fetch(url, options);
+    const request = await ssrfSafeFetch(url, options);
 
     if (request.status === 200 || request.status === 201) {
       return request;

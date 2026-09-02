@@ -7,7 +7,6 @@ import {
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { PinterestSettingsDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/pinterest.dto';
-import axios from 'axios';
 import FormData from 'form-data';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
@@ -208,7 +207,7 @@ export class PinterestProvider
         })
       ).json();
 
-      const { data, status } = await axios.get(
+      const { data, status } = await this.getSsrfSafeAxios().get(
         postDetails?.[0]?.media?.[0]?.path!,
         {
           responseType: 'stream',
@@ -223,7 +222,7 @@ export class PinterestProvider
         }, new FormData());
 
       formData.append('file', data);
-      await axios.post(upload_url, formData);
+      await this.getSsrfSafeAxios().post(upload_url, formData);
 
       let statusCode = '';
       while (statusCode !== 'succeeded') {
@@ -422,7 +421,9 @@ export class PinterestProvider
           result.push({
             label: 'Outbound Clicks',
             percentageChange: 0,
-            data: [{ total: String(lifetimeMetrics.OUTBOUND_CLICK), date: today }],
+            data: [
+              { total: String(lifetimeMetrics.OUTBOUND_CLICK), date: today },
+            ],
           });
         }
 

@@ -12,7 +12,7 @@ import {
 import { Integration, Post, State } from '@prisma/client';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { IntegrationManager } from '@gitroom/nestjs-libraries/integrations/integration.manager';
-import { ssrfSafeDispatcher } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
+import { ssrfSafeFetch } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { AuthTokenDetails } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { timer } from '@gitroom/helpers/utils/timer';
@@ -313,17 +313,12 @@ export class PostActivity {
     return Promise.all(
       webhooks.map(async (webhook) => {
         try {
-          await fetch(webhook.url, {
+          await ssrfSafeFetch(webhook.url, {
             method: 'POST',
             headers: {
               'Content-Type': 'application/json',
             },
             body: JSON.stringify(post),
-            // A URL passa por @IsSafeWebhookUrl na criacao, mas o disparo ocorre
-            // muito depois e o fetch re-resolve o DNS — o dispatcher fecha a
-            // janela de DNS-rebinding (SSRF) no momento do envio.
-            // @ts-ignore — `dispatcher` e opcao do undici, ausente dos tipos do fetch
-            dispatcher: ssrfSafeDispatcher,
           });
         } catch (e) {
           /**empty**/

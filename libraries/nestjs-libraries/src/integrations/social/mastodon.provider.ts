@@ -6,6 +6,7 @@ import {
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import { ssrfSafeFetch } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import dayjs from 'dayjs';
 import { Integration } from '@prisma/client';
 
@@ -113,9 +114,14 @@ export class MastodonProvider extends SocialAbstract implements SocialProvider {
     );
   }
 
-  async uploadFile(instanceUrl: string, fileUrl: string, accessToken: string, alt?: string) {
+  async uploadFile(
+    instanceUrl: string,
+    fileUrl: string,
+    accessToken: string,
+    alt?: string
+  ) {
     const form = new FormData();
-    form.append('file', await fetch(fileUrl).then((r) => r.blob()));
+    form.append('file', await ssrfSafeFetch(fileUrl).then((r) => r.blob()));
     if (alt) {
       form.append('description', alt);
     }

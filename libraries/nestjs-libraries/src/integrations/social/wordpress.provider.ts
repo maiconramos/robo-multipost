@@ -13,6 +13,7 @@ import slugify from 'slugify';
 // import FormData from 'form-data';
 import axios from 'axios';
 import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
+import { ssrfSafeFetch } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { string } from 'yup';
 
 export class WordpressProvider
@@ -102,7 +103,7 @@ export class WordpressProvider
         'base64'
       );
       const { id, name, avatar_urls, code } = await (
-        await fetch(`${body.domain}/wp-json/wp/v2/users/me`, {
+        await ssrfSafeFetch(`${body.domain}/wp-json/wp/v2/users/me`, {
           headers: {
             Authorization: `Basic ${auth}`,
           },
@@ -110,7 +111,7 @@ export class WordpressProvider
       ).json();
 
       if (code) {
-        throw "Invalid credentials";
+        throw 'Invalid credentials';
       }
 
       const biggestImage = Object.entries(avatar_urls || {}).reduce(
