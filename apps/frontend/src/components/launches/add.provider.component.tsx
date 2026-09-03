@@ -168,6 +168,7 @@ export const CustomVariables: FC<{
     defaultValue?: string;
     validation: string;
     type: 'text' | 'password';
+    hint?: string;
   }>;
   close?: () => void;
   identifier: string;
@@ -239,11 +240,33 @@ export const CustomVariables: FC<{
         >
           {variables.map((variable) => (
             <div key={variable.key}>
-              <Input
-                label={variable.label}
-                name={variable.key}
-                type={variable.type == 'text' ? 'text' : 'password'}
-              />
+              {variable.hint ? (
+                <div className="flex flex-col gap-[6px]">
+                  <div className="flex items-center gap-[6px] text-[14px]">
+                    <span>{variable.label}</span>
+                    <span
+                      aria-label={t(variable.hint, variable.hint)}
+                      className="flex h-[16px] w-[16px] cursor-help select-none items-center justify-center rounded-full border border-textColor/60 text-[11px] leading-none text-textColor/60"
+                      data-tooltip-content={t(variable.hint, variable.hint)}
+                      data-tooltip-id="tooltip"
+                      role="img"
+                    >
+                      i
+                    </span>
+                  </div>
+                  <Input
+                    label=""
+                    name={variable.key}
+                    type={variable.type == 'text' ? 'text' : 'password'}
+                  />
+                </div>
+              ) : (
+                <Input
+                  label={variable.label}
+                  name={variable.key}
+                  type={variable.type == 'text' ? 'text' : 'password'}
+                />
+              )}
             </div>
           ))}
           <div>
@@ -374,6 +397,7 @@ export const AddProviderComponent: FC<{
       label: string;
       validation: string;
       type: 'text' | 'password';
+      hint?: string;
     }>;
   }>;
   article: Array<{
@@ -403,6 +427,7 @@ export const AddProviderComponent: FC<{
           validation: string;
           defaultValue?: string;
           type: 'text' | 'password';
+          hint?: string;
         }>
       ) =>
       async () => {
