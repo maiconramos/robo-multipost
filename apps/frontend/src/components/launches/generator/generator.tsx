@@ -21,11 +21,14 @@ import dayjs from 'dayjs';
 import { Select } from '@gitroom/react/form/select';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
+import { useToaster } from '@gitroom/react/toaster/toaster';
+import { consumeGeneratorStream } from './generator.stream';
 
 const FirstStep: FC = (props) => {
   const { integrations, reloadCalendarView } = useCalendar();
   const modal = useModals();
   const fetch = useFetch();
+  const toaster = useToaster();
   const [loading, setLoading] = useState(false);
   const [showStep, setShowStep] = useState('');
   const t = useT();
@@ -45,74 +48,53 @@ const FirstStep: FC = (props) => {
   const [research] = form.watch(['research']);
   const generateStep = useCallback(
     async (reader: ReadableStreamDefaultReader) => {
-      const decoder = new TextDecoder('utf-8');
-      let lastResponse = {} as any;
-      // eslint-disable-next-line no-constant-condition
-      while (true) {
-        const { done, value } = await reader.read();
-        if (done) return lastResponse.data.output;
-
-        // Convert chunked binary data to string
-        const chunkStr = decoder.decode(value, {
-          stream: true,
-        });
-        for (const chunk of chunkStr
-          .split('\n')
-          .filter((f) => f && f.indexOf('{') > -1)) {
-          try {
-            const data = JSON.parse(chunk);
-            switch (data.name) {
-              case 'agent':
-                setShowStep(t('agent_starting', 'Agent starting'));
-                break;
-              case 'research':
-                setShowStep(
-                  t('researching_your_content', 'Researching your content...')
-                );
-                break;
-              case 'find-category':
-                setShowStep(
-                  t(
-                    'understanding_the_category',
-                    'Understanding the category...'
-                  )
-                );
-                break;
-              case 'find-topic':
-                setShowStep(t('finding_the_topic', 'Finding the topic...'));
-                break;
-              case 'find-popular-posts':
-                setShowStep(
-                  t(
-                    'finding_popular_posts_to_match_with',
-                    'Finding popular posts to match with...'
-                  )
-                );
-                break;
-              case 'generate-hook':
-                setShowStep(t('generating_hook', 'Generating hook...'));
-                break;
-              case 'generate-content':
-                setShowStep(t('generating_content', 'Generating content...'));
-                break;
-              case 'generate-picture':
-                setShowStep(t('generating_pictures', 'Generating pictures...'));
-                break;
-              case 'upload-pictures':
-                setShowStep(t('uploading_pictures', 'Uploading pictures...'));
-                break;
-              case 'post-time':
-                setShowStep(
-                  t('finding_time_to_post', 'Finding time to post...')
-                );
-                break;
-            }
-            lastResponse = data;
-          } catch (e) {
-            /** don't do anything **/
+      return consumeGeneratorStream(
+        reader,
+        (data) => {
+          switch (data.name) {
+            case 'agent':
+              setShowStep(t('agent_starting', 'Agent starting'));
+              break;
+            case 'research':
+              setShowStep(
+                t('researching_your_content', 'Researching your content...')
+              );
+              break;
+            case 'find-category':
+              setShowStep(
+                t('understanding_the_category', 'Understanding the category...')
+              );
+              break;
+            case 'find-topic':
+              setShowStep(t('finding_the_topic', 'Finding the topic...'));
+              break;
+            case 'find-popular-posts':
+              setShowStep(
+                t(
+                  'finding_popular_posts_to_match_with',
+                  'Finding popular posts to match with...'
+                )
+              );
+              break;
+            case 'generate-hook':
+              setShowStep(t('generating_hook', 'Generating hook...'));
+              break;
+            case 'generate-content':
+              setShowStep(t('generating_content', 'Generating content...'));
+              break;
+            case 'generate-picture':
+              setShowStep(t('generating_pictures', 'Generating pictures...'));
+              break;
+            case 'upload-pictures':
+              setShowStep(t('uploading_pictures', 'Uploading pictures...'));
+              break;
+            case 'post-time':
+              setShowStep(t('finding_time_to_post', 'Finding time to post...'));
+              break;
           }
-        }
-      }
+        },
+        t('generation_failed', 'Failed to generate posts, please try again.')
+      );
     },
     [t]
   );
@@ -121,66 +103,88 @@ const FirstStep: FC = (props) => {
   }> = useCallback(
     async (value) => {
       setLoading(true);
-      const response = await fetch('/posts/generator', {
-        method: 'POST',
-        body: JSON.stringify(value),
-      });
-      if (!response.body) {
-        return;
-      }
-      const reader = response.body.getReader();
-      const load = await generateStep(reader);
-      const messages = load.content.map((p: any, index: number) => {
-        if (index === 0) {
+      const fallbackMessage = t(
+        'generation_failed',
+        'Failed to generate posts, please try again.'
+      );
+      try {
+        const response = await fetch('/posts/generator', {
+          method: 'POST',
+          body: JSON.stringify(value),
+        });
+        if (!response.ok) {
+          const detail = await response.json().catch(() => ({}));
+          const message = Array.isArray(detail?.message)
+            ? detail.message.join(' · ')
+            : typeof detail?.message === 'string'
+            ? detail.message
+            : fallbackMessage;
+          throw new Error(message);
+        }
+        if (!response.body) throw new Error(fallbackMessage);
+
+        const reader = response.body.getReader();
+        const load = (await generateStep(reader)) as any;
+        if (!load?.content) throw new Error(fallbackMessage);
+
+        const messages = load.content.map((p: any, index: number) => {
+          if (index === 0) {
+            return {
+              content: load.hook + '\n' + p.content,
+              ...(p?.image?.path
+                ? {
+                    image: [p.image],
+                  }
+                : {}),
+            };
+          }
           return {
-            content: load.hook + '\n' + p.content,
+            content: p.content,
             ...(p?.image?.path
               ? {
                   image: [p.image],
                 }
               : {}),
           };
-        }
-        return {
-          content: p.content,
-          ...(p?.image?.path
-            ? {
-                image: [p.image],
-              }
-            : {}),
-        };
-      });
-      setShowStep('');
-      modal.openModal({
-        id: 'add-edit-modal',
-        closeOnClickOutside: false,
-        removeLayout: true,
-        closeOnEscape: false,
-        withCloseButton: false,
-        askClose: true,
-        fullScreen: true,
-        classNames: {
-          modal: 'w-[100%] max-w-[1400px] text-textColor',
-        },
-        children: (
-          <AddEditModal
-            allIntegrations={integrations.map((p) => ({
-              ...p,
-            }))}
-            integrations={integrations.slice(0).map((p) => ({
-              ...p,
-            }))}
-            mutate={reloadCalendarView}
-            date={dayjs.utc(load.date).local()}
-            reopenModal={() => ({})}
-            onlyValues={messages}
-          />
-        ),
-        size: '80%',
-      });
-      setLoading(false);
+        });
+        modal.openModal({
+          id: 'add-edit-modal',
+          closeOnClickOutside: false,
+          removeLayout: true,
+          closeOnEscape: false,
+          withCloseButton: false,
+          askClose: true,
+          fullScreen: true,
+          classNames: {
+            modal: 'w-[100%] max-w-[1400px] text-textColor',
+          },
+          children: (
+            <AddEditModal
+              allIntegrations={integrations.map((p) => ({
+                ...p,
+              }))}
+              integrations={integrations.slice(0).map((p) => ({
+                ...p,
+              }))}
+              mutate={reloadCalendarView}
+              date={dayjs.utc(load.date).local()}
+              reopenModal={() => ({})}
+              onlyValues={messages}
+            />
+          ),
+          size: '80%',
+        });
+      } catch (error) {
+        toaster.show(
+          error instanceof Error ? error.message : fallbackMessage,
+          'warning'
+        );
+      } finally {
+        setShowStep('');
+        setLoading(false);
+      }
     },
-    [integrations, reloadCalendarView]
+    [fetch, generateStep, integrations, modal, reloadCalendarView, t, toaster]
   );
   return (
     <form

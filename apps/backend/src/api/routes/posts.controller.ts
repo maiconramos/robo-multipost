@@ -279,8 +279,18 @@ export class PostsController {
   ) {
     res.setHeader('Content-Type', 'application/json; charset=utf-8');
     const stream = await this._agentGraphService.start(org.id, body, profile?.id);
-    for await (const event of stream) {
-      res.write(JSON.stringify(event) + '\n');
+    try {
+      for await (const event of stream) {
+        res.write(JSON.stringify(event) + '\n');
+      }
+    } catch (err) {
+      // The response has already started, so emit a final NDJSON event instead
+      // of relying on Nest's HTTP exception filter.
+      const message =
+        err instanceof HttpException
+          ? err.message
+          : 'Nao foi possivel gerar as publicacoes. Tente novamente.';
+      res.write(JSON.stringify({ name: 'error', error: true, message }) + '\n');
     }
 
     res.end();

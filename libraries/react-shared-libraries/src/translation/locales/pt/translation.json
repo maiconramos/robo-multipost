@@ -736,6 +736,7 @@
   "generating_hook": "Gerando gancho...",
   "generating_content": "Gerando conteúdo...",
   "generating_pictures": "Gerando imagens...",
+  "generation_failed": "Não foi possível gerar as publicações. Tente novamente.",
   "finding_time_to_post": "Encontrando o melhor horário para postar...",
   "write_anything": "Escreva qualquer coisa",
   "you_can_write_anything_you_want_and_also_add_links_we_will_do_the_research_for_you": "Você pode escrever o que quiser e também adicionar links, nós faremos a pesquisa para você...",
