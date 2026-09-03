@@ -28,6 +28,34 @@ export class WordpressProvider
     return 100000;
   }
 
+  private decodeToken(token: string) {
+    const credentials = JSON.parse(Buffer.from(token, 'base64').toString()) as {
+      domain: string;
+      username: string;
+      password: string;
+    };
+    const domain = credentials.domain.trim().replace(/\/+$/, '');
+    const auth = Buffer.from(
+      `${credentials.username}:${credentials.password}`
+    ).toString('base64');
+
+    return { credentials, domain, auth };
+  }
+
+  private normalizeTermIds(values: unknown): number[] {
+    if (!Array.isArray(values)) {
+      return [];
+    }
+
+    return [
+      ...new Set(
+        values
+          .map((value) => Number(value))
+          .filter((value) => Number.isInteger(value) && value > 0)
+      ),
+    ];
+  }
+
   async generateAuthUrl() {
     const state = makeId(6);
     return {
@@ -91,16 +119,7 @@ export class WordpressProvider
     codeVerifier: string;
     refresh?: string;
   }) {
-    const body = JSON.parse(Buffer.from(params.code, 'base64').toString()) as {
-      domain: string;
-      username: string;
-      password: string;
-    };
-
-    const domain = body.domain.trim().replace(/\/+$/, '');
-    const auth = Buffer.from(`${body.username}:${body.password}`).toString(
-      'base64'
-    );
+    const { credentials: body, domain, auth } = this.decodeToken(params.code);
 
     let response: Response;
     try {
@@ -189,23 +208,7 @@ export class WordpressProvider
     dataSchema: [],
   })
   async postTypes(token: string) {
-    const body = JSON.parse(Buffer.from(token, 'base64').toString()) as {
-      domain: string;
-      username: string;
-      password: string;
-    };
-
-    const auth = Buffer.from(`${body.username}:${body.password}`).toString(
-      'base64'
-    );
-
-    const postTypes = await (
-      await this.fetch(`${body.domain}/wp-json/wp/v2/types`, {
-        headers: {
-          Authorization: `Basic ${auth}`,
-        },
-      })
-    ).json();
+    const postTypes = await this.wpGet(token, '/wp-json/wp/v2/types');
 
     return Object.entries<any>(postTypes).reduce((all, [key, value]) => {
       if (
@@ -225,21 +228,53 @@ export class WordpressProvider
     }, []);
   }
 
+  private async wpGet(token: string, path: string) {
+    const { domain, auth } = this.decodeToken(token);
+    return (
+      await this.fetch(`${domain}${path}`, {
+        headers: {
+          Authorization: `Basic ${auth}`,
+        },
+      })
+    ).json();
+  }
+
+  @Tool({
+    description: 'Get list of categories',
+    dataSchema: [],
+  })
+  async categoriesList(token: string) {
+    const categories = await this.wpGet(
+      token,
+      '/wp-json/wp/v2/categories?per_page=100'
+    );
+
+    return (Array.isArray(categories) ? categories : []).map((category) => ({
+      id: category.id,
+      name: category.name,
+    }));
+  }
+
+  @Tool({
+    description: 'Get list of tags',
+    dataSchema: [],
+  })
+  async tagsList(token: string) {
+    const tags = await this.wpGet(token, '/wp-json/wp/v2/tags?per_page=100');
+
+    return (Array.isArray(tags) ? tags : []).map((tag) => ({
+      id: tag.id,
+      name: tag.name,
+    }));
+  }
+
   async post(
     id: string,
     accessToken: string,
     postDetails: PostDetails<WordpressDto>[],
     integration: Integration
   ): Promise<PostResponse[]> {
-    const body = JSON.parse(Buffer.from(accessToken, 'base64').toString()) as {
-      domain: string;
-      username: string;
-      password: string;
-    };
-
-    const auth = Buffer.from(`${body.username}:${body.password}`).toString(
-      'base64'
-    );
+    const { domain, auth } = this.decodeToken(accessToken);
 
     let mediaId = '';
     if (postDetails?.[0]?.settings?.main_image?.path) {
@@ -253,7 +288,7 @@ export class WordpressProvider
       ).then((r) => r.blob());
 
       const mediaResponse = await (
-        await this.fetch(`${body.domain}/wp-json/wp/v2/media`, {
+        await this.fetch(`${domain}/wp-json/wp/v2/media`, {
           method: 'POST',
           headers: {
             Authorization: `Basic ${auth}`,
@@ -269,9 +304,14 @@ export class WordpressProvider
       mediaId = mediaResponse.id;
     }
 
+    const categories = this.normalizeTermIds(
+      postDetails?.[0]?.settings?.categories
+    );
+    const tags = this.normalizeTermIds(postDetails?.[0]?.settings?.tags);
+
     const submit = await (
       await this.fetch(
-        `${body.domain}/wp-json/wp/v2/${postDetails?.[0]?.settings?.type}`,
+        `${domain}/wp-json/wp/v2/${postDetails?.[0]?.settings?.type}`,
         {
           headers: {
             Authorization: `Basic ${auth}`,
@@ -286,7 +326,9 @@ export class WordpressProvider
               strict: true,
               trim: true,
             }),
-            status: 'publish',
+            status: postDetails?.[0]?.settings?.status || 'publish',
+            ...(categories.length ? { categories } : {}),
+            ...(tags.length ? { tags } : {}),
             ...(mediaId ? { featured_media: mediaId } : {}),
           }),
         }
