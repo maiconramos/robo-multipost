@@ -110,7 +110,7 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 | `instagram-messaging.service.ts` | Registered tokens (Meta System User Token + per-account IG User Tokens) |
 | `instagram-dm-button.type.ts` | Types for the follow-gate postback button |
 | `pinterest.provider.ts` + `pinterest.provider.spec.ts` | Native Pinterest — per-profile OAuth credentials, image/video pin upload, bounded video-processing polling and 89-day analytics window |
-| `wordpress.provider.ts` + `wordpress.provider.spec.ts` | WordPress REST connection/posting — Application Password authentication, normalized connect URL and SSRF-safe diagnostics |
+| `wordpress.provider.ts` + `wordpress.provider.spec.ts` | WordPress REST connection/posting — Application Password authentication, normalized URLs, SSRF-safe diagnostics and optional status/category/tag settings |
 | `zernio.base.provider.ts` | Base for all Zernio providers (Redis cache, helpers) |
 | `x.provider.ts` + `x.provider.spec.ts` | X/Twitter — example of a tested provider |
 

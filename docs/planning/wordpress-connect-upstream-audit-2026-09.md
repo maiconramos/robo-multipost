@@ -42,6 +42,9 @@ Aplicativo sem enfraquecer a proteção SSRF/DNS-pinning do Robô MultiPost.
 - a validação global de mídia `1b53973e` e o pipeline Temporal novo não fazem
   parte desta correção.
 
+> A segunda etapa foi implementada depois, com auditoria própria em
+> [`wordpress-terms-upstream-audit-2026-09.md`](./wordpress-terms-upstream-audit-2026-09.md).
+
 ## Cobertura e gate de produção
 
 Os testes automatizados cobrem normalização sem bypass de SSRF, contrato de

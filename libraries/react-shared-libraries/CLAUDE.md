@@ -45,7 +45,8 @@ Before creating a new component in `apps/frontend/src/components/`, **check whet
 |---|---|
 | `button.tsx` | Base button with variants |
 | `input.tsx` | Text/number input with label |
-| `select.tsx` / `custom.select.tsx` | Standard and custom select (with search/groups) |
+| `select.tsx` / `custom.select.tsx` | Standard and custom single select (with search/groups) |
+| `multi.select.tsx` | Controlled checkbox-list select for several known options |
 | `checkbox.tsx` | Checkbox |
 | `textarea.tsx` | Textarea |
 | `slider.tsx` | Numeric slider |
@@ -83,6 +84,7 @@ If no suitable primitive exists, **write one natively** — do not install from 
 | File | Purpose |
 |---|---|
 | `src/form/button.tsx` | Base button — extend via props/className instead of creating variants elsewhere |
+| `src/form/multi.select.tsx` | Controlled multi-select; caller owns the selected array and `react-hook-form` synchronization |
 | `src/translation/get.transation.service.client.ts` | `useT()` for client components |
 | `src/translation/get.translation.service.backend.ts` | Translation in SSR/Server Components |
 | `src/translation/i18n.config.ts` | List of supported locales |

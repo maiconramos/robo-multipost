@@ -1,7 +1,11 @@
 import {
+  IsArray,
   IsDefined,
+  IsIn,
+  IsInt,
   IsOptional,
   IsString,
+  Min,
   MinLength,
   ValidateNested,
 } from 'class-validator';
@@ -22,4 +26,21 @@ export class WordpressDto {
   @IsString()
   @IsDefined()
   type: string;
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  categories?: number[];
+
+  @IsOptional()
+  @IsArray()
+  @IsInt({ each: true })
+  @Min(1, { each: true })
+  tags?: number[];
+
+  @IsOptional()
+  @IsString()
+  @IsIn(['publish', 'draft', 'pending', 'private'])
+  status?: string;
 }

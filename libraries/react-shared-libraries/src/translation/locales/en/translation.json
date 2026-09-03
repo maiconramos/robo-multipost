@@ -1914,5 +1914,14 @@
   "notif_post_error": "An error occurred while posting on {{provider}}{{error}}",
   "notif_post_error_comments": "An error occurred while posting comments on {{provider}}{{error}}",
   "notif_streak": "<p>You are about to lose your streak in two hours! schedule a post now to keep it!</p>",
-  "wordpress_application_password_hint": "Use a WordPress Application Password created under User > Profile, not your wp-admin password."
+  "wordpress_application_password_hint": "Use a WordPress Application Password created under User > Profile, not your wp-admin password.",
+  "wordpress_status_label": "Status",
+  "wordpress_status_publish": "Publish",
+  "wordpress_status_draft": "Draft",
+  "wordpress_status_pending": "Pending",
+  "wordpress_status_private": "Private",
+  "wordpress_categories_label": "Categories",
+  "wordpress_tags_label": "WordPress Tags",
+  "wordpress_select_type": "Select type",
+  "wordpress_add_cover_picture": "Add a cover picture"
 }

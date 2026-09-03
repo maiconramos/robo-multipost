@@ -23,14 +23,17 @@ const responseWith = ({
   status = 200,
   body,
   jsonError,
+  headers = {},
 }: {
   status?: number;
   body?: unknown;
   jsonError?: Error;
+  headers?: Record<string, string>;
 }) =>
   ({
     ok: status >= 200 && status < 300,
     status,
+    headers: new Headers(headers),
     json: jsonError
       ? jest.fn().mockRejectedValue(jsonError)
       : jest.fn().mockResolvedValue(body),
@@ -178,5 +181,118 @@ describe('WordpressProvider authenticate', () => {
         hint: 'wordpress_application_password_hint',
       })
     );
+  });
+});
+
+describe('WordpressProvider post settings', () => {
+  let provider: WordpressProvider;
+
+  beforeEach(() => {
+    provider = new WordpressProvider();
+    jest.clearAllMocks();
+  });
+
+  afterEach(() => {
+    jest.restoreAllMocks();
+  });
+
+  it('lists categories through the SSRF-safe provider fetch', async () => {
+    const fetch = jest.spyOn(provider, 'fetch').mockResolvedValue(
+      responseWith({
+        body: [
+          { id: 2, name: 'News', ignored: true },
+          { id: 5, name: 'Product' },
+        ],
+      })
+    );
+
+    await expect((provider as any).categoriesList(code)).resolves.toEqual([
+      { id: 2, name: 'News' },
+      { id: 5, name: 'Product' },
+    ]);
+    expect(fetch).toHaveBeenCalledWith(
+      'https://example.com/wp-json/wp/v2/categories?per_page=100',
+      expect.objectContaining({
+        headers: { Authorization: expect.stringMatching(/^Basic /) },
+      })
+    );
+  });
+
+  it('lists tags and safely converts a non-array response to an empty list', async () => {
+    jest
+      .spyOn(provider, 'fetch')
+      .mockResolvedValueOnce(
+        responseWith({ body: [{ id: 8, name: 'Launch' }] })
+      )
+      .mockResolvedValueOnce(responseWith({ body: { code: 'invalid' } }));
+
+    await expect((provider as any).tagsList(code)).resolves.toEqual([
+      { id: 8, name: 'Launch' },
+    ]);
+    await expect((provider as any).tagsList(code)).resolves.toEqual([]);
+  });
+
+  it('publishes selected terms and status with positive integer IDs only', async () => {
+    const fetch = jest
+      .spyOn(provider, 'fetch')
+      .mockResolvedValue(
+        responseWith({ body: { id: 44, link: 'https://example.com/post/44' } })
+      );
+
+    await provider.post(
+      'site-1',
+      code,
+      [
+        {
+          id: 'post-1',
+          message: '<p>Content</p>',
+          settings: {
+            title: 'Launch',
+            type: 'posts',
+            status: 'draft',
+            categories: ['2', 3, 3, 0, -1, 4.5, 'invalid'],
+            tags: ['8', 9],
+          },
+        },
+      ] as any,
+      {} as any
+    );
+
+    expect(fetch).toHaveBeenCalledTimes(1);
+    const [url, request] = fetch.mock.calls[0];
+    expect(url).toBe('https://example.com/wp-json/wp/v2/posts');
+    expect(JSON.parse(String(request?.body))).toEqual(
+      expect.objectContaining({
+        status: 'draft',
+        categories: [2, 3],
+        tags: [8, 9],
+      })
+    );
+  });
+
+  it('keeps publish as the default and omits empty term arrays', async () => {
+    const fetch = jest
+      .spyOn(provider, 'fetch')
+      .mockResolvedValue(
+        responseWith({ body: { id: 44, link: 'https://example.com/post/44' } })
+      );
+
+    await provider.post(
+      'site-1',
+      code,
+      [
+        {
+          id: 'post-1',
+          message: '<p>Content</p>',
+          settings: { title: 'Legacy post', type: 'posts' },
+        },
+      ] as any,
+      {} as any
+    );
+
+    const payload = JSON.parse(String(fetch.mock.calls[0][1]?.body));
+    expect(payload.status).toBe('publish');
+    expect(payload).not.toHaveProperty('categories');
+    expect(payload).not.toHaveProperty('tags');
   });
 });

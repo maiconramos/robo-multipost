@@ -1912,5 +1912,14 @@
   "notif_post_error": "Ocorreu um erro ao publicar no {{provider}}{{error}}",
   "notif_post_error_comments": "Ocorreu um erro ao publicar comentários no {{provider}}{{error}}",
   "notif_streak": "<p>Você está prestes a perder sua sequência em duas horas! Agende uma publicação agora para mantê-la!</p>",
-  "wordpress_application_password_hint": "Use uma senha de aplicativo do WordPress, criada em Usuário > Perfil, e não a senha do wp-admin."
+  "wordpress_application_password_hint": "Use uma senha de aplicativo do WordPress, criada em Usuário > Perfil, e não a senha do wp-admin.",
+  "wordpress_status_label": "Status",
+  "wordpress_status_publish": "Publicar",
+  "wordpress_status_draft": "Rascunho",
+  "wordpress_status_pending": "Pendente",
+  "wordpress_status_private": "Privado",
+  "wordpress_categories_label": "Categorias",
+  "wordpress_tags_label": "Tags do WordPress",
+  "wordpress_select_type": "Selecionar tipo",
+  "wordpress_add_cover_picture": "Adicionar uma imagem de capa"
 }
