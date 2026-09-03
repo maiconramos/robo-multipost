@@ -201,19 +201,43 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
 
   const schedule = useCallback(
     (type: 'draft' | 'now' | 'schedule' | 'update') => async () => {
+      let republish = false;
       if (
         (type === 'now' || type === 'schedule') &&
         (existingData?.posts?.[0]?.state === 'PUBLISHED' ||
           (existingData?.posts?.[0]?.state === 'QUEUE' &&
             dayjs().isAfter(date.utc())))
       ) {
-        const whatToDo = await new Promise((resolve) => {
+        const channels = selectedIntegrations
+          .map((selected) => selected.integration.name)
+          .join(', ');
+        const isRecurring =
+          !!repeater || !!existingData?.posts?.[0]?.intervalInDays;
+        const choiceModalId = makeId(10);
+        const whatToDo = await new Promise<
+          'update' | 'republish' | 'cancel'
+        >((resolve) => {
           modal.openModal({
+            id: choiceModalId,
+            onClose: () => resolve('cancel'),
             title: t('what_do_you_want_to_do', 'What do you want to do?'),
             children: (
               <div className="flex flex-col">
                 <div className="text-[20px] mb-[20px]">
-                  {t('post_already_published', 'This post was already published, what do you want to do?')}
+                  {t(
+                    'post_already_published_republish_warning',
+                    'This post was already published. Republishing will publish it again to'
+                  )}{' '}
+                  {channels} {t('republish_at', 'at')}{' '}
+                  {date.format('DD/MM/YYYY HH:mm')}.
+                  {isRecurring && (
+                    <div className="mt-[10px]">
+                      {t(
+                        'republish_recurring_note',
+                        'This is a recurring post: your changes apply to all future recurrences starting now.'
+                      )}
+                    </div>
+                  )}
                 </div>
                 <div className="flex w-full gap-[10px]">
                   <div className="flex-1 flex">
@@ -240,8 +264,18 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
           });
         });
 
+        if (whatToDo === 'cancel') {
+          return;
+        }
+
+        modal.closeById(choiceModalId);
+
         if (whatToDo === 'update') {
           type = 'update';
+        }
+
+        if (whatToDo === 'republish') {
+          republish = true;
         }
       }
 
@@ -369,6 +403,7 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       const group = existingData.group || makeId(10);
       const data = {
         type,
+        ...(republish ? { republish } : {}),
         ...(repeater ? { inter: repeater } : {}),
         tags,
         shortLink,
@@ -414,12 +449,25 @@ export const ManageModal: FC<AddEditModalProps> = (props) => {
       }
 
       if (!dummy) {
-        addEditSets
-          ? addEditSets(data)
-          : await fetch('/posts', {
-              method: 'POST',
-              body: JSON.stringify(data),
-            });
+        if (addEditSets) {
+          addEditSets(data);
+        } else {
+          const response = await fetch('/posts', {
+            method: 'POST',
+            body: JSON.stringify(data),
+          });
+
+          if (!response.ok) {
+            const { message } = await response.json().catch(() => ({} as any));
+            toaster.show(
+              (Array.isArray(message) ? message[0] : message) ||
+                t('could_not_save_post', 'Could not save the post.'),
+              'warning'
+            );
+            setLoading(false);
+            return;
+          }
+        }
 
         if (!addEditSets) {
           mutate();
