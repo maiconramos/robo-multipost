@@ -8,25 +8,51 @@ import {
 import { AxiosInstance } from 'axios';
 import { readFileSync } from 'fs';
 
+// Temporal persiste ApplicationFailure inteira no historico e a transporta por
+// gRPC. Respostas de provider podem conter HTML, stacks ou blobs enormes; os
+// limites abaixo mantem o diagnostico util sem permitir que uma falha estoure o
+// frame/historico. Os codigos Meta aparecem no inicio do JSON e sao preservados.
+const MAX_FAILURE_MESSAGE = 2_000;
+const MAX_FAILURE_FIELD = 4_000;
+
+export function truncateForTemporal(value: unknown, max: number): string {
+  if (value === null || value === undefined) {
+    return '';
+  }
+
+  const serialized = typeof value === 'string' ? value : safeStringify(value);
+  const text = typeof serialized === 'string' ? serialized : String(value);
+  if (text.length <= max) {
+    return text;
+  }
+
+  return `${text.slice(0, max)}… [truncated ${text.length - max} chars]`;
+}
+
 export class RefreshToken extends ApplicationFailure {
   constructor(identifier: string, json: string, body: BodyInit, message = '') {
-    super(message, 'refresh_token', true, [
-      {
-        identifier,
-        json,
-        body,
-      },
-    ]);
+    super(
+      truncateForTemporal(message, MAX_FAILURE_MESSAGE),
+      'refresh_token',
+      true,
+      [
+        {
+          identifier,
+          json: truncateForTemporal(json, MAX_FAILURE_FIELD),
+          body: truncateForTemporal(body, MAX_FAILURE_FIELD),
+        },
+      ]
+    );
   }
 }
 
 export class BadBody extends ApplicationFailure {
   constructor(identifier: string, json: string, body: BodyInit, message = '') {
-    super(message, 'bad_body', true, [
+    super(truncateForTemporal(message, MAX_FAILURE_MESSAGE), 'bad_body', true, [
       {
         identifier,
-        json,
-        body,
+        json: truncateForTemporal(json, MAX_FAILURE_FIELD),
+        body: truncateForTemporal(body, MAX_FAILURE_FIELD),
       },
     ]);
   }
