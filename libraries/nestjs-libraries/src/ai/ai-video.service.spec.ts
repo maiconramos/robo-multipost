@@ -92,6 +92,8 @@ describe('AiVideoService', () => {
       // Verifica body do createTask
       const [createUrl, createInit] = fetchSpy.mock.calls[0];
       expect(createUrl).toBe('https://api.kie.ai/api/v1/jobs/createTask');
+      expect(createInit.signal).toBeInstanceOf(AbortSignal);
+      expect(fetchSpy.mock.calls[1][1].signal).toBeInstanceOf(AbortSignal);
       const body = JSON.parse(createInit.body);
       expect(body.model).toBe('bytedance/seedance-2');
       expect(body.input.prompt).toBe('a beach at sunset');
@@ -134,9 +136,7 @@ describe('AiVideoService', () => {
       });
 
       const body = JSON.parse(fetchSpy.mock.calls[0][1].body);
-      expect(body.input.first_frame_url).toBe(
-        'https://images.example/foo.jpg'
-      );
+      expect(body.input.first_frame_url).toBe('https://images.example/foo.jpg');
     });
 
     it('deve aceitar input.aspectRatio sobrescrevendo o default 9:16', async () => {
@@ -174,9 +174,7 @@ describe('AiVideoService', () => {
     });
 
     it('deve usar veo3_lite como default quando credencial nao tem model', async () => {
-      resolver.resolve.mockResolvedValue(
-        credentialFor({ model: '' }) as any
-      );
+      resolver.resolve.mockResolvedValue(credentialFor({ model: '' }) as any);
       const fetchSpy = jest.fn();
       fetchSpy.mockResolvedValueOnce(
         new Response(
@@ -341,17 +339,15 @@ describe('AiVideoService', () => {
       );
       // poll #1: successFlag=0 (still generating)
       fetchSpy.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ code: 200, data: { successFlag: 0 } }),
-          { status: 200 }
-        )
+        new Response(JSON.stringify({ code: 200, data: { successFlag: 0 } }), {
+          status: 200,
+        })
       );
       // poll #2: successFlag=0
       fetchSpy.mockResolvedValueOnce(
-        new Response(
-          JSON.stringify({ code: 200, data: { successFlag: 0 } }),
-          { status: 200 }
-        )
+        new Response(JSON.stringify({ code: 200, data: { successFlag: 0 } }), {
+          status: 200,
+        })
       );
       // poll #3: successFlag=1 com URL
       fetchSpy.mockResolvedValueOnce(
@@ -391,11 +387,48 @@ describe('AiVideoService', () => {
         new Response(
           JSON.stringify({
             code: 200,
-            data: { successFlag: 2 },
+            data: {
+              successFlag: 2,
+              errorMessage: 'Conteudo bloqueado pela moderacao para kie-real',
+            },
           }),
           { status: 200 }
         )
       );
+      globalThis.fetch = fetchSpy as any;
+
+      try {
+        await service.generate('org-1', {
+          prompt: 'x',
+          mode: 'T2V',
+          enrichPrompt: false,
+        });
+        fail('deveria ter lancado');
+      } catch (e: any) {
+        expect(e.status).toBe(502);
+        const message = e.response?.message ?? e.message;
+        expect(message).toContain('Conteudo bloqueado pela moderacao');
+        expect(message).not.toContain('kie-real');
+      }
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('deve falhar imediatamente quando recordInfo retorna code de erro', async () => {
+      resolver.resolve.mockResolvedValue(credentialFor() as any);
+      const fetchSpy = jest
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ code: 200, data: { taskId: 'task-code' } }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ code: 400, msg: 'Task was rejected' }),
+            { status: 200 }
+          )
+        );
       globalThis.fetch = fetchSpy as any;
 
       await expect(
@@ -405,6 +438,35 @@ describe('AiVideoService', () => {
           enrichPrompt: false,
         })
       ).rejects.toMatchObject({ status: 502 });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
+    });
+
+    it('deve falhar imediatamente para successFlag desconhecido', async () => {
+      resolver.resolve.mockResolvedValue(credentialFor() as any);
+      const fetchSpy = jest
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ code: 200, data: { taskId: 'task-unknown' } }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ code: 200, data: { successFlag: 7 } }),
+            { status: 200 }
+          )
+        );
+      globalThis.fetch = fetchSpy as any;
+
+      await expect(
+        service.generate('org-1', {
+          prompt: 'x',
+          mode: 'T2V',
+          enrichPrompt: false,
+        })
+      ).rejects.toMatchObject({ status: 502 });
+      expect(fetchSpy).toHaveBeenCalledTimes(2);
     });
 
     it('deve lancar 504 quando polling exceder limite de iteracoes', async () => {
@@ -525,13 +587,14 @@ describe('AiVideoService', () => {
       );
       const warnSpy = jest.spyOn((service as any)._logger, 'warn');
 
-      const fetchSpy = jest.fn(async () =>
-        new Response(
-          JSON.stringify({
-            error: 'invalid Bearer kie-secret-deadbeef token',
-          }),
-          { status: 401 }
-        )
+      const fetchSpy = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              error: 'invalid Bearer kie-secret-deadbeef token',
+            }),
+            { status: 401 }
+          )
       );
       globalThis.fetch = fetchSpy as any;
 
@@ -550,16 +613,82 @@ describe('AiVideoService', () => {
   });
 
   describe('mensagens de erro do kie.ai', () => {
+    it('deve expor mensagem sanitizada quando o HTTP inicial falha', async () => {
+      resolver.resolve.mockResolvedValue(credentialFor() as any);
+      const warnSpy = jest.spyOn((service as any)._logger, 'warn');
+      globalThis.fetch = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              code: 422,
+              msg: 'Safety policy rejected credential kie-real',
+            }),
+            { status: 422 }
+          )
+      ) as any;
+
+      try {
+        await service.generate('org-1', {
+          prompt: 'x',
+          mode: 'T2V',
+          enrichPrompt: false,
+        });
+        fail('deveria ter lancado');
+      } catch (e: any) {
+        const message = e.response?.message ?? e.message;
+        expect(message).toContain('Safety policy rejected');
+        expect(message).not.toContain('kie-real');
+      }
+      expect(warnSpy.mock.calls.flat().join(' ')).not.toContain('kie-real');
+    });
+
+    it('deve registrar o taskId para correlacionar a falha no provider', async () => {
+      resolver.resolve.mockResolvedValue(credentialFor() as any);
+      const logSpy = jest.spyOn((service as any)._logger, 'log');
+      const fetchSpy = jest
+        .fn()
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({ code: 200, data: { taskId: 'task-trace-1' } }),
+            { status: 200 }
+          )
+        )
+        .mockResolvedValueOnce(
+          new Response(
+            JSON.stringify({
+              code: 200,
+              data: {
+                successFlag: 1,
+                resultUrls: ['https://kie.ai/trace.mp4'],
+              },
+            }),
+            { status: 200 }
+          )
+        );
+      globalThis.fetch = fetchSpy as any;
+
+      await service.generate('org-1', {
+        prompt: 'x',
+        mode: 'T2V',
+        enrichPrompt: false,
+      });
+
+      expect(logSpy).toHaveBeenCalledWith(
+        expect.stringContaining('task-trace-1')
+      );
+    });
+
     it('deve traduzir code=402 (Credits insufficient) para mensagem curta em pt', async () => {
       resolver.resolve.mockResolvedValue(credentialFor() as any);
-      const fetchSpy = jest.fn(async () =>
-        new Response(
-          JSON.stringify({
-            code: 402,
-            msg: 'Credits insufficient: Your current balance isnt enough.',
-          }),
-          { status: 200 }
-        )
+      const fetchSpy = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              code: 402,
+              msg: 'Credits insufficient: Your current balance isnt enough.',
+            }),
+            { status: 200 }
+          )
       );
       globalThis.fetch = fetchSpy as any;
 
@@ -579,11 +708,12 @@ describe('AiVideoService', () => {
 
     it('deve traduzir code=401 (Unauthorized) com hint pra atualizar Settings', async () => {
       resolver.resolve.mockResolvedValue(credentialFor() as any);
-      const fetchSpy = jest.fn(async () =>
-        new Response(
-          JSON.stringify({ code: 401, msg: 'Unauthorized: invalid key' }),
-          { status: 200 }
-        )
+      const fetchSpy = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({ code: 401, msg: 'Unauthorized: invalid key' }),
+            { status: 200 }
+          )
       );
       globalThis.fetch = fetchSpy as any;
 
@@ -603,11 +733,15 @@ describe('AiVideoService', () => {
 
     it('deve passar mensagem original quando code e desconhecido', async () => {
       resolver.resolve.mockResolvedValue(credentialFor() as any);
-      const fetchSpy = jest.fn(async () =>
-        new Response(
-          JSON.stringify({ code: 999, msg: 'Some new error type' }),
-          { status: 200 }
-        )
+      const fetchSpy = jest.fn(
+        async () =>
+          new Response(
+            JSON.stringify({
+              code: 999,
+              msg: 'Some new error type for kie-real',
+            }),
+            { status: 200 }
+          )
       );
       globalThis.fetch = fetchSpy as any;
 
@@ -623,6 +757,7 @@ describe('AiVideoService', () => {
         expect(msg).toContain('kie.ai recusou');
         expect(msg).toContain('Some new error type');
         expect(msg).toContain('999');
+        expect(msg).not.toContain('kie-real');
       }
     });
   });

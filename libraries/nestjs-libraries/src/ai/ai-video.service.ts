@@ -13,6 +13,7 @@ const VEO_INFO_URL = `${KIE_BASE_URL}/api/v1/veo/record-info`;
 
 const POLL_INTERVAL_MS = 30_000;
 const MAX_POLL_ITERATIONS = 20; // 20 * 30s = 10min
+const KIE_REQUEST_TIMEOUT_MS = 30_000;
 
 const DEFAULT_ASPECT_RATIO = '9:16';
 const DEFAULT_RESOLUTION = '720p';
@@ -50,10 +51,38 @@ export interface GeneratedVideo {
 }
 
 /**
- * Sanitiza Bearer tokens de qualquer string para evitar vazamento em logs.
+ * Limita mensagens e remove Bearer tokens/segredos resolvidos antes de log ou
+ * resposta ao usuario.
  */
-function sanitize(value: string): string {
-  return value.replace(/Bearer\s+[A-Za-z0-9_.\-]+/gi, 'Bearer ***');
+function sanitize(value: string, secrets: string[] = []): string {
+  let sanitized = value.replace(/Bearer\s+[A-Za-z0-9_.\-]+/gi, 'Bearer ***');
+  for (const secret of secrets) {
+    if (secret) sanitized = sanitized.split(secret).join('***');
+  }
+  return sanitized.slice(0, 500);
+}
+
+function parseKieErrorBody(body: string): {
+  code?: number;
+  msg?: string;
+} {
+  try {
+    const parsed = JSON.parse(body) as {
+      code?: number;
+      msg?: string;
+      error?: { message?: string } | string;
+    };
+    return {
+      code: parsed.code,
+      msg:
+        parsed.msg ??
+        (typeof parsed.error === 'string'
+          ? parsed.error
+          : parsed.error?.message),
+    };
+  } catch {
+    return {};
+  }
 }
 
 /**
@@ -78,16 +107,28 @@ function translateKieaiError(
   if (code === 402 || lower.includes('credits insufficient')) {
     return 'Sua conta kie.ai esta sem creditos suficientes para gerar este video.';
   }
-  if (code === 401 || lower.includes('unauthorized') || lower.includes('invalid api key')) {
+  if (
+    code === 401 ||
+    lower.includes('unauthorized') ||
+    lower.includes('invalid api key')
+  ) {
     return (
       'Chave kie.ai invalida ou expirada. Atualize em Configurações > Modelos de IA > Vídeo. ' +
       `(kie.ai: "${original}")`
     );
   }
-  if (code === 422 || lower.includes('invalid') || lower.includes('unsupported')) {
+  if (
+    code === 422 ||
+    lower.includes('invalid') ||
+    lower.includes('unsupported')
+  ) {
     return `kie.ai recusou o pedido por payload invalido: "${original}".`;
   }
-  if (code === 429 || lower.includes('rate limit') || lower.includes('too many')) {
+  if (
+    code === 429 ||
+    lower.includes('rate limit') ||
+    lower.includes('too many')
+  ) {
     return (
       'kie.ai esta limitando suas requisicoes. Aguarde alguns minutos e tente novamente. ' +
       `(kie.ai: "${original}")`
@@ -115,7 +156,8 @@ export class AiVideoService {
    * 3. Valida I2V tem referenceImageUrl (400 se faltar).
    * 4. Enrich prompt opcional via AiTextService (best-effort, 412 nao bloqueia).
    * 5. Dispatcha para generateSeedance ou generateVeo conforme model.
-   * 6. Polling com `timer(POLL_INTERVAL_MS)` ate successFlag=1 (max 10min).
+   * 6. Polling com `timer(POLL_INTERVAL_MS)` ate successFlag=1 (20 consultas;
+   *    cada request tem timeout de socket proprio de 30s).
    *
    * Retorna URL hospedada pelo kie.ai. Caller faz upload pra storage propria.
    */
@@ -206,7 +248,9 @@ export class AiVideoService {
       }
       // Qualquer outro erro de enrich tambem e best-effort — nao bloqueia geracao
       this._logger.warn(
-        `Enrich prompt falhou: ${(e as Error).message}. Seguindo com prompt original.`
+        `Enrich prompt falhou: ${
+          (e as Error).message
+        }. Seguindo com prompt original.`
       );
       return input.prompt;
     }
@@ -269,7 +313,8 @@ export class AiVideoService {
       prompt: finalPrompt,
       model: credential.model,
       aspect_ratio: aspectRatio,
-      generationType: input.mode === 'I2V' ? 'FIRST_AND_LAST_FRAMES_2_VIDEO' : 'TEXT_2_VIDEO',
+      generationType:
+        input.mode === 'I2V' ? 'FIRST_AND_LAST_FRAMES_2_VIDEO' : 'TEXT_2_VIDEO',
     };
     if (input.mode === 'I2V') {
       body.imageUrls = [input.referenceImageUrl];
@@ -310,21 +355,34 @@ export class AiVideoService {
           Authorization: `Bearer ${apiKey}`,
           'Content-Type': 'application/json',
         },
+        signal: AbortSignal.timeout(KIE_REQUEST_TIMEOUT_MS),
         body: JSON.stringify(body),
       });
     } catch (e) {
       this._logger.warn(
-        `kie.ai create falhou (network): ${sanitize((e as Error).message)}`
+        `kie.ai create falhou (network): ${sanitize((e as Error).message, [
+          apiKey,
+        ])}`
       );
       throw new HttpException('kie.ai indisponivel.', 502);
     }
 
     if (!res.ok) {
       const errBody = await res.text();
+      const providerError = parseKieErrorBody(errBody);
       this._logger.warn(
-        `kie.ai create retornou ${res.status}: ${sanitize(errBody.slice(0, 200))}`
+        `kie.ai create retornou ${res.status}: ${sanitize(
+          errBody.slice(0, 200),
+          [apiKey]
+        )}`
       );
-      throw new HttpException(`kie.ai create falhou (${res.status}).`, 502);
+      const safeMessage = sanitize(providerError.msg ?? '', [apiKey]);
+      throw new HttpException(
+        safeMessage
+          ? translateKieaiError(providerError.code ?? res.status, safeMessage)
+          : `kie.ai create falhou (${res.status}).`,
+        502
+      );
     }
 
     const json = (await res.json()) as {
@@ -335,15 +393,24 @@ export class AiVideoService {
 
     if (json.code !== 200 && json.code !== 201) {
       this._logger.warn(
-        `kie.ai create retornou code=${json.code}: ${sanitize(json.msg ?? '')}`
+        `kie.ai create retornou code=${json.code}: ${sanitize(json.msg ?? '', [
+          apiKey,
+        ])}`
       );
-      throw new HttpException(translateKieaiError(json.code, json.msg), 502);
+      throw new HttpException(
+        translateKieaiError(
+          json.code,
+          sanitize(json.msg ?? '', [apiKey]) || undefined
+        ),
+        502
+      );
     }
 
     const taskId = json.data?.taskId;
     if (!taskId) {
       throw new HttpException('kie.ai nao devolveu taskId.', 502);
     }
+    this._logger.log(`kie.ai task criada taskId=${sanitize(taskId, [apiKey])}`);
     return taskId;
   }
 
@@ -361,10 +428,13 @@ export class AiVideoService {
       try {
         res = await fetch(url, {
           headers: { Authorization: `Bearer ${apiKey}` },
+          signal: AbortSignal.timeout(KIE_REQUEST_TIMEOUT_MS),
         });
       } catch (e) {
         this._logger.warn(
-          `kie.ai poll falhou (network): ${sanitize((e as Error).message)}`
+          `kie.ai poll falhou (network): ${sanitize((e as Error).message, [
+            apiKey,
+          ])}`
         );
         continue; // tenta de novo no proximo poll
       }
@@ -372,19 +442,34 @@ export class AiVideoService {
       if (!res.ok) {
         const errBody = await res.text();
         this._logger.warn(
-          `kie.ai poll retornou ${res.status}: ${sanitize(errBody.slice(0, 200))}`
+          `kie.ai poll retornou ${res.status}: ${sanitize(
+            errBody.slice(0, 200),
+            [apiKey]
+          )}`
         );
         continue;
       }
 
       const json = (await res.json()) as {
         code?: number;
+        msg?: string;
         data?: {
           successFlag?: number;
+          errorMessage?: string;
           resultUrls?: string | string[];
           response?: { resultUrls?: string[] };
         };
       };
+
+      if (json.code !== 200 && json.code !== 201) {
+        throw new HttpException(
+          translateKieaiError(
+            json.code,
+            sanitize(json.msg ?? '', [apiKey]) || undefined
+          ),
+          502
+        );
+      }
 
       const data = json.data;
       const flag = data?.successFlag;
@@ -400,13 +485,18 @@ export class AiVideoService {
         return url;
       }
 
-      if (flag === 2 || flag === 3) {
+      if (flag !== 0) {
+        const providerMessage = sanitize(data?.errorMessage ?? '', [apiKey]);
         throw new HttpException(
-          'kie.ai falhou na geracao do video.',
+          providerMessage
+            ? `kie.ai falhou na geracao do video: "${providerMessage}".`
+            : `kie.ai falhou na geracao do video (status ${
+                flag ?? 'desconhecido'
+              }).`,
           502
         );
       }
-      // flag === 0 ou undefined → continua polling
+      // Apenas successFlag=0 representa geracao ainda em andamento.
     }
 
     throw new HttpException(
