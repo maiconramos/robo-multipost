@@ -142,6 +142,27 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
       expect(deps.orgService.addUserToOrg).not.toHaveBeenCalled();
     });
 
+    it('normaliza email de novo cadastro local antes de buscar e persistir', async () => {
+      process.env.DISABLE_REGISTRATION = 'false';
+      const body = localBody();
+      body.email = 'New.User@Example.COM';
+
+      await service.routeAuth(
+        Provider.LOCAL,
+        body,
+        '127.0.0.1',
+        'agent',
+        false
+      );
+
+      expect(deps.userService.getUserByEmail).toHaveBeenCalledWith(
+        'new.user@example.com'
+      );
+      expect(deps.orgService.createOrgAndUser.mock.calls[0][0].email).toBe(
+        'new.user@example.com'
+      );
+    });
+
     it('nao consulta getCount quando ha convite valido (bypassa canRegister)', async () => {
       await service.routeAuth(
         Provider.LOCAL,
