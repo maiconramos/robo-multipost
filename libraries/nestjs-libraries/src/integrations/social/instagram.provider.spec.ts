@@ -2,10 +2,55 @@ import 'reflect-metadata';
 import { InstagramProvider } from './instagram.provider';
 
 describe('InstagramProvider (flags)', () => {
+  afterEach(() => {
+    jest.useRealTimers();
+  });
+
   it('declara noNativeRefresh pois o refreshToken e stub (Page token nao renova)', () => {
     // Consumido por IntegrationService.refreshTokens: sem esta flag o cron
     // em lote volta a desconectar canal saudavel por falso positivo.
     expect(new InstagramProvider().noNativeRefresh).toBe(true);
+  });
+
+  it('nao envia trial_params quando flag legada contem a string false', async () => {
+    jest.useFakeTimers();
+    const provider = new InstagramProvider();
+    const fetchMock = jest
+      .spyOn(provider, 'fetch')
+      .mockResolvedValueOnce({
+        json: async () => ({ id: 'creation-1' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        json: async () => ({ status_code: 'FINISHED' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        json: async () => ({ id: 'media-1' }),
+      } as Response)
+      .mockResolvedValueOnce({
+        json: async () => ({ permalink: 'https://instagram.example/p/1' }),
+      } as Response);
+
+    const posting = provider.post(
+      'ig-1',
+      'token',
+      [
+        {
+          id: 'post-1',
+          message: 'Teste',
+          media: [{ path: 'https://cdn.example/video.mp4' }],
+          settings: {
+            post_type: 'post',
+            is_trial_reel: 'false',
+          },
+        },
+      ] as any,
+      {} as any
+    );
+
+    await jest.runAllTimersAsync();
+    await posting;
+
+    expect(String(fetchMock.mock.calls[0][0])).not.toContain('trial_params');
   });
 });
 

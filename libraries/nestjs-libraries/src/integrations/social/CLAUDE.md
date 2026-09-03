@@ -164,6 +164,8 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 
 13. **Symptom:** analytics waits through posting retries, emits `BadBody`, or stops triggering token self-heal after an upstream sync → **Cause:** metric reads used `fetch()` from the posting pipeline, or were replaced with raw global `fetch`. **Fix:** use `analyticsFetch()`: it keeps SSRF/DNS-pinning, performs one request, does not throw `BadBody`, and preserves only `RefreshToken` for HTTP 401/provider-classified token failures. Do not use it for posting, polling publication state outside analytics, missing-content discovery or plugs.
 
+14. **Symptom:** a legacy post with a provider flag stored as the string `"false"` enables Trial Reel, PDF carousel, TikTok disclosure/toggles, or X partnership/AI metadata → **Cause:** direct truthiness checks such as `!!settings.flag`. **Fix:** normalize persisted provider flags through `SocialAbstract.assetBoolean`. Keep the X-specific behavior that omits `made_with_ai` and `paid_partnership` unless they are truly enabled; do not copy the upstream payload shape that always sends false values.
+
 ## Commands
 
 ```bash

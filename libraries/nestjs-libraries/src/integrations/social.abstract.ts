@@ -61,6 +61,14 @@ export abstract class SocialAbstract {
     return getSsrfSafeAxios();
   }
 
+  protected assetBoolean(value: boolean | string | undefined): boolean {
+    if (typeof value === 'string') {
+      return value.toLowerCase() === 'true';
+    }
+
+    return value || false;
+  }
+
   protected async readOrFetch(path: string): Promise<Buffer> {
     if (path.indexOf('http') === 0) {
       const response = await this.getSsrfSafeAxios()({

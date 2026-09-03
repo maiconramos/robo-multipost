@@ -60,6 +60,10 @@ Authorization: SUA_CHAVE_DE_API
 | `tags` | `{value,label}[]` | ✅ | Tags (pode ser `[]`) |
 | `posts` | `Post[]` (≥1) | ✅ | Um item por canal |
 
+Os tipos são estritos. Envie booleanos e números como valores JSON reais:
+`false`, `true` e `10`. Valores em texto como `"false"`, `"true"` ou `"10"`
+recebem HTTP 400 em vez de serem convertidos silenciosamente.
+
 **`posts[]` (Post):**
 | Campo | Tipo | Notas |
 |---|---|---|

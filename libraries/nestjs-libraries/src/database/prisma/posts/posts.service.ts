@@ -298,7 +298,7 @@ export class PostsService {
       skipMissingProperties: false,
       transform: true,
       transformOptions: {
-        enableImplicitConversion: true,
+        enableImplicitConversion: false,
       },
     });
 

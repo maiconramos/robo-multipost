@@ -51,6 +51,44 @@ describe('LinkedinProvider media', () => {
     expect(provider.dto).toBe(LinkedinDto);
   });
 
+  it('nao converte imagens em PDF quando flag legada contem a string false', async () => {
+    const postDetails: any[] = [
+      {
+        id: 'post-1',
+        message: 'Teste',
+        media: [],
+        settings: { post_as_images_carousel: 'false' },
+      },
+    ];
+    const convert = jest
+      .spyOn(provider as any, 'convertImagesToPdfCarousel')
+      .mockResolvedValue(postDetails);
+    jest
+      .spyOn(provider as any, 'processMediaForPosts')
+      .mockResolvedValue({ 'post-1': [] });
+    const createMain = jest
+      .spyOn(provider as any, 'createMainPost')
+      .mockResolvedValue('urn:li:share:1');
+
+    await provider.post(
+      'person-1',
+      'token',
+      postDetails as any,
+      {} as any,
+      'personal'
+    );
+
+    expect(convert).not.toHaveBeenCalled();
+    expect(createMain).toHaveBeenCalledWith(
+      'person-1',
+      'token',
+      postDetails[0],
+      [],
+      'personal',
+      false
+    );
+  });
+
   it('preserva PNG com transparencia e nao amplia imagens pequenas', async () => {
     const path = join(directory, 'transparent.png');
     writeFileSync(

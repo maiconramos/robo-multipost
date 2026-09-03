@@ -786,7 +786,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
     const [firstPost] = postDetails;
 
     // Check if we should convert images to PDF carousel
-    if (firstPost.settings?.post_as_images_carousel) {
+    if (this.assetBoolean(firstPost.settings?.post_as_images_carousel)) {
       processedPostDetails = await this.convertImagesToPdfCarousel(
         postDetails,
         firstPost
@@ -815,7 +815,7 @@ export class LinkedinProvider extends SocialAbstract implements SocialProvider {
       processedFirstPost,
       mainPostMediaIds,
       type,
-      !!firstPost.settings?.post_as_images_carousel
+      this.assetBoolean(firstPost.settings?.post_as_images_carousel)
     );
 
     // Return response for main post only
