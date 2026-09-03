@@ -9,7 +9,7 @@
 | Layer | Technology | Details in |
 |---|---|---|
 | Backend | NestJS + TypeScript | [`apps/backend/CLAUDE.md`](apps/backend/CLAUDE.md) |
-| Frontend | Next.js 14 + React 18 + Tailwind 3 | [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md) |
+| Frontend | Next.js 16 + React 19 + Tailwind 3 | [`apps/frontend/CLAUDE.md`](apps/frontend/CLAUDE.md) |
 | Orchestrator | NestJS + Temporal.io | [`apps/orchestrator/CLAUDE.md`](apps/orchestrator/CLAUDE.md) |
 | Shared domain | NestJS libraries | [`libraries/nestjs-libraries/CLAUDE.md`](libraries/nestjs-libraries/CLAUDE.md) |
 | Shared UI | React libraries | [`libraries/react-shared-libraries/CLAUDE.md`](libraries/react-shared-libraries/CLAUDE.md) |

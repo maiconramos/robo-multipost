@@ -1,4 +1,8 @@
-import { fromBuffer } from 'file-type';
+const { fileTypeFromBuffer } = module.require('file-type') as {
+  fileTypeFromBuffer: (
+    buffer: Buffer
+  ) => Promise<{ mime: string; ext: string } | undefined>;
+};
 
 /**
  * Tipos de midia permitidos em uploads. Deliberadamente NAO inclui
@@ -24,7 +28,7 @@ export const ALLOWED_UPLOAD_MIME_TYPES = new Set<string>([
 export const detectAllowedUploadMime = async (
   buffer: Buffer
 ): Promise<{ mime: string; ext: string } | null> => {
-  const detected = await fromBuffer(buffer);
+  const detected = await fileTypeFromBuffer(buffer);
   if (!detected || !ALLOWED_UPLOAD_MIME_TYPES.has(detected.mime)) {
     return null;
   }

@@ -1,4 +1,4 @@
-# Frontend (Next.js 14) — Claude Code Instructions
+# Frontend (Next.js 16) — Claude Code Instructions
 
 ## Position in Hierarchy
 
@@ -10,7 +10,7 @@
 
 ## What lives here
 
-Next.js 14 UI with App Router, React 18, Tailwind 3. Routing in `src/app/`, feature components in `src/components/`, hooks in `src/hooks/`. Shared primitive UI components are in `libraries/react-shared-libraries/src/form/`.
+Next.js 16 UI with App Router, React 19, Tailwind 3. Routing in `src/app/`, feature components in `src/components/`, hooks in `src/hooks/`. Shared primitive UI components are in `libraries/react-shared-libraries/src/form/`.
 
 ## Specific Patterns and Rules
 
