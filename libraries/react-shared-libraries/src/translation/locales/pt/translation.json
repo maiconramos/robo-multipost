@@ -1911,5 +1911,6 @@
   "notif_post_published": "Sua publicação foi feita no {{provider}} em {{url}}",
   "notif_post_error": "Ocorreu um erro ao publicar no {{provider}}{{error}}",
   "notif_post_error_comments": "Ocorreu um erro ao publicar comentários no {{provider}}{{error}}",
-  "notif_streak": "<p>Você está prestes a perder sua sequência em duas horas! Agende uma publicação agora para mantê-la!</p>"
+  "notif_streak": "<p>Você está prestes a perder sua sequência em duas horas! Agende uma publicação agora para mantê-la!</p>",
+  "wordpress_application_password_hint": "Use uma senha de aplicativo do WordPress, criada em Usuário > Perfil, e não a senha do wp-admin."
 }

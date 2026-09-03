@@ -10,11 +10,8 @@ import { Integration } from '@prisma/client';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { WordpressDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/wordpress.dto';
 import slugify from 'slugify';
-// import FormData from 'form-data';
-import axios from 'axios';
 import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
 import { ssrfSafeFetch } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
-import { string } from 'yup';
 
 export class WordpressProvider
   extends SocialAbstract
@@ -84,6 +81,7 @@ export class WordpressProvider
         label: 'Password',
         validation: `/.+/`,
         type: 'password' as const,
+        hint: 'wordpress_application_password_hint',
       },
     ];
   }
@@ -98,45 +96,92 @@ export class WordpressProvider
       username: string;
       password: string;
     };
-    try {
-      const auth = Buffer.from(`${body.username}:${body.password}`).toString(
-        'base64'
-      );
-      const { id, name, avatar_urls, code } = await (
-        await ssrfSafeFetch(`${body.domain}/wp-json/wp/v2/users/me`, {
-          headers: {
-            Authorization: `Basic ${auth}`,
-          },
-        })
-      ).json();
 
-      if (code) {
-        throw 'Invalid credentials';
+    const domain = body.domain.trim().replace(/\/+$/, '');
+    const auth = Buffer.from(`${body.username}:${body.password}`).toString(
+      'base64'
+    );
+
+    let response: Response;
+    try {
+      response = await ssrfSafeFetch(`${domain}/wp-json/wp/v2/users/me`, {
+        headers: {
+          Authorization: `Basic ${auth}`,
+        },
+      });
+    } catch {
+      return 'Could not reach your WordPress site. Check the Domain URL and that the site is publicly accessible.';
+    }
+
+    if (!response.ok) {
+      const errorBody = await response.text().catch(() => '');
+      let wpCode = '';
+
+      try {
+        const parsed = JSON.parse(errorBody) as { code?: string };
+        wpCode = parsed.code || '';
+      } catch {
+        // HTML and other non-JSON error bodies are intentionally not logged.
       }
 
-      const biggestImage = Object.entries(avatar_urls || {}).reduce(
-        (all, current) => {
-          if (all > Number(current[0])) {
-            return all;
-          }
-          return Number(current[0]);
-        },
-        0
-      );
+      let origin = 'invalid-domain';
+      try {
+        origin = new URL(domain).origin;
+      } catch {
+        // The connection screen validates the URL; keep API callers safe too.
+      }
 
-      return {
-        refreshToken: '',
-        expiresIn: dayjs().add(100, 'years').unix() - dayjs().unix(),
-        accessToken: params.code,
-        id: body.domain + '_' + id,
-        name,
-        picture: avatar_urls?.[String(biggestImage)] || '',
-        username: body.username,
-      };
-    } catch (err) {
-      console.log(err);
+      console.warn('WordPress authentication failed', {
+        origin,
+        status: response.status,
+        code: wpCode,
+      });
+
+      if (response.status === 401 || response.status === 403) {
+        return 'WordPress rejected the login. A security plugin or server setting may be blocking the REST API or stripping the Authorization header, or the username / Application Password is incorrect.';
+      }
+
+      return `WordPress returned an unexpected error (HTTP ${response.status}). Make sure the REST API is enabled and Application Passwords are available.`;
+    }
+
+    let data: {
+      id?: number | string;
+      name?: string;
+      avatar_urls?: Record<string, string>;
+      code?: string;
+    };
+
+    try {
+      data = await response.json();
+    } catch {
+      return 'WordPress did not return a valid response. The REST API may be disabled or blocked by a security plugin.';
+    }
+
+    const { id, name, avatar_urls, code } = data || {};
+
+    if (code) {
       return 'Invalid credentials';
     }
+
+    const biggestImage = Object.entries(avatar_urls || {}).reduce(
+      (all, current) => {
+        if (all > Number(current[0])) {
+          return all;
+        }
+        return Number(current[0]);
+      },
+      0
+    );
+
+    return {
+      refreshToken: '',
+      expiresIn: dayjs().add(100, 'years').unix() - dayjs().unix(),
+      accessToken: params.code,
+      id: body.domain + '_' + id,
+      name,
+      picture: avatar_urls?.[String(biggestImage)] || '',
+      username: body.username,
+    };
   }
 
   @Tool({
