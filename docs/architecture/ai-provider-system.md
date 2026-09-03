@@ -252,7 +252,18 @@ async generate(orgId, prompt, profileId?): Promise<{
 
 Outros providers lancam HTTP 400 "provider sem suporte para imagem".
 
-### 3.6. AiCatalogService
+### 3.6. AiVideoService
+
+`ai-video.service.ts` envia Seedance/Veo para a Kie.ai e consulta o `taskId`
+ate um estado terminal. Somente `successFlag=0` significa “em andamento”;
+`successFlag=1` exige uma URL e qualquer outro estado encerra com HTTP 502.
+Cada `fetch` de criacao/poll possui timeout de socket de 30s, o `taskId` e
+registrado para correlacao operacional e mensagens do provider sao limitadas e
+sanitizadas antes de log ou resposta. O caller `MediaService.generateAiVideo`
+mantem todo o ciclo (provider + upload proprio) dentro de `useCredit`, cujo
+catch remove o debito quando a promise rejeita.
+
+### 3.7. AiCatalogService
 
 `ai-catalog.service.ts` — Lista de modelos disponiveis.
 
@@ -262,7 +273,7 @@ Outros providers lancam HTTP 400 "provider sem suporte para imagem".
 - Cache em Redis: key `ai:catalog:{provider}:{kind}` TTL 1h
 - `refresh()` admin-only invalida todas as keys `ai:catalog:*`
 
-### 3.7. AiProviderTestService
+### 3.8. AiProviderTestService
 
 `ai-provider-test.service.ts` — Validacao de apiKey.
 
