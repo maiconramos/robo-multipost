@@ -1,5 +1,10 @@
 import axios, { AxiosInstance } from 'axios';
-import { RefreshToken, SocialAbstract } from './social.abstract';
+import {
+  BadBody,
+  RefreshToken,
+  SocialAbstract,
+  truncateForTemporal,
+} from './social.abstract';
 import { ssrfSafeDispatcher } from '../dtos/webhooks/ssrf.safe.dispatcher';
 
 class TestProvider extends SocialAbstract {
@@ -85,13 +90,10 @@ describe('SocialAbstract SSRF', () => {
     ).resolves.toBe(response);
 
     expect(global.fetch).toHaveBeenCalledTimes(1);
-    expect(global.fetch).toHaveBeenCalledWith(
-      'https://example.com/analytics',
-      {
-        method: 'GET',
-        dispatcher: ssrfSafeDispatcher,
-      }
-    );
+    expect(global.fetch).toHaveBeenCalledWith('https://example.com/analytics', {
+      method: 'GET',
+      dispatcher: ssrfSafeDispatcher,
+    });
   });
 
   it('preserva RefreshToken para o self-heal do fork sem repetir a chamada', async () => {
@@ -138,5 +140,86 @@ describe('SocialAbstract SSRF', () => {
     expect(provider.booleanSetting('true')).toBe(true);
     expect(provider.booleanSetting(false)).toBe(false);
     expect(provider.booleanSetting(undefined)).toBe(false);
+  });
+});
+
+describe('Temporal provider failure payloads', () => {
+  it('preserva mensagens pequenas sem alterar o diagnostico', () => {
+    const message = 'Meta OAuthException code 190 subcode 464';
+
+    expect(truncateForTemporal(message, 2_000)).toBe(message);
+  });
+
+  it('limita strings grandes e informa quantos caracteres foram removidos', () => {
+    const value = 'x'.repeat(5_000);
+
+    const result = truncateForTemporal(value, 2_000);
+
+    expect(result.startsWith('x'.repeat(2_000))).toBe(true);
+    expect(result.endsWith('… [truncated 3000 chars]')).toBe(true);
+  });
+
+  it('limita mensagem, resposta e corpo sem perder o codigo Meta no inicio', () => {
+    const json = JSON.stringify({
+      error: {
+        code: 190,
+        error_subcode: 464,
+        message: 'Meta recusou o token',
+        debug: 'j'.repeat(10_000),
+      },
+    });
+    const failure = new BadBody(
+      'instagram',
+      json,
+      'body='.concat('b'.repeat(10_000)),
+      'm'.repeat(10_000)
+    );
+
+    expect(failure.message.length).toBeLessThan(2_100);
+    expect(failure.message).toContain('[truncated 8000 chars]');
+    expect(failure.details[0]).toEqual(
+      expect.objectContaining({
+        identifier: 'instagram',
+        json: expect.stringContaining('"code":190'),
+        body: expect.stringContaining('[truncated'),
+      })
+    );
+    expect((failure.details[0] as { json: string }).json.length).toBeLessThan(
+      4_100
+    );
+    expect((failure.details[0] as { body: string }).body.length).toBeLessThan(
+      4_100
+    );
+  });
+
+  it('aplica os mesmos limites ao sinal de refresh usado pelo self-heal', () => {
+    const failure = new RefreshToken(
+      'facebook',
+      '{"error":{"code":190,"error_subcode":460},"debug":"'.concat(
+        'j'.repeat(10_000),
+        '"}'
+      ),
+      'token='.concat('s'.repeat(10_000)),
+      'Sessao invalida '.concat('m'.repeat(10_000))
+    );
+
+    expect(failure.type).toBe('refresh_token');
+    expect(failure.message).toContain('Sessao invalida');
+    expect(failure.message.length).toBeLessThan(2_100);
+    expect((failure.details[0] as { json: string }).json).toContain(
+      '"error_subcode":460'
+    );
+    expect((failure.details[0] as { body: string }).body.length).toBeLessThan(
+      4_100
+    );
+  });
+
+  it('serializa detalhes circulares sem quebrar a criacao da falha', () => {
+    const circular: Record<string, unknown> = { provider: 'x' };
+    circular.self = circular;
+
+    expect(truncateForTemporal(circular, 4_000)).toBe(
+      '{"provider":"x","self":"[Circular]"}'
+    );
   });
 });
