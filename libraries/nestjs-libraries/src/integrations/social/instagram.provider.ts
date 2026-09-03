@@ -9,7 +9,10 @@ import {
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { timer } from '@gitroom/helpers/utils/timer';
 import dayjs from 'dayjs';
-import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import {
+  RefreshToken,
+  SocialAbstract,
+} from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { InstagramDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 import { Integration } from '@prisma/client';
 import {
@@ -948,13 +951,13 @@ export class InstagramProvider
     const since = dayjs().subtract(date, 'day').unix();
 
     const { data, ...all } = await (
-      await fetch(
+      await this.analyticsFetch(
         `${metaGraphUrl(type)}/${id}/insights?metric=follower_count,reach&access_token=${accessToken}&period=day&since=${since}&until=${until}`
       )
     ).json();
 
     const { data: data2, ...all2 } = await (
-      await fetch(
+      await this.analyticsFetch(
         `${metaGraphUrl(type)}/${id}/insights?metric_type=total_value&metric=likes,views,comments,shares,saves,replies&access_token=${accessToken}&period=day&since=${since}&until=${until}`
       )
     ).json();
@@ -1008,7 +1011,7 @@ export class InstagramProvider
     try {
       // Fetch media insights from Instagram Graph API
       const { data } = await (
-        await this.fetch(
+        await this.analyticsFetch(
           `${metaGraphUrl(type)}/${postId}/insights?metric=views,reach,saved,likes,comments,shares&access_token=${accessToken}`
         )
       ).json();
@@ -1060,6 +1063,9 @@ export class InstagramProvider
 
       return result;
     } catch (err) {
+      if (err instanceof RefreshToken) {
+        throw err;
+      }
       console.error('Error fetching Instagram post analytics:', err);
       return [];
     }

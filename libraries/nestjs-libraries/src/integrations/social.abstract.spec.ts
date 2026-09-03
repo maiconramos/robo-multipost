@@ -1,9 +1,17 @@
 import axios, { AxiosInstance } from 'axios';
-import { SocialAbstract } from './social.abstract';
+import { RefreshToken, SocialAbstract } from './social.abstract';
 import { ssrfSafeDispatcher } from '../dtos/webhooks/ssrf.safe.dispatcher';
 
 class TestProvider extends SocialAbstract {
   identifier = 'test';
+
+  override handleErrors(body: string) {
+    if (body.includes('expired token')) {
+      return { type: 'refresh-token' as const, value: 'expired' };
+    }
+
+    return undefined;
+  }
 
   public safeAxios() {
     return this.getSsrfSafeAxios();
@@ -11,6 +19,10 @@ class TestProvider extends SocialAbstract {
 
   public readRemote(path: string) {
     return this.readOrFetch(path);
+  }
+
+  public fetchAnalytics(path: string, options?: RequestInit) {
+    return (this as any).analyticsFetch(path, options);
   }
 }
 
@@ -56,6 +68,40 @@ describe('SocialAbstract SSRF', () => {
       method: 'GET',
       dispatcher,
     });
+  });
+
+  it('faz analytics com SSRF pinado sem retry nem BadBody', async () => {
+    const response = { status: 429, text: async () => 'rate limited' };
+    global.fetch = jest.fn().mockResolvedValue(response) as jest.Mock;
+
+    await expect(
+      provider.fetchAnalytics('https://example.com/analytics', {
+        method: 'GET',
+      })
+    ).resolves.toBe(response);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+    expect(global.fetch).toHaveBeenCalledWith(
+      'https://example.com/analytics',
+      {
+        method: 'GET',
+        dispatcher: ssrfSafeDispatcher,
+      }
+    );
+  });
+
+  it('preserva RefreshToken para o self-heal do fork sem repetir a chamada', async () => {
+    const response = {
+      status: 400,
+      clone: () => ({ text: async () => 'expired token' }),
+    };
+    global.fetch = jest.fn().mockResolvedValue(response) as jest.Mock;
+
+    await expect(
+      provider.fetchAnalytics('https://example.com/analytics')
+    ).rejects.toBeInstanceOf(RefreshToken);
+
+    expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
   it('usa Axios pinado para downloads remotos auxiliares', () => {

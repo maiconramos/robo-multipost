@@ -9,7 +9,10 @@ import {
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { timer } from '@gitroom/helpers/utils/timer';
 import dayjs from 'dayjs';
-import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import {
+  RefreshToken,
+  SocialAbstract,
+} from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { capitalize, chunk } from 'lodash';
 import { Plug } from '@gitroom/helpers/decorators/plug.decorator';
 import { Integration } from '@prisma/client';
@@ -468,7 +471,7 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     const since = dayjs().subtract(date, 'day').unix();
 
     const { data, ...all } = await (
-      await fetch(
+      await this.analyticsFetch(
         `https://graph.threads.net/v1.0/${id}/threads_insights?metric=views,likes,replies,reposts,quotes&access_token=${accessToken}&period=day&since=${since}&until=${until}`
       )
     ).json();
@@ -567,7 +570,7 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
     try {
       // Fetch thread insights from Threads API
       const { data } = await (
-        await this.fetch(
+        await this.analyticsFetch(
           `https://graph.threads.net/v1.0/${postId}/insights?metric=views,likes,replies,reposts,quotes&access_token=${accessToken}`
         )
       ).json();
@@ -613,6 +616,9 @@ export class ThreadsProvider extends SocialAbstract implements SocialProvider {
 
       return result;
     } catch (err) {
+      if (err instanceof RefreshToken) {
+        throw err;
+      }
       console.error('Error fetching Threads post analytics:', err);
       return [];
     }

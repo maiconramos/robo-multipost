@@ -39,8 +39,6 @@ vez de anexar silenciosamente um vídeo corrompido.
 
 ## Alterações deliberadamente não adotadas
 
-- `907e3399`: não trocar globalmente `this.fetch` por `fetch`; o fork depende do
-  tratamento compartilhado de erros, retries e tokens.
 - Pipeline genérico de streaming (`9980825a`, `1b121d0c`, `4013c1af`) e fluxo
   pending/finalize: continuam no épico próprio, pois alcançam vários providers e
   o contrato Temporal.
@@ -48,6 +46,12 @@ vez de anexar silenciosamente um vídeo corrompido.
   de execução e smoke test real. Não foi misturado a este porte de mídia.
 - OAuth upstream baseado apenas em variáveis de ambiente: o fork preserva
   `ClientInformation` e o fallback por perfil já existente.
+
+O commit `907e3399`, inicialmente adiado nesta auditoria, foi posteriormente
+portado em uma PR isolada por meio de `analyticsFetch`. O LinkedIn Page deixa de
+usar retries/`BadBody` de publicação em métricas, mas não adota `fetch` cru:
+SSRF/DNS-pinning e o sinal de token inválido para renovação continuam ativos.
+Ver [`provider-analytics-upstream-audit-2026-09.md`](./provider-analytics-upstream-audit-2026-09.md).
 
 ## Cobertura e gate de produção
 

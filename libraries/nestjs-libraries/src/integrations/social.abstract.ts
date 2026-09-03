@@ -206,6 +206,41 @@ export abstract class SocialAbstract {
     );
   }
 
+  // Analytics must not inherit posting retries/BadBody, but RefreshToken is
+  // kept so the service layer can renew or self-heal the integration.
+  protected async analyticsFetch(
+    url: string,
+    options: RequestInit = {}
+  ): Promise<Response> {
+    const request = await ssrfSafeFetch(url, options);
+
+    if (request.status === 200 || request.status === 201) {
+      return request;
+    }
+
+    let body = '{}';
+    try {
+      body = await request.clone().text();
+    } catch (err) {
+      body = '{}';
+    }
+
+    const handleError = this.handleErrors(body, request.status);
+    if (
+      handleError?.type === 'refresh-token' ||
+      (request.status === 401 && !handleError)
+    ) {
+      throw new RefreshToken(
+        '',
+        body,
+        options.body || '{}',
+        handleError?.value
+      );
+    }
+
+    return request;
+  }
+
   checkScopes(required: string[], got: string | string[]) {
     if (Array.isArray(got)) {
       if (!required.every((scope) => got.includes(scope))) {

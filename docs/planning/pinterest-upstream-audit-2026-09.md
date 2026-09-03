@@ -41,12 +41,17 @@ protegido do `SocialAbstract`; o hardening SSRF/DNS-pinning incorporado na PR
 - `1b53973e`: move a validação de mídia de todos os providers para o servidor e
   altera 55 arquivos. A validação atual do Pinterest permanece no frontend até
   esse contrato global ser auditado em PR própria.
-- `907e3399`: mantém `this.fetch` em analytics para preservar retry, refresh de
-  token e tratamento compartilhado do fork.
 - `e287a14d`: `postPending`/`checkPostStatus`/`finalizePost` pertence ao épico
   Temporal. O provider atual continua compatível com os workflows existentes.
 - Helper global `hasExtension`: para não ampliar o blast radius, o provider usa
   um detector local compatível com URLs assinadas.
+
+O commit `907e3399`, inicialmente adiado nesta auditoria, foi posteriormente
+portado em uma PR isolada por meio de `analyticsFetch`. O Pinterest deixa de
+usar retries/`BadBody` de publicação em métricas, mas não adota `fetch` cru:
+SSRF/DNS-pinning e a renovação em respostas de token inválido continuam
+preservados. Ver
+[`provider-analytics-upstream-audit-2026-09.md`](./provider-analytics-upstream-audit-2026-09.md).
 
 ## Cobertura e gate de produção
 

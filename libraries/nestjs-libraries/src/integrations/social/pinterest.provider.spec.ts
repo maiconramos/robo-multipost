@@ -288,7 +288,7 @@ describe('PinterestProvider analytics', () => {
 
   it('limita analytics do pin aos ultimos 89 dias', async () => {
     const fetchMock = jest
-      .spyOn(provider, 'fetch')
+      .spyOn(provider as any, 'analyticsFetch')
       .mockResolvedValue(makeResponse({ all: { lifetime_metrics: {} } }));
 
     await provider.postAnalytics('user-1', 'access-token', 'pin-1', 365);
