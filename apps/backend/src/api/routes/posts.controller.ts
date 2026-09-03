@@ -301,9 +301,17 @@ export class PostsController {
     @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string,
     @Body('date') date: string,
-    @Body('action') action: 'schedule' | 'update' = 'schedule'
+    @Body('action') action: 'schedule' | 'update' = 'update',
+    @Body('republish') republish: boolean = false
   ) {
-    return this._postsService.changeDate(org.id, id, date, action, profile?.id);
+    return this._postsService.changeDate(
+      org.id,
+      id,
+      date,
+      action,
+      profile?.id,
+      republish
+    );
   }
 
   @Post('/separate-posts')

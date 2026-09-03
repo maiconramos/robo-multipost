@@ -604,6 +604,7 @@ export const CalendarColumn: FC<{
   } = useCalendar();
   const modal = useModals();
   const fetch = useFetch();
+  const toaster = useToaster();
 
   // Use shared post actions hook
   const { editPost, deletePost, copyDebugJson, openStatistics, openMissingRelease } = usePostActions();
@@ -681,8 +682,18 @@ export const CalendarColumn: FC<{
                 <div className="flex flex-col">
                   <div className="text-[20px] mb-[20px]">
                     {t(
-                      'post_already_published_drag',
-                      'This post was already published, what do you want to do?'
+                      'post_already_published_republish_warning',
+                      'This post was already published. Republishing will publish it again to'
+                    )}{' '}
+                    {post.integration?.name} {t('republish_at', 'at')}{' '}
+                    {getDate.format('DD/MM/YYYY HH:mm')}.
+                    {(!!item.interval || !!post.intervalInDays) && (
+                      <div className="mt-[10px]">
+                        {t(
+                          'republish_recurring_note',
+                          'This is a recurring post: your changes apply to all future recurrences starting now.'
+                        )}
+                      </div>
                     )}
                   </div>
                   <div className="flex w-full gap-[10px]">
@@ -707,7 +718,7 @@ export const CalendarColumn: FC<{
                           resolve('schedule');
                         }}
                       >
-                        {t('reschedule_post', 'Reschedule the post')}
+                        {t('republish_the_post', 'Republish the post')}
                       </Button>
                     </div>
                   </div>
@@ -724,22 +735,30 @@ export const CalendarColumn: FC<{
         action = whatToDo;
       }
 
-      if (!item.interval) {
-        changeDate(item.id, getDate);
-      }
-      const { status } = await fetch(`/posts/${item.id}/date`, {
+      const response = await fetch(`/posts/${item.id}/date`, {
         method: 'PUT',
         body: JSON.stringify({
           date: getDate.utc().format('YYYY-MM-DDTHH:mm:ss'),
           action,
+          ...(action === 'schedule' ? { republish: true } : {}),
         }),
       });
-      if (status !== 500) {
-        if (item.interval || action === 'schedule') {
-          reloadCalendarView();
-          return;
-        }
+
+      if (!response.ok) {
+        const { message } = await response.json().catch(() => ({} as any));
+        toaster.show(
+          (Array.isArray(message) ? message[0] : message) ||
+            t('could_not_save_post', 'Could not save the post.'),
+          'warning'
+        );
         return;
+      }
+
+      if (!item.interval) {
+        changeDate(item.id, getDate);
+      }
+      if (item.interval || action === 'schedule') {
+        reloadCalendarView();
       }
     },
     collect: (monitor) => ({

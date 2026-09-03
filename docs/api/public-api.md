@@ -57,12 +57,19 @@ Authorization: SUA_CHAVE_DE_API
 | `type` | `now` \| `schedule` \| `draft` | ✅ | Publicar agora, agendar ou rascunho |
 | `date` | string ISO 8601 | ✅ | Quando publicar (use uma data futura para `schedule`) |
 | `shortLink` | boolean | ✅ | Encurtar links do post |
+| `republish` | boolean | — | Obrigatório como `true` para publicar novamente um post que já está `PUBLISHED` |
 | `tags` | `{value,label}[]` | ✅ | Tags (pode ser `[]`) |
 | `posts` | `Post[]` (≥1) | ✅ | Um item por canal |
 
 Os tipos são estritos. Envie booleanos e números como valores JSON reais:
 `false`, `true` e `10`. Valores em texto como `"false"`, `"true"` ou `"10"`
 recebem HTTP 400 em vez de serem convertidos silenciosamente.
+
+Ao editar um post já publicado (um item de `value` contém o `id` existente),
+`type: "schedule"` ou `type: "now"` publicaria o conteúdo outra vez. A API
+recusa essa operação por padrão. Use `type: "update"` para alterar sem publicar,
+ou envie `republish: true` quando a nova publicação for intencional. Texto como
+`"true"` não é aceito como confirmação.
 
 **`posts[]` (Post):**
 | Campo | Tipo | Notas |

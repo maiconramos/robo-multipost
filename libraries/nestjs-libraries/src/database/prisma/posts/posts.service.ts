@@ -764,7 +764,71 @@ export class PostsService {
     } catch (err) {}
   }
 
-  async createPost(orgId: string, body: CreatePostDto, profileId?: string): Promise<any[]> {
+  private guardAgainstRepublish(
+    post: {
+      state: State;
+      publishDate: Date;
+      integration?: { providerIdentifier: string };
+    } | null,
+    source: 'createPost' | 'changeDate'
+  ) {
+    if (post?.state !== 'PUBLISHED') {
+      return;
+    }
+
+    const safeUpdate =
+      source === 'createPost' ? "use type 'update'" : "use action 'update'";
+
+    throw new BadRequestException(
+      `This post was already published on ${dayjs
+        .utc(post.publishDate)
+        .format('YYYY-MM-DD HH:mm')} UTC. Saving it this way would publish it again to ${
+        post.integration?.providerIdentifier || 'the channel'
+      }. To edit without republishing, ${safeUpdate}. To intentionally publish again, pass republish: true.`
+    );
+  }
+
+  async createPost(
+    orgId: string,
+    body: CreatePostDto,
+    profileId?: string
+  ): Promise<any[]> {
+    const existingPostIds = [
+      ...new Set(
+        body.posts.flatMap((post) =>
+          (post.value || []).flatMap((value) => (value.id ? [value.id] : []))
+        )
+      ),
+    ];
+    const existingPosts = [];
+
+    for (const existingPostId of existingPostIds) {
+      const existingPost = await this._postRepository.getPostById(
+        existingPostId,
+        orgId
+      );
+      if (!existingPost) {
+        throw new BadRequestException('Post not found');
+      }
+      if (
+        profileId &&
+        existingPost.profileId &&
+        existingPost.profileId !== profileId
+      ) {
+        throw new BadRequestException('Post does not belong to this profile');
+      }
+      existingPosts.push(existingPost);
+    }
+
+    if (
+      (body.type === 'schedule' || body.type === 'now') &&
+      body.republish !== true
+    ) {
+      for (const existingPost of existingPosts) {
+        this.guardAgainstRepublish(existingPost, 'createPost');
+      }
+    }
+
     const postList = [];
     for (const post of body.posts) {
       const messages = (post.value || []).map((p) => p.content);
@@ -879,13 +943,18 @@ export class PostsService {
     orgId: string,
     id: string,
     date: string,
-    action: 'schedule' | 'update' = 'schedule',
-    profileId?: string
+    action: 'schedule' | 'update' = 'update',
+    profileId?: string,
+    republish: boolean = false
   ) {
     const getPostById = await this._postRepository.getPostById(id, orgId);
 
     if (profileId && getPostById?.profileId && getPostById.profileId !== profileId) {
       throw new BadRequestException('Post does not belong to this profile');
+    }
+
+    if (action === 'schedule' && republish !== true) {
+      this.guardAgainstRepublish(getPostById, 'changeDate');
     }
 
     // schedule: Set status to QUEUE and change date (reschedule the post)

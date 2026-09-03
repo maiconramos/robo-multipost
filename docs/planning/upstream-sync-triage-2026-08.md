@@ -140,7 +140,7 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
 | WordPress | `3c7a6863`, `daffe5b4`, `d027d6f7` | Implementado em duas PRs: conexão/diagnóstico seguro e, separadamente, categorias/tags/status. Ambos preservam o fetch SSRF-safe e a compatibilidade com posts/canais antigos. `cc54137d` foi removido da cadeia por alterar apenas TikTok. Ver [`wordpress-connect-upstream-audit-2026-09.md`](./wordpress-connect-upstream-audit-2026-09.md) e [`wordpress-terms-upstream-audit-2026-09.md`](./wordpress-terms-upstream-audit-2026-09.md). |
 | Auth por e-mail | `dbb48601`, `dcb1b018` | Implementado com busca case-insensitive para contas locais e impersonação, mais normalização de novos cadastros locais que faltava no fork. O email-lock dos convites e OAuth permanecem intactos. Auditar duplicatas legadas por caixa antes do deploy. Ver [`auth-email-upstream-audit-2026-09.md`](./auth-email-upstream-audit-2026-09.md). |
 | DTO estrito | `c3de376f`, `cc54137d`, `40324535` | Implementado com rejeição de tipos inválidos na entrada e compatibilidade de execução para flags legadas em Instagram, LinkedIn, TikTok e X. UI, CLI e exemplos públicos já estavam conformes; o X preserva a omissão de opções falsas. Ver [`strict-post-dto-upstream-audit-2026-09.md`](./strict-post-dto-upstream-audit-2026-09.md). |
-| Republicação explícita | `b6310364` | O fork já pergunta na UI, mas não tem o opt-in correspondente no contrato/backend. Portar API-first para impedir bypass via API. |
+| Republicação explícita | `b6310364` | Implementado API-first com opt-in booleano estrito, default seguro para mudança de data e UI que informa canal/data/recorrência. Preserva a posição do `profileId` no serviço e, para posts publicados, só reinicia o Temporal após confirmação. Ver [`explicit-republish-upstream-audit-2026-09.md`](./explicit-republish-upstream-audit-2026-09.md). |
 | Transporte MCP stateless | `e11477ee`, `7f8a8328` | Alto valor operacional: o fork ainda cria `sessionId` nos três endpoints e pode acumular transports até OOM. Portar `serverless: true` preservando `runWithContext`, OAuth e chave por perfil; testar clientes sem sessão, sessão antiga e reinício. |
 | Falhas de geração | `95f08f57`, `2de87c33`, `fe40b587`, `1785cf91`, `b12c03f3`, `9ef99bc4`, `88008142` | Aproveitar conceitos, não o código inteiro: o fork tem camada de IA/Kie própria e HTTP 412. Priorizar timeout, mensagem limpa e correlação por task ID. |
 | Atualização de dependências | `8d23e5ed`, `7a02bd6b` | PR exclusivo. A tag usa Next 16.2.6, já efetivo no fork por override; `main` foi a 16.3.1 e Nest 11.1.21. Rebase manual do lockfile e suíte completa. |
@@ -214,7 +214,7 @@ perfil próprios. Revisar contratos e segurança em um projeto separado.
 | `a21a7d4b`/`c96935a0` | SSRF, magic bytes e `profileId` já existem; falta limite de download e normalização de falha. |
 | `db65072f` e sucessores | DNS-pinning base já existe; falta ampliar Axios/providers sem regredir self-hosted. |
 | `eaf866ad` (áudio em Reels) | Backend tem busca de música, mas UI/DTO completos do upstream não existem; feature parcial, opcional. |
-| `b6310364` (republicação) | UI já pede confirmação; falta gate no backend/API. |
+| `b6310364` (republicação) | Coberto com gate no backend/API, opt-in estrito e confirmação contextual na UI. |
 | Next da tag `v2.23.0` | Tag usa 16.2.6; o fork já força 16.2.6 por override. |
 | Fixes triados até 07/06 | Segurança, NestJS 11, XSS, SSRF, Pinterest/Threads/IG e quatro cherry-picks já estão documentados na triagem anterior. |
 

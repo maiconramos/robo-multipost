@@ -96,12 +96,16 @@ Todas exigem \`Authorization: <CHAVE>\`. Base: \`${base}/public/v1\`.
 | Método | Caminho | Corpo / Query |
 |---|---|---|
 | GET | \`/posts\` | **query obrigatória** \`?startDate&endDate\` (ISO 8601) \`[&customer]\` |
-| POST | \`/posts\` | \`{type, date, shortLink, tags, posts:[{integration:{id}, value:[{content, image?}], settings}]}\` |
+| POST | \`/posts\` | \`{type, date, shortLink, republish?, tags, posts:[{integration:{id}, value:[{content, image?}], settings}]}\` |
 | DELETE | \`/posts/:id\` | — |
 | DELETE | \`/posts/group/:group\` | — |
 | GET | \`/posts/:id/missing\` | conteúdo faltante |
 | PUT | \`/posts/:id/release-id\` | \`{releaseId}\` |
 | GET | \`/find-slot/:id\` | próximo horário livre do canal |
+
+Ao editar um post já publicado, use \`type: "update"\` para alterar sem publicar
+novamente. \`type: "schedule"\` ou \`type: "now"\` só republica quando o payload
+traz o opt-in explícito \`republish: true\` (booleano real, não texto).
 
 \`content\` é HTML (tags: \`p, br, strong, u, a, ul, li, h1-h3\`); use \`<p></p>\` vazio
 para linha em branco entre parágrafos.

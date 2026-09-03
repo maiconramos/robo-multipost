@@ -18,7 +18,10 @@ import { createMock } from '@gitroom/nestjs-libraries/test';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { PostsService } from './posts.service';
 
-const makeBody = (shortLink: boolean | string) => ({
+const makeBody = (
+  shortLink: boolean | string,
+  overrides: Record<string, unknown> = {}
+) => ({
   type: 'now',
   shortLink,
   date: '2026-09-03T12:00:00.000Z',
@@ -36,6 +39,7 @@ const makeBody = (shortLink: boolean | string) => ({
       settings: { post_type: 'post' },
     },
   ],
+  ...overrides,
 });
 
 const buildService = () => {
@@ -74,5 +78,20 @@ describe('PostsService.mapTypeToPost - tipos estritos', () => {
     await expect(
       buildService().mapTypeToPost(makeBody('false') as any, 'org-1')
     ).rejects.toBeInstanceOf(BadRequestException);
+  });
+
+  it('aceita somente booleano real no opt-in de republicacao', async () => {
+    await expect(
+      buildService().mapTypeToPost(
+        makeBody(false, { republish: 'true' }) as any,
+        'org-1'
+      )
+    ).rejects.toBeInstanceOf(BadRequestException);
+
+    const result = await buildService().mapTypeToPost(
+      makeBody(false, { republish: true }) as any,
+      'org-1'
+    );
+    expect(result.republish).toBe(true);
   });
 });

@@ -107,6 +107,10 @@ export class CreatePostDto {
   @IsNumber()
   inter?: number;
 
+  @IsOptional()
+  @IsBoolean()
+  republish?: boolean;
+
   @IsDefined()
   @IsDateString()
   date: string;
