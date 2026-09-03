@@ -2,7 +2,6 @@ import { INestApplication } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { MCPServer } from '@mastra/mcp';
-import { randomUUID } from 'crypto';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
@@ -50,10 +49,11 @@ export const startMcp = async (app: INestApplication) => {
 
   const server = new MCPServer(serverConfig);
 
+  const oauthResource = new URL('/mcp-oauth', process.env.NEXT_PUBLIC_BACKEND_URL!).toString();
   const oauthMiddleware = createOAuthMiddleware({
     oauth: {
-      resource: new URL('/mcp-oauth', process.env.NEXT_PUBLIC_BACKEND_URL!).toString(),
-      authorizationServers: [process.env.NEXT_PUBLIC_BACKEND_URL!],
+      resource: oauthResource,
+      authorizationServers: [oauthResource],
       validateToken: async (token: string) => {
         const resolved = await resolveAuth(token);
         if (!resolved) {
@@ -72,12 +72,24 @@ export const startMcp = async (app: INestApplication) => {
     });
   }
 
-  app.use('/.well-known/oauth-protected-resource', async (req: Request, res: Response) => {
+  app.use('/.well-known/oauth-protected-resource', async (req: Request, res: Response, next: () => void) => {
+    // Only /mcp-oauth is OAuth-protected. Keep the root and key-in-URL
+    // connectors outside OAuth discovery.
+    if (req.path !== '/mcp-oauth') {
+      next();
+      return;
+    }
+
     const url = new URL('/.well-known/oauth-protected-resource', process.env.NEXT_PUBLIC_BACKEND_URL);
     await oauthMiddleware(req, res, url);
   });
 
-  app.use('/.well-known/oauth-authorization-server', async (req: Request, res: Response) => {
+  app.use('/.well-known/oauth-authorization-server', async (req: Request, res: Response, next: () => void) => {
+    if (req.path !== '/mcp-oauth') {
+      next();
+      return;
+    }
+
     res.setHeader('Access-Control-Allow-Origin', '*');
     if (req.method === 'OPTIONS') {
       res.setHeader('Access-Control-Allow-Methods', 'GET, OPTIONS');
@@ -89,7 +101,7 @@ export const startMcp = async (app: INestApplication) => {
     res.setHeader('Content-Type', 'application/json');
     res.setHeader('Cache-Control', 'max-age=3600');
     res.json({
-      issuer: process.env.NEXT_PUBLIC_BACKEND_URL,
+      issuer: oauthResource,
       authorization_endpoint: `${process.env.FRONTEND_URL}/oauth/authorize`,
       token_endpoint: `${process.env.NEXT_PUBLIC_OVERRIDE_BACKEND_URL || process.env.NEXT_PUBLIC_BACKEND_URL}/oauth/token`,
       response_types_supported: ['code'],
@@ -124,9 +136,7 @@ export const startMcp = async (app: INestApplication) => {
         url: url,
         httpPath: url.pathname,
         options: {
-          sessionIdGenerator: () => {
-            return randomUUID();
-          },
+          serverless: true,
           enableJsonResponse: true,
         },
         req,
@@ -175,9 +185,7 @@ export const startMcp = async (app: INestApplication) => {
         url,
         httpPath: url.pathname,
         options: {
-          sessionIdGenerator: () => {
-            return randomUUID();
-          },
+          serverless: true,
           enableJsonResponse: true,
         },
         req,
@@ -220,9 +228,7 @@ export const startMcp = async (app: INestApplication) => {
           url,
           httpPath: url.pathname,
           options: {
-            sessionIdGenerator: () => {
-              return randomUUID();
-            },
+            serverless: true,
             enableJsonResponse: true,
           },
           req,

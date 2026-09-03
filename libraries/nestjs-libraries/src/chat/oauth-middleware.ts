@@ -38,7 +38,11 @@ export function createOAuthMiddleware(options: OAuthMiddlewareOptions) {
 
   const protectedResourceMetadata = generateProtectedResourceMetadata(oauth);
   const wellKnownPath = '/.well-known/oauth-protected-resource';
-  const resourceMetadataUrl = new URL(wellKnownPath, oauth.resource).toString();
+  const resourcePath = new URL(oauth.resource).pathname;
+  const resourceMetadataUrl = new URL(
+    wellKnownPath + (resourcePath === '/' ? '' : resourcePath),
+    oauth.resource,
+  ).toString();
 
   return async function oauthMiddleware(
     req: http.IncomingMessage,
