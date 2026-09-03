@@ -736,6 +736,7 @@
   "generating_hook": "Generating hook...",
   "generating_content": "Generating content...",
   "generating_pictures": "Generating pictures...",
+  "generation_failed": "Failed to generate posts, please try again.",
   "finding_time_to_post": "Finding time to post...",
   "write_anything": "Write anything",
   "you_can_write_anything_you_want_and_also_add_links_we_will_do_the_research_for_you": "You can write anything you want, and also add links, we will do the research for you...",
