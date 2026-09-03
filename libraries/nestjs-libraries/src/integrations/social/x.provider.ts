@@ -161,11 +161,11 @@ export class XProvider extends SocialAbstract implements SocialProvider {
       payload.media = { media_ids };
     }
 
-    if (settings.made_with_ai) {
+    if (this.assetBoolean(settings.made_with_ai)) {
       payload.made_with_ai = true;
     }
 
-    if (settings.paid_partnership) {
+    if (this.assetBoolean(settings.paid_partnership)) {
       payload.paid_partnership = true;
     }
 

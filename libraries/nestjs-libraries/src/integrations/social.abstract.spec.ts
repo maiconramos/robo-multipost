@@ -24,6 +24,10 @@ class TestProvider extends SocialAbstract {
   public fetchAnalytics(path: string, options?: RequestInit) {
     return (this as any).analyticsFetch(path, options);
   }
+
+  public booleanSetting(value: boolean | string | undefined) {
+    return this.assetBoolean(value);
+  }
 }
 
 describe('SocialAbstract SSRF', () => {
@@ -126,5 +130,13 @@ describe('SocialAbstract SSRF', () => {
       method: 'GET',
       responseType: 'arraybuffer',
     });
+  });
+
+  it('interpreta flags booleanas legadas sem tratar a string false como true', () => {
+    expect(provider.booleanSetting('false')).toBe(false);
+    expect(provider.booleanSetting('FALSE')).toBe(false);
+    expect(provider.booleanSetting('true')).toBe(true);
+    expect(provider.booleanSetting(false)).toBe(false);
+    expect(provider.booleanSetting(undefined)).toBe(false);
   });
 });

@@ -144,6 +144,34 @@ describe('XProvider', () => {
       expect(payload.paid_partnership).toBe(true);
     });
 
+    it('nao ativa flags quando um post legado contem a string false', () => {
+      const payload = provider.buildTweetPayload({
+        text: 'hello',
+        media_ids: [],
+        settings: {
+          made_with_ai: 'false',
+          paid_partnership: 'false',
+        } as any,
+      });
+
+      expect(payload).not.toHaveProperty('made_with_ai');
+      expect(payload).not.toHaveProperty('paid_partnership');
+    });
+
+    it('ativa flags quando um post legado contem a string true', () => {
+      const payload = provider.buildTweetPayload({
+        text: 'hello',
+        media_ids: [],
+        settings: {
+          made_with_ai: 'true',
+          paid_partnership: 'true',
+        } as any,
+      });
+
+      expect(payload.made_with_ai).toBe(true);
+      expect(payload.paid_partnership).toBe(true);
+    });
+
     it('inclui media quando media_ids tem itens', () => {
       const payload = provider.buildTweetPayload({
         text: 'hello',
