@@ -99,7 +99,7 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 
 | File | Purpose |
 |---|---|
-| `../social.abstract.ts` | Base class + error classes (`RefreshToken`, `BadBody`, `NotEnoughScopes`) |
+| `../social.abstract.ts` | Base class + error classes (`RefreshToken`, `BadBody`, `NotEnoughScopes`); `fetch()` para publicação e `analyticsFetch()` para métricas |
 | `social.integrations.interface.ts` | Interfaces (`SocialProvider`, `ClientInformation`, `AuthTokenDetails`, `PostDetails`, `PostResponse`) |
 | `facebook.provider.ts` | FB Page via Facebook Login (Page Access Token, host `graph.facebook.com`). `post()` ramifica por `settings.post_type`: feed/reel (`/photos`+`/feed`, `/videos`) **ou** Story — foto via `/photo_stories` (upload unpublished → `photo_id`) e vídeo via `/video_stories` (upload resumável 3 fases: `start`→rupload com header `file_url`→`finish`). Story não tem carrossel: cada mídia vira um story separado. Scopes de Story já estão nos `scopes` do provider (sem reconexão) |
 | `instagram.provider.ts` | IG via Facebook Login (Page Access Token, host `graph.facebook.com`); includes `getMediaMetadata(mediaId, token, host?)` for inbox/dark-post enrichment |
@@ -161,6 +161,8 @@ The company fully rebranded Late/getlate.dev → Zernio (same company, new brand
 11. **Symptom:** GMB appears published with an empty external ID, or works immediately after reconnect and falls again about one hour later → **Cause:** the v4 API may answer HTTP 200 with `state: REJECTED`, no `name`, an empty/non-JSON body, or the reconnect may discard the newly issued Google `refresh_token`. **Fix:** treat only a named, non-rejected local post as success; keep `keepReconnectAuthTokens`, `include_granted_scopes: false` and best-effort revocation aligned with YouTube. GMB intentionally resolves the per-profile credential under the `youtube` alias because the settings card represents the shared Google OAuth app. Register both `/integrations/social/youtube` and `/integrations/social/gmb` as authorized redirect URIs.
 
 12. **Symptom:** WordPress connection reports only “Invalid credentials”, works inconsistently by domain formatting, or fails behind a security plugin → **Cause:** older code parsed every response as JSON and collapsed network, HTTP and HTML failures into one catch. **Fix:** normalize only the request URL, keep the stored token/internal ID compatible, distinguish unreachable/401-403/other HTTP/non-JSON responses, and always use `ssrfSafeFetch`; never replace it with raw `fetch`. Logs may contain origin, status and WordPress error code, but never Basic auth, username, password or raw response body.
+
+13. **Symptom:** analytics waits through posting retries, emits `BadBody`, or stops triggering token self-heal after an upstream sync → **Cause:** metric reads used `fetch()` from the posting pipeline, or were replaced with raw global `fetch`. **Fix:** use `analyticsFetch()`: it keeps SSRF/DNS-pinning, performs one request, does not throw `BadBody`, and preserves only `RefreshToken` for HTTP 401/provider-classified token failures. Do not use it for posting, polling publication state outside analytics, missing-content discovery or plugs.
 
 ## Commands
 

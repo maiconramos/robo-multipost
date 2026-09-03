@@ -67,7 +67,7 @@ describe('LinkedinPageProvider', () => {
 
   it('consulta estatistica vitalicia do post sem timeIntervals', async () => {
     const calls: string[] = [];
-    jest.spyOn(provider, 'fetch').mockImplementation(async (url) => {
+    jest.spyOn(provider as any, 'analyticsFetch').mockImplementation(async (url) => {
       calls.push(String(url));
       if (String(url).includes('organizationalEntityShareStatistics')) {
         return {

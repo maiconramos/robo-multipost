@@ -13,6 +13,7 @@ import { Integration } from '@prisma/client';
 import { Plug } from '@gitroom/helpers/decorators/plug.decorator';
 import { timer } from '@gitroom/helpers/utils/timer';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
+import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 
 @Rules(
   'LinkedIn can have maximum one attachment when selecting video, when choosing a carousel on LinkedIn minimum amount of attachment must be two, and only pictures, if uploading a video, LinkedIn can have only one attachment'
@@ -316,7 +317,7 @@ export class LinkedinPageProvider
     const startDate = dayjs().subtract(date, 'days').unix() * 1000;
 
     const { elements }: { elements: Root[]; paging: any } = await (
-      await fetch(
+      await this.analyticsFetch(
         `https://api.linkedin.com/v2/organizationPageStatistics?q=organization&organization=${encodeURIComponent(
           `urn:li:organization:${id}`
         )}&timeIntervals=(timeRange:(start:${startDate},end:${endDate}),timeGranularityType:DAY)`,
@@ -331,7 +332,7 @@ export class LinkedinPageProvider
     ).json();
 
     const { elements: elements2 }: { elements: Root[]; paging: any } = await (
-      await fetch(
+      await this.analyticsFetch(
         `https://api.linkedin.com/v2/organizationalEntityFollowerStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(
           `urn:li:organization:${id}`
         )}&timeIntervals=(timeRange:(start:${startDate},end:${endDate}),timeGranularityType:DAY)`,
@@ -346,7 +347,7 @@ export class LinkedinPageProvider
     ).json();
 
     const { elements: elements3 }: { elements: Root[]; paging: any } = await (
-      await fetch(
+      await this.analyticsFetch(
         `https://api.linkedin.com/v2/organizationalEntityShareStatistics?q=organizationalEntity&organizationalEntity=${encodeURIComponent(
           `urn:li:organization:${id}`
         )}&timeIntervals=(timeRange:(start:${startDate},end:${endDate}),timeGranularityType:DAY)`,
@@ -446,7 +447,7 @@ export class LinkedinPageProvider
 
     const { elements: shareElements }: { elements: PostShareStatElement[] } =
       await (
-        await this.fetch(shareStatsUrl, {
+        await this.analyticsFetch(shareStatsUrl, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'LinkedIn-Version': '202601',
@@ -462,7 +463,7 @@ export class LinkedinPageProvider
         postId
       )}`;
       socialActions = await (
-        await this.fetch(socialActionsUrl, {
+        await this.analyticsFetch(socialActionsUrl, {
           headers: {
             Authorization: `Bearer ${accessToken}`,
             'LinkedIn-Version': '202601',
@@ -471,6 +472,9 @@ export class LinkedinPageProvider
         })
       ).json();
     } catch (e) {
+      if (e instanceof RefreshToken) {
+        throw e;
+      }
       // Social actions may not be available for all posts
     }
 

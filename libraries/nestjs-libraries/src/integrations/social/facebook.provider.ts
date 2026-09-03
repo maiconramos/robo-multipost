@@ -8,7 +8,11 @@ import {
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import dayjs from 'dayjs';
-import { BadBody, SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import {
+  BadBody,
+  RefreshToken,
+  SocialAbstract,
+} from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { FacebookDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/facebook.dto';
 import { DribbbleDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/dribbble.dto';
 import { Integration } from '@prisma/client';
@@ -816,7 +820,7 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     const since = dayjs().subtract(date, 'day').unix();
 
     const { data } = await (
-      await fetch(
+      await this.analyticsFetch(
         `${META_FACEBOOK_GRAPH_URL}/${id}/insights?metric=page_total_media_view_unique,page_media_view,page_post_engagements,page_daily_follows&access_token=${accessToken}&period=day&since=${since}&until=${until}`
       )
     ).json();
@@ -862,7 +866,7 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     try {
       // Fetch post insights from Facebook Graph API
       const { data } = await (
-        await this.fetch(
+        await this.analyticsFetch(
           `${META_FACEBOOK_GRAPH_URL}/${postId}/insights?metric=post_total_media_view_unique,post_reactions_by_type_total,post_clicks,post_clicks_by_type&access_token=${accessToken}`
         )
       ).json();
@@ -922,6 +926,9 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
 
       return result;
     } catch (err) {
+      if (err instanceof RefreshToken) {
+        throw err;
+      }
       console.error('Error fetching Facebook post analytics:', err);
       return [];
     }

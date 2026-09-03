@@ -12,6 +12,7 @@ import FormData from 'form-data';
 import { timer } from '@gitroom/helpers/utils/timer';
 import {
   BadBody,
+  RefreshToken,
   SocialAbstract,
 } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import dayjs from 'dayjs';
@@ -385,7 +386,7 @@ export class PinterestProvider
     const {
       all: { daily_metrics },
     } = await (
-      await fetch(
+      await this.analyticsFetch(
         `https://api.pinterest.com/v5/user_account/analytics?start_date=${since}&end_date=${until}`,
         {
           method: 'GET',
@@ -449,7 +450,7 @@ export class PinterestProvider
 
     try {
       // Fetch pin analytics from Pinterest API
-      const response = await this.fetch(
+      const response = await this.analyticsFetch(
         `https://api.pinterest.com/v5/pins/${postId}/analytics?start_date=${since}&end_date=${today}&metric_types=IMPRESSION,PIN_CLICK,OUTBOUND_CLICK,SAVE`,
         {
           method: 'GET',
@@ -509,6 +510,9 @@ export class PinterestProvider
 
       return result;
     } catch (err) {
+      if (err instanceof RefreshToken) {
+        throw err;
+      }
       console.error('Error fetching Pinterest post analytics:', err);
       return [];
     }
