@@ -16,6 +16,8 @@ services:
       # TEMPORAL_NAMESPACE: 'default'
       # TEMPORAL_API_KEY: ''
       # TEMPORAL_TLS: 'false'
+      # WORKER_CONCURRENCY_DIVIDER: '1'
+      # EXCLUDE_QUEUE: '' # filas de provider separadas por virgula; nunca main
       IS_GENERAL: 'true'
       DISABLE_REGISTRATION: 'false'
 
