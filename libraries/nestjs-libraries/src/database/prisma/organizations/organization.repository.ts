@@ -133,11 +133,13 @@ export class OrganizationRepository {
                 {
                   name: {
                     contains: name,
+                    mode: 'insensitive',
                   },
                 },
                 {
                   email: {
                     contains: name,
+                    mode: 'insensitive',
                   },
                 },
                 {

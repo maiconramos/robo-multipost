@@ -99,6 +99,25 @@ describe('OrganizationRepository', () => {
     });
   });
 
+  describe('getImpersonateUser', () => {
+    it('busca nome e email sem diferenciar maiusculas e minusculas', async () => {
+      mockUserOrgFindMany.mockResolvedValue([]);
+
+      await repository.getImpersonateUser('CLIENTE');
+
+      const userFilters = mockUserOrgFindMany.mock.calls[0][0].where.OR[1].user
+        .OR;
+      expect(userFilters[0].name).toEqual({
+        contains: 'CLIENTE',
+        mode: 'insensitive',
+      });
+      expect(userFilters[1].email).toEqual({
+        contains: 'CLIENTE',
+        mode: 'insensitive',
+      });
+    });
+  });
+
   describe('createOrgForUser', () => {
     it('cria org com perfil default e vincula o usuario existente como superadmin', async () => {
       mockOrgCreate.mockResolvedValue({ id: 'org-fb' });
