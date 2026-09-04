@@ -13,6 +13,12 @@
 > concluído e incorporado pela PR `#207`. O segundo porte está isolado em
 > `codex/upstream-meta-graph-v25`.
 
+> Atualização de execução em 03/09/2026: `upstream/main` avançou para
+> `36d5fc7b`, ainda sem tag posterior a `v2.23.0`. Os três commits efetivos
+> novos foram classificados sem merge em bloco; ver
+> [`upstream-head-refresh-2026-09-03.md`](./upstream-head-refresh-2026-09-03.md).
+> Todos os portes P0/P1 aceitos abaixo já foram incorporados à `main` do fork.
+
 ## 1. Decisão executiva
 
 **Não fazer merge integral de `postiz` em `main`.** O risco de regressão é alto:
@@ -33,10 +39,10 @@ independente. A cadeia nova de publicação/Temporal deve ser tratada como um
 
 Há dois alvos diferentes e eles não devem ser confundidos:
 
-| Alvo | Estado | Delta contra `postiz` | Decisão |
-|---|---|---:|---|
-| `v2.23.0` (`1e4c8dd5`, 04/08) | versão publicada | 293 commits; 218 sem merge; 259 arquivos | base estável da triagem |
-| `upstream/main` (`0f1647f7`, 27/08) | desenvolvimento após a tag | +97 commits sobre `v2.23.0`; 70 sem merge | somente watchlist |
+| Alvo                                | Estado                     |                     Delta contra `postiz` | Decisão                 |
+| ----------------------------------- | -------------------------- | ----------------------------------------: | ----------------------- |
+| `v2.23.0` (`1e4c8dd5`, 04/08)       | versão publicada           |  293 commits; 218 sem merge; 259 arquivos | base estável da triagem |
+| `upstream/main` (`0f1647f7`, 27/08) | desenvolvimento após a tag | +97 commits sobre `v2.23.0`; 70 sem merge | somente watchlist       |
 
 Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
 99 commits efetivos (sem contar merges). A cabeça atual acrescenta mais 70.
@@ -128,32 +134,33 @@ Desde o fechamento da triagem anterior em 07/06, a tag `v2.23.0` acrescenta
 
 ## 4. Prioridade P1 — alto valor, PRs separados
 
-| Bloco | Commits | Veredito e cuidado principal |
-|---|---|---|
-| Facebook Story | `7edeadd5` | Adotar manualmente: reconhecer `upload_complete` evita polling preso. Preservar implementação própria de Stories. |
-| Payload/Workers Temporal | `cc79e129`, `5b0288fd`, `6e1c103e` | Implementado em duas PRs isoladas. O limite de `ApplicationFailure` preserva os códigos Meta; os workers de provider agora são activity-only, com divisão/distribuição opcional e proteção contra exclusão da fila `main`. O fork mantém seus limites por provider e não traz o default de 1 milhão nem o pipeline novo. Ver [`temporal-failure-payload-upstream-audit-2026-09.md`](./temporal-failure-payload-upstream-audit-2026-09.md) e [`temporal-activity-workers-upstream-audit-2026-09.md`](./temporal-activity-workers-upstream-audit-2026-09.md). |
-| LinkedIn | `b0c8da12`, `5daee690`, `c8d8de8b`, `84bee82b`, `db1f84ff`, `671946b5` | Implementado cirurgicamente em `codex/upstream-linkedin-provider`, incluindo os follow-ups `60ffa4df` e `c98ea046` e a dependência de HTTP Range. Preserva OAuth por perfil e SSRF; smoke test real ainda obrigatório. Ver [`linkedin-upstream-audit-2026-09.md`](./linkedin-upstream-audit-2026-09.md). |
-| Pinterest | `5015dbb1`, `be413ec2`, `205f1b80` | Implementado cirurgicamente em `codex/upstream-pinterest-provider`, junto aos limites/falhas do polling e OAuth por perfil. Mantém SSRF e não traz o pipeline Temporal. Smoke real ainda obrigatório. Ver [`pinterest-upstream-audit-2026-09.md`](./pinterest-upstream-audit-2026-09.md). |
-| Google Meu Negócio | `f700b8a1`, `1d965049` | Implementado cirurgicamente em `codex/upstream-google-business-provider`: rejeição/resposta inconclusiva não vira sucesso, e o porte integra credenciais por perfil e reconnect seguro do fork. Mantém Temporal e Zernio inalterados; smoke real ainda obrigatório. Ver [`google-business-upstream-audit-2026-09.md`](./google-business-upstream-audit-2026-09.md). |
-| Analytics dos providers | `907e3399` | Implementado por helper dedicado nos seis providers. Remove retry/`BadBody` de publicação, mantém SSRF/DNS-pinning e preserva somente `RefreshToken` para renovação/self-heal do fork. Meta v25, host/token do Instagram e credenciais por perfil permanecem intactos. Ver [`provider-analytics-upstream-audit-2026-09.md`](./provider-analytics-upstream-audit-2026-09.md). |
-| Leitura de mídia YouTube/TikTok | `5a9b1cc9` | Não aplicável à arquitetura atual: os helpers HEAD/Range corrigidos pertencem aos commits de streaming/pending-post que não estão no fork. YouTube usa stream Axios contínuo e TikTok usa `PULL_FROM_URL`. Reavaliar junto ao épico Temporal, nunca como patch isolado. Ver [`youtube-tiktok-media-identity-upstream-audit-2026-09.md`](./youtube-tiktok-media-identity-upstream-audit-2026-09.md). |
-| WordPress | `3c7a6863`, `daffe5b4`, `d027d6f7` | Implementado em duas PRs: conexão/diagnóstico seguro e, separadamente, categorias/tags/status. Ambos preservam o fetch SSRF-safe e a compatibilidade com posts/canais antigos. `cc54137d` foi removido da cadeia por alterar apenas TikTok. Ver [`wordpress-connect-upstream-audit-2026-09.md`](./wordpress-connect-upstream-audit-2026-09.md) e [`wordpress-terms-upstream-audit-2026-09.md`](./wordpress-terms-upstream-audit-2026-09.md). |
-| Auth por e-mail | `dbb48601`, `dcb1b018` | Implementado com busca case-insensitive para contas locais e impersonação, mais normalização de novos cadastros locais que faltava no fork. O email-lock dos convites e OAuth permanecem intactos. Auditar duplicatas legadas por caixa antes do deploy. Ver [`auth-email-upstream-audit-2026-09.md`](./auth-email-upstream-audit-2026-09.md). |
-| DTO estrito | `c3de376f`, `cc54137d`, `40324535` | Implementado com rejeição de tipos inválidos na entrada e compatibilidade de execução para flags legadas em Instagram, LinkedIn, TikTok e X. UI, CLI e exemplos públicos já estavam conformes; o X preserva a omissão de opções falsas. Ver [`strict-post-dto-upstream-audit-2026-09.md`](./strict-post-dto-upstream-audit-2026-09.md). |
-| Republicação explícita | `b6310364` | Implementado API-first com opt-in booleano estrito, default seguro para mudança de data e UI que informa canal/data/recorrência. Preserva a posição do `profileId` no serviço e, para posts publicados, só reinicia o Temporal após confirmação. Ver [`explicit-republish-upstream-audit-2026-09.md`](./explicit-republish-upstream-audit-2026-09.md). |
-| Transporte MCP stateless | `e11477ee`, `7f8a8328` | Implementado cirurgicamente nos três endpoints HTTP, com descoberta OAuth limitada a `/mcp-oauth`. Preserva `runWithContext`, OAuth, chave por organização/perfil e SSE legado; testes cobrem cliente sem sessão, header de sessão antiga e os metadados RFC. Ver [`mcp-stateless-upstream-audit-2026-09.md`](./mcp-stateless-upstream-audit-2026-09.md). |
-| Falhas de geração | `95f08f57`, `2de87c33`, `fe40b587`, `1785cf91`, `b12c03f3`, `9ef99bc4`, `88008142` | Implementado em duas adaptações isoladas: o gerador encerra NDJSON com erro controlado e recompõe chunks; o Kie possui timeout de socket, estados terminais estritos, mensagem sanitizada, `taskId` correlacionável e erro controlado no agente. `uploadFromUrl` não existe no fork e o helper OpenAI legado conflita com `AiImageService`. Ver [`generator-stream-errors-upstream-audit-2026-09.md`](./generator-stream-errors-upstream-audit-2026-09.md) e [`kie-video-errors-upstream-audit-2026-09.md`](./kie-video-errors-upstream-audit-2026-09.md). |
-| Atualização de dependências | `8d23e5ed`, `7a02bd6b` | Implementada cirurgicamente com Next 16.3.1, mínimos Nest 11.1.21 e linhas corrigidas de Axios/Multer/XML/file-type/PostCSS/Vite. O lock foi regenerado no fork, preservando seus overrides; a allowlist de upload central foi adaptada uma única vez e validada no Node 22 real. Ver [`security-dependencies-upstream-audit-2026-09.md`](./security-dependencies-upstream-audit-2026-09.md). |
-| Links em conteúdo | `e986d9e4`, `1f123f17` | Não aplicável ao comportamento atual. A auditoria corrigiu a premissa anterior: o helper não existe no fork e o segundo commit apenas corrige uma feature opt-in de remoção de links do X que também não foi adotada. Portar só o fix criaria código morto; portar ambos exige uma decisão de produto. Ver [`x-strip-links-upstream-audit-2026-09.md`](./x-strip-links-upstream-audit-2026-09.md). |
+| Bloco                           | Commits                                                                            | Veredito e cuidado principal                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                |
+| ------------------------------- | ---------------------------------------------------------------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Facebook Story                  | `7edeadd5`                                                                         | Já implementado dentro do porte Meta v25: aceita `upload_complete`/`ready`, interrompe em erro/timeout e só então envia `finish`. Há testes do caminho feliz e da rejeição; nenhuma PR adicional é necessária. Ver [`meta-graph-v25-audit-2026-09.md`](./meta-graph-v25-audit-2026-09.md).                                                                                                                                                                                                                                                                  |
+| Payload/Workers Temporal        | `cc79e129`, `5b0288fd`, `6e1c103e`                                                 | Implementado em duas PRs isoladas. O limite de `ApplicationFailure` preserva os códigos Meta; os workers de provider agora são activity-only, com divisão/distribuição opcional e proteção contra exclusão da fila `main`. O fork mantém seus limites por provider e não traz o default de 1 milhão nem o pipeline novo. Ver [`temporal-failure-payload-upstream-audit-2026-09.md`](./temporal-failure-payload-upstream-audit-2026-09.md) e [`temporal-activity-workers-upstream-audit-2026-09.md`](./temporal-activity-workers-upstream-audit-2026-09.md). |
+| LinkedIn                        | `b0c8da12`, `5daee690`, `c8d8de8b`, `84bee82b`, `db1f84ff`, `671946b5`             | Implementado cirurgicamente em `codex/upstream-linkedin-provider`, incluindo os follow-ups `60ffa4df` e `c98ea046` e a dependência de HTTP Range. Preserva OAuth por perfil e SSRF; smoke test real ainda obrigatório. Ver [`linkedin-upstream-audit-2026-09.md`](./linkedin-upstream-audit-2026-09.md).                                                                                                                                                                                                                                                    |
+| Pinterest                       | `5015dbb1`, `be413ec2`, `205f1b80`                                                 | Implementado cirurgicamente em `codex/upstream-pinterest-provider`, junto aos limites/falhas do polling e OAuth por perfil. Mantém SSRF e não traz o pipeline Temporal. Smoke real ainda obrigatório. Ver [`pinterest-upstream-audit-2026-09.md`](./pinterest-upstream-audit-2026-09.md).                                                                                                                                                                                                                                                                   |
+| Google Meu Negócio              | `f700b8a1`, `1d965049`                                                             | Implementado cirurgicamente em `codex/upstream-google-business-provider`: rejeição/resposta inconclusiva não vira sucesso, e o porte integra credenciais por perfil e reconnect seguro do fork. Mantém Temporal e Zernio inalterados; smoke real ainda obrigatório. Ver [`google-business-upstream-audit-2026-09.md`](./google-business-upstream-audit-2026-09.md).                                                                                                                                                                                         |
+| Analytics dos providers         | `907e3399`                                                                         | Implementado por helper dedicado nos seis providers. Remove retry/`BadBody` de publicação, mantém SSRF/DNS-pinning e preserva somente `RefreshToken` para renovação/self-heal do fork. Meta v25, host/token do Instagram e credenciais por perfil permanecem intactos. Ver [`provider-analytics-upstream-audit-2026-09.md`](./provider-analytics-upstream-audit-2026-09.md).                                                                                                                                                                                |
+| Leitura de mídia YouTube/TikTok | `5a9b1cc9`                                                                         | Não aplicável à arquitetura atual: os helpers HEAD/Range corrigidos pertencem aos commits de streaming/pending-post que não estão no fork. YouTube usa stream Axios contínuo e TikTok usa `PULL_FROM_URL`. Reavaliar junto ao épico Temporal, nunca como patch isolado. Ver [`youtube-tiktok-media-identity-upstream-audit-2026-09.md`](./youtube-tiktok-media-identity-upstream-audit-2026-09.md).                                                                                                                                                         |
+| WordPress                       | `3c7a6863`, `daffe5b4`, `d027d6f7`                                                 | Implementado em duas PRs: conexão/diagnóstico seguro e, separadamente, categorias/tags/status. Ambos preservam o fetch SSRF-safe e a compatibilidade com posts/canais antigos. `cc54137d` foi removido da cadeia por alterar apenas TikTok. Ver [`wordpress-connect-upstream-audit-2026-09.md`](./wordpress-connect-upstream-audit-2026-09.md) e [`wordpress-terms-upstream-audit-2026-09.md`](./wordpress-terms-upstream-audit-2026-09.md).                                                                                                                |
+| Auth por e-mail                 | `dbb48601`, `dcb1b018`                                                             | Implementado com busca case-insensitive para contas locais e impersonação, mais normalização de novos cadastros locais que faltava no fork. O email-lock dos convites e OAuth permanecem intactos. Auditar duplicatas legadas por caixa antes do deploy. Ver [`auth-email-upstream-audit-2026-09.md`](./auth-email-upstream-audit-2026-09.md).                                                                                                                                                                                                              |
+| DTO estrito                     | `c3de376f`, `cc54137d`, `40324535`                                                 | Implementado com rejeição de tipos inválidos na entrada e compatibilidade de execução para flags legadas em Instagram, LinkedIn, TikTok e X. UI, CLI e exemplos públicos já estavam conformes; o X preserva a omissão de opções falsas. Ver [`strict-post-dto-upstream-audit-2026-09.md`](./strict-post-dto-upstream-audit-2026-09.md).                                                                                                                                                                                                                     |
+| Republicação explícita          | `b6310364`                                                                         | Implementado API-first com opt-in booleano estrito, default seguro para mudança de data e UI que informa canal/data/recorrência. Preserva a posição do `profileId` no serviço e, para posts publicados, só reinicia o Temporal após confirmação. Ver [`explicit-republish-upstream-audit-2026-09.md`](./explicit-republish-upstream-audit-2026-09.md).                                                                                                                                                                                                      |
+| Transporte MCP stateless        | `e11477ee`, `7f8a8328`                                                             | Implementado cirurgicamente nos três endpoints HTTP, com descoberta OAuth limitada a `/mcp-oauth`. Preserva `runWithContext`, OAuth, chave por organização/perfil e SSE legado; testes cobrem cliente sem sessão, header de sessão antiga e os metadados RFC. Ver [`mcp-stateless-upstream-audit-2026-09.md`](./mcp-stateless-upstream-audit-2026-09.md).                                                                                                                                                                                                   |
+| Falhas de geração               | `95f08f57`, `2de87c33`, `fe40b587`, `1785cf91`, `b12c03f3`, `9ef99bc4`, `88008142` | Implementado em duas adaptações isoladas: o gerador encerra NDJSON com erro controlado e recompõe chunks; o Kie possui timeout de socket, estados terminais estritos, mensagem sanitizada, `taskId` correlacionável e erro controlado no agente. `uploadFromUrl` não existe no fork e o helper OpenAI legado conflita com `AiImageService`. Ver [`generator-stream-errors-upstream-audit-2026-09.md`](./generator-stream-errors-upstream-audit-2026-09.md) e [`kie-video-errors-upstream-audit-2026-09.md`](./kie-video-errors-upstream-audit-2026-09.md).  |
+| Atualização de dependências     | `8d23e5ed`, `7a02bd6b`                                                             | Implementada cirurgicamente com Next 16.3.1, mínimos Nest 11.1.21 e linhas corrigidas de Axios/Multer/XML/file-type/PostCSS/Vite. O lock foi regenerado no fork, preservando seus overrides; a allowlist de upload central foi adaptada uma única vez e validada no Node 22 real. Ver [`security-dependencies-upstream-audit-2026-09.md`](./security-dependencies-upstream-audit-2026-09.md).                                                                                                                                                               |
+| Links em conteúdo               | `e986d9e4`, `1f123f17`                                                             | Não aplicável ao comportamento atual. A auditoria corrigiu a premissa anterior: o helper não existe no fork e o segundo commit apenas corrige uma feature opt-in de remoção de links do X que também não foi adotada. Portar só o fix criaria código morto; portar ambos exige uma decisão de produto. Ver [`x-strip-links-upstream-audit-2026-09.md`](./x-strip-links-upstream-audit-2026-09.md).                                                                                                                                                          |
 
 ## 5. Épicos — não fazer cherry-pick
 
-### 5.1. Pipeline de publicação Temporal v1.0.6 → v1.1.0
+### 5.1. Pipeline de publicação Temporal v1.0.6 → v1.1.2
 
 Commits principais:
 
 `e2cdd5e0`, `9944a5fc`, `3587e44d`, `e287a14d`, `07f8122b`,
-`8de27bb7`, `7dc3d9fb`, `44a611cf`, `1b71e75e`, `0f1647f7`.
+`8de27bb7`, `7dc3d9fb`, `44a611cf`, `1b71e75e`, `0f1647f7`,
+`3e6206f7`.
 
 O conjunto tenta evitar duplicidade, introduzir fases pending/finalize, heartbeat,
 reciclagem de workflows, repetição e diagnóstico de atividade travada. É valioso,
@@ -207,23 +214,22 @@ perfil próprios. Revisar contratos e segurança em um projeto separado.
 
 ## 6. Já coberto ou parcialmente coberto no fork
 
-| Upstream | Estado no Robô MultiPost |
-|---|---|
-| `7bf1d8b7` (avatar fail-soft) | Já coberto: falha de storage não derruba mais a conexão do canal. |
-| `3fab214f` (Graph v25) | Coberto no segundo porte: Facebook/Instagram unificados em v25, sem substituir `resolveIgRoute`, credenciais por perfil ou self-heal. Falta apenas validação real antes da promoção. |
-| `a21a7d4b`/`c96935a0` | SSRF, magic bytes e `profileId` já existem; falta limite de download e normalização de falha. |
-| `db65072f` e sucessores | DNS-pinning base já existe; falta ampliar Axios/providers sem regredir self-hosted. |
-| `eaf866ad` (áudio em Reels) | Backend tem busca de música, mas UI/DTO completos do upstream não existem; feature parcial, opcional. |
-| `b6310364` (republicação) | Coberto com gate no backend/API, opt-in estrito e confirmação contextual na UI. |
-| Next da tag `v2.23.0` | Tag usa 16.2.6; o fork já força 16.2.6 por override. |
-| Fixes triados até 07/06 | Segurança, NestJS 11, XSS, SSRF, Pinterest/Threads/IG e quatro cherry-picks já estão documentados na triagem anterior. |
+| Upstream                      | Estado no Robô MultiPost                                                                                                                                                             |
+| ----------------------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
+| `7bf1d8b7` (avatar fail-soft) | Já coberto: falha de storage não derruba mais a conexão do canal.                                                                                                                    |
+| `3fab214f` (Graph v25)        | Coberto no segundo porte: Facebook/Instagram unificados em v25, sem substituir `resolveIgRoute`, credenciais por perfil ou self-heal. Falta apenas validação real antes da promoção. |
+| `a21a7d4b`/`c96935a0`         | Implementado com limite durante o streaming, timeout, magic bytes, DNS-pinning e escopo por perfil.                                                                                  |
+| `db65072f` e sucessores       | Implementado com cliente Axios/Undici pinado, redirects protegidos e opt-out explícito somente para redes self-hosted confiáveis.                                                    |
+| `eaf866ad` (áudio em Reels)   | Backend tem busca de música, mas UI/DTO completos do upstream não existem; feature parcial, opcional.                                                                                |
+| `b6310364` (republicação)     | Coberto com gate no backend/API, opt-in estrito e confirmação contextual na UI.                                                                                                      |
+| Next da tag `v2.23.0`         | Tag usa 16.2.6; o fork já está em 16.3.1 por causa dos fixes de segurança posteriores.                                                                                               |
+| Fixes triados até 07/06       | Segurança, NestJS 11, XSS, SSRF, Pinterest/Threads/IG e quatro cherry-picks já estão documentados na triagem anterior.                                                               |
 
 ## 7. Opcional — só adotar com demanda de produto
 
 - **Instagram áudio em Reels:** `eaf866ad`.
 - **Backgrounds de texto no Facebook:** `f328583c`.
 - **Tumblr:** `3b9a7896`, `fc07ab8d`.
-- **Tags/categorias/status no WordPress:** `d027d6f7` após o fix de conexão.
 - **API/Agente para atualizar settings de post:** `48ab8df0`, `f5d30a2b`.
 - **X Articles:** `173f92ed`, `a4088abc`; exige porte profundo no provider X.
 - **Apple Login:** `14c3a2f8`, com os follow-ups `44a611cf` e `84aeb318`.
@@ -272,17 +278,20 @@ da tag são correções pequenas ou dependências de séries já classificadas:
 - **Agent/chat do upstream:** `95f08f57`, `2de87c33`, `155e67de`,
   `f10d6715`, `c44d18c0`, `7f8a8328` — aproveitar o comportamento, não o
   código em bloco.
-- **Infra/configuração:** `5b0288fd`, `4157b9ab`, `d167233e` — portar apenas
-  o primeiro após teste das filas; os demais não agregam ao deploy atual.
+- **Infra/configuração:** `5b0288fd` já foi portado com o follow-up activity-only
+  `6e1c103e`; `4157b9ab` e `d167233e` não agregam ao deploy atual.
 - **Correções triviais/absorvidas:** `c95b9909`, `ec91d106`, `d2f27b05` —
   não justificam PR isolado se a suíte e o build atuais já passam.
 - **Não portar supressão de tipos:** `3686d8ab` ignora erro de tipos no Bluesky;
   o fork deve corrigir o contrato em vez de silenciar o compilador.
 
-Os 70 commits efetivos após `v2.23.0` ficam em watchlist. Além dos P0/P1/épicos
+Os 104 commits efetivos após `v2.23.0` ficam em watchlist. Além dos P0/P1/épicos
 já citados, há duplicações/reaplicações (`80f74750`/`d8bec202`,
 `08e0a560`/`81547fc6`, `0321796e`/`741adbfd`) e features ainda não lançadas.
-Nenhuma delas deve entrar no sync da tag por acidente.
+Nenhuma delas deve entrar no sync da tag por acidente. A atualização de
+03/09 acrescentou `3e6206f7` ao épico Temporal e manteve `4f296fc0`/
+`c9382d98` fora do porte por serem onboarding de produto sobre componentes de
+API pública altamente divergentes no fork.
 
 ## 10. Ordem segura de implementação
 
@@ -291,20 +300,25 @@ declarar Blueprint no próprio workspace e o workflow usa pnpm 10.6.1 com
 lockfile congelado. Assim, uma falha nos portes abaixo volta a representar a
 mudança em análise, não dívida anterior da instalação.
 
-1. **PR 1 — segurança de uploads (concluída, PR `#207`):** `79360622` +
+1. **Segurança de uploads — concluída:** `79360622` +
    limite/falha de upload por URL (`a21a7d4b`, `c96935a0`), reimplementados
    sobre as proteções próprias de perfil, magic bytes e DNS-pinning.
-2. **PR 2 — Meta (implementada, aguardando smoke/PR):** Graph v25 + métricas
-   novas + Story `upload_complete`, preservando credenciais por perfil,
-   System User fallback e reconexão 190/460/464.
-3. **PR 3 — SSRF cumulativo:** Axios/Undici + providers/webhooks, com testes de
-   DNS rebinding e self-hosted.
-4. **PR 4 — providers isolados:** LinkedIn e Pinterest foram implementados e
-   mesclados; GMB está implementado em branch própria e WordPress segue depois.
-   Cada provider mantém specs e smoke test real quando necessário.
-5. **PR 5 — dependências:** Next/Nest e pacotes de segurança, sem feature junto.
-6. **Épico Temporal:** desenho/migração V102 → nova versão, replay e teste de
-   publicação real antes de qualquer promoção para `release`.
+2. **Meta — concluída, com smoke ainda obrigatório antes da produção:** Graph
+   v25 + métricas novas + Story `upload_complete`, preservando credenciais por
+   perfil, System User fallback e reconexão 190/460/464.
+3. **SSRF cumulativo — concluído:** Axios/Undici + providers/webhooks, com
+   testes de DNS rebinding e self-hosted.
+4. **Providers isolados — concluídos:** LinkedIn, Pinterest, GMB, WordPress e
+   analytics foram portados em PRs independentes; cada provider mantém specs e
+   smoke test real quando necessário.
+5. **Contratos e suporte — concluídos:** auth por e-mail, DTO estrito,
+   republicação explícita, MCP stateless e falhas de geração.
+6. **Dependências — concluídas:** Next/Nest e pacotes de segurança, sem feature
+   misturada e preservando o hardening do fork.
+7. **Workers Temporal — concluídos:** payloads limitados e workers de provider
+   activity-only, sem alterar versões de workflow.
+8. **Épico Temporal — pendente:** desenho/migração V102 → nova versão, replay e
+   teste de publicação real antes de qualquer promoção para `release`.
 
 ## 11. Gates antes de produção
 
@@ -320,8 +334,12 @@ mudança em análise, não dívida anterior da instalação.
 
 ## 12. Estado da triagem
 
-A triagem foi incorporada à `main` pela PR `#201`, sem cherry-pick nem código do
-upstream. A baseline de CI foi saneada na PR `#205`. Em 02/09, o espelho
-`postiz` foi atualizado para `db1a49e2` e enviado ao origin; `release` continua
-intocada. O PR 1 de uploads segue independente, com testes e revisão de impacto
-antes de qualquer merge ou promoção para produção.
+A triagem foi incorporada à `main` pela PR `#201`, sem merge integral do
+upstream. A baseline de CI foi saneada na PR `#205`; os portes P0/P1 aprovados
+foram reimplementados e mesclados isoladamente até a PR `#231`. Em 03/09,
+`upstream/main` está em `36d5fc7b`, enquanto o espelho `postiz` do fork ainda
+está em `db1a49e2`. Desde a fotografia anterior, a cabeça ganhou três commits
+de produto já classificados; o restante do delta do espelho são ajustes do
+workflow staging do upstream e merges. `release` continua intocada. O próximo
+trabalho de código é o épico Temporal, condicionado a ADR, compatibilidade de
+históricos V102, replay e smoke real antes de promoção.
