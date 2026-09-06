@@ -32,6 +32,25 @@ Crie o diretório temporário:
 mkdir -p tmp/temporal-replay
 ```
 
+Na stack local deste repositório, suba apenas os serviços Temporal quando eles
+ainda não estiverem ativos:
+
+```bash
+docker compose -f docker-compose.dev.yaml up -d \
+  temporal-postgresql temporal-elasticsearch temporal \
+  temporal-admin-tools temporal-ui
+```
+
+O container `temporal-admin-tools` já possui o Temporal CLI e aponta para
+`temporal:7233`. Para listar apenas metadados dos V102 locais:
+
+```bash
+docker exec temporal-admin-tools temporal workflow list \
+  --namespace default \
+  --query 'WorkflowType="postWorkflowV102"' \
+  --output json
+```
+
 Com o Temporal CLI apontando para o ambiente e namespace corretos, exporte a
 execução pelo `workflowId` e, de preferência, pelo `runId` exato:
 
@@ -41,6 +60,16 @@ temporal workflow show \
   --run-id RUN_ID_EXATO \
   --output json \
   > tmp/temporal-replay/facebook-success-v102.json
+```
+
+Se o CLI existir somente no container local, gere primeiro dentro dele e copie
+o arquivo sem despejar os payloads no terminal:
+
+```bash
+docker exec temporal-admin-tools sh -c \
+  'temporal workflow show --namespace default --workflow-id post_EXEMPLO --run-id RUN_ID_EXATO --output json > /tmp/post-v102.json'
+docker cp temporal-admin-tools:/tmp/post-v102.json \
+  tmp/temporal-replay/post-v102.json
 ```
 
 O formato JSON de `temporal workflow show --output json` é próprio para replay
