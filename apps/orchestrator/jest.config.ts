@@ -6,6 +6,7 @@ const config: Config = {
   transform: { '^.+\\.tsx?$': 'ts-jest' },
   moduleFileExtensions: ['ts', 'js', 'json'],
   rootDir: '.',
+  coverageDirectory: '<rootDir>/../../coverage/orchestrator',
   testMatch: ['<rootDir>/src/**/*.spec.ts'],
   moduleNameMapper: {
     '^@gitroom/orchestrator/(.*)$': '<rootDir>/src/$1',

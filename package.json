@@ -40,6 +40,7 @@
     "test": "jest --coverage --detectOpenHandles --reporters=default --reporters=jest-junit",
     "test:watch": "jest --watch",
     "test:backend": "jest --selectProjects backend",
+    "test:orchestrator": "jest --config apps/orchestrator/jest.config.ts --coverage --detectOpenHandles",
     "test:libs": "jest --selectProjects nestjs-libraries"
   },
   "dependencies": {

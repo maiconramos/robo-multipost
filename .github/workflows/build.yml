@@ -7,7 +7,6 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
-    
 
     strategy:
       matrix:
@@ -53,6 +52,12 @@ jobs:
           # (7GB RAM). Subir para 6GB previne JS heap OOM no jest.
           NODE_OPTIONS: --max-old-space-size=6144
         run: pnpm test
+
+      # O orchestrator roda em outro processo para liberar a cobertura das
+      # suites antigas antes de instrumentar o worker Temporal. Juntar os tres
+      # projetos ultrapassa o heap de 6GB do runner mesmo sem falha de spec.
+      - name: Run orchestrator tests
+        run: pnpm test:orchestrator
 
       - name: Build
         env:

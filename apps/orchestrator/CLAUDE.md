@@ -119,6 +119,7 @@ Every Flow step that touches Meta endpoints must go through `resolveIgRoute`. Se
 
 ```bash
 pnpm build:orchestrator
+pnpm test:orchestrator
 pnpm dev                  # Boots orchestrator alongside other apps
 # Local Temporal UI at http://localhost:8233 (docker-compose.dev.yaml)
 ```
