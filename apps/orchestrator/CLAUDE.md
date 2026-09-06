@@ -115,6 +115,8 @@ Every Flow step that touches Meta endpoints must go through `resolveIgRoute`. Se
 
 11. **Symptom:** a workflow has no poller after splitting orchestrator containers, or a provider worker wastes memory compiling workflow bundles → **Cause:** every workflow in this fork is started on the `main` task queue; provider queues exist only to execute activities. **Fix:** keep `workflowsPath` exclusively on the `main` worker. New workflow starts must continue using `taskQueue: 'main'` unless the architecture and worker topology are deliberately migrated together. `WORKER_CONCURRENCY_DIVIDER` divides each provider activity limit across equivalent containers; `EXCLUDE_QUEUE` assigns exact provider queues to selected containers and intentionally refuses `main`. `/health/workers` distinguishes poller types: keep `TEMPORAL_HEALTH_TASK_QUEUES=main` for workflows and list critical provider queues in `TEMPORAL_HEALTH_ACTIVITY_TASK_QUEUES` for activities. Never place provider queues in the workflow variable.
 
+12. **Symptom:** replay or worker bundling fails with a path from another developer's machine (`/Users/nevodavid/Projects/gitroom`) or cannot resolve `@gitroom/orchestrator/*` → **Cause:** `apps/orchestrator/.swcrc` once carried an absolute upstream `baseUrl` and lacked the orchestrator alias. **Fix:** keep `baseUrl` relative to that file (`../..`) and keep its aliases aligned with `tsconfig.base.json`; `post-workflow-replay.spec.ts` compiles the real workflow bundle in a clean Node subprocess to catch host-specific paths.
+
 ## Commands
 
 ```bash

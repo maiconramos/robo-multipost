@@ -7,13 +7,14 @@
       "dynamicImport": true
     },
     "target": "es2020",
-    "baseUrl": "/Users/nevodavid/Projects/gitroom",
+    "baseUrl": "../..",
     "paths": {
       "@gitroom/backend/*": ["apps/backend/src/*"],
       "@gitroom/cron/*": ["apps/cron/src/*"],
       "@gitroom/frontend/*": ["apps/frontend/src/*"],
       "@gitroom/helpers/*": ["libraries/helpers/src/*"],
       "@gitroom/nestjs-libraries/*": ["libraries/nestjs-libraries/src/*"],
+      "@gitroom/orchestrator/*": ["apps/orchestrator/src/*"],
       "@gitroom/react/*": ["libraries/react-shared-libraries/src/*"],
       "@gitroom/plugins/*": ["libraries/plugins/src/*"],
       "@gitroom/workers/*": ["apps/workers/src/*"],
@@ -35,4 +36,4 @@
   },
   "sourceMaps": true,
   "minify": false
-} 
+}

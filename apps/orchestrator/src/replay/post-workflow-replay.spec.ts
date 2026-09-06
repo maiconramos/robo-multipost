@@ -1,4 +1,6 @@
+import { execFile } from 'node:child_process';
 import { resolve } from 'node:path';
+import { promisify } from 'node:util';
 
 import {
   parseReplayArguments,
@@ -20,6 +22,23 @@ const startedHistory = (workflowType = 'postWorkflowV102') => ({
 
 describe('post workflow history replay', () => {
   const cwd = '/workspace';
+
+  it('compila o bundle real sem depender do caminho da maquina upstream', async () => {
+    const repoRoot = resolve(__dirname, '../../../..');
+    const script = [
+      "const { bundleWorkflowCode } = require('@temporalio/worker');",
+      "const { resolve } = require('node:path');",
+      'bundleWorkflowCode({',
+      "workflowsPath: resolve('apps/orchestrator/src/workflows/index.ts'),",
+      '}).then((bundle) => process.stdout.write(String(bundle.code.length)));',
+    ].join('');
+
+    await expect(
+      promisify(execFile)(process.execPath, ['-e', script], { cwd: repoRoot })
+    ).resolves.toEqual(
+      expect.objectContaining({ stdout: expect.stringMatching(/^\d+$/) })
+    );
+  });
 
   it('remove o separador que o pnpm repassa ao script', () => {
     expect(
