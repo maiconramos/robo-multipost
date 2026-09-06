@@ -176,9 +176,10 @@ mas substitui o pipeline inteiro e toca providers divergentes.
 - o fork possui autopost, repost, aprovação e escopo por perfil não presentes no
   mesmo formato no upstream.
 
-**Decisão:** criar um ADR/plano de migração de workflow, manter V102 executável
-para históricos antigos e introduzir uma versão nova adaptada. Testar replay
-Temporal antes de qualquer deploy.
+**Decisão:** manter V102 executável para históricos antigos e introduzir uma
+versão nova adaptada conforme o
+[`ADR Temporal V102 → V112`](../architecture/temporal-post-workflow-v112-migration.md).
+Testar replay Temporal antes de qualquer deploy.
 
 ### 5.2. Streaming/pending em todos os providers
 
@@ -317,8 +318,9 @@ mudança em análise, não dívida anterior da instalação.
    misturada e preservando o hardening do fork.
 7. **Workers Temporal — concluídos:** payloads limitados e workers de provider
    activity-only, sem alterar versões de workflow.
-8. **Épico Temporal — pendente:** desenho/migração V102 → nova versão, replay e
-   teste de publicação real antes de qualquer promoção para `release`.
+8. **Épico Temporal — em andamento:** ADR V102 → V112 aceito; implementação
+   começa pela saúde das filas de activities, seguida de replay e teste de
+   publicação real antes de qualquer promoção para `release`.
 
 ## 11. Gates antes de produção
 
@@ -341,5 +343,5 @@ foram reimplementados e mesclados isoladamente até a PR `#231`. Em 03/09,
 está em `db1a49e2`. Desde a fotografia anterior, a cabeça ganhou três commits
 de produto já classificados; o restante do delta do espelho são ajustes do
 workflow staging do upstream e merges. `release` continua intocada. O próximo
-trabalho de código é o épico Temporal, condicionado a ADR, compatibilidade de
-históricos V102, replay e smoke real antes de promoção.
+trabalho de código é o épico Temporal. O ADR já foi definido; compatibilidade de
+históricos V102, replay e smoke real continuam sendo gates antes de promoção.

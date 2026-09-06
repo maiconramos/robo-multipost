@@ -23,7 +23,8 @@ criptografados, reconexão/self-heal Meta e providers divergentes.
 
 **Decisão:** incluir no épico Temporal. Não fazer cherry-pick. A migração exige
 ADR, manutenção do executor V102 para históricos, replay e smoke de publicação
-antes de alterar o workflow iniciado por `PostsService`.
+antes de alterar o workflow iniciado por `PostsService`. O contrato aceito está
+em [`temporal-post-workflow-v112-migration.md`](../architecture/temporal-post-workflow-v112-migration.md).
 
 ### `4f296fc0` — better onboarding
 
@@ -55,9 +56,11 @@ comportamento já validado.
 
 ## Próximo passo seguro
 
-Com os P0/P1 aceitos incorporados, o próximo bloco de engenharia é preparar o
-ADR do pipeline Temporal V102 → versão adaptada. O ADR deve congelar o contrato
-de compatibilidade antes de qualquer implementação e definir:
+Com os P0/P1 aceitos incorporados, o contrato da migração Temporal V102 → V112
+adaptada foi congelado no
+[`ADR`](../architecture/temporal-post-workflow-v112-migration.md). A execução
+começa pelo probe separado de filas de activities e seguirá os gates definidos
+para:
 
 1. coexistência e registro das versões antigas e nova;
 2. estratégia de replay com históricos representativos;
