@@ -41,6 +41,7 @@
     "test:watch": "jest --watch",
     "test:backend": "jest --selectProjects backend",
     "test:orchestrator": "jest --config apps/orchestrator/jest.config.ts --coverage --detectOpenHandles",
+    "temporal:replay-post": "cross-env TS_NODE_PROJECT=apps/orchestrator/tsconfig.json node -r ts-node/register/transpile-only apps/orchestrator/scripts/replay-post-workflow-history.ts",
     "test:libs": "jest --selectProjects nestjs-libraries"
   },
   "dependencies": {
