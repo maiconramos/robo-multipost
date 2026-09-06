@@ -49,9 +49,10 @@ Filas cujo limite é `1` não podem ser divididas matematicamente entre vários
 containers. Nesse caso, atribua a fila a exatamente um deles e inclua-a em
 `EXCLUDE_QUEUE` nos demais.
 
-O endpoint `/health/workers` consulta pollers de workflow. Portanto,
-`TEMPORAL_HEALTH_TASK_QUEUES` deve continuar contendo somente `main`; uma fila
-activity-only não é uma sonda válida para esse endpoint.
+O endpoint `/health/workers` agora distingue os tipos de poller.
+`TEMPORAL_HEALTH_TASK_QUEUES` deve continuar contendo somente `main`; filas de
+provider críticas podem ser monitoradas como activities por
+`TEMPORAL_HEALTH_ACTIVITY_TASK_QUEUES`.
 
 ## Validação
 
