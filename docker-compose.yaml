@@ -18,6 +18,8 @@ services:
       # TEMPORAL_TLS: 'false'
       # WORKER_CONCURRENCY_DIVIDER: '1'
       # EXCLUDE_QUEUE: '' # filas de provider separadas por virgula; nunca main
+      # TEMPORAL_HEALTH_TASK_QUEUES: 'main' # pollers de workflow
+      # TEMPORAL_HEALTH_ACTIVITY_TASK_QUEUES: 'facebook,instagram' # pollers de activity
       IS_GENERAL: 'true'
       DISABLE_REGISTRATION: 'false'
 
