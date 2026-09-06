@@ -120,6 +120,7 @@ Every Flow step that touches Meta endpoints must go through `resolveIgRoute`. Se
 ```bash
 pnpm build:orchestrator
 pnpm test:orchestrator
+pnpm temporal:replay-post -- tmp/temporal-replay/history.json post_workflow_id
 pnpm dev                  # Boots orchestrator alongside other apps
 # Local Temporal UI at http://localhost:8233 (docker-compose.dev.yaml)
 ```
@@ -127,6 +128,7 @@ pnpm dev                  # Boots orchestrator alongside other apps
 ## References
 
 - [`docs/architecture/temporal-post-workflow-v112-migration.md`](../../docs/architecture/temporal-post-workflow-v112-migration.md) — fork-safe V102 → V112 migration, idempotency, replay, rollout, and rollback gates
+- [`docs/operations/temporal-post-workflow-replay.md`](../../docs/operations/temporal-post-workflow-replay.md) — exportação local segura e replay de históricos V101/V102/V112
 - [`docs/architecture/instagram-automations.md`](../../docs/architecture/instagram-automations.md) — full map of the IG Flow subsystem
 - [`docs/automacoes-instagram.md`](../../docs/automacoes-instagram.md) — user guide for automations
 - [`libraries/nestjs-libraries/src/chat/CLAUDE.md`](../../libraries/nestjs-libraries/src/chat/CLAUDE.md) — IG webhook, HMAC validation, PendingPostback

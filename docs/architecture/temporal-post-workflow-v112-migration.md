@@ -116,6 +116,11 @@ mutação puder estar pendente.
 Históricos reais usados em replay devem ser exportados de forma sanitizada. Não
 serão versionados payloads com tokens, mídias privadas ou dados pessoais.
 
+O executor local está documentado em
+[`temporal-post-workflow-replay.md`](../operations/temporal-post-workflow-replay.md).
+Sua existência não conclui o gate: a matriz representativa ainda precisa ser
+exportada e executada antes de adicionar contratos V112.
+
 ## Consequências
 
 A migração será mais lenta que aplicar o upstream integralmente, mas preserva a
