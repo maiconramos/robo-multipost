@@ -125,6 +125,7 @@ pnpm dev                  # Boots orchestrator alongside other apps
 
 ## References
 
+- [`docs/architecture/temporal-post-workflow-v112-migration.md`](../../docs/architecture/temporal-post-workflow-v112-migration.md) — fork-safe V102 → V112 migration, idempotency, replay, rollout, and rollback gates
 - [`docs/architecture/instagram-automations.md`](../../docs/architecture/instagram-automations.md) — full map of the IG Flow subsystem
 - [`docs/automacoes-instagram.md`](../../docs/automacoes-instagram.md) — user guide for automations
 - [`libraries/nestjs-libraries/src/chat/CLAUDE.md`](../../libraries/nestjs-libraries/src/chat/CLAUDE.md) — IG webhook, HMAC validation, PendingPostback
