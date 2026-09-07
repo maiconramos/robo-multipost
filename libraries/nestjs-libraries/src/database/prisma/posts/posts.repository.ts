@@ -430,6 +430,7 @@ export class PostsRepository {
         state: 'PUBLISHED',
         releaseURL,
         releaseId: postId,
+        error: null,
       },
     });
   }
@@ -518,6 +519,7 @@ export class PostsRepository {
               state: isDraft ? 'DRAFT' : 'QUEUE',
               releaseId: null,
               releaseURL: null,
+              error: null,
             }
           : {}),
       },
