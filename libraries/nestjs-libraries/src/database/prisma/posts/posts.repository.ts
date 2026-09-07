@@ -55,6 +55,7 @@ export class PostsRepository {
         organizationId: true,
         integration: {
           select: {
+            id: true,
             providerIdentifier: true,
           },
         },

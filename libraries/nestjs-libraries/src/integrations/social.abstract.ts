@@ -7,6 +7,7 @@ import {
 } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { AxiosInstance } from 'axios';
 import { readFileSync } from 'fs';
+import { setHeartbeatDetails } from '@gitroom/nestjs-libraries/temporal/temporal.heartbeat';
 
 // Temporal persiste ApplicationFailure inteira no historico e a transporta por
 // gRPC. Respostas de provider podem conter HTML, stacks ou blobs enormes; os
@@ -14,6 +15,18 @@ import { readFileSync } from 'fs';
 // frame/historico. Os codigos Meta aparecem no inicio do JSON e sao preservados.
 const MAX_FAILURE_MESSAGE = 2_000;
 const MAX_FAILURE_FIELD = 4_000;
+
+export function heartbeatEndpoint(value: string): string {
+  try {
+    const parsed = new URL(value);
+    if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+      return 'unsupported-url';
+    }
+    return `${parsed.origin}${parsed.pathname}`;
+  } catch {
+    return 'invalid-url';
+  }
+}
 
 export function truncateForTemporal(value: unknown, max: number): string {
   if (value === null || value === undefined) {
@@ -173,6 +186,9 @@ export abstract class SocialAbstract {
     totalRetries = 0,
     ignoreConcurrency = false
   ): Promise<Response> {
+    // Query strings may contain access tokens. Persist only the endpoint path
+    // as Temporal heartbeat diagnostic data.
+    setHeartbeatDetails(`fetch ${heartbeatEndpoint(url)}`);
     const request = await ssrfSafeFetch(url, options);
 
     if (request.status === 200 || request.status === 201) {

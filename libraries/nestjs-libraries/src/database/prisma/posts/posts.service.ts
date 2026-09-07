@@ -47,6 +47,7 @@ import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { RefreshToken } from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { StatusEventService } from '@gitroom/nestjs-libraries/database/prisma/status/status-event.service';
+import { selectPostWorkflowVersion } from '@gitroom/nestjs-libraries/temporal/post-workflow-version';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
@@ -708,7 +709,8 @@ export class PostsService {
     taskQueue: string,
     postId: string,
     orgId: string,
-    state: State
+    state: State,
+    integration: { id: string; providerIdentifier: string }
   ) {
     try {
       const workflows = this._temporalService.client
@@ -737,9 +739,13 @@ export class PostsService {
     }
 
     try {
+      const workflowName = selectPostWorkflowVersion({
+        integrationId: integration.id,
+        providerIdentifier: integration.providerIdentifier,
+      });
       await this._temporalService.client
         .getRawClient()
-        ?.workflow.start('postWorkflowV102', {
+        ?.workflow.start(workflowName, {
           workflowId: `post_${postId}`,
           taskQueue: 'main',
           workflowIdConflictPolicy: 'TERMINATE_EXISTING',
@@ -875,7 +881,11 @@ export class PostsService {
             : post.settings.__type.split('-')[0].toLowerCase(),
           posts[0].id,
           orgId,
-          posts[0].state
+          posts[0].state,
+          {
+            id: post.integration.id,
+            providerIdentifier: post.settings.__type,
+          }
         ).catch((err) => {});
       }
 
@@ -975,7 +985,11 @@ export class PostsService {
             : getPostById.integration.providerIdentifier.split('-')[0].toLowerCase(),
           getPostById.id,
           orgId,
-          getPostById.state === 'DRAFT' ? 'DRAFT' : 'QUEUE'
+          getPostById.state === 'DRAFT' ? 'DRAFT' : 'QUEUE',
+          {
+            id: getPostById.integration.id,
+            providerIdentifier: getPostById.integration.providerIdentifier,
+          }
         );
       } catch (err) {}
     }

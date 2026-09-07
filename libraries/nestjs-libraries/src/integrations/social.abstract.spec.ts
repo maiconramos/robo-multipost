@@ -1,6 +1,7 @@
 import axios, { AxiosInstance } from 'axios';
 import {
   BadBody,
+  heartbeatEndpoint,
   RefreshToken,
   SocialAbstract,
   truncateForTemporal,
@@ -63,6 +64,17 @@ describe('SocialAbstract SSRF', () => {
       method: 'POST',
       dispatcher: ssrfSafeDispatcher,
     });
+  });
+
+  it('remove credenciais, query e fragmento do endpoint usado no heartbeat', () => {
+    expect(
+      heartbeatEndpoint(
+        'https://user:password@example.com/api/posts?access_token=secret#debug'
+      )
+    ).toBe('https://example.com/api/posts');
+    expect(heartbeatEndpoint('not a url?access_token=secret')).toBe(
+      'invalid-url'
+    );
   });
 
   it('preserva dispatcher especifico fornecido pelo provider', async () => {
