@@ -125,15 +125,95 @@ Docker também derrubou o worker depois de registrar a mutação externa e antes
 do próximo heartbeat: a execução terminou como não confirmada, com uma única
 mutação. Os arquivos exportados permanecem temporários e não são versionados.
 
-Em 07/09/2026, o primeiro canário real da prerelease `0.5.6-rc.11` publicou no
-Facebook pela integração Três Lagoas. A execução foi criada como
-`postWorkflowV112`, terminou `COMPLETED`, salvou estado `PUBLISHED` e URL remota,
-manteve a integração ativa (`disabled=false`, `refreshNeeded=false`) e não criou
-uma nova falha. A inspeção dos 32 payloads decodificados do histórico não
-encontrou campos de autorização, cookie, API key, token, segredo ou senha. O
-teste também revelou um problema independente: uma falha antiga permanecia em
-`Post.error` após a republicação; o ciclo atual passa a limpar esse estado ao
-reagendar e ao publicar com sucesso, preservando a tabela histórica `Errors`.
+### Canários reais em produção
+
+Em 07/09/2026 o V112 passou por três execuções reais numa instância
+self-hosted: dois posts num canal Facebook e um num canal Instagram conectado
+via Facebook Login, todos no mesmo perfil. As três foram criadas como
+`postWorkflowV112`, terminaram `COMPLETED` na primeira tentativa e não
+produziram nenhum evento `ACTIVITY_TASK_FAILED` ou `ACTIVITY_TASK_TIMED_OUT`.
+
+Em todas: estado final `PUBLISHED` com `releaseId` e `releaseURL` gravados,
+publicação confirmada na rede, integração mantida ativa (`disabled=false`,
+`refreshNeeded=false`, sem `refreshError`) e nenhuma linha nova em `Errors`.
+`Integration.updatedAt` permaneceu anterior à publicação — o workflow não
+reescreveu a credencial nem marcou o canal para reconexão.
+
+Invariantes que deixaram de ser apenas afirmação de projeto e passaram a ter
+evidência observada no histórico do Temporal:
+
+- **uma única tentativa na mutação externa.** `postSocialPending` aparece com
+  `maximumAttempts: 1` nos três históricos, enquanto as demais activities — que
+  só leem e escrevem no banco do próprio produto — mantêm `maximumAttempts: 3`;
+- **roteamento por fila de provider.** A mutação e os plugs executam na fila do
+  provider (`facebook`, `instagram`) e as activities de suporte na fila `main`;
+  o workflow em si é sempre iniciado em `main`. As filas de provider são criadas
+  automaticamente a partir de `providerIdentifier.split('-')[0]`, sem
+  configuração manual e sem mexer em `EXCLUDE_QUEUE`;
+- **payloads sem credencial.** Os 32 payloads de cada histórico foram
+  decodificados e inspecionados por chave e por valor: `postSocialPending`
+  recebe `integrationId` como referência e nunca o token. Nenhum campo de
+  autorização, cookie, API key, segredo, senha ou erro bruto foi encontrado.
+
+O Instagram publica em duas etapas (criação do container de mídia e publicação),
+o que resultou numa mutação de ~41 s contra ~4 s do Facebook. É o provider em
+que a janela entre o início da mutação e a confirmação é maior e, portanto,
+aquele em que a regra de resultado não confirmado após timeout tem mais chance
+de ser exercitada na prática.
+
+O primeiro canário revelou um problema independente do rollout: uma falha antiga
+permanecia em `Post.error` após a republicação. A correção entrou na etapa
+seguinte e foi validada por um post que tinha falha real registrada em `Errors`
+no dia anterior e terminou com `Post.error` nulo e a linha histórica preservada.
+Como a correção vive na camada de repositório (`changeDate` / `updatePost`), ela
+vale igualmente para V102 e V112.
+
+### Operacional do gate
+
+Verificado no código em 07/09/2026, em
+`libraries/nestjs-libraries/src/temporal/post-workflow-version.ts` e
+`posts.service.ts`:
+
+- `POST_WORKFLOW_V112_INTEGRATION_IDS` e `POST_WORKFLOW_V112_PROVIDERS` são CSV
+  com `trim` e entradas vazias descartadas;
+- o gate é avaliado quando o workflow é **iniciado**, e o workflow é iniciado
+  quando o post é salvo ou reagendado — não na hora de publicar. Trocar a
+  variável depois de agendar não muda a versão de um workflow que já espera no
+  timer; é preciso reagendar o post;
+- cada canal é uma `Integration` própria. O id de um canal não cobre outro canal
+  do mesmo perfil, ainda que da mesma família de provider.
+
+### Armadilha ao auditar históricos
+
+O export de histórico da UI do Temporal já entrega `payloads[].data`
+decodificado como JSON; só `metadata.encoding` vem em base64. Aplicar base64 por
+cima dos payloads produz lixo e uma varredura de segredos que passa por engano.
+A saída de `temporal workflow show --output json`, ao contrário, mantém os
+payloads em base64 e precisa ser decodificada.
+
+### Motivação reforçada: credencial congelada no V102
+
+Ainda em 07/09/2026, uma falha em produção mostrou que o payload sem credencial
+do V112 não é só higiene de segurança — é a correção de um modo de falha ativo.
+
+O `postWorkflowV102` busca a integração inteira no início da execução e carrega
+esse retrato através do timer. Um post agendado com semanas de antecedência
+chega na publicação usando a credencial do dia do agendamento. Se o canal for
+reconectado nesse intervalo, a mutação falha por autenticação, o self-heal não
+recupera e o canal recebe `refreshNeeded=true` — o que **bloqueia publicações de
+um canal cujo token atual funciona**, até nova reconexão manual.
+
+Numa instância com centenas de posts agendados, a exposição é proporcional ao
+número de workflows V102 dormindo. O V112 elimina a classe inteira ao passar
+`integrationId` e recarregar a credencial dentro da activity.
+
+A remediação para workflows já iniciados é `temporal workflow reset`, que
+re-executa a busca do post e da integração sem alterar a versão do workflow. O
+procedimento, incluindo a regra que evita publicação duplicada no lote, está em
+[`temporal-stale-integration-snapshot.md`](../operations/temporal-stale-integration-snapshot.md).
+
+Isso não muda o plano de rollout, mas muda o custo de adiá-lo: cada dia com
+workflows V102 pendentes é mais um dia de exposição a esse bloqueio.
 
 Ainda não concluídos: smoke real dos demais providers, monitoramento prolongado
 do canário e promoção gradual. Portanto, os gates continuam desligados por
