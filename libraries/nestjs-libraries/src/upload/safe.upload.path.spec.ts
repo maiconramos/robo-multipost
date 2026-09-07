@@ -1,7 +1,10 @@
 import { mkdtempSync, mkdirSync, rmSync, symlinkSync, writeFileSync } from 'fs';
 import { tmpdir } from 'os';
 import { join } from 'path';
-import { resolveSafeUploadFile } from './safe.upload.path';
+import {
+  extractUploadPathSegments,
+  resolveSafeUploadFile,
+} from './safe.upload.path';
 
 describe('resolveSafeUploadFile', () => {
   const root = mkdtempSync(join(tmpdir(), 'multipost-upload-path-'));
@@ -58,5 +61,26 @@ describe('resolveSafeUploadFile', () => {
   it('retorna null para arquivo inexistente ou diretorio', () => {
     expect(resolveSafeUploadFile(uploadDirectory, ['missing.jpg'])).toBeNull();
     expect(resolveSafeUploadFile(uploadDirectory, ['2026'])).toBeNull();
+  });
+});
+
+describe('extractUploadPathSegments', () => {
+  it('extrai os segmentos de uma URL absoluta da rota /uploads', () => {
+    expect(
+      extractUploadPathSegments('https://app.local/uploads/2026/09/foto.png')
+    ).toEqual(['2026', '09', 'foto.png']);
+  });
+
+  it('aceita caminho relativo e ignora query string', () => {
+    expect(
+      extractUploadPathSegments('/uploads/2026/09/foto.png?v=2')
+    ).toEqual(['2026', '09', 'foto.png']);
+  });
+
+  it('retorna vazio para URL fora da rota /uploads', () => {
+    expect(extractUploadPathSegments('https://cdn.terceiro.com/foto.png')).toEqual(
+      []
+    );
+    expect(extractUploadPathSegments('')).toEqual([]);
   });
 });

@@ -30,6 +30,7 @@ export function createPrismaRepositoryMock<TableName extends string>(
     findUnique: jest.fn(),
     create: jest.fn(),
     update: jest.fn(),
+    updateMany: jest.fn(),
     upsert: jest.fn(),
     delete: jest.fn(),
     deleteMany: jest.fn(),

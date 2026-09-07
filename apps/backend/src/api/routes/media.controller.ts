@@ -25,6 +25,7 @@ import { CustomFileValidationPipe } from '@gitroom/nestjs-libraries/upload/custo
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { UploadFactory } from '@gitroom/nestjs-libraries/upload/upload.factory';
 import { SaveMediaInformationDto } from '@gitroom/nestjs-libraries/dtos/media/save.media.information.dto';
+import { DeleteMediaDto } from '@gitroom/nestjs-libraries/dtos/media/delete.media.dto';
 import { VideoDto } from '@gitroom/nestjs-libraries/dtos/videos/video.dto';
 import { VideoFunctionDto } from '@gitroom/nestjs-libraries/dtos/videos/video.function.dto';
 import { GenerateImageBodyDto } from '@gitroom/nestjs-libraries/dtos/ai/image.dto';
@@ -46,6 +47,17 @@ export class MediaController {
     @Param('id') id: string
   ) {
     return this._mediaService.deleteMedia(org.id, id, profile?.id);
+  }
+
+  // Precisa ficar ANTES de `@Post('/:endpoint')` (upload multipart R2), que
+  // casaria com qualquer path de um segmento.
+  @Post('/delete-many')
+  deleteManyMedia(
+    @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Body() body: DeleteMediaDto
+  ) {
+    return this._mediaService.deleteMediaBulk(org.id, body.ids, profile?.id);
   }
 
   @Post('/generate-video')
@@ -161,6 +173,13 @@ export class MediaController {
   ) {
     if (!name) {
       return false;
+    }
+    // `name` vira a chave do objeto no bucket. O uploader sempre manda um nome
+    // plano (`item.url.split('/').pop()`); aceitar barra ou `..` permitiria
+    // registrar uma mídia apontando para um objeto arbitrário do bucket — que
+    // a exclusão da biblioteca passaria a apagar de verdade.
+    if (!/^[A-Za-z0-9._-]+$/.test(name)) {
+      throw new HttpException('Invalid media name', 400);
     }
     return this._mediaService.saveFile(
       org.id,
