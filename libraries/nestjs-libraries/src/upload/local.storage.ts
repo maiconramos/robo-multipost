@@ -1,8 +1,12 @@
 import { IUploadProvider } from './upload.interface';
-import { constants, mkdirSync, unlink, writeFileSync } from 'fs';
-import { access, mkdir } from 'fs/promises';
+import { constants, mkdirSync, writeFileSync } from 'fs';
+import { access, mkdir, unlink } from 'fs/promises';
 import { extname } from 'path';
 import { loadFromUrlOrDataUrl } from './storage.helpers';
+import {
+  extractUploadPathSegments,
+  resolveSafeUploadFile,
+} from './safe.upload.path';
 export class LocalStorage implements IUploadProvider {
   constructor(private uploadDirectory: string) {}
 
@@ -77,16 +81,29 @@ export class LocalStorage implements IUploadProvider {
     }
   }
 
-  async removeFile(filePath: string): Promise<void> {
-    // Logic to remove the file from the filesystem goes here
-    return new Promise((resolve, reject) => {
-      unlink(filePath, (err) => {
-        if (err) {
-          reject(err);
-        } else {
-          resolve();
-        }
-      });
-    });
+  async removeFile(publicPath: string): Promise<void> {
+    // `publicPath` e o valor gravado em Media.path/Media.thumbnail — URL
+    // publica da rota /uploads, nao caminho de disco. Reusamos o mesmo
+    // resolvedor da rota de leitura para nao aceitar `..`/symlink saindo de
+    // UPLOAD_DIRECTORY: um id de midia forjado nunca vira `unlink` arbitrario.
+    const segments = extractUploadPathSegments(publicPath);
+    if (!segments.length) {
+      return;
+    }
+
+    const filePath = resolveSafeUploadFile(this.uploadDirectory, segments);
+    if (!filePath) {
+      // Arquivo ja removido (ou fora do diretorio): nada a fazer.
+      return;
+    }
+
+    try {
+      await unlink(filePath);
+    } catch (err) {
+      // Idempotente: corrida entre duas remocoes nao e falha.
+      if ((err as NodeJS.ErrnoException)?.code !== 'ENOENT') {
+        throw err;
+      }
+    }
   }
 }

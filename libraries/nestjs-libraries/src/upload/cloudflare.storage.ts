@@ -2,6 +2,7 @@ import {
   S3Client,
   PutObjectCommand,
   HeadBucketCommand,
+  DeleteObjectCommand,
 } from '@aws-sdk/client-s3';
 import 'multer';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
@@ -120,14 +121,49 @@ class CloudflareStorage implements IUploadProvider {
     }
   }
 
+  /**
+   * Deriva a Key do objeto no bucket a partir da URL publica gravada em
+   * `Media.path`/`Media.thumbnail`. Exige o prefixo `CLOUDFLARE_BUCKET_URL`:
+   * uma URL de terceiro (import externo, CDN de rede social) nao pertence ao
+   * nosso bucket e nao pode virar `DeleteObject` — deletariamos por engano um
+   * objeto homonimo. Retorna '' quando a URL nao e nossa.
+   */
+  private resolveObjectKey(publicPath: string): string {
+    if (!publicPath || !this._uploadUrl) {
+      return '';
+    }
+
+    const clean = publicPath.split('?')[0].split('#')[0];
+    const prefix = this._uploadUrl.endsWith('/')
+      ? this._uploadUrl
+      : `${this._uploadUrl}/`;
+
+    if (!clean.startsWith(prefix)) {
+      return '';
+    }
+
+    try {
+      return decodeURIComponent(clean.slice(prefix.length));
+    } catch {
+      return clean.slice(prefix.length);
+    }
+  }
+
   // Implement the removeFile method from IUploadProvider
-  async removeFile(filePath: string): Promise<void> {
-    // const fileName = filePath.split('/').pop(); // Extract the filename from the path
-    // const command = new DeleteObjectCommand({
-    //   Bucket: this._bucketName,
-    //   Key: fileName,
-    // });
-    // await this._client.send(command);
+  async removeFile(publicPath: string): Promise<void> {
+    const key = this.resolveObjectKey(publicPath);
+    if (!key) {
+      return;
+    }
+
+    // DeleteObject no R2/S3 e idempotente: apagar chave inexistente devolve
+    // 204, entao nao ha caso de "not found" para tratar aqui.
+    await this._client.send(
+      new DeleteObjectCommand({
+        Bucket: this._bucketName,
+        Key: key,
+      })
+    );
   }
 }
 

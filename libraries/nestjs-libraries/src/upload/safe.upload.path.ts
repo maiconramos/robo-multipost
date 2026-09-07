@@ -50,3 +50,40 @@ export const resolveSafeUploadFile = (
     return null;
   }
 };
+
+/**
+ * Extrai os segmentos de caminho de uma URL publica servida pela rota
+ * `/uploads` (`https://host/uploads/2026/09/07/arquivo.png` ou
+ * `/uploads/2026/09/07/arquivo.png`) para alimentar `resolveSafeUploadFile`.
+ *
+ * Retorna `[]` quando a URL nao aponta para a rota `/uploads` deste
+ * self-hosted — nesse caso nao existe arquivo local correspondente e o
+ * chamador nao deve tentar remover nada.
+ */
+export const extractUploadPathSegments = (publicPath: string): string[] => {
+  if (!publicPath) {
+    return [];
+  }
+
+  const withoutQuery = publicPath.split('?')[0].split('#')[0];
+  let pathname = withoutQuery;
+
+  if (/^[a-z][a-z0-9+.-]*:\/\//i.test(withoutQuery)) {
+    try {
+      pathname = new URL(withoutQuery).pathname;
+    } catch {
+      return [];
+    }
+  }
+
+  const marker = '/uploads/';
+  const index = pathname.indexOf(marker);
+  if (index === -1) {
+    return [];
+  }
+
+  return pathname
+    .slice(index + marker.length)
+    .split('/')
+    .filter(Boolean);
+};

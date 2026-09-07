@@ -49,6 +49,9 @@ import {
   DesignMediaIcon,
   VerticalDividerIcon,
   NoMediaIcon,
+  LockIcon,
+  CheckmarkIcon,
+  TrashIcon,
 } from '@gitroom/frontend/components/ui/icons';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
@@ -215,6 +218,10 @@ export const MediaBox: FC<{
   }, [page]);
   const { data, mutate, isLoading } = useSWR(`get-media-${page}`, loadMedia);
   const [selected, setSelected] = useState([]);
+  // Selecao de exclusao em massa — independente de `selected`, que serve para
+  // inserir midia no post.
+  const [selectedToDelete, setSelectedToDelete] = useState<string[]>([]);
+  const [deleting, setDeleting] = useState(false);
   const t = useT();
   const uploaderRef = useRef<any>(null);
   const mediaDirectory = useMediaDirectory();
@@ -361,6 +368,97 @@ export const MediaBox: FC<{
     []
   );
 
+  // A lista visivel ja filtrada pelo tipo — a barra de selecao em massa
+  // precisa dela para "selecionar todos desta pagina".
+  const mediaList = useMemo(
+    () =>
+      (data?.results || []).filter((f: any) => {
+        if (type === 'video') {
+          return f.path.indexOf('mp4') > -1;
+        } else if (type === 'image') {
+          return f.path.indexOf('mp4') === -1;
+        }
+        return true;
+      }),
+    [data, type]
+  );
+
+  // `inUse` vem do backend: midia usada em post que ainda vai publicar (ou
+  // como avatar/logo) nao entra na selecao de exclusao.
+  const deletableMedia = useMemo(
+    () => mediaList.filter((media: any) => !media.inUse),
+    [mediaList]
+  );
+
+  const allPageSelected =
+    deletableMedia.length > 0 &&
+    deletableMedia.every((media: any) => selectedToDelete.includes(media.id));
+
+  const toggleDeleteSelection = useCallback((media: any) => {
+    if (media.inUse) {
+      return;
+    }
+    setSelectedToDelete((prev) =>
+      prev.includes(media.id)
+        ? prev.filter((id) => id !== media.id)
+        : [...prev, media.id]
+    );
+  }, []);
+
+  const toggleSelectAll = useCallback(() => {
+    setSelectedToDelete((prev) => {
+      const pageIds = deletableMedia.map((media: any) => media.id);
+      return allPageSelected
+        ? prev.filter((id) => !pageIds.includes(id))
+        : [...new Set([...prev, ...pageIds])];
+    });
+  }, [deletableMedia, allPageSelected]);
+
+  // Traduz o relatorio do backend (apagados / bloqueados / falhas) em uma
+  // mensagem unica — o usuario precisa saber que nem tudo que ele marcou saiu.
+  const reportDeletion = useCallback(
+    (result: any) => {
+      const deleted = result?.deleted?.length || 0;
+      const blocked = result?.blocked?.length || 0;
+      const failed = result?.failed?.length || 0;
+      const parts: string[] = [];
+
+      if (deleted) {
+        parts.push(
+          t(
+            'media_deleted_report',
+            '{{total}} mídia(s) removida(s) do bucket.',
+            { total: deleted }
+          )
+        );
+      }
+      if (blocked) {
+        parts.push(
+          t(
+            'media_blocked_report',
+            '{{total}} mantida(s): em uso em post agendado, rascunho ou como foto de perfil.',
+            { total: blocked }
+          )
+        );
+      }
+      if (failed) {
+        parts.push(
+          t(
+            'media_failed_report',
+            '{{total}} falhou(ram) ao remover do storage e continuam na biblioteca.',
+            { total: failed }
+          )
+        );
+      }
+      if (!parts.length) {
+        return;
+      }
+
+      toaster.show(parts.join(' '), blocked || failed ? 'warning' : 'success');
+    },
+    [t, toaster]
+  );
+
   const deleteImage = useCallback(
     (media: Media) => async (e: any) => {
       e.stopPropagation();
@@ -374,13 +472,49 @@ export const MediaBox: FC<{
       ) {
         return;
       }
-      await fetch(`/media/${media.id}`, {
-        method: 'DELETE',
-      });
+      const result = await (
+        await fetch(`/media/${media.id}`, {
+          method: 'DELETE',
+        })
+      ).json();
+      reportDeletion(result);
+      setSelectedToDelete((prev) => prev.filter((id) => id !== media.id));
       mutate();
     },
-    [mutate]
+    [mutate, reportDeletion, t]
   );
+
+  const deleteSelected = useCallback(async () => {
+    if (!selectedToDelete.length) {
+      return;
+    }
+    if (
+      !(await deleteDialog(
+        t(
+          'confirm_delete_selected_media',
+          'Os arquivos serão apagados do bucket permanentemente. Excluir {{total}} mídia(s)?',
+          { total: selectedToDelete.length }
+        )
+      ))
+    ) {
+      return;
+    }
+
+    setDeleting(true);
+    try {
+      const result = await (
+        await fetch('/media/delete-many', {
+          method: 'POST',
+          body: JSON.stringify({ ids: selectedToDelete }),
+        })
+      ).json();
+      reportDeletion(result);
+      setSelectedToDelete([]);
+      await mutate();
+    } finally {
+      setDeleting(false);
+    }
+  }, [selectedToDelete, mutate, reportDeletion, t]);
 
   const btn = useMemo(() => {
     return (
@@ -437,6 +571,39 @@ export const MediaBox: FC<{
             </div>
           )}
         </div>
+        {standalone && !isLoading && !!mediaList.length && (
+          <div className="flex flex-wrap items-center gap-[12px] mt-[10px]">
+            <button
+              type="button"
+              onClick={toggleSelectAll}
+              disabled={!deletableMedia.length}
+              className="cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed h-[36px] px-[14px] flex items-center rounded-[8px] border border-newTextColor/10 text-[13px] hover:bg-forth"
+            >
+              {allPageSelected
+                ? t('clear_page_selection', 'Limpar seleção')
+                : t('select_all_on_page', 'Selecionar todos desta página')}
+            </button>
+            <div className="text-[13px] text-newTextColor/[0.6]">
+              {t('media_selected_count', '{{total}} selecionada(s)', {
+                total: selectedToDelete.length,
+              })}
+            </div>
+            <div className="flex-1" />
+            <button
+              type="button"
+              onClick={deleteSelected}
+              disabled={!selectedToDelete.length || deleting}
+              className="cursor-pointer disabled:opacity-40 disabled:cursor-not-allowed h-[36px] px-[14px] gap-[8px] flex items-center rounded-[8px] bg-red-600 hover:bg-red-500 text-white text-[13px]"
+            >
+              {deleting ? (
+                <div className="animate-spin h-[14px] w-[14px] border-2 border-white border-t-transparent rounded-full" />
+              ) : (
+                <TrashIcon size={16} />
+              )}
+              {t('delete_selected_media', 'Excluir selecionadas')}
+            </button>
+          </div>
+        )}
         <div className="w-full pointer-events-none relative mt-[5px] mb-[5px]">
           <div className="w-full h-[46px] overflow-hidden absolute left-0 bg-newBgColorInner uppyChange">
             <Dashboard
@@ -509,20 +676,12 @@ export const MediaBox: FC<{
                 ))}
               </>
             )}
-            {data?.results
-              ?.filter((f: any) => {
-                if (type === 'video') {
-                  return f.path.indexOf('mp4') > -1;
-                } else if (type === 'image') {
-                  return f.path.indexOf('mp4') === -1;
-                }
-                return true;
-              })
+            {mediaList
               .map((media: any) => (
                 <div
                   className={clsx(
                     'group px-[3px] py-[3px] float-left rounded-[6px] w8-max aspect-square',
-                    !standalone && 'cursor-pointer'
+                    (!standalone || !media.inUse) && 'cursor-pointer'
                   )}
                   key={media.id}
                 >
@@ -531,10 +690,40 @@ export const MediaBox: FC<{
                       'w-full h-full rounded-[6px] border-[4px] relative',
                       !!selected.find((p) => p.id === media.id)
                         ? 'border-[#612BD3]'
-                        : 'border-transparent'
+                        : standalone && selectedToDelete.includes(media.id)
+                        ? 'border-red-500'
+                        : 'border-transparent',
+                      standalone && media.inUse && 'opacity-60'
                     )}
-                    onClick={addRemoveSelected(media)}
+                    onClick={
+                      standalone
+                        ? () => toggleDeleteSelection(media)
+                        : addRemoveSelected(media)
+                    }
                   >
+                    {standalone &&
+                      (media.inUse ? (
+                        <div
+                          title={t(
+                            'media_in_use_tooltip',
+                            'Em uso em post agendado, rascunho ou como foto de perfil — não pode ser excluída.'
+                          )}
+                          className="z-[101] flex justify-center items-center w-[24px] h-[24px] rounded-full bg-black/70 text-white absolute -top-[5px] -start-[5px]"
+                        >
+                          <LockIcon size={14} />
+                        </div>
+                      ) : (
+                        <div
+                          className={clsx(
+                            'z-[101] flex justify-center items-center w-[22px] h-[22px] rounded-[6px] border absolute -top-[5px] -start-[5px]',
+                            selectedToDelete.includes(media.id)
+                              ? 'bg-red-500 border-red-500 text-white'
+                              : 'bg-black/50 border-white/40 text-transparent'
+                          )}
+                        >
+                          <CheckmarkIcon />
+                        </div>
+                      ))}
                     {!!selected.find((p: any) => p.id === media.id) ? (
                       <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-[#612BD3] absolute -bottom-[10px] -end-[10px]">
                         {selected.findIndex((z: any) => z.id === media.id) + 1}
