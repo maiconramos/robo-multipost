@@ -2,8 +2,9 @@
 
 ## Status
 
-Aceito para implementação incremental. O runtime de produção permanece em
-`postWorkflowV102` até a conclusão dos gates deste documento.
+Base incremental implementada com todos os gates desligados. O runtime de
+produção permanece em `postWorkflowV102`; `postWorkflowV112` só recebe novas
+execuções quando um canário é ativado explicitamente.
 
 Origem analisada: sequência upstream até `3e6206f7` (workflow V1.1.2). A
 implementação será adaptada às invariantes do Multipost; não será feito
@@ -118,15 +119,40 @@ serão versionados payloads com tokens, mídias privadas ou dados pessoais.
 
 O executor local está documentado em
 [`temporal-post-workflow-replay.md`](../operations/temporal-post-workflow-replay.md).
-Sua existência não conclui o gate: a matriz representativa ainda precisa ser
-exportada e executada antes de adicionar contratos V112.
+Em 06/09/2026, a implementação passou por replay local de históricos V101,
+V102 (incluindo refresh e rejeição do provider) e V112. O teste sintético em
+Docker também derrubou o worker depois de registrar a mutação externa e antes
+do próximo heartbeat: a execução terminou como não confirmada, com uma única
+mutação. Os arquivos exportados permanecem temporários e não são versionados.
+
+Ainda não concluídos: smoke real em prerelease por provider, monitoramento do
+canário e promoção gradual. Portanto, os gates continuam desligados por padrão.
+
+## Implementação entregue
+
+- seletor cumulativo por integração, provider e opt-in global, com Zernio
+  permanentemente fixado em V102 nesta fase;
+- contratos aditivos `postPending`, `checkPostStatus` e `finalizePost`, com
+  fallback para o `post()` legado enquanto o provider não adota fases próprias;
+- activities de mutação com uma tentativa, heartbeat e distinção segura de
+  `Schedule-To-Start`; heartbeat timeout, com ou sem details, permanece
+  resultado desconhecido e nunca dispara segundo envio cego;
+- estado pendente normalizado como JSON, limitado a 64 KiB e recusado quando
+  contém campos de credencial;
+- V112 recebe apenas metadados permitidos da integração. Token, refresh token,
+  detalhes customizados e erro bruto do post não entram como argumentos ou
+  resultados do workflow; cada activity recarrega e descriptografa no runtime;
+- recuperação de posts ausentes respeita o mesmo seletor e não recupera posts
+  de perfis excluídos/cancelados;
+- notificação específica de resultado não confirmado, orientando conferência
+  antes de republicar.
 
 ## Consequências
 
-A migração será mais lenta que aplicar o upstream integralmente, mas preserva a
+A migração é mais lenta que aplicar o upstream integralmente, mas preserva a
 compatibilidade dos históricos e impede que uma falha ambígua vire publicação
-duplicada. O primeiro incremento de código deste ADR é o probe separado das
-filas de activities; ele não muda ainda a versão do workflow em produção.
+duplicada. O probe separado das filas e a base V112 já estão implementados; a
+versão efetiva continua V102 até a ativação deliberada de cada canário.
 
 ## Referências
 

@@ -52,12 +52,16 @@ describe('buildTemporalWorkers', () => {
   it('preserva a concorrencia atual quando o divisor nao esta configurado', () => {
     const workers = build();
 
-    expect(workers[0]).not.toHaveProperty('workerOptions');
+    expect(workers[0].workerOptions).toEqual({
+      maxHeartbeatThrottleInterval: '15 seconds',
+    });
     expect(workers[1].workerOptions).toEqual({
       maxConcurrentActivityTaskExecutions: 100,
+      maxHeartbeatThrottleInterval: '15 seconds',
     });
     expect(workers[2].workerOptions).toEqual({
       maxConcurrentActivityTaskExecutions: 1,
+      maxHeartbeatThrottleInterval: '15 seconds',
     });
   });
 
@@ -66,9 +70,11 @@ describe('buildTemporalWorkers', () => {
 
     expect(workers[1].workerOptions).toEqual({
       maxConcurrentActivityTaskExecutions: 50,
+      maxHeartbeatThrottleInterval: '15 seconds',
     });
     expect(workers[2].workerOptions).toEqual({
       maxConcurrentActivityTaskExecutions: 1,
+      maxHeartbeatThrottleInterval: '15 seconds',
     });
   });
 
@@ -77,6 +83,7 @@ describe('buildTemporalWorkers', () => {
       const workers = build({ concurrencyDivider });
       expect(workers[1].workerOptions).toEqual({
         maxConcurrentActivityTaskExecutions: 100,
+        maxHeartbeatThrottleInterval: '15 seconds',
       });
     }
   });

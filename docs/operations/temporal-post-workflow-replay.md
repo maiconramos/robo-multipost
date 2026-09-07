@@ -95,7 +95,7 @@ Replay compativel: postWorkflowV102 (facebook-success-v102.json)
 Uma saída `Replay incompativel` bloqueia a migração. Registre apenas o tipo da
 falha e os nomes do workflow/arquivo; não anexe o histórico.
 
-## Matriz mínima antes dos contratos V112
+## Matriz mínima para qualquer mudança ou rollout V112
 
 - V101 e V102 concluídos com sucesso;
 - V102 com falha do provider e refresh de token;
@@ -103,6 +103,8 @@ falha e os nomes do workflow/arquivo; não anexe o histórico.
   houver histórico controlado;
 - publicação recorrente;
 - execução interrompida ou com timeout de activity.
+- V112 normal e V112 com morte do worker após a mutação, confirmando uma única
+  execução externa e estado não confirmado.
 
 Depois do replay, ainda são obrigatórios o teste de morte do worker após a
 mutação externa e os smokes reais por provider descritos no ADR V112.

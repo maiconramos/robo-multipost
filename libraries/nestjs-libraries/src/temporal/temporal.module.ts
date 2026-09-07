@@ -70,13 +70,14 @@ export const buildTemporalWorkers = ({
         ...(taskQueue === 'main' ? { workflowsPath } : {}),
         activityClasses,
         autoStart: true,
-        ...(concurrency
-          ? {
-              workerOptions: {
-                maxConcurrentActivityTaskExecutions: concurrency,
-              },
-            }
-          : {}),
+        workerOptions: {
+          // V112 activities emit heartbeat details every 15s. Capping the SDK
+          // throttle preserves those details before a worker crash/timeout.
+          maxHeartbeatThrottleInterval: '15 seconds',
+          ...(concurrency
+            ? { maxConcurrentActivityTaskExecutions: concurrency }
+            : {}),
+        },
       };
     });
 };

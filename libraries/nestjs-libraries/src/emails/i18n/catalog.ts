@@ -27,6 +27,7 @@ export const NOTIFICATION_MESSAGE_KEYS = [
   'notif_post_published',
   'notif_post_error',
   'notif_post_error_comments',
+  'notif_post_unconfirmed',
   'notif_streak',
 ] as const;
 
@@ -66,6 +67,8 @@ const pt: EmailCatalog = {
     'Erro ao publicar no {{provider}} para {{integrationName}}',
   notif_post_error_comments_subject:
     'Erro ao publicar comentários no {{provider}} para {{integrationName}}',
+  notif_post_unconfirmed_subject:
+    'Verifique a publicação no {{provider}} antes de tentar novamente',
   notif_streak_subject: 'Lembrete de sequência',
 
   // --- Notificações: mensagens (sininho + e-mail) — paridade com frontend ---
@@ -81,6 +84,8 @@ const pt: EmailCatalog = {
     'Ocorreu um erro ao publicar no {{provider}}{{error}}',
   notif_post_error_comments:
     'Ocorreu um erro ao publicar comentários no {{provider}}{{error}}',
+  notif_post_unconfirmed:
+    'A publicação foi enviada ao {{provider}}, mas não foi possível confirmar o resultado. Verifique a conta {{integrationName}} antes de publicar novamente para evitar duplicidade.',
   notif_streak:
     '<p>Você está prestes a perder sua sequência em duas horas! Agende uma publicação agora para mantê-la!</p>',
 };
@@ -121,6 +126,8 @@ const en: EmailCatalog = {
     'Error posting on {{provider}} for {{integrationName}}',
   notif_post_error_comments_subject:
     'Error posting comments on {{provider}} for {{integrationName}}',
+  notif_post_unconfirmed_subject:
+    'Check the post on {{provider}} before trying again',
   notif_streak_subject: 'Streak Reminder',
 
   // --- Notifications: messages (bell + email) — parity with frontend ---
@@ -136,6 +143,8 @@ const en: EmailCatalog = {
     'An error occurred while posting on {{provider}}{{error}}',
   notif_post_error_comments:
     'An error occurred while posting comments on {{provider}}{{error}}',
+  notif_post_unconfirmed:
+    "The post was sent to {{provider}}, but its result couldn't be confirmed. Check the {{integrationName}} account before posting again to avoid duplicates.",
   notif_streak:
     '<p>You are about to lose your streak in two hours! schedule a post now to keep it!</p>',
 };

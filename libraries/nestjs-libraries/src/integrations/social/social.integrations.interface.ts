@@ -94,6 +94,13 @@ export interface ISocialMediaIntegration {
     integration: Integration
   ): Promise<PostResponse[]>; // Schedules a new post
 
+  postPending?(
+    id: string,
+    accessToken: string,
+    postDetails: PostDetails[],
+    integration: Integration
+  ): Promise<PostResponse[]>; // May return status=pending for workflow polling
+
   comment?(
     id: string,
     postId: string,
@@ -109,7 +116,13 @@ export type PostResponse = {
   postId: string; // The ID of the scheduled post returned by the platform
   releaseURL: string; // The URL of the post on the platform
   status: string; // Status of the operation or initial post status
+  pendingData?: unknown; // Small provider state; credentials are forbidden
 };
+
+export type PendingCheckResponse =
+  | { status: 'pending'; pendingData: unknown }
+  | { status: 'ready'; pendingData: unknown }
+  | { status: 'completed'; postId: string; releaseURL: string };
 
 export type PostDetails<T = any> = {
   id: string;
@@ -146,6 +159,16 @@ export interface SocialProvider
   identifier: string;
   refreshWait?: boolean;
   convertToJPEG?: boolean;
+  checkPostStatus?(
+    accessToken: string,
+    pendingData: unknown,
+    integration: Integration
+  ): Promise<PendingCheckResponse>;
+  finalizePost?(
+    accessToken: string,
+    pendingData: unknown,
+    integration: Integration
+  ): Promise<PendingCheckResponse>;
   refreshCron?: boolean;
   // Provider cujo refreshToken() e stub (sem mecanismo nativo de renovacao —
   // ex.: facebook/instagram via Facebook Login, cujo Page Access Token nao se

@@ -20,6 +20,9 @@ services:
       # EXCLUDE_QUEUE: '' # filas de provider separadas por virgula; nunca main
       # TEMPORAL_HEALTH_TASK_QUEUES: 'main' # pollers de workflow
       # TEMPORAL_HEALTH_ACTIVITY_TASK_QUEUES: 'facebook,instagram' # pollers de activity
+      # POST_WORKFLOW_V112_INTEGRATION_IDS: '' # canario por integration.id exato
+      # POST_WORKFLOW_V112_PROVIDERS: '' # expansao por provider exato
+      # POST_WORKFLOW_V112_ALL: 'false' # somente apos todos os smoke tests
       IS_GENERAL: 'true'
       DISABLE_REGISTRATION: 'false'
 

@@ -117,6 +117,8 @@ Every Flow step that touches Meta endpoints must go through `resolveIgRoute`. Se
 
 12. **Symptom:** replay or worker bundling fails with a path from another developer's machine (`/Users/nevodavid/Projects/gitroom`) or cannot resolve `@gitroom/orchestrator/*` → **Cause:** `apps/orchestrator/.swcrc` once carried an absolute upstream `baseUrl` and lacked the orchestrator alias. **Fix:** keep `baseUrl` relative to that file (`../..`) and keep its aliases aligned with `tsconfig.base.json`; `post-workflow-replay.spec.ts` compiles the real workflow bundle in a clean Node subprocess to catch host-specific paths.
 
+13. **Symptom:** a V112 timeout republishes blindly, or encrypted provider credentials appear in new workflow history → **Cause:** mutation failures were treated as safely retryable, or a full `Integration`/raw `Post.error` crossed the workflow boundary. **Fix:** only `Schedule-To-Start` is safe to repeat; every timeout after activity start is an unknown result. Keep publish/finalize activities at `maximumAttempts: 1`, use a read-only remote status check before any continuation, and pass only organization/integration IDs plus the allow-listed integration metadata returned by `getPostV112`/`getPostsListV112`. V112 activities reload and decrypt the integration internally. The rollout variables are exact-match and opt-in (`POST_WORKFLOW_V112_INTEGRATION_IDS`, then `POST_WORKFLOW_V112_PROVIDERS`, then `POST_WORKFLOW_V112_ALL=true`); Zernio stays on V102.
+
 ## Commands
 
 ```bash

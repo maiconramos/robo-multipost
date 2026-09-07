@@ -318,9 +318,11 @@ mudança em análise, não dívida anterior da instalação.
    misturada e preservando o hardening do fork.
 7. **Workers Temporal — concluídos:** payloads limitados e workers de provider
    activity-only, sem alterar versões de workflow.
-8. **Épico Temporal — em andamento:** ADR V102 → V112 aceito; implementação
-   começa pela saúde das filas de activities, seguida de replay e teste de
-   publicação real antes de qualquer promoção para `release`.
+8. **Épico Temporal — base implementada, rollout pendente:** saúde das filas,
+   replay V101/V102/V112, contratos aditivos e roteamento por canário estão
+   implementados com gates desligados. Faltam publicação real controlada em
+   prerelease e expansão provider a provider antes de qualquer promoção para
+   `release`.
 
 ## 11. Gates antes de produção
 
@@ -343,5 +345,6 @@ foram reimplementados e mesclados isoladamente até a PR `#231`. Em 03/09,
 está em `db1a49e2`. Desde a fotografia anterior, a cabeça ganhou três commits
 de produto já classificados; o restante do delta do espelho são ajustes do
 workflow staging do upstream e merges. `release` continua intocada. O próximo
-trabalho de código é o épico Temporal. O ADR já foi definido; compatibilidade de
-históricos V102, replay e smoke real continuam sendo gates antes de promoção.
+trabalho de código em curso é o rollout do épico Temporal. A base V112 e os
+replays locais foram concluídos; smoke real e observação do canário continuam
+sendo gates antes de promoção.
