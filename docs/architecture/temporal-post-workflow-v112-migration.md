@@ -2,9 +2,9 @@
 
 ## Status
 
-Base incremental implementada com todos os gates desligados. O runtime de
-produção permanece em `postWorkflowV102`; `postWorkflowV112` só recebe novas
-execuções quando um canário é ativado explicitamente.
+Base incremental implementada com rollout opt-in. O runtime padrão de produção
+permanece em `postWorkflowV102`; `postWorkflowV112` só recebe novas execuções
+quando um canário é ativado explicitamente.
 
 Origem analisada: sequência upstream até `3e6206f7` (workflow V1.1.2). A
 implementação será adaptada às invariantes do Multipost; não será feito
@@ -125,8 +125,19 @@ Docker também derrubou o worker depois de registrar a mutação externa e antes
 do próximo heartbeat: a execução terminou como não confirmada, com uma única
 mutação. Os arquivos exportados permanecem temporários e não são versionados.
 
-Ainda não concluídos: smoke real em prerelease por provider, monitoramento do
-canário e promoção gradual. Portanto, os gates continuam desligados por padrão.
+Em 07/09/2026, o primeiro canário real da prerelease `0.5.6-rc.11` publicou no
+Facebook pela integração Três Lagoas. A execução foi criada como
+`postWorkflowV112`, terminou `COMPLETED`, salvou estado `PUBLISHED` e URL remota,
+manteve a integração ativa (`disabled=false`, `refreshNeeded=false`) e não criou
+uma nova falha. A inspeção dos 32 payloads decodificados do histórico não
+encontrou campos de autorização, cookie, API key, token, segredo ou senha. O
+teste também revelou um problema independente: uma falha antiga permanecia em
+`Post.error` após a republicação; o ciclo atual passa a limpar esse estado ao
+reagendar e ao publicar com sucesso, preservando a tabela histórica `Errors`.
+
+Ainda não concluídos: smoke real dos demais providers, monitoramento prolongado
+do canário e promoção gradual. Portanto, os gates continuam desligados por
+padrão, exceto pelas integrações explicitamente listadas.
 
 ## Implementação entregue
 
