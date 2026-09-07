@@ -125,18 +125,54 @@ Docker também derrubou o worker depois de registrar a mutação externa e antes
 do próximo heartbeat: a execução terminou como não confirmada, com uma única
 mutação. Os arquivos exportados permanecem temporários e não são versionados.
 
-Em 07/09/2026, o primeiro canário real da prerelease `0.5.6-rc.11` publicou no
-Facebook pela integração Três Lagoas. A execução foi criada como
-`postWorkflowV112`, terminou `COMPLETED`, salvou estado `PUBLISHED` e URL remota,
-manteve a integração ativa (`disabled=false`, `refreshNeeded=false`) e não criou
-uma nova falha. A inspeção dos 32 payloads decodificados do histórico não
-encontrou campos de autorização, cookie, API key, token, segredo ou senha. O
-teste também revelou um problema independente: uma falha antiga permanecia em
-`Post.error` após a republicação; o ciclo atual passa a limpar esse estado ao
-reagendar e ao publicar com sucesso, preservando a tabela histórica `Errors`.
+### Canários reais em produção (07/09/2026)
 
-Ainda não concluídos: smoke real dos demais providers, monitoramento prolongado
-do canário e promoção gradual. Portanto, os gates continuam desligados por
+Três execuções reais foram observadas no perfil Três Lagoas, todas criadas como
+`postWorkflowV112`, todas `COMPLETED` na tentativa 1, sem nenhum evento
+`ACTIVITY_TASK_FAILED` ou `ACTIVITY_TASK_TIMED_OUT`.
+
+| # | Versão | Canal | Integração | Workflow | Duração da mutação |
+| ---: | --- | --- | --- | --- | ---: |
+| 1 | `0.5.6-rc.11` | Facebook | `cmsd86h9y…e6b8m` | `post_cmsn9ns3q0060pf9ojakudd0e` | — |
+| 2 | `0.5.6-rc.12` | Facebook | `cmsd86h9y…e6b8m` | `post_cmsnaauip0063pf9ouojo6okz` | 3,98 s |
+| 3 | `0.5.6-rc.12` | Instagram | `cmshir683…umqef` | `post_cmsnabkcg0066pf9onxy6p7tg` | 41,1 s |
+
+Em todas: estado final `PUBLISHED` com `releaseId` e `releaseURL` gravados,
+publicação confirmada na rede, integração mantida ativa (`disabled=false`,
+`refreshNeeded=false`, sem `refreshError`) e nenhuma linha nova em `Errors`. Nos
+canários 2 e 3, `Integration.updatedAt` permaneceu anterior à publicação — o
+workflow não reescreveu a credencial nem marcou o canal para reconexão.
+
+Invariantes que deixaram de ser apenas afirmação de projeto e passaram a ter
+evidência observada no histórico do Temporal:
+
+- **uma única tentativa na mutação externa.** `postSocialPending` aparece com
+  `maximumAttempts: 1` nos três históricos, enquanto as demais activities — que
+  só leem e escrevem no banco do próprio produto — mantêm `maximumAttempts: 3`;
+- **roteamento por fila de provider.** A mutação e os plugs executam na fila do
+  provider (`facebook`, `instagram`) e as activities de suporte na fila `main`;
+  o workflow em si é sempre iniciado em `main`. As filas de provider são criadas
+  a partir de `providerIdentifier.split('-')[0]`, sem configuração manual;
+- **payloads sem credencial.** Os 32 payloads de cada histórico foram
+  decodificados e inspecionados por chave e por valor: `postSocialPending`
+  recebe `integrationId` como referência e nunca o token. Nenhum campo de
+  autorização, cookie, API key, segredo, senha ou erro bruto foi encontrado
+  (`forbiddenCount = 0` nos três).
+
+O canário 1 revelou um problema independente do rollout: uma falha antiga
+permanecia em `Post.error` após a republicação. A correção entrou na
+`0.5.6-rc.12` e foi validada no canário 2, que republicou um post com falha real
+registrada em `Errors` no dia anterior e terminou com `Post.error` nulo e a linha
+histórica de `Errors` preservada.
+
+O Instagram publica em duas etapas (criação do container de mídia e publicação),
+o que explica a mutação de 41,1 s contra 3,98 s do Facebook. É o provider em que
+a janela entre o início da mutação e a confirmação é maior e, portanto, aquele em
+que a regra de resultado não confirmado após timeout tem mais chance de ser
+exercitada na prática.
+
+Ainda não concluídos: um segundo agendamento real no Instagram, smoke real dos
+demais providers e promoção gradual. Portanto, os gates continuam desligados por
 padrão, exceto pelas integrações explicitamente listadas.
 
 ## Implementação entregue

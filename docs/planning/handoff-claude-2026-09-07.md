@@ -1,6 +1,7 @@
 # Handoff para continuidade no Claude Code — Multipost
 
-> Atualizado em 07/09/2026, após o primeiro canário real do Temporal V112.
+> Atualizado em 07/09/2026, após três canários reais do Temporal V112
+> (dois Facebook, um Instagram) e o deploy da prerelease `v0.5.6-rc.12`.
 > Repositório: `maiconramos/robo-multipost`.
 > Workspace local: `/Users/maiconramos/Documents/workspace/ASL/robo-multipost`.
 
@@ -22,12 +23,11 @@
 
 ## 2. Estado exato do Git e trabalho ainda não commitado
 
-- `main`/`origin/main`: `06838be7` (`chore: pre-release v0.5.6-rc.11`).
-- Tag no mesmo commit: `v0.5.6-rc.11`.
-- Branch atual: `codex/clear-stale-post-errors`, criada diretamente dessa
-  `main` limpa.
-- Ainda não há commit, push ou PR para a branch atual.
-- Arquivos modificados de propósito:
+- `main`/`origin/main`: `eda929fc` (`chore: pre-release v0.5.6-rc.12`).
+- Tag no mesmo commit: `v0.5.6-rc.12`.
+- A branch `codex/clear-stale-post-errors` foi mesclada pela PR #240
+  (merge commit `58416302`) e a correção já está em produção.
+- Arquivos que faziam parte daquela branch:
   - `libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.ts`;
   - `libraries/nestjs-libraries/src/database/prisma/posts/posts.repository.spec.ts`;
   - `CHANGELOG.md`;
@@ -72,66 +72,85 @@ após `--` como filtro de nome de teste. Também não rodar Prettier sobre o
 diff grande e irrelevante. O ruído que ocorreu durante esta sessão já foi
 revertido; o diff atual contém somente a mudança intencional.
 
-Próximo passo imediato para esta branch:
+Esta frente foi concluída em 07/09/2026:
 
-1. revisar `git diff` e `git status`;
-2. se não houver mudança concorrente, commit sugerido:
-   `fix(posts): clear stale error after republish`;
-3. push da branch e abrir PR;
-4. aguardar os checks da PR antes do merge;
-5. depois do merge, criar uma nova prerelease (provável `v0.5.6-rc.12`) somente
-   se essa correção precisar entrar na instância durante o rollout do V112.
+1. PR #240 aberta, checks `anti-slop` e `build (22.12.0)` verdes, mesclada em
+   `main` como `58416302`;
+2. prerelease `v0.5.6-rc.12` criada, build multi-arch concluído e manifesto
+   `:prerelease` publicado (`:latest` corretamente ignorado);
+3. instância atualizada e `/app/version.txt` confirmado como `0.5.6-rc.12`;
+4. correção validada em produção pelo canário 2 — ver seção 4.
 
 ## 3. Prerelease atualmente implantada
 
-- Versão: `v0.5.6-rc.11`.
-- Release: <https://github.com/maiconramos/robo-multipost/releases/tag/v0.5.6-rc.11>
+- Versão: `v0.5.6-rc.12`.
+- Release: <https://github.com/maiconramos/robo-multipost/releases/tag/v0.5.6-rc.12>
 - Workflow de build:
-  <https://github.com/maiconramos/robo-multipost/actions/runs/34129572570>
+  <https://github.com/maiconramos/robo-multipost/actions/runs/34137769231>
+- Prerelease anterior: `v0.5.6-rc.11`, usada no canário 1.
 - Imagens AMD64 e ARM64 concluídas com sucesso.
 - Manifesto versionado e tag `:prerelease` foram publicados.
 - A tag `:latest` foi corretamente ignorada por se tratar de prerelease.
-- A UI da instância exibiu `v0.5.6-rc.11` após o deploy.
+- A instância roda a partir da tag `:prerelease`; após o deploy,
+  `/app/version.txt` confirmou `0.5.6-rc.12`.
 - Aviso não bloqueante do GitHub Actions: algumas actions v4/v3 estão sendo
   forçadas de Node 20 para Node 24. Tratar em PR de manutenção separado.
 
-## 4. Primeiro canário real do Temporal V112 — aprovado
+## 4. Canários reais do Temporal V112 — três aprovados
 
-Canário configurado em produção:
+Todos no perfil Três Lagoas (`profileId=8aa94ed4-3c45-4f31-ba53-55d32c1474cf`,
+`organizationId=1ee9556c-5979-447f-9a61-d4fb41c0a416`), todos criados como
+`postWorkflowV112`, todos `COMPLETED` na tentativa 1.
 
-- canal: Facebook — Três Lagoas;
-- `Integration.id`: `cmsd86h9y000jpf9onxne6b8m`;
-- variável efetiva no container:
-  `POST_WORKFLOW_V112_INTEGRATION_IDS=cmsd86h9y000jpf9onxne6b8m`;
-- versão lida em `/app/version.txt`: `0.5.6-rc.11`;
+### 4.1. Canário 1 — Facebook, `0.5.6-rc.11`
+
+- integração: `cmsd86h9y000jpf9onxne6b8m` (Facebook — Três Lagoas);
 - `Post.id`: `cmsn9ns3q0060pf9ojakudd0e`;
-- horário programado: `2026-09-07 14:30:59 UTC` (11:30:59 BRT);
-- workflow ID: `post_cmsn9ns3q0060pf9ojakudd0e`;
-- run ID: `01a07c40-7774-7240-bfc7-273967107939`;
-- tipo confirmado pelo Temporal: `postWorkflowV112`;
-- resultado Temporal: `COMPLETED`;
-- início: `2026-09-07T14:23:14.804Z`;
-- fim: `2026-09-07T14:31:05.611Z`.
+- workflow `post_cmsn9ns3q0060pf9ojakudd0e`, run `01a07c40-7774-7240-bfc7-273967107939`;
+- `2026-09-07T14:23:14.804Z` → `2026-09-07T14:31:05.611Z`.
 
-Resultado funcional confirmado:
+### 4.2. Canário 2 — Facebook, `0.5.6-rc.12`
 
-- post terminou `PUBLISHED`;
-- `releaseId` e `releaseURL` foram gravados;
-- a publicação apareceu no Facebook;
-- integração permaneceu `disabled=false` e `refreshNeeded=false`;
-- `refreshError` ausente e `refreshErrorAt=NULL`;
-- nenhuma linha nova em `Errors` desde o início do workflow;
-- os 32 payloads reais do histórico foram decodificados e inspecionados;
-- nenhum caminho com autorização, cookie, API key, token, segredo ou senha foi
-  encontrado (`forbiddenCount=0`).
+- `Post.id`: `cmsnaauip0063pf9ouojo6okz`, publicado `2026-09-07 15:55:59` UTC;
+- workflow `post_cmsnaauip0063pf9ouojo6okz`, run `01a07c91-9939-7a4e-b035-99bd0e45e3ad`;
+- `15:51:51.865` → `15:56:04.316`; timer de 246,911 s; mutação em 3,98 s;
+- `releaseId=157055657492765_122240368964110468`.
 
-O único achado foi o `Post.error` antigo, originado numa falha de 04/09. O post
-era de 10/08 e foi reagendado; por isso o erro não foi criado pelo V112. Esse é
-o bug isolado na branch atual.
+Este é o canário que validou a correção da rc.12. O post tinha uma falha real
+registrada em `Errors` em `2026-09-06 17:01:01.667`; foi reagendado, publicou e
+terminou com `hasCurrentError=f`, com a linha histórica de `Errors` preservada.
+`changeState(id, 'ERROR', err, body)` grava `Post.error` e insere a linha de
+`Errors` na mesma chamada, então a existência daquela linha prova que
+`Post.error` estava preenchido antes do reagendamento.
 
-Não remover ainda o gate por integração. A expansão segura é observar mais de
-um agendamento real desse canal e depois adicionar um provider por vez. Não
-ativar `POST_WORKFLOW_V112_ALL=true` agora.
+### 4.3. Canário 3 — Instagram via Facebook Login, `0.5.6-rc.12`
+
+- integração: `cmshir6830020pf9ou3oumqef` ("Tres Lagoas Residencial",
+  `providerIdentifier=instagram`), reconectada em `14:22:36` no mesmo dia;
+- `Post.id`: `cmsnabkcg0066pf9onxy6p7tg`, publicado `2026-09-07 16:48:59` UTC;
+- workflow `post_cmsnabkcg0066pf9onxy6p7tg`, run `01a07cc3-cb38-7ecd-894b-0212373abe54`;
+- `16:46:41.464` → `16:49:40.912`; timer de 137,303 s; mutação em 41,1 s;
+- `releaseId=17985720534106294`, <https://www.instagram.com/p/Dc_k-q1jLMM/>;
+- `Errors` para esse post: 0 linhas; `Integration.updatedAt` permaneceu
+  `14:22:36`, anterior à publicação.
+
+### 4.4. Evidência transversal
+
+- `postSocialPending` com `maximumAttempts: 1` nos três históricos; as demais
+  activities, que só tocam o banco do produto, com `maximumAttempts: 3`;
+- mutação e plugs nas filas `facebook`/`instagram`; suporte na fila `main`; o
+  workflow sempre iniciado em `main`;
+- 32 payloads por histórico decodificados e inspecionados por chave e por valor,
+  `forbiddenCount = 0` nos três; `postSocialPending` recebe `integrationId` como
+  referência e nunca o token; nenhum payload carrega campo `error`;
+- o Instagram publica em duas etapas, o que explica os 41,1 s de mutação. É o
+  provider com a maior janela entre início da mutação e confirmação.
+
+Cuidado ao auditar históricos exportados pela UI do Temporal: o export já entrega
+`payloads[].data` decodificado como JSON. Aplicar base64 por cima produz lixo e
+um `forbiddenCount = 0` falso. O campo `metadata.encoding` é que vem em base64.
+
+Não remover ainda o gate por integração. Não ativar `POST_WORKFLOW_V112_ALL=true`.
 
 ## 5. Próxima sequência do rollout V112
 
@@ -164,17 +183,37 @@ Regras que não podem regredir:
 
 Próximos gates práticos:
 
-1. observar por pelo menos um ciclo operacional adicional o Facebook Três
-   Lagoas já no V112;
-2. fazer um segundo post Facebook controlado e verificar post, integração,
-   `Errors` e histórico Temporal;
-3. selecionar um Instagram saudável conectado via Facebook Login para o próximo
-   canário e repetir a inspeção de segredos;
-4. testar separadamente Instagram Standalone, LinkedIn, Pinterest, Google Meu
+1. ~~observar por pelo menos um ciclo operacional adicional o Facebook Três
+   Lagoas já no V112~~ — concluído (canário 1);
+2. ~~fazer um segundo post Facebook controlado e verificar post, integração,
+   `Errors` e histórico Temporal~~ — concluído (canário 2);
+3. ~~selecionar um Instagram saudável conectado via Facebook Login para o
+   próximo canário e repetir a inspeção de segredos~~ — concluído (canário 3);
+4. **pendente:** um segundo agendamento real no Instagram, para que o critério
+   de encerramento da seção 9 ("mais de um agendamento") valha também para esse
+   provider;
+5. testar separadamente Instagram Standalone, LinkedIn, Pinterest, Google Meu
    Negócio e WordPress quando houver contas reais disponíveis;
-5. só depois considerar o gate por provider;
-6. deixar o gate global para o final e manter rollback pela remoção dos gates de
+6. só depois considerar o gate por provider. Com Facebook e Instagram fechados,
+   a troca natural é de `POST_WORKFLOW_V112_INTEGRATION_IDS` para
+   `POST_WORKFLOW_V112_PROVIDERS=facebook,instagram`, que passa a valer para
+   todos os perfis desses providers e não só para o Três Lagoas;
+7. deixar o gate global para o final e manter rollback pela remoção dos gates de
    novas execuções, sem terminar em massa workflows já iniciados.
+
+Operacional do gate, verificado no código em 07/09/2026:
+
+- `POST_WORKFLOW_V112_INTEGRATION_IDS` é CSV com `trim`, avaliado em
+  `selectPostWorkflowVersion` (`libraries/nestjs-libraries/src/temporal/post-workflow-version.ts`);
+- o gate é lido quando o workflow é **iniciado**, e o workflow é iniciado quando
+  o post é salvo/agendado (`posts.service.ts`, `startWorkflow`), não na hora de
+  publicar. Trocar a variável depois de agendar não muda a versão de um workflow
+  que já está esperando no timer;
+- cada canal é uma `Integration` própria: o id do Facebook não cobre o Instagram
+  do mesmo perfil;
+- a fila é `providerIdentifier.split('-')[0].toLowerCase()` e os workers das
+  filas de provider são criados automaticamente em `temporal.module.ts`. Não é
+  preciso criar worker nem mexer em `EXCLUDE_QUEUE` para habilitar um provider.
 
 ## 6. Triagem cirúrgica do Postiz — estado consolidado
 
@@ -397,10 +436,12 @@ read-only até o estado estar documentado.
 
 Esta frente só estará concluída quando:
 
-- a correção de `Post.error` estiver revisada, mesclada e, se necessário,
-  presente numa prerelease;
+- ~~a correção de `Post.error` estiver revisada, mesclada e, se necessário,
+  presente numa prerelease~~ — concluído: PR #240 mesclada e `v0.5.6-rc.12`
+  implantada;
 - Facebook e Instagram passarem por mais de um agendamento real no V112 sem
-  duplicidade, vazamento de credencial ou desconexão indevida;
+  duplicidade, vazamento de credencial ou desconexão indevida — Facebook com
+  dois agendamentos, Instagram com um; falta o segundo do Instagram;
 - cada expansão de provider tiver smoke real registrado;
 - uma eventual nova queda Meta tiver evidência coletada antes da reconexão e
   causa classificada entre token humano morto, falha do System User/BM, erro do
