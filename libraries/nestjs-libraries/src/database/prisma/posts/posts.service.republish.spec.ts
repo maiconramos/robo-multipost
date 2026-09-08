@@ -163,9 +163,14 @@ describe('PostsService - republicacao explicita', () => {
     expect(repository.createOrUpdatePost).not.toHaveBeenCalled();
   });
 
-  it('rejeita id de post inexistente antes do upsert', async () => {
+  it('rejeita id que existe fora da organizacao antes do upsert', async () => {
     const { service, repository } = buildService();
-    repository.getPostById.mockResolvedValue(null);
+    // Escopado na org: nao encontra. Sem escopo: existe. E tentativa de
+    // sequestrar o post de outra organizacao pelo `where: { id }` do upsert.
+    repository.getPostById.mockImplementation(((id: string, org?: string) =>
+      Promise.resolve(
+        org ? null : ({ ...publishedPost, organizationId: 'org-2' } as any)
+      )) as any);
 
     await expect(
       service.createPost(
@@ -176,6 +181,17 @@ describe('PostsService - republicacao explicita', () => {
     ).rejects.toThrow('Post not found');
 
     expect(repository.createOrUpdatePost).not.toHaveBeenCalled();
+  });
+
+  it('aceita id novo gerado no cliente para um post que ainda nao existe', async () => {
+    const { service, repository } = buildService();
+    // A UI gera `value[].id` com makeId(10) antes de salvar; o upsert cria o
+    // post com esse id. Nao existe em lugar nenhum, entao nao e sequestro.
+    repository.getPostById.mockResolvedValue(null);
+
+    await service.createPost('org-1', makeBody() as any, 'profile-1');
+
+    expect(repository.createOrUpdatePost).toHaveBeenCalledTimes(1);
   });
 
   it('nao bloqueia o agendamento de um post que ainda esta na fila', async () => {

@@ -814,7 +814,20 @@ export class PostsService {
         orgId
       );
       if (!existingPost) {
-        throw new BadRequestException('Post not found');
+        // `value[].id` nao e necessariamente um post existente: a UI gera o id
+        // com `makeId(10)` antes de salvar e o upsert cria a linha com ele.
+        // So e sequestro quando o id ja existe fora desta organizacao, porque
+        // ai o `where: { id }` do upsert alcancaria o post alheio. Um id que
+        // nao existe em lugar nenhum e simplesmente um post novo.
+        const foreignPost = await this._postRepository.getPostById(
+          existingPostId
+        );
+        if (foreignPost) {
+          // Mesma mensagem do caso inexistente, de proposito: nao confirmar a
+          // existencia de um post de outra organizacao.
+          throw new BadRequestException('Post not found');
+        }
+        continue;
       }
       if (
         profileId &&
