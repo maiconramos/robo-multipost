@@ -57,7 +57,7 @@
     "@copilotkit/runtime": "1.10.6",
     "@dub/analytics": "^0.0.32",
     "@hookform/resolvers": "^3.3.4",
-    "@langchain/community": "^0.3.40",
+    "@langchain/community": "^1.1.29",
     "@langchain/core": "^0.3.44",
     "@langchain/langgraph": "^0.2.63",
     "@langchain/openai": "^0.5.5",
@@ -75,7 +75,7 @@
     "@nest-lab/throttler-storage-redis": "^1.2.0",
     "@nestjs/cli": "^11.0.21",
     "@nestjs/common": "^11.2.7",
-    "@nestjs/core": "^11.2.7",
+    "@nestjs/core": "^12.0.0",
     "@nestjs/microservices": "^11.2.7",
     "@nestjs/platform-express": "^11.2.7",
     "@nestjs/schedule": "^6.1.3",
@@ -149,7 +149,7 @@
     "@uppy/xhr-upload": "^4.3.3",
     "@zernio/node": "^0.2.80",
     "accept-language": "^3.0.20",
-    "ai": "^5.0.60",
+    "ai": "^7.0.153",
     "array-move": "^4.0.0",
     "async-mutex": "^0.5.0",
     "axios": "^1.19.0",
@@ -256,13 +256,13 @@
     "undici": "^7.30.1",
     "use-debounce": "^10.0.0",
     "utf-8-validate": "^5.0.10",
-    "uuid": "^10.0.0",
+    "uuid": "^14.0.0",
     "viem": "^2.22.9",
     "webextension-polyfill": "^0.12.0",
     "ws": "^8.21.0",
     "yargs": "^17.7.2",
     "yup": "^1.4.0",
-    "zod": "^3.25.76",
+    "zod": "^4.6.6",
     "zustand": "^5.0.5"
   },
   "devDependencies": {
@@ -320,7 +320,7 @@
     "typescript": "5.5.4",
     "vite": "^8.2.4",
     "vite-tsconfig-paths": "^5.1.4",
-    "vitest": "^3.2.6"
+    "vitest": "^5.0.5"
   },
   "volta": {
     "node": "22.23.4"
