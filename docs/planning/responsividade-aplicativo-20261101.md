@@ -19,6 +19,15 @@ Preservar arquivos locais e criar backup privado do banco antes de atualizar. O 
 
 ## Evidências do porte
 
-25 testes Vitest aprovados, incluindo as regressões de fuso/compositor existentes e novos testes de painel, preferência de calendário, notificações e limpeza de cliente. Browser com componentes reais e API sintética em 390/768/1440 px: calendário, menu/canais/filtros, teclado, troca de tema, notificações, configurações e restrições do Visualizador. Sem erros de página nem rolagem horizontal do documento nesses cenários. Semana/mês mantêm rolagem no calendário. Nenhum post publicado nem configuração de conta alterada na validação.
+27 testes Vitest aprovados, incluindo as regressões de fuso/compositor existentes e novos testes de painel, preferência de calendário, notificações e limpeza de cliente. Browser com componentes reais e API sintética em 390/768/1440 px: calendário, menu/canais/filtros, teclado, troca de tema, notificações, configurações e restrições do Visualizador. Sem erros de página nem rolagem horizontal do documento nesses cenários. Semana/mês mantêm rolagem no calendário. Nenhum post publicado nem configuração de conta alterada na validação.
 
 Na composição local, os diretórios `dist` do backend e orchestrator são montados do host; portanto, atualizar somente a imagem não atualiza esses serviços. A instalação recompila ambos com as novas dependências, mantendo o cliente/dependências Linux dentro da imagem. O backup e a conferência de dados antecedem a troca do app.
+
+
+## Resultado local
+
+Instalação local atualizada com o novo compositor e o porte responsivo. Backup privado do PostgreSQL criado e verificado antes da sincronização guardada; contagens e hashes das colunas originais de oito tabelas de negócio coincidiram depois do schema e da subida do app (96 posts, 16 canais e 4 perfis preservados). Backend, orchestrator e workers responderam saudáveis. O Temporal local apresentou falha SQLite anterior à subida do app: feito backup do volume parado, verificação de integridade aprovada e reinício do mesmo serviço/volume, sem recriar banco ou namespace.
+
+No Chrome autenticado, verificados menu móvel e novo compositor, incluindo seleção de canais, prévia e configurações, sem salvar/publicar conteúdo. A inspeção também encontrou o SDK CopilotKit tentando a rota REST `/info`, inexistente no backend do fork. Os três consumidores (layout, agentes e preview) passam pelo provider compartilhado em modo de endpoint único, preservando credenciais, thread, agente e propriedades. Teste com o SDK real confirma metadados via POST nos endpoints existentes `/copilot/chat` e `/copilot/agent`, sem chamada ao modelo. Build de produção do frontend aprovado.
+
+Não houve atualização da VPS. Arquivos locais, volumes, túnel, ambiente, imagem anterior e backups foram preservados.
