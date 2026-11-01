@@ -4,7 +4,10 @@ import { FC, useCallback, useState } from 'react';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import useSWR from 'swr';
 import { useToaster } from '@gitroom/react/toaster/toaster';
-import { useDecisionModal, useModals } from '@gitroom/frontend/components/layout/new-modal';
+import {
+  useDecisionModal,
+  useModals,
+} from '@gitroom/frontend/components/layout/new-modal';
 import { MediaBox } from '@gitroom/frontend/components/media/media.component';
 import copy from 'copy-to-clipboard';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
@@ -26,13 +29,7 @@ const useOAuthApp = () => {
   });
 };
 
-const CopyButton = ({
-  text,
-  label,
-}: {
-  text: string;
-  label: string;
-}) => {
+const CopyButton = ({ text, label }: { text: string; label: string }) => {
   const toaster = useToaster();
   return (
     <button
@@ -88,13 +85,16 @@ export const DeveloperComponent: FC = () => {
     setEditing(true);
   }, [app]);
 
-  const changeMedia = useCallback((selected: { id: string; path: string }[]) => {
-    const media = Array.isArray(selected) ? selected[0] : selected;
-    if (media) {
-      setPictureId(media.id);
-      setPicturePath(media.path);
-    }
-  }, []);
+  const changeMedia = useCallback(
+    (selected: { id: string; path: string }[]) => {
+      const media = Array.isArray(selected) ? selected[0] : selected;
+      if (media) {
+        setPictureId(media.id);
+        setPicturePath(media.path);
+      }
+    },
+    []
+  );
 
   const openMedia = useCallback(() => {
     modals.openModal({
@@ -105,10 +105,7 @@ export const DeveloperComponent: FC = () => {
       size: 'calc(100% - 80px)',
       height: 'calc(100% - 80px)',
       children: (close: () => void) => (
-        <MediaBox
-          setMedia={changeMedia}
-          closeModal={close}
-        />
+        <MediaBox setMedia={changeMedia} closeModal={close} />
       ),
     });
   }, [modals, t, changeMedia]);
@@ -229,7 +226,7 @@ export const DeveloperComponent: FC = () => {
           )}
         </div>
         <div className="bg-newBgColorInner rounded-[12px] border border-newBorder overflow-hidden">
-          <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+          <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
             <div>
               <div className="text-[15px] font-[600]">
                 {t('oauth_application', 'OAuth Application')}
@@ -241,13 +238,26 @@ export const DeveloperComponent: FC = () => {
                 )}
               </div>
             </div>
-            <div className="flex gap-[6px] shrink-0 pt-[2px]">
+            <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
               <a
                 className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
                 href="https://docs.postiz.com/public-api/oauth"
                 target="_blank"
               >
-                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+                <svg
+                  width="13"
+                  height="13"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                  <polyline points="15 3 21 3 21 9" />
+                  <line x1="10" y1="14" x2="21" y2="3" />
+                </svg>
                 {t('read_the_docs', 'Docs')}
               </a>
             </div>
@@ -293,7 +303,7 @@ export const DeveloperComponent: FC = () => {
               )}
             </div>
           </div>
-          <div className="p-[20px] flex flex-col gap-[16px]">
+          <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
             <div className="flex flex-col gap-[6px]">
               <label className="text-[13px] font-[600] text-customColor18">
                 {t('app_name', 'App Name')} *
@@ -354,7 +364,7 @@ export const DeveloperComponent: FC = () => {
                 placeholder="https://yourapp.com/callback"
               />
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={createApp}
@@ -392,7 +402,7 @@ export const DeveloperComponent: FC = () => {
       </div>
       {/* App details / edit */}
       <div className="bg-newBgColorInner rounded-[12px] border border-newBorder overflow-hidden">
-        <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+        <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
           <div>
             <div className="text-[15px] font-[600]">
               {t('oauth_application', 'OAuth Application')}
@@ -404,20 +414,33 @@ export const DeveloperComponent: FC = () => {
               )}
             </div>
           </div>
-          <div className="flex gap-[6px] shrink-0 pt-[2px]">
+          <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
             <a
               className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
               href="https://docs.postiz.com/public-api/oauth"
               target="_blank"
             >
-              <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" /><polyline points="15 3 21 3 21 9" /><line x1="10" y1="14" x2="21" y2="3" /></svg>
+              <svg
+                width="13"
+                height="13"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6" />
+                <polyline points="15 3 21 3 21 9" />
+                <line x1="10" y1="14" x2="21" y2="3" />
+              </svg>
               {t('read_the_docs', 'Docs')}
             </a>
           </div>
         </div>
 
         {editing ? (
-          <div className="p-[20px] flex flex-col gap-[16px]">
+          <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
             <div className="flex flex-col gap-[6px]">
               <label className="text-[13px] font-[600] text-customColor18">
                 {t('app_name', 'App Name')} *
@@ -478,7 +501,7 @@ export const DeveloperComponent: FC = () => {
                 placeholder="https://yourapp.com/callback"
               />
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={updateApp}
@@ -496,7 +519,7 @@ export const DeveloperComponent: FC = () => {
             </div>
           </div>
         ) : (
-          <div className="p-[20px] flex flex-col gap-[16px]">
+          <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
             <div className="flex items-center gap-[12px]">
               {app.picture?.path ? (
                 <img
@@ -522,15 +545,27 @@ export const DeveloperComponent: FC = () => {
               <div className="text-[13px] font-[600] text-customColor18">
                 {t('redirect_url', 'Redirect URL')}
               </div>
-              <div className="text-[14px]">{app.redirectUrl}</div>
+              <div className="text-[14px] break-all">{app.redirectUrl}</div>
             </div>
-            <div className="flex gap-[8px]">
+            <div className="flex flex-wrap gap-[8px]">
               <button
                 type="button"
                 onClick={startEditing}
                 className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
               >
-                <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" /><path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" /></svg>
+                <svg
+                  width="14"
+                  height="14"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7" />
+                  <path d="M18.5 2.5a2.121 2.121 0 013 3L12 15l-4 1 1-4 9.5-9.5z" />
+                </svg>
                 {t('edit_app', 'Edit App')}
               </button>
             </div>
@@ -545,20 +580,22 @@ export const DeveloperComponent: FC = () => {
             {t('credentials', 'Credentials')}
           </div>
         </div>
-        <div className="p-[20px] flex flex-col gap-[16px]">
+        <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
           <div className="flex flex-col gap-[6px]">
             <div className="text-[13px] font-[600] text-customColor18">
               {t('client_id', 'Client ID')}
             </div>
             <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
-              <code className="text-[14px] flex-1 truncate">{app.clientId}</code>
+              <code className="text-[14px] flex-1 truncate">
+                {app.clientId}
+              </code>
             </div>
           </div>
           <div className="flex flex-col gap-[6px]">
             <div className="text-[13px] font-[600] text-customColor18">
               {t('client_secret', 'Client Secret')}
             </div>
-            <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
+            <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] mobile:h-auto mobile:min-h-[44px] mobile:py-[10px] flex items-center overflow-hidden">
               {plaintextSecret ? (
                 <code className="text-[14px] flex-1 truncate">
                   {plaintextSecret}
@@ -573,7 +610,7 @@ export const DeveloperComponent: FC = () => {
               )}
             </div>
           </div>
-          <div className="flex gap-[8px]">
+          <div className="flex flex-wrap gap-[8px]">
             <CopyButton text={app.clientId} label={t('copy_id', 'Copy ID')} />
             {plaintextSecret && (
               <CopyButton
@@ -586,7 +623,19 @@ export const DeveloperComponent: FC = () => {
               onClick={rotateSecret}
               className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M21.5 2v6h-6" /><path d="M21.34 15.57a10 10 0 11-.57-8.38L21.5 8" /></svg>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <path d="M21.5 2v6h-6" />
+                <path d="M21.34 15.57a10 10 0 11-.57-8.38L21.5 8" />
+              </svg>
               {t('rotate_secret', 'Rotate Secret')}
             </button>
             <button
@@ -594,7 +643,19 @@ export const DeveloperComponent: FC = () => {
               onClick={deleteApp}
               className="cursor-pointer px-[16px] h-[36px] bg-red-600 hover:bg-red-700 text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
             >
-              <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><polyline points="3 6 5 6 21 6" /><path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" /></svg>
+              <svg
+                width="14"
+                height="14"
+                viewBox="0 0 24 24"
+                fill="none"
+                stroke="currentColor"
+                strokeWidth="2"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              >
+                <polyline points="3 6 5 6 21 6" />
+                <path d="M19 6v14a2 2 0 01-2 2H7a2 2 0 01-2-2V6m3 0V4a2 2 0 012-2h4a2 2 0 012 2v2" />
+              </svg>
               {t('delete_app', 'Delete App')}
             </button>
           </div>

@@ -24,13 +24,10 @@ const ThirdPartyMediaLibraryBrowser: FC<{
 
   const loadMedia = useCallback(async () => {
     return (
-      await fetch(
-        `/third-party/function/${integration.id}/listMedia`,
-        {
-          body: JSON.stringify({ page: page + 1 }),
-          method: 'POST',
-        }
-      )
+      await fetch(`/third-party/function/${integration.id}/listMedia`, {
+        body: JSON.stringify({ page: page + 1 }),
+        method: 'POST',
+      })
     ).json();
   }, [integration.id, page]);
 
@@ -91,7 +88,7 @@ const ThirdPartyMediaLibraryBrowser: FC<{
       <div className="flex-1 relative">
         <div className="absolute left-0 top-0 w-full h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-newColColor scrollbar-track-newBgColorInner">
           {isLoading && (
-            <div className="grid grid-cols-4 gap-[8px]">
+            <div className="grid grid-cols-4 mobile:grid-cols-3 gap-[8px]">
               {[...new Array(8)].map((_, i) => (
                 <div
                   key={i}
@@ -106,7 +103,7 @@ const ThirdPartyMediaLibraryBrowser: FC<{
             </div>
           )}
           {!isLoading && !!data?.results?.length && (
-            <div className="grid grid-cols-4 gap-[8px]">
+            <div className="grid grid-cols-4 mobile:grid-cols-3 gap-[8px]">
               {data.results.map((item: any) => {
                 const isSelected = !!selected.find((s) => s.id === item.id);
                 return (
@@ -118,9 +115,7 @@ const ThirdPartyMediaLibraryBrowser: FC<{
                     <div
                       className={clsx(
                         'w-full h-full border-[4px] rounded-[6px]',
-                        isSelected
-                          ? 'border-[#612BD3]'
-                          : 'border-transparent'
+                        isSelected ? 'border-[#612BD3]' : 'border-transparent'
                       )}
                     >
                       {item.type === 'video' ? (
@@ -151,11 +146,7 @@ const ThirdPartyMediaLibraryBrowser: FC<{
         </div>
       </div>
       {(data?.pages || 0) > 1 && (
-        <Pagination
-          current={page}
-          totalPages={data?.pages}
-          setPage={setPage}
-        />
+        <Pagination current={page} totalPages={data?.pages} setPage={setPage} />
       )}
       <div className="flex justify-end gap-[8px]">
         <button

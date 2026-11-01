@@ -2977,5 +2977,13 @@
   "x_article_cover": "Article cover",
   "x_article_cover_hint": "Optional cover, separate from images in the article body.",
   "x_article_requirements": "Requires article access on the X account and app. Saving a draft sends it to X without publishing; draft articles cannot have replies.",
-  "x_article_invalid": "Check the article title, images, text limits and remove replies from draft articles."
+  "x_article_invalid": "Check the article title, images, text limits and remove replies from draft articles.",
+  "navigation": "Navigation",
+  "open_menu": "Open menu",
+  "select_profile": "Select profile",
+  "notifications_retry": "Could not load notifications. Try again.",
+  "all_customers": "All customers",
+  "switch_theme": "Switch theme",
+  "filters": "Filters",
+  "list": "List"
 }

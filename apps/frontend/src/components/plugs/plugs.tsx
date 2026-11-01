@@ -123,12 +123,12 @@ export const Plugs = () => {
     <>
       <div
         className={clsx(
-          'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all',
+          'bg-newBgColorInner p-[20px] mobile:p-[12px] flex flex-col gap-[15px] transition-all mobile:w-full mobile:max-w-full',
           collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
         )}
       >
         <div className="flex gap-[12px] flex-col">
-          <div className="flex items-center">
+          <div className="flex items-center mobile:hidden">
             <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
               {t('channels')}
             </h2>
@@ -153,72 +153,78 @@ export const Plugs = () => {
               </svg>
             </div>
           </div>
-          {sortedIntegrations.map((integration, index) => (
-            <div
-              key={integration.id}
-              onClick={() => {
-                if (integration.refreshNeeded) {
-                  toaster.show(
-                    t('please_refresh_integration', 'Please refresh the integration from the calendar'),
-                    'warning'
-                  );
-                  return;
-                }
-                setRefresh(true);
-                setTimeout(() => {
-                  setRefresh(false);
-                }, 10);
-                setCurrent(index);
-              }}
-              className={clsx(
-                'flex gap-[8px] items-center justify-center group/profile hover:bg-boxHover rounded-e-[8px]',
-                currentIntegration.id !== integration.id &&
-                  'opacity-20 hover:opacity-100 cursor-pointer'
-              )}
-            >
+          <div className="flex flex-col mobile:flex-row gap-[12px] mobile:overflow-x-auto mobile:pb-[8px]">
+            {sortedIntegrations.map((integration, index) => (
               <div
+                key={integration.id}
+                onClick={() => {
+                  if (integration.refreshNeeded) {
+                    toaster.show(
+                      t(
+                        'please_refresh_integration',
+                        'Please refresh the integration from the calendar'
+                      ),
+                      'warning'
+                    );
+                    return;
+                  }
+                  setRefresh(true);
+                  setTimeout(() => {
+                    setRefresh(false);
+                  }, 10);
+                  setCurrent(index);
+                }}
                 className={clsx(
-                  'relative rounded-full flex justify-center items-center gap-[8px]',
-                  integration.disabled && 'opacity-50'
+                  'flex gap-[8px] items-center justify-center mobile:shrink-0 group/profile hover:bg-boxHover rounded-e-[8px]',
+                  currentIntegration.id !== integration.id &&
+                    'opacity-20 hover:opacity-100 cursor-pointer'
                 )}
               >
-                {(integration.inBetweenSteps || integration.refreshNeeded) && (
-                  <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
-                    <div className="bg-red-500 w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
-                      !
+                <div
+                  className={clsx(
+                    'relative rounded-full flex justify-center items-center gap-[8px]',
+                    integration.disabled && 'opacity-50'
+                  )}
+                >
+                  {(integration.inBetweenSteps ||
+                    integration.refreshNeeded) && (
+                    <div className="absolute start-0 top-0 w-[39px] h-[46px] cursor-pointer">
+                      <div className="bg-red-500 w-[15px] h-[15px] rounded-full start-0 -top-[5px] absolute z-[200] text-[10px] flex justify-center items-center">
+                        !
+                      </div>
+                      <div className="bg-primary/60 w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
                     </div>
-                    <div className="bg-primary/60 w-[39px] h-[46px] start-0 top-0 absolute rounded-full z-[199]" />
+                  )}
+                  <div className="h-full w-[4px] -ms-[12px] rounded-s-[3px] opacity-0 group-hover/profile:opacity-100 transition-opacity">
+                    <SVGLine />
                   </div>
-                )}
-                <div className="h-full w-[4px] -ms-[12px] rounded-s-[3px] opacity-0 group-hover/profile:opacity-100 transition-opacity">
-                  <SVGLine />
+                  <ImageWithFallback
+                    fallbackSrc={getPlatformIconPath(integration.identifier)}
+                    src={integration.picture}
+                    className="rounded-[8px]"
+                    alt={integration.identifier}
+                    width={36}
+                    height={36}
+                  />
+                  <SafeImage
+                    src={getPlatformIconPath(integration.identifier)}
+                    className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
+                    alt={integration.identifier}
+                    width={18.41}
+                    height={18.41}
+                  />
                 </div>
-                <ImageWithFallback
-                  fallbackSrc={getPlatformIconPath(integration.identifier)}
-                  src={integration.picture}
-                  className="rounded-[8px]"
-                  alt={integration.identifier}
-                  width={36}
-                  height={36}
-                />
-                <SafeImage
-                  src={getPlatformIconPath(integration.identifier)}
-                  className="rounded-[8px] absolute z-10 bottom-[5px] -end-[5px] border border-fifth"
-                  alt={integration.identifier}
-                  width={18.41}
-                  height={18.41}
-                />
+                <div
+                  className={clsx(
+                    'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden mobile:hidden',
+                    integration.disabled && 'opacity-50'
+                  )}
+                >
+                  {integration.name}
+                </div>
               </div>
-              <div
-                className={clsx(
-                  'flex-1 whitespace-nowrap text-ellipsis overflow-hidden group-[.sidebar]:hidden',
-                  integration.disabled && 'opacity-50'
-                )}
-              >
-                {integration.name}
-              </div>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
       </div>
       <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">

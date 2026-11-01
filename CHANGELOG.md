@@ -7,6 +7,13 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Melhorado — navegação e telas no celular
+
+- Portada a responsividade do Postiz para navegação, canais, filtros do calendário, configurações, notificações e ajustes de largura nas demais telas. Menu e canais abrem em painéis com fechamento por Escape/fundo/rota e foco controlado; organização, perfil, idioma e tema ficam acessíveis por toque e teclado.
+- Calendário novo no celular começa no dia, respeitando a preferência explícita na URL/cookie. Semana e mês preservam os cartões completos com rolagem interna. Filtros de cliente/canal têm seleção pelo teclado e permitem voltar a todos os clientes. Permissões de Visualizador e administração por perfil permanecem preservadas.
+- Configurações têm abas horizontais e seletores empilhados no celular; notificações cabem no viewport e permitem tentar novamente quando a consulta falha. Novo compositor, fuso IANA, sanitização e funcionalidades do fork preservados.
+- Assistentes do compositor, agentes e prévias usam explicitamente o transporte de endpoint único compatível com o backend, preservando cookies de sessão. Evita a tentativa inicial de buscar metadados na rota REST `/info` indisponível no porte, detectada na validação local com subdomínio de API separado.
+
 ### Corrigido — atualização desde a série 0.5
 
 - Sincronização do banco aceita o acréscimo exato dos cinco formatos de repost adicionados durante a série 0.5, incluindo `FACEBOOK_STORY` para bancos anteriores à 0.5.3. Outras alterações de enum e operações destrutivas continuam bloqueadas. Prova local descartável cobre os schemas distintos das tags 0.5, com dados existentes, inicialização do Mastra e boots repetidos.
