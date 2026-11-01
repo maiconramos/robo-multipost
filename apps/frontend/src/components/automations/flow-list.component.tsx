@@ -219,10 +219,7 @@ export const FlowListComponent: FC = () => {
               'Comments on posts not monitored (ad dark posts)'
             )}
           >
-            {t(
-              'shared_instagram_logs',
-              'Comentários sem automação · Instagram'
-            )}
+            {t('shared_logs', 'Log')}
           </button>
           <button
             onClick={() => setShowNovaModal(true)}
