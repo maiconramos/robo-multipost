@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Corrigido — nome do log de automações
+
+- Botão de acesso aos comentários sem automação passa a se chamar “Log”. Rota, filtros e comportamento preservados.
+
 ### Melhorado — navegação e telas no celular
 
 - Portada a responsividade do Postiz para navegação, canais, filtros do calendário, configurações, notificações e ajustes de largura nas demais telas. Menu e canais abrem em painéis com fechamento por Escape/fundo/rota e foco controlado; organização, perfil, idioma e tema ficam acessíveis por toque e teclado.

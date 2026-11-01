@@ -2122,7 +2122,7 @@
   "shared_instagram_advanced_hint": "Instagram-only flows with follow requests, button clicks and conversation follow-ups.",
   "shared_open_instagram_advanced": "Create an advanced Instagram flow",
   "shared_list_description": "Manage automatic replies across your channels.",
-  "shared_instagram_logs": "Instagram logs",
+  "shared_logs": "Log",
   "shared_list_partial_error": "Some automations could not be loaded. The others remain available.",
   "shared_archive": "Archive",
   "shared_archive_confirm": "Archive this automation? It will stop responding to new interactions. The history will be preserved.",
