@@ -65,18 +65,18 @@ const ShortlinkPreferenceComponent = () => {
 
   if (isLoading) {
     return (
-      <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px]">
+      <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px] mobile:p-[16px]">
         <div className="animate-pulse">{t('loading', 'Loading...')}</div>
       </div>
     );
   }
 
   return (
-    <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px] flex flex-col gap-[24px]">
+    <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px] mobile:p-[16px] flex flex-col gap-[24px]">
       <div className="mt-[4px]">
         {t('shortlink_settings', 'Shortlink Settings')}
       </div>
-      <div className="flex items-center justify-between gap-[24px]">
+      <div className="flex items-center justify-between gap-[24px] mobile:flex-col mobile:items-stretch mobile:gap-[12px]">
         <div className="flex flex-col flex-1">
           <div className="text-[14px]">
             {t('shortlink_preference', 'Shortlink Preference')}
@@ -88,7 +88,7 @@ const ShortlinkPreferenceComponent = () => {
             )}
           </div>
         </div>
-        <div className="w-[200px]">
+        <div className="w-[200px] mobile:w-full">
           <Select
             name="shortlink"
             label=""

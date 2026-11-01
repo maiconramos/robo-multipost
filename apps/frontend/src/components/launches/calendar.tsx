@@ -400,14 +400,14 @@ export const DayView = () => {
       <div className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
         {visibleOptions.map((option) => (
           <Fragment key={option[0].time}>
-            <div className="text-center text-[14px] min-h-[21px]">
+            <div className="text-center text-[14px] min-h-[21px] shrink-0">
               {calendarSlotDate(startDate, option[0].time)!.format(
                 isUSCitizen() ? 'hh:mm A' : 'LT'
               )}
             </div>
             <div
               key={option[0].time}
-              className="min-h-[60px] rounded-[10px] flex justify-center items-center gap-[10px] mb-[20px]"
+              className="min-h-[60px] shrink-0 rounded-[10px] flex justify-center items-center gap-[10px] mb-[20px]"
             >
               <CalendarContext.Provider
                 value={{
@@ -451,7 +451,7 @@ export const WeekView = () => {
   return (
     <div className="flex flex-col text-textColor flex-1">
       <div className="flex-1 relative">
-        <div className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
+        <div className="grid [grid-template-columns:136px_repeat(7,_minmax(0,_1fr))] tablet:[grid-template-columns:72px_repeat(7,_minmax(100px,_1fr))] gap-[4px] rounded-[10px] absolute h-full start-0 top-0 w-full overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
           <div className="z-10 bg-newTableHeader flex justify-center items-center flex-col h-[62px] rounded-[8px] sticky top-0"></div>
           {localizedDays.map((day, index) => (
             <div
@@ -550,7 +550,7 @@ export const MonthView = () => {
   return (
     <div className="flex flex-col text-textColor flex-1">
       <div className="flex-1 flex relative">
-        <div className="grid grid-cols-7 grid-rows-[62px_auto] gap-[4px] rounded-[10px] absolute start-0 top-0 overflow-auto w-full h-full scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary">
+        <div className="grid grid-cols-7 tablet:[grid-template-columns:repeat(7,_minmax(100px,_1fr))] grid-rows-[62px_auto] gap-[4px] rounded-[10px] absolute start-0 top-0 overflow-auto w-full h-full scrollbar scrollbar-thumb-tableBorder scrollbar-track-secondary">
           {localizedDays.map((day) => (
             <div
               key={day}
@@ -626,7 +626,7 @@ export const ListView = () => {
       <div className="absolute start-0 top-0 w-full h-full flex flex-col overflow-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor">
         {groupedPosts.map(([dateKey, datePosts]) => (
           <Fragment key={dateKey}>
-            <div className="text-center text-[14px] min-h-[21px] text-textColor font-[500] mt-[10px]">
+            <div className="text-center text-[14px] min-h-[21px] shrink-0 text-textColor font-[500] mt-[10px]">
               {newDayjs(dateKey).format(
                 isUSCitizen() ? 'dddd, MMMM D, YYYY' : 'dddd, D MMMM YYYY'
               )}

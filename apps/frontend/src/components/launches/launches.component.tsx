@@ -31,6 +31,8 @@ import { useIntegrationList } from '@gitroom/frontend/components/launches/helper
 import { PlatformIconBadge } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
 import useCookie from 'react-use-cookie';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
+import { ResponsiveDrawer } from '@gitroom/frontend/components/ui/responsive.drawer';
+import { usePathname } from 'next/navigation';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useOpenWeb3 } from '@gitroom/frontend/components/launches/web3/use.open.web3';
 import { Input } from '@gitroom/react/form/input';
@@ -450,6 +452,7 @@ export const MenuComponent: FC<
   );
 };
 export const LaunchesComponent = () => {
+  const pathname = usePathname();
   const fetch = useFetch();
   const user = useUser();
   const { canWrite } = useProfilePermissions();
@@ -463,6 +466,7 @@ export const LaunchesComponent = () => {
   const openWeb3 = useOpenWeb3();
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
+  const [channelsOpen, setChannelsOpen] = useState(false);
   const [mode] = useCookie('mode', 'dark');
   const { isLoading, data: integrations, mutate } = useIntegrationList();
 
@@ -629,108 +633,178 @@ export const LaunchesComponent = () => {
     );
   }
 
-  // @ts-ignore
+  const channelSidebar = (
+    <div
+      className={clsx(
+        'flex relative flex-col',
+        collapseMenu === '1' && !channelsOpen
+          ? 'group sidebar w-[100px]'
+          : 'w-[260px]',
+        'mobile:w-full'
+      )}
+    >
+      <div
+        className={clsx(
+          'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all absolute start-0 top-0 w-full h-full mobile:static mobile:h-auto mobile:max-h-[80vh] mobile:pb-[4px] overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor'
+        )}
+      >
+        <div className="flex items-center mobile:hidden">
+          <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
+            {t('channels')}
+          </h2>
+          <div
+            onClick={() => setChannelsOpen(false)}
+            className="hidden mobile:flex text-btnText bg-btnSimple rounded-[6px] w-[28px] h-[28px] items-center justify-center cursor-pointer select-none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="12"
+              height="12"
+              viewBox="0 0 12 12"
+              fill="none"
+            >
+              <path
+                d="M1 1L11 11M11 1L1 11"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+              />
+            </svg>
+          </div>
+          <div
+            onClick={() => setCollapseMenu(collapseMenu === '1' ? '0' : '1')}
+            className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto mobile:hidden text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer select-none"
+          >
+            <svg
+              xmlns="http://www.w3.org/2000/svg"
+              width="7"
+              height="13"
+              viewBox="0 0 7 13"
+              fill="none"
+            >
+              <path
+                d="M6 11.5L1 6.5L6 1.5"
+                stroke="currentColor"
+                strokeWidth="1.5"
+                strokeLinecap="round"
+                strokeLinejoin="round"
+              />
+            </svg>
+          </div>
+        </div>
+        <div className="flex flex-col gap-[8px] group-[.sidebar]:mx-auto group-[.sidebar]:w-[44px]">
+          {canWrite && <AddProviderButton update={() => update(true)} />}
+          <div className="flex gap-[8px] group-[.sidebar]:flex-col mobile:hidden">
+            {canWrite && sortedIntegrations?.length > 0 && <NewPost />}
+            {canWrite &&
+              sortedIntegrations?.length > 0 &&
+              user?.tier?.ai &&
+              billingEnabled && <GeneratorComponent />}
+          </div>
+        </div>
+        <div className="gap-[32px] flex flex-col select-none flex-1">
+          {sortedIntegrations.length === 0 &&
+            (collapseMenu === '0' || channelsOpen) && (
+              <div className="flex-1 max-h-[500px] justify-center items-center flex">
+                <div className="flex flex-col gap-[12px] text-center">
+                  <img
+                    src={
+                      mode === 'dark'
+                        ? '/no-channels.svg'
+                        : '/no-channels-colors.svg'
+                    }
+                    alt="No channels"
+                    className="mx-auto min-w-[100%]"
+                  />
+                  <div className="font-[600] text-[20px]">
+                    {t('no_channels', 'No channels yet')}
+                  </div>
+                  <div className="text-[14px]">
+                    {t('connect_your_accounts')}
+                  </div>
+                </div>
+              </div>
+            )}
+          {menuIntegrations.map((menu) => (
+            <MenuGroupComponent
+              collapsed={collapseMenu === '1' && !channelsOpen}
+              changeItemGroup={changeItemGroup}
+              key={menu.name}
+              group={menu}
+              mutate={mutate}
+              continueIntegration={continueIntegration}
+              update={update}
+              refreshChannel={refreshChannel}
+              totalNonDisabledChannels={totalNonDisabledChannels}
+            />
+          ))}
+        </div>
+        <div className="mt-[5px] text-center flex flex-col mobile:hidden">
+          {billingEnabled && user?.isLifetime && (
+            <div>{capitalize(user?.tier?.current || '')} tier</div>
+          )}
+          <div>
+            {process.env.NEXT_PUBLIC_VERSION
+              ? process.env.NEXT_PUBLIC_VERSION
+              : ''}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+
   return (
     <DNDProvider>
       <Onboarding />
       <CalendarWeekProvider integrations={sortedIntegrations}>
-        <div
-          className={clsx(
-            'flex relative flex-col',
-            collapseMenu === '1' ? 'group sidebar w-[100px]' : 'w-[260px]'
-          )}
+        <div className="flex mobile:hidden">{channelSidebar}</div>
+        <ResponsiveDrawer
+          open={channelsOpen}
+          onClose={() => setChannelsOpen(false)}
+          title={t('channels', 'Channels')}
+          routeKey={pathname}
+          side="bottom"
         >
-          <div
-            className={clsx(
-              'bg-newBgColorInner p-[20px] flex flex-col gap-[15px] transition-all absolute start-0 top-0 w-full h-full overflow-x-hidden overflow-y-auto scrollbar scrollbar-thumb-fifth scrollbar-track-newBgColor'
-            )}
-          >
-            <div className="flex items-center">
-              <h2 className="group-[.sidebar]:hidden flex-1 text-[20px] font-[500]">
-                {t('channels')}
-              </h2>
-              <div
-                onClick={() =>
-                  setCollapseMenu(collapseMenu === '1' ? '0' : '1')
-                }
-                className="group-[.sidebar]:rotate-[180deg] group-[.sidebar]:mx-auto text-btnText bg-btnSimple rounded-[6px] w-[24px] h-[24px] flex items-center justify-center cursor-pointer select-none"
-              >
-                <svg
-                  xmlns="http://www.w3.org/2000/svg"
-                  width="7"
-                  height="13"
-                  viewBox="0 0 7 13"
-                  fill="none"
-                >
-                  <path
-                    d="M6 11.5L1 6.5L6 1.5"
-                    stroke="currentColor"
-                    strokeWidth="1.5"
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
+          {channelSidebar}
+        </ResponsiveDrawer>
+        <div className="bg-newBgColorInner flex-1 min-w-0 flex-col flex p-[20px] mobile:p-[12px] gap-[12px] mobile:min-h-[600px]">
+          <div className="hidden mobile:flex gap-[8px]">
+            <button
+              type="button"
+              aria-label={t('channels', 'Channels')}
+              aria-expanded={channelsOpen}
+              onClick={() => setChannelsOpen(true)}
+              className="cursor-pointer h-[44px] px-[12px] bg-btnSimple text-btnText rounded-[8px] flex items-center gap-[8px] select-none"
+            >
+              <div className="flex -space-x-[10px] rtl:space-x-reverse">
+                {sortedIntegrations.slice(0, 3).map((integration: any) => (
+                  <ImageWithFallback
+                    key={integration.id}
+                    fallbackSrc={`/icons/platforms/${integration.identifier}.png`}
+                    src={integration.picture}
+                    className="rounded-full border-2 border-btnSimple"
+                    alt={integration.identifier}
+                    width={24}
+                    height={24}
                   />
-                </svg>
+                ))}
               </div>
-            </div>
-            <div className="flex flex-col gap-[8px] group-[.sidebar]:mx-auto group-[.sidebar]:w-[44px]">
-              {canWrite && <AddProviderButton update={() => update(true)} />}
-              <div className="flex gap-[8px] group-[.sidebar]:flex-col">
-                {canWrite && sortedIntegrations?.length > 0 && <NewPost />}
-                {canWrite &&
-                  sortedIntegrations?.length > 0 &&
-                  user?.tier?.ai &&
-                  billingEnabled && <GeneratorComponent />}
+              <div className="text-[14px] font-[500]">
+                {sortedIntegrations.length || t('channels')}
               </div>
-            </div>
-            <div className="gap-[32px] flex flex-col select-none flex-1">
-              {sortedIntegrations.length === 0 && collapseMenu === '0' && (
-                <div className="flex-1 max-h-[500px] justify-center items-center flex">
-                  <div className="flex flex-col gap-[12px] text-center">
-                    <img
-                      src={
-                        mode === 'dark'
-                          ? '/no-channels.svg'
-                          : '/no-channels-colors.svg'
-                      }
-                      alt="No channels"
-                      className="mx-auto min-w-[100%]"
-                    />
-                    <div className="font-[600] text-[20px]">
-                      {t('no_channels', 'No channels yet')}
-                    </div>
-                    <div className="text-[14px]">
-                      {t('connect_your_accounts')}
-                    </div>
-                  </div>
+            </button>
+            {canWrite &&
+              (sortedIntegrations?.length > 0 ? (
+                <>
+                  <NewPost />
+                  {user?.tier?.ai && billingEnabled && <GeneratorComponent />}
+                </>
+              ) : (
+                <div className="flex-1">
+                  <AddProviderButton update={() => update(true)} />
                 </div>
-              )}
-              {menuIntegrations.map((menu) => (
-                <MenuGroupComponent
-                  collapsed={collapseMenu === '1'}
-                  changeItemGroup={changeItemGroup}
-                  key={menu.name}
-                  group={menu}
-                  mutate={mutate}
-                  continueIntegration={continueIntegration}
-                  update={update}
-                  refreshChannel={refreshChannel}
-                  totalNonDisabledChannels={totalNonDisabledChannels}
-                />
               ))}
-            </div>
-            <div className="mt-[5px] text-center flex flex-col">
-              {billingEnabled && user?.isLifetime && (
-                <div>{capitalize(user?.tier?.current || '')} tier</div>
-              )}
-              <div>
-                {process.env.NEXT_PUBLIC_VERSION
-                  ? process.env.NEXT_PUBLIC_VERSION
-                  : ''}
-              </div>
-            </div>
           </div>
-        </div>
-        <div className="bg-newBgColorInner flex-1 flex-col flex p-[20px] gap-[12px]">
           <Filters />
           <div className="flex-1 flex">
             <Calendar />
