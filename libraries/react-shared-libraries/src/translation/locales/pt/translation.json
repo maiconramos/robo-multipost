@@ -2983,5 +2983,7 @@
   "select_profile": "Selecionar perfil",
   "notifications_retry": "Não foi possível carregar as notificações. Tentar novamente.",
   "all_customers": "Todos os clientes",
-  "switch_theme": "Alternar tema"
+  "switch_theme": "Alternar tema",
+  "filters": "Filtros",
+  "list": "Lista"
 }

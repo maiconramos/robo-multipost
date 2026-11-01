@@ -2983,5 +2983,7 @@
   "select_profile": "Select profile",
   "notifications_retry": "Could not load notifications. Try again.",
   "all_customers": "All customers",
-  "switch_theme": "Switch theme"
+  "switch_theme": "Switch theme",
+  "filters": "Filters",
+  "list": "List"
 }
