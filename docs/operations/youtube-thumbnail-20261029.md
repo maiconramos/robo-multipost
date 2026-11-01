@@ -34,3 +34,24 @@ A [API thumbnails.set](https://developers.google.com/youtube/data/reference/rest
 - Node local 22.22.3, abaixo do mínimo 22.23.4 declarado pelo projeto; repetir os checks de release no runtime declarado. Lint mantém a limitação de configuração já diagnosticada nesta sessão.
 
 Para fechar o diagnóstico do incidente de produção ainda é necessário o link do vídeo ou post relatado. O conserto local não é confirmação de que a thumbnail de um vídeo já publicado foi alterada.
+
+
+## Avanço de quadros lento na RC.8 — 01/11/2026
+
+Investigação somente de leitura confirmou `0.7.0-rc.8` na VPS, com o digest publicado `5c962248…` e sem reinícios. Logs enviados pelo operador misturavam registros anteriores da RC.5 e falha OAuth de 31/10 com a inicialização atual de 01/11. O aviso de pgvector indisponível é separado da captura de quadros no navegador.
+
+A mesma mídia MP4 de 22.829.226 bytes devolveu `206`, `Content-Range: bytes 1024-2047/22829226` e 1.024 bytes quando acessada diretamente; o proxy `/api/public/stream` devolveu `200`, sem Content-Range, com tamanho do arquivo inteiro para a mesma requisição Range. O seletor usa esse proxy e mantém a captura desabilitada durante `seeking`; o operador confirmou que carregou após longa espera. O proxy anunciava Accept-Ranges mesmo sem encaminhar Range.
+
+Contrato da correção: aceitar somente um intervalo HTTP bytes válido (fechado, aberto ou sufixo), encaminhá-lo em cada redirect validado, preservar respostas 206 e 416 com seus cabeçalhos e não anunciar suporte inexistente quando a origem devolve 200. Rejeitar Range inválido/múltiplo antes do fetch. Manter validação SSRF, dispatcher com DNS pinado e cancelamento ao fechar o player; nunca encaminhar cookies ou credenciais da requisição. Não alterar Google OAuth, publicação, schema ou dados de posts.
+
+Validação exigida: regressões do controlador, respostas HTTP e navegador atravessando o proxy real com vídeo de quadros distintos. A prova antiga com API simulada não cobria o transporte real do vídeo.
+
+
+A revisão identificou ainda um risco pré-existente na mesma rota: ela podia servir HTML/SVG da origem com o Content-Type original sob o domínio da aplicação. A correção recusa tipos inesperados, permite os tipos MIME `video/mp4`, `application/mp4` e `application/octet-stream` (também quando ausente), normaliza a resposta para `video/mp4` e aplica `nosniff`/CSP com sandbox. Não executado payload ativo na VPS; regressão local usa corpos inertes e cobre recusa/cancelamento e cabeçalhos seguros.
+
+
+Resultado local: 24 testes do controlador aprovados, incluindo intervalos fechados/abertos/sufixo, 416, fallback 200, rejeição prévia de intervalos inválidos, redirects/abort e tipos de conteúdo; 17 regressões existentes de thumbnail aprovadas. Browser com o componente real e o controlador HTTP real, origem local controlada com MP4 de 19 MB e envio limitado: antes da correção, avanço para 19.999 ms ficou em seeking (readyState 1, só 0,329 s disponíveis) e excedeu o limite de 5 s; depois, requisitou os intervalos `bytes=0-` e `bytes=18874368-`, terminou o seek e capturou o JPEG azul correto (RGB 0/0/254), timestamp 19.999 ms, sem erros de página. A prova final repetiu a captura com MIME fixo, nosniff e CSP ativos. A substituição controlada da origem é exclusiva do fixture; não representa teste de SSRF real, coberto separadamente pelos guards e regressões.
+
+Rota/arquivo de teste temporários e AGENTS gerado pelo Next removidos após a prova. Nenhum conteúdo publicado no YouTube, nenhuma credencial alterada e nenhuma mudança aplicada à VPS durante este diagnóstico/correção.
+
+Build de produção do backend aprovado após a correção final. A validação completa em Node 22.23.4 e os três builds são conferidos no CI antes da nova imagem.

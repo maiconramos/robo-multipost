@@ -7,6 +7,14 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — conteúdo do proxy de vídeo
+
+- Proxy recusa respostas HTML/SVG e outros tipos inesperados, normaliza mídia MP4/binária para `video/mp4` e aplica `nosniff` e CSP com sandbox. Impede que conteúdo ativo da origem seja servido como documento sob o domínio da aplicação.
+
+### Corrigido — avanço do vídeo para selecionar thumbnail
+
+- Proxy do seletor de quadros encaminha intervalos HTTP Range à origem e preserva respostas 206/416. Evita esperar pelo download inteiro do vídeo ao avançar. Intervalos inválidos ou múltiplos são recusados; validação SSRF, redirects seguros e cancelamento permanecem ativos, sem encaminhar cookies ou credenciais à origem.
+
 ### Corrigido — nome do log de automações
 
 - Botão de acesso aos comentários sem automação passa a se chamar “Log”. Rota, filtros e comportamento preservados.
