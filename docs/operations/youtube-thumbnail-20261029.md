@@ -55,3 +55,5 @@ Resultado local: 24 testes do controlador aprovados, incluindo intervalos fechad
 Rota/arquivo de teste temporários e AGENTS gerado pelo Next removidos após a prova. Nenhum conteúdo publicado no YouTube, nenhuma credencial alterada e nenhuma mudança aplicada à VPS durante este diagnóstico/correção.
 
 Build de produção do backend aprovado após a correção final. A validação completa em Node 22.23.4 e os três builds são conferidos no CI antes da nova imagem.
+
+Publicação da correção: `0.7.0-rc.9`, após integrar o PR #349. [CI 41336840910](https://github.com/maiconramos/robo-multipost/actions/runs/41336840910) aprovado para `6723289c`, com os três builds em Node 22.23.4. O commit posterior altera somente a versão e este registro operacional. A publicação da imagem atualiza `prerelease`, preservando `latest`, sem deploy automático na VPS.
