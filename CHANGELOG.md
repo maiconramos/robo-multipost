@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Correção — chave Zernio voltava sozinha
+
+- Remover a chave Zernio (ou desligar o compartilhamento com os perfis) agora é definitivo. Antes, a cada reinício da app a chave antiga do Late era copiada de volta. Na primeira inicialização desta versão, a cópia é feita uma última vez e a chave antiga do Late é apagada.
+
 ### Segurança — webhook das automações do Facebook
 
 - O webhook público das automações do Facebook não pode mais ser travado por requisições falsas. Antes, 60 requisições lixo em 10 segundos bloqueavam as entregas reais da Meta para todas as contas. Agora o limite é separado por app, requisição malformada não conta, e as entregas reais recentes continuam passando mesmo durante um ataque.

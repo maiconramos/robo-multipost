@@ -304,10 +304,24 @@ export class StartupMigrationService
         },
       });
 
+      // Sobra da migracao antiga: a coluna Late ficava preenchida e, quando o
+      // admin removia a chave Zernio (ou desligava o compartilhamento), o
+      // proximo boot copiava tudo de volta. A copia agora consome a coluna Late.
+      const leftoverLate =
+        (await this.prisma.organization.count({
+          where: {
+            OR: [{ lateApiKey: { not: null } }, { shareLateWithProfiles: true }],
+          },
+        })) +
+        (await this.prisma.profile.count({
+          where: { lateApiKey: { not: null } },
+        }));
+
       if (
         pendingIntegrations === 0 &&
         pendingOrgKeys === 0 &&
-        pendingProfileKeys === 0
+        pendingProfileKeys === 0 &&
+        leftoverLate === 0
       ) {
         return;
       }
@@ -333,6 +347,19 @@ export class StartupMigrationService
           UPDATE "Profile"
           SET "zernioApiKey" = "lateApiKey"
           WHERE "lateApiKey" IS NOT NULL AND "zernioApiKey" IS NULL
+        `);
+
+        // copia feita uma vez: a origem Late e apagada (senao volta no boot)
+        await tx.$executeRawUnsafe(`
+          UPDATE "Organization"
+          SET "lateApiKey" = NULL, "shareLateWithProfiles" = false
+          WHERE "lateApiKey" IS NOT NULL OR "shareLateWithProfiles" = true
+        `);
+
+        await tx.$executeRawUnsafe(`
+          UPDATE "Profile"
+          SET "lateApiKey" = NULL
+          WHERE "lateApiKey" IS NOT NULL
         `);
 
         await tx.$executeRawUnsafe(`

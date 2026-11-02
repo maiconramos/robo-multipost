@@ -357,3 +357,45 @@ describe('StartupMigrationService.migrateSkoolExtensionCookies', () => {
     });
   });
 });
+
+describe('StartupMigrationService.migrateLateToZernio', () => {
+  it('copia a chave Late uma vez e apaga a origem (nao volta no proximo boot)', async () => {
+    const executed: string[] = [];
+    const tx = {
+      $executeRawUnsafe: jest.fn(async (sql: string) => {
+        executed.push(sql.replace(/\s+/g, ' ').trim());
+      }),
+    };
+    const prisma: any = {
+      integration: { count: jest.fn().mockResolvedValue(0) },
+      organization: { count: jest.fn().mockResolvedValue(1) },
+      profile: { count: jest.fn().mockResolvedValue(0) },
+      $transaction: jest.fn(async (fn: (t: typeof tx) => Promise<void>) => fn(tx)),
+    };
+    const service = new StartupMigrationService(prisma, {} as any, {} as any, {} as any);
+
+    await (service as any).migrateLateToZernio();
+
+    expect(executed.some((sql) => sql.includes('SET "zernioApiKey" = "lateApiKey"'))).toBe(true);
+    expect(
+      executed.some((sql) =>
+        sql.includes('UPDATE "Organization" SET "lateApiKey" = NULL, "shareLateWithProfiles" = false')
+      )
+    ).toBe(true);
+    expect(executed.some((sql) => sql.includes('UPDATE "Profile" SET "lateApiKey" = NULL'))).toBe(true);
+  });
+
+  it('sem nada pendente nem sobra Late, nao roda nada', async () => {
+    const prisma: any = {
+      integration: { count: jest.fn().mockResolvedValue(0) },
+      organization: { count: jest.fn().mockResolvedValue(0) },
+      profile: { count: jest.fn().mockResolvedValue(0) },
+      $transaction: jest.fn(),
+    };
+    const service = new StartupMigrationService(prisma, {} as any, {} as any, {} as any);
+
+    await (service as any).migrateLateToZernio();
+
+    expect(prisma.$transaction).not.toHaveBeenCalled();
+  });
+});
