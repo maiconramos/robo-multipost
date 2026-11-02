@@ -233,7 +233,7 @@ describe('CopilotController', () => {
         'prof-1'
       );
       expect(MastraAgent.getLocalAgents).toHaveBeenCalledWith({
-        resourceId: 'org-1',
+        resourceId: 'org-1:prof-1',
         mastra,
         requestContext: context,
       });
@@ -316,6 +316,55 @@ describe('CopilotController', () => {
       await controller.agent(req, res, org, null);
 
       expect(res.status).toHaveBeenCalledWith(500);
+    });
+  });
+
+  describe('memoria do copilot por perfil', () => {
+    const memoryWith = (threads: Record<string, any>) => {
+      const memory = {
+        getThreadById: jest.fn(async ({ threadId }: any) => threads[threadId] ?? null),
+        recall: jest.fn().mockResolvedValue({ messages: [{ role: 'user', content: 'oi' }] }),
+        listThreads: jest.fn(async ({ filter }: any) => ({
+          threads: Object.values(threads).filter((t: any) => t.resourceId === filter.resourceId),
+        })),
+      };
+      mastraService.mastra.mockResolvedValue({
+        getAgent: jest.fn().mockReturnValue({ getMemory: jest.fn().mockResolvedValue(memory) }),
+      } as any);
+      return memory;
+    };
+    const userOrg = { id: 'org-1', users: [{ role: 'USER' }] } as any;
+    const adminOrg = { id: 'org-1', users: [{ role: 'ADMIN' }] } as any;
+    const threads = {
+      'th-A': { id: 'th-A', title: 'A', resourceId: 'org-1:prof-A', createdAt: '2026-01-02' },
+      'th-B': { id: 'th-B', title: 'B', resourceId: 'org-1:prof-B', createdAt: '2026-01-03' },
+      'th-old': { id: 'th-old', title: 'antiga', resourceId: 'org-1', createdAt: '2026-01-01' },
+    };
+
+    it('membro so lista as conversas do proprio perfil', async () => {
+      memoryWith(threads);
+      const result = await controller.getList(userOrg, { id: 'prof-A' } as Profile);
+      expect(result.threads.map((t) => t.id)).toEqual(['th-A']);
+    });
+
+    it('admin lista as do perfil ativo e as antigas da org', async () => {
+      memoryWith(threads);
+      const result = await controller.getList(adminOrg, { id: 'prof-A' } as Profile);
+      expect(result.threads.map((t) => t.id)).toEqual(['th-A', 'th-old']);
+    });
+
+    it('membro nao le mensagens de conversa de outro perfil', async () => {
+      const memory = memoryWith(threads);
+      const result = await controller.getMessagesList(userOrg, { id: 'prof-A' } as Profile, 'th-B');
+      expect(result).toEqual({ uiMessages: [] });
+      expect(memory.recall).not.toHaveBeenCalled();
+    });
+
+    it('membro le mensagens da propria conversa', async () => {
+      const memory = memoryWith(threads);
+      const result = await controller.getMessagesList(userOrg, { id: 'prof-A' } as Profile, 'th-A');
+      expect(memory.recall).toHaveBeenCalledWith({ resourceId: 'org-1:prof-A', threadId: 'th-A' });
+      expect(result.uiMessages).toHaveLength(1);
     });
   });
 });

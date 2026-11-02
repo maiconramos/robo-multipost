@@ -19,6 +19,12 @@ import {
   ScopedCopilotRunner,
   isCopilotThreadMutation,
 } from '@gitroom/nestjs-libraries/chat/scoped-copilot-runner';
+import {
+  copilotMemoryResourceId,
+  copilotReadableResourceIds,
+  copilotThreadIdFromBody,
+} from '@gitroom/nestjs-libraries/chat/copilot-memory-scope';
+import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
 import { Organization, Profile } from '@prisma/client';
@@ -197,8 +203,28 @@ export class CopilotController {
       }
     }
 
+    // memoria por perfil: conversa de um cliente nao aparece para outro
+    const threadId = copilotThreadIdFromBody(req.body);
+    if (threadId) {
+      const existing: any = await mastra
+        .getAgent('postiz')
+        .getMemory()
+        .then((memory: any) => memory?.getThreadById?.({ threadId }))
+        .catch((): null => null);
+      if (
+        existing?.resourceId &&
+        !copilotReadableResourceIds(
+          organization.id,
+          profile?.id,
+          getOrgRole(organization) !== 'USER'
+        ).includes(existing.resourceId)
+      ) {
+        return res.status(404).json({ message: 'Thread not found' });
+      }
+    }
+
     const agents = MastraAgent.getLocalAgents({
-      resourceId: organization.id,
+      resourceId: copilotMemoryResourceId(organization.id, profile?.id),
       mastra,
       requestContext: requestContext as any,
     });
@@ -237,13 +263,23 @@ export class CopilotController {
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
   async getMessagesList(
     @GetOrgFromRequest() organization: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('thread') threadId: string
   ): Promise<{ uiMessages: Array<{ role: string; content: string }> }> {
     const mastra = await this._mastraService.mastra();
     const memory = await mastra.getAgent('postiz').getMemory();
     try {
+      const thread: any = await memory.getThreadById({ threadId });
+      const readable = copilotReadableResourceIds(
+        organization.id,
+        profile?.id,
+        getOrgRole(organization) !== 'USER'
+      );
+      if (!thread?.resourceId || !readable.includes(thread.resourceId)) {
+        return { uiMessages: [] };
+      }
       const recalled: any = await memory.recall({
-        resourceId: organization.id,
+        resourceId: thread.resourceId,
         threadId,
       });
       // Mastra v1.21+ retorna { messages, total, ... }; versoes antigas
@@ -273,21 +309,39 @@ export class CopilotController {
 
   @Get('/list')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
-  async getList(@GetOrgFromRequest() organization: Organization) {
+  async getList(
+    @GetOrgFromRequest() organization: Organization,
+    @GetProfileFromRequest() profile: Profile | null
+  ) {
     const mastra = await this._mastraService.mastra();
     const memory = await mastra.getAgent('postiz').getMemory();
-    const list = await memory.listThreads({
-      filter: { resourceId: organization.id },
-      perPage: 100000,
-      page: 0,
-      orderBy: { field: 'createdAt', direction: 'DESC' },
-    });
+    const lists = await Promise.all(
+      copilotReadableResourceIds(
+        organization.id,
+        profile?.id,
+        getOrgRole(organization) !== 'USER'
+      ).map((resourceId) =>
+        memory.listThreads({
+          filter: { resourceId },
+          perPage: 100000,
+          page: 0,
+          orderBy: { field: 'createdAt', direction: 'DESC' },
+        })
+      )
+    );
 
     return {
-      threads: list.threads.map((p) => ({
-        id: p.id,
-        title: p.title,
-      })),
+      threads: lists
+        .flatMap((list) => list.threads)
+        .sort(
+          (a: any, b: any) =>
+            new Date(b.createdAt ?? 0).getTime() -
+            new Date(a.createdAt ?? 0).getTime()
+        )
+        .map((p) => ({
+          id: p.id,
+          title: p.title,
+        })),
     };
   }
 }

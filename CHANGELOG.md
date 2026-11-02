@@ -12,6 +12,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Webhook criado em um perfil deixa de receber os posts publicados por canais de outros perfis da mesma organização. Webhooks de administrador (sem perfil) e canais sem perfil continuam funcionando como antes.
 - Não é mais possível vincular a um webhook canais de outro perfil ou organização, nem editar pelo id um webhook de outro perfil (resposta 404). Editar o próprio webhook não muda mais o perfil dele.
 
+### Segurança — conversas do assistente de IA por perfil
+
+- As conversas do assistente de IA passam a ser guardadas e listadas por perfil: um membro só vê e abre as conversas do perfil ativo. Conversas antigas (gravadas antes desta versão para a organização inteira) continuam visíveis apenas para administradores da organização. A memória de longo prazo do assistente também fica separada por perfil.
+
 ### Segurança — histórico e canais das automações por perfil
 
 - O histórico de execuções das automações antigas (`/flows/:id/executions`) e a consulta de posts, stories e status do webhook do Instagram (`/flows/integrations/:id/...`) passam a respeitar o perfil ativo. Antes, um membro de um perfil podia ver execuções (comentários e nomes de quem comentou) e usar o token do Instagram de outro perfil da mesma organização. A paginação do histórico agora é limitada a 50 itens.
