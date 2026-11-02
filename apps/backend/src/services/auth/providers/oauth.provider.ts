@@ -88,7 +88,12 @@ export class OauthProvider extends AuthProviderAbstract {
       throw new Error(`User info request failed: ${error}`);
     }
 
-    const { email, sub: id } = await response.json();
-    return { email, id };
+    const { email, sub } = await response.json();
+    // OIDC exige `sub`; sem ele nao ha identidade (e o lookup por providerId
+    // undefined acharia outra conta GENERIC)
+    if ((typeof sub !== 'string' && typeof sub !== 'number') || sub === '') {
+      throw new Error('User info response has no subject (sub)');
+    }
+    return { email, id: String(sub) };
   }
 }

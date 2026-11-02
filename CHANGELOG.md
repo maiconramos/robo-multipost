@@ -7,6 +7,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — login
+
+- O login por senha ganhou limite de 20 tentativas a cada 10 minutos por endereço de internet, e a verificação da senha não trava mais o servidor. Antes, não havia limite e cada tentativa congelava a app por um instante para todo mundo.
+- Login com Google, GitHub ou provedor genérico (OIDC) só aceita o token obtido pelo próprio fluxo de login desta instância, e só uma vez. Antes, um token emitido para outro site (que também usa "Entrar com Google/GitHub") entrava na conta da pessoa.
+- Login com provedor genérico (OIDC) recusa respostas sem o identificador do usuário (`sub`). Antes, nesse caso, a pessoa podia entrar na conta de outro usuário desse provedor.
+
 ### Segurança — navegador
 
 - A pré-visualização de posts no editor não executa mais código escondido no texto. Antes, um texto como `<img onerror=...>` salvo por outro membro (ou pela API, MCP ou RSS) rodava no navegador de quem abria o post.

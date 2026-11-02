@@ -16,6 +16,31 @@ import {
   emailT,
   normalizeLang,
 } from '@gitroom/nestjs-libraries/emails/i18n/email.i18n';
+import { createHash } from 'crypto';
+import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
+
+// Logins sociais cujo providerToken e um access token do provedor.
+const BOUND_TOKEN_PROVIDERS: string[] = [
+  Provider.GITHUB,
+  Provider.GOOGLE,
+  Provider.GENERIC,
+];
+const BOUND_PROVIDER_TOKEN_TTL = 3600;
+
+export const boundProviderTokenKey = (
+  provider: string,
+  token: unknown
+): string | null => {
+  if (!BOUND_TOKEN_PROVIDERS.includes(String(provider).toUpperCase())) {
+    return null;
+  }
+  const value = typeof token === 'string' ? token : '';
+  return `oauth-login-token:${String(provider).toUpperCase()}:${createHash(
+    'sha256'
+  )
+    .update(value)
+    .digest('hex')}`;
+};
 
 @Injectable()
 export class AuthService {
@@ -134,7 +159,10 @@ export class AuthService {
         return obj;
       }
 
-      if (!user || !AuthChecker.comparePassword(body.password, user.password)) {
+      if (
+        !user ||
+        !(await AuthChecker.comparePasswordAsync(body.password, user.password))
+      ) {
         throw new Error('Invalid user name or password');
       }
 
@@ -285,11 +313,22 @@ export class AuthService {
           profileRole?: 'MANAGER' | 'EDITOR' | 'VIEWER';
         }
   ) {
+    // Token de acesso do provedor so vale se veio da nossa troca de code
+    // (checkExists): um token emitido para OUTRO app (outro site com "Entrar
+    // com Google/GitHub", outro app no mesmo IdP) logava na conta da vitima.
+    const boundKey = boundProviderTokenKey(provider, body.providerToken);
+    if (boundKey && !(await ioRedis.get(boundKey))) {
+      throw new Error('Invalid provider token');
+    }
+
     const providerInstance = this._providerManager.getProvider(provider);
     const providerUser = await providerInstance.getUser(body.providerToken);
 
     if (!providerUser) {
       throw new Error('Invalid provider token');
+    }
+    if (boundKey) {
+      await ioRedis.del(boundKey);
     }
 
     const user = await this._userService.getUserByProvider(
@@ -550,6 +589,12 @@ export class AuthService {
       return { jwt: await this.jwt(checkExists) };
     }
 
+    // conta nova: o token volta ao navegador para o /auth/register; marca que
+    // ele saiu da nossa troca de code (ver loginOrRegisterProvider)
+    const boundKey = boundProviderTokenKey(provider, token);
+    if (boundKey) {
+      await ioRedis.set(boundKey, '1', 'EX', BOUND_PROVIDER_TOKEN_TTL);
+    }
     return { token };
   }
 

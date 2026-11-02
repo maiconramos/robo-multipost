@@ -14,6 +14,7 @@ import { GUARDS_METADATA } from '@nestjs/common/constants';
 import { AuthController } from './auth.controller';
 import {
   ThrottlerFarcasterLoginGuard,
+  ThrottlerLocalLoginGuard,
   ThrottlerRealIpGuard,
 } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 
@@ -238,6 +239,10 @@ describe('AuthController — login com Farcaster', () => {
     expect(guards('farcasterSignerStatus')).toEqual([ThrottlerRealIpGuard]);
     expect(guards('oauthExists')).toEqual([ThrottlerFarcasterLoginGuard]);
     expect(guards('register')).toEqual([ThrottlerFarcasterLoginGuard]);
-    expect(guards('login')).toEqual([ThrottlerFarcasterLoginGuard]);
+    // login por senha tem o proprio limite por IP
+    expect(guards('login')).toEqual([
+      ThrottlerFarcasterLoginGuard,
+      ThrottlerLocalLoginGuard,
+    ]);
   });
 });

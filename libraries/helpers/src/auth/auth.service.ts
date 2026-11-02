@@ -1,5 +1,5 @@
 import { sign, verify } from 'jsonwebtoken';
-import { hashSync, compareSync } from 'bcrypt';
+import { hashSync, compareSync, compare } from 'bcrypt';
 import crypto from 'crypto';
 // @ts-ignore
 import EVP_BytesToKey from 'evp_bytestokey';
@@ -38,6 +38,14 @@ export class AuthService {
   }
   static comparePassword(password: string, hash: string) {
     return compareSync(password, hash);
+  }
+  // versao assincrona (pool do libuv): a sincrona trava o event loop inteiro
+  // a cada tentativa de login
+  static comparePasswordAsync(password: string, hash: string) {
+    if (typeof password !== 'string' || typeof hash !== 'string' || !hash) {
+      return Promise.resolve(false);
+    }
+    return compare(password, hash);
   }
   static signJWT(value: object) {
     return sign(value, process.env.JWT_SECRET!);

@@ -11,9 +11,11 @@ import { Test } from '@nestjs/testing';
 import { APP_GUARD } from '@nestjs/core';
 import { Throttle, ThrottlerModule } from '@nestjs/throttler';
 import {
+  LOCAL_LOGIN_LIMIT,
   REAL_IP_GLOBAL_CEILING_FACTOR,
   ThrottlerBehindProxyGuard,
   ThrottlerFarcasterLoginGuard,
+  ThrottlerLocalLoginGuard,
   ThrottlerOrgUserGuard,
   ThrottlerRealIpGuard,
 } from './throttler.provider';
@@ -373,5 +375,59 @@ describe('guards de limite do Farcaster', () => {
     expect((await register('LOCAL')).status).toBe(201);
     expect((await register('FARCASTER')).status).toBe(201);
     expect((await register('FARCASTER')).status).toBe(429);
+  });
+});
+
+@Controller()
+class LocalLoginRoutes {
+  @UseGuards(ThrottlerFarcasterLoginGuard, ThrottlerLocalLoginGuard)
+  @Throttle({ default: { limit: 1, ttl: 60_000 } })
+  @Post('/auth/login')
+  login() {
+    return {};
+  }
+}
+
+describe('limite do login por senha (LOCAL)', () => {
+  let app: INestApplication;
+  let url: string;
+  beforeAll(async () => {
+    const module = await Test.createTestingModule({
+      imports: [ThrottlerModule.forRoot([{ ttl: 60_000, limit: 1000 }])],
+      controllers: [LocalLoginRoutes],
+      providers: [{ provide: APP_GUARD, useClass: ThrottlerBehindProxyGuard }],
+    }).compile();
+    app = module.createNestApplication();
+    await app.listen(0, '127.0.0.1');
+    url = await app.getUrl();
+  });
+  afterAll(async () => {
+    await app?.close();
+  });
+  const login = async (ip: string, provider = 'LOCAL') => {
+    const response = await fetch(url + '/auth/login', {
+      method: 'POST',
+      headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
+      body: JSON.stringify({ provider, email: 'a@b.com', password: 'x' }),
+    });
+    await response.text();
+    return response.status;
+  };
+
+  it(`aceita ${LOCAL_LOGIN_LIMIT} tentativas por IP e bloqueia a seguinte`, async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i <= LOCAL_LOGIN_LIMIT; i++) {
+      statuses.push(await login('203.0.113.50'));
+    }
+    expect(statuses.slice(0, LOCAL_LOGIN_LIMIT).every((s) => s === 201)).toBe(true);
+    expect(statuses[LOCAL_LOGIN_LIMIT]).toBe(429);
+  });
+
+  it('outro IP nao e afetado (sem teto global que bloqueie todo mundo)', async () => {
+    expect(await login('203.0.113.51')).toBe(201);
+  });
+
+  it('login social nao entra no limite de senha', async () => {
+    expect(await login('203.0.113.50', 'GOOGLE')).toBe(201);
   });
 });

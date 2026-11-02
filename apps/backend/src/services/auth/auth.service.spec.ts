@@ -3,7 +3,8 @@ jest.mock('@gitroom/nestjs-libraries/newsletter/newsletter.service', () => ({
   NewsletterService: { register: jest.fn().mockResolvedValue(undefined) },
 }));
 
-import { AuthService } from './auth.service';
+import { AuthService, boundProviderTokenKey } from './auth.service';
+import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { AuthService as AuthChecker } from '@gitroom/helpers/auth/auth.service';
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { Provider } from '@prisma/client';
@@ -220,10 +221,34 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
     // Convite para a@gmail.com; a identidade Google confirmada precisa bater.
     const googleInvite = { ...INVITE, email: 'a@gmail.com' };
 
-    beforeEach(() => {
+    beforeEach(async () => {
       deps.providerManager.getProvider.mockReturnValue({
         getUser: jest.fn().mockResolvedValue({ id: 'g-1', email: 'a@gmail.com' }),
       });
+      // token saido da nossa troca de code (checkExists)
+      await ioRedis.set(boundProviderTokenKey('GOOGLE', 'tok')!, '1', 'EX', 60);
+    });
+
+    it('recusa access token que nao saiu da troca de code desta instancia', async () => {
+      await ioRedis.del(boundProviderTokenKey('GOOGLE', 'tok')!);
+      deps.userService.getUserByProvider.mockResolvedValue({
+        id: 'u-vitima',
+        email: 'a@gmail.com',
+      });
+
+      await expect(
+        service.routeAuth(Provider.GOOGLE, oauthBody(), '127.0.0.1', 'agent', false)
+      ).rejects.toThrow('Invalid provider token');
+      expect(deps.providerManager.getProvider().getUser).not.toHaveBeenCalled();
+    });
+
+    it('token da troca de code vale uma vez so', async () => {
+      process.env.DISABLE_REGISTRATION = 'false';
+      await service.routeAuth(Provider.GOOGLE, oauthBody(), '127.0.0.1', 'agent', false);
+
+      await expect(
+        service.routeAuth(Provider.GOOGLE, oauthBody(), '127.0.0.1', 'agent', false)
+      ).rejects.toThrow('Invalid provider token');
     });
 
     it('bloqueia registro OAuth de usuario novo sem convite', async () => {
@@ -438,5 +463,26 @@ describe('AuthService.getInviteForUser - convite preso ao e-mail (join-org)', ()
     verifySpy.mockReturnValue(invite());
 
     expect(service.getInviteForUser('jwt', 'qualquer@pessoa.com')).toMatchObject({ orgId: 'org-1' });
+  });
+});
+
+
+describe('AuthService.checkExists - token de conta nova fica preso a esta instancia', () => {
+  it('marca o token devolvido para o registro', async () => {
+    const deps = makeDeps();
+    deps.providerManager.getProvider.mockReturnValue({
+      getToken: jest.fn().mockResolvedValue('novo-token'),
+      getUser: jest.fn().mockResolvedValue({ id: 'gh-9', email: 'n@b.com' }),
+    });
+    const service = new AuthService(
+      deps.userService as any,
+      deps.orgService as any,
+      deps.notificationService as any,
+      deps.emailService as any,
+      deps.providerManager as any
+    );
+
+    await expect(service.checkExists('GITHUB', 'code-1')).resolves.toEqual({ token: 'novo-token' });
+    expect(await ioRedis.get(boundProviderTokenKey('GITHUB', 'novo-token')!)).toBe('1');
   });
 });

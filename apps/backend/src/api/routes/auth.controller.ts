@@ -12,6 +12,7 @@ import {
 import { Throttle } from '@nestjs/throttler';
 import {
   ThrottlerFarcasterLoginGuard,
+  ThrottlerLocalLoginGuard,
   ThrottlerRealIpGuard,
 } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import {
@@ -157,7 +158,8 @@ export class AuthController {
     }
   }
 
-  @UseGuards(ThrottlerFarcasterLoginGuard)
+  // ThrottlerLocalLoginGuard: senha (LOCAL) 20 tentativas / 10 min por IP
+  @UseGuards(ThrottlerFarcasterLoginGuard, ThrottlerLocalLoginGuard)
   @Throttle({ default: { limit: 30, ttl: 3600000 } })
   @Post('/login')
   async login(

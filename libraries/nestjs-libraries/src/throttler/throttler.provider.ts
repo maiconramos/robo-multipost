@@ -124,10 +124,16 @@ export class ThrottlerRealIpGuard extends ThrottlerGuard {
     return `ip:${isIP(forwarded) ? forwarded : req.ip}`;
   }
 
+  // teto global por rota (desligado no login: ver ThrottlerLocalLoginGuard)
+  protected readonly withGlobalCeiling: boolean = true;
+
   protected override async handleRequest(
     requestProps: ThrottlerRequest
   ): Promise<boolean> {
-    await super.handleRequest(requestProps);
+    const allowed = await super.handleRequest(requestProps);
+    if (!this.withGlobalCeiling) {
+      return allowed;
+    }
     // sem headers no teto global: os X-RateLimit-* ficam os do cliente
     return super.handleRequest({
       ...requestProps,
@@ -165,5 +171,40 @@ export class ThrottlerFarcasterLoginGuard extends ThrottlerRealIpGuard {
       req.params?.provider || req.body?.provider || ''
     ).toUpperCase();
     return provider !== FARCASTER_PROVIDER;
+  }
+}
+
+// Login por senha (provider LOCAL): conta por IP do cliente, com orcamento
+// proprio (o @Throttle da rota e o do Farcaster). Sem teto global de proposito:
+// um teto unico deixaria qualquer um bloquear o login de todo mundo.
+export const LOCAL_LOGIN_LIMIT = 20;
+export const LOCAL_LOGIN_TTL_MS = 10 * 60_000;
+
+@Injectable()
+export class ThrottlerLocalLoginGuard extends ThrottlerRealIpGuard {
+  protected override async shouldSkip(
+    context: ExecutionContext
+  ): Promise<boolean> {
+    const req = context.switchToHttp().getRequest<Request>();
+    const provider = String(req.body?.provider || 'LOCAL').toUpperCase();
+    return provider !== 'LOCAL';
+  }
+
+  protected override async getTracker(
+    req: Record<string, any>
+  ): Promise<string> {
+    return `local-login:${await super.getTracker(req)}`;
+  }
+
+  protected override readonly withGlobalCeiling = false;
+
+  protected override async handleRequest(
+    requestProps: ThrottlerRequest
+  ): Promise<boolean> {
+    return super.handleRequest({
+      ...requestProps,
+      limit: LOCAL_LOGIN_LIMIT,
+      ttl: LOCAL_LOGIN_TTL_MS,
+    });
   }
 }

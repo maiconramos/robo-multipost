@@ -88,6 +88,11 @@ export class UsersRepository {
   }
 
   getUserByProvider(providerId: string, provider: Provider) {
+    // sem id o Prisma ignora o filtro (undefined) e devolveria o primeiro
+    // usuario daquele provider
+    if (typeof providerId !== 'string' || !providerId) {
+      return Promise.resolve(null);
+    }
     return this._user.model.user.findFirst({
       where: {
         providerId,
