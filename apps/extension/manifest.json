@@ -21,8 +21,6 @@
   },
   "externally_connectable": {
     "matches": [
-      "http://localhost/*",
-      "https://localhost/*",
       "https://*.postiz.com/*"
     ]
   }

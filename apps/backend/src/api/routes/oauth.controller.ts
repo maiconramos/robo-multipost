@@ -19,6 +19,7 @@ import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
 import { AuthorizeOAuthQueryDto, ApproveOAuthDto } from '@gitroom/nestjs-libraries/dtos/oauth/authorize-oauth.dto';
 import { TokenExchangeDto } from '@gitroom/nestjs-libraries/dtos/oauth/token-exchange.dto';
 import { resolveClientCredentials } from '@gitroom/nestjs-libraries/chat/oauth-types';
+import { oauthRedirectUrl } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.redirect';
 
 @ApiTags('OAuth')
 @Controller('/oauth')
@@ -92,7 +93,7 @@ export class OAuthAuthorizedController {
     );
 
     if (body.action === 'deny') {
-      const redirectUrl = new URL(app.redirectUrl);
+      const redirectUrl = oauthRedirectUrl(app.redirectUrl);
       redirectUrl.searchParams.set('error', 'access_denied');
       if (body.state) {
         redirectUrl.searchParams.set('state', body.state);
@@ -118,7 +119,7 @@ export class OAuthAuthorizedController {
       profileId
     );
 
-    const redirectUrl = new URL(app.redirectUrl);
+    const redirectUrl = oauthRedirectUrl(app.redirectUrl);
     redirectUrl.searchParams.set('code', code);
     if (body.state) {
       redirectUrl.searchParams.set('state', body.state);

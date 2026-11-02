@@ -1,4 +1,5 @@
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
+import { sanitizePreviewHtml } from '@gitroom/helpers/utils/sanitize.preview.html';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import clsx from 'clsx';
 import { VideoOrImage } from '@gitroom/react/helpers/video.or.image';
@@ -116,7 +117,7 @@ export const GeneralPreviewComponent: FC<{
               <div
                 className={clsx('text-wrap whitespace-pre', 'preview')}
                 dangerouslySetInnerHTML={{
-                  __html: value.text,
+                  __html: sanitizePreviewHtml(value.text),
                 }}
               />
               {!!value?.images?.length && (

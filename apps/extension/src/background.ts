@@ -6,14 +6,27 @@ const EXTENSION_VERSION = '2.0.0';
 const REFRESH_ALARM_NAME = 'cookie-refresh';
 const STORAGE_KEY = 'refreshEntries';
 
+// localhost so no build de desenvolvimento: no build publicado qualquer
+// processo/pagina em qualquer porta local pedia os cookies do Skool.
 const ALLOWED_ORIGIN_PATTERNS = [
-  /^https?:\/\/localhost(:\d+)?$/,
-  /^https?:\/\/([a-z0-9-]+\.)*postiz\.com$/,
+  ...(import.meta.env.DEV ? [/^https?:\/\/localhost(:\d+)?$/] : []),
+  /^https:\/\/([a-z0-9-]+\.)*postiz\.com$/,
 ];
 
 function isOriginAllowed(origin: string | undefined): boolean {
   if (!origin) return false;
   return ALLOWED_ORIGIN_PATTERNS.some((pattern) => pattern.test(origin));
+}
+
+// O refresh diario envia os cookies para `backendUrl`: so aceita um backend
+// que tambem esteja no allowlist (nunca um endereco escolhido pela pagina).
+function isBackendUrlAllowed(backendUrl: unknown): backendUrl is string {
+  if (typeof backendUrl !== 'string') return false;
+  try {
+    return isOriginAllowed(new URL(backendUrl).origin);
+  } catch {
+    return false;
+  }
 }
 
 async function extractCookies(provider: CookieProvider): Promise<GetCookiesResponse> {
@@ -78,6 +91,9 @@ async function refreshAllCookies(): Promise<void> {
   const entries = await getStoredEntries();
   for (const [integrationId, entry] of Object.entries(entries)) {
     try {
+      // entradas antigas gravadas antes da validacao: nao envia para backend
+      // fora do allowlist
+      if (!isBackendUrlAllowed(entry.backendUrl)) continue;
       const provider = getProvider(entry.provider);
       if (!provider) continue;
 
@@ -171,12 +187,26 @@ chrome.runtime.onMessageExternal.addListener(
       }
 
       case 'STORE_REFRESH_TOKEN': {
+        if (
+          typeof message.integrationId !== 'string' ||
+          typeof message.jwt !== 'string' ||
+          !isBackendUrlAllowed(message.backendUrl)
+        ) {
+          sendResponse({ success: false, error: 'Invalid refresh entry' });
+          return true;
+        }
         (async () => {
           const entries = await getStoredEntries();
+          const existing = entries[message.integrationId];
+          if (existing?.origin && existing.origin !== origin) {
+            sendResponse({ success: false, error: 'Entry owned by another origin' });
+            return;
+          }
           entries[message.integrationId] = {
             jwt: message.jwt,
             backendUrl: message.backendUrl,
             provider: message.provider,
+            origin,
           };
           await setStoredEntries(entries);
           await ensureAlarm();
@@ -189,6 +219,11 @@ chrome.runtime.onMessageExternal.addListener(
       case 'REMOVE_REFRESH_TOKEN': {
         (async () => {
           const entries = await getStoredEntries();
+          const existing = entries[message.integrationId];
+          if (existing?.origin && existing.origin !== origin) {
+            sendResponse({ success: false, error: 'Entry owned by another origin' });
+            return;
+          }
           delete entries[message.integrationId];
           await setStoredEntries(entries);
           await clearAlarmIfEmpty();

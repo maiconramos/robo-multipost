@@ -31,6 +31,7 @@ import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { sanitizeChatContent } from '@gitroom/helpers/utils/sanitize.chat.content';
+import { AgentSafeImage } from '@gitroom/frontend/components/agents/agent.safe.image';
 import { TextMessage } from '@copilotkit/runtime-client-gql';
 import { AddEditModal } from '@gitroom/frontend/components/new-launch/add.edit.modal';
 import dayjs from 'dayjs';
@@ -186,6 +187,7 @@ You can also use me as an MCP Server, check Settings >> Public API
               ),
             }}
             UserMessage={Message}
+            markdownTagRenderers={{ img: AgentSafeImage }}
             Input={NewInput}
             ErrorMessage={AgentErrorMessage}
             onError={(errorEvent) =>

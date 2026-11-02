@@ -1,4 +1,5 @@
 import { FC } from 'react';
+import { sanitizePreviewHtml } from '@gitroom/helpers/utils/sanitize.preview.html';
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { textSlicer } from '@gitroom/helpers/utils/count.length';
@@ -155,7 +156,7 @@ export const PinterestPreview: FC<{
       </div>
       <div
         className="mt-[13px] whitespace-pre-line"
-        dangerouslySetInnerHTML={{ __html: renderContent?.[0]?.text || '' }}
+        dangerouslySetInnerHTML={{ __html: sanitizePreviewHtml(renderContent?.[0]?.text) }}
       ></div>
     </div>
   );

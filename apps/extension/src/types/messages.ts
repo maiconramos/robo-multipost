@@ -72,6 +72,8 @@ export interface StoredRefreshEntry {
   jwt: string;
   backendUrl: string;
   provider: string;
+  // pagina que registrou a entrada: so ela pode sobrescrever ou remover
+  origin?: string;
 }
 
 export interface ErrorResponse {

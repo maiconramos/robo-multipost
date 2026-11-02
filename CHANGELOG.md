@@ -7,6 +7,17 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — navegador
+
+- A pré-visualização de posts no editor não executa mais código escondido no texto. Antes, um texto como `<img onerror=...>` salvo por outro membro (ou pela API, MCP ou RSS) rodava no navegador de quem abria o post.
+- Pedidos que mudam dados e chegam de outros sites com o cookie de login agora são recusados (proteção contra CSRF). Antes, uma página maliciosa aberta por um administrador conseguia, por exemplo, trocar credenciais ou a chave da API da organização.
+- As páginas da app não podem mais ser embutidas em outros sites (proteção contra "clickjacking"), exceto a janela usada pela extensão do navegador. Antes, a tela de autorização de apps podia ser escondida atrás de um botão falso.
+- O endereço de retorno de apps OAuth só aceita `http`/`https`. Antes, dava para cadastrar `javascript:` e executar código na app de quem autorizasse ou negasse.
+- Removido o parâmetro `?loggedAuth=` na URL, que trocava a sessão de quem abria o link pela de outra conta.
+- O webhook do Instagram não devolve mais texto arbitrário como página HTML na verificação da Meta.
+- Imagens externas nas respostas do assistente de IA não carregam mais sozinhas (viram um link). Antes, uma página lida na pesquisa na web podia fazer a resposta carregar uma imagem que levava dados da conversa para fora.
+- Extensão do navegador: aceita mensagens de `localhost` só no modo de desenvolvimento e só envia os cookies para um backend permitido; uma entrada só pode ser trocada pela página que a criou.
+
 ### Segurança — cobrança
 
 - Só administradores da organização podem cancelar, trocar o plano, abrir o portal de pagamento, aplicar desconto, encerrar o teste, resgatar código vitalício ou gerar pagamento em cripto. Antes, qualquer membro — até um cliente com acesso só de visualização — conseguia.

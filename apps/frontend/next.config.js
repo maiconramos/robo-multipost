@@ -31,6 +31,17 @@ const nextConfig = {
           },
         ],
       },
+      // Anti-clickjacking: nenhuma pagina da app pode ser embutida em outro
+      // site (ex.: /oauth/authorize num iframe invisivel com um "clique aqui"
+      // por cima aprovava um app de terceiro). A excecao e /modal/*, que a
+      // extensao do navegador abre dentro das redes sociais.
+      {
+        source: '/:path((?!modal(?:/|$)).*)',
+        headers: [
+          { key: 'X-Frame-Options', value: 'DENY' },
+          { key: 'Content-Security-Policy', value: "frame-ancestors 'none'" },
+        ],
+      },
     ];
   },
   reactStrictMode: false,

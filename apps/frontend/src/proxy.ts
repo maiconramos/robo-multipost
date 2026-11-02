@@ -13,10 +13,9 @@ acceptLanguage.languages(languages);
 // This function can be marked `async` if using `await` inside
 export async function proxy(request: NextRequest) {
   const nextUrl = request.nextUrl;
-  const authCookie =
-    request.cookies.get('auth') ||
-    request.headers.get('auth') ||
-    nextUrl.searchParams.get('loggedAuth');
+  // `?loggedAuth=` (sessao pela URL) foi removido: um link com o token de
+  // outra conta trocava a sessao de quem abria.
+  const authCookie = request.cookies.get('auth') || request.headers.get('auth');
   const lng = request.cookies.has(cookieName)
     ? acceptLanguage.get(request.cookies.get(cookieName).value)
     : acceptLanguage.get(

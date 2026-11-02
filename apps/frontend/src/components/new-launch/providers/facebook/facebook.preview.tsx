@@ -1,4 +1,5 @@
 import { useFormContext } from 'react-hook-form';
+import { sanitizePreviewHtml } from '@gitroom/helpers/utils/sanitize.preview.html';
 import { facebookBackgroundPreset } from '@gitroom/nestjs-libraries/integrations/social/facebook.background';
 import { getPresetBackground } from './facebook.background';
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
@@ -169,7 +170,7 @@ export const FacebookPreview: FC<{
         <div
           className="text-[14px] font-[400] whitespace-pre-line"
           dangerouslySetInnerHTML={{
-            __html: renderContent?.[0]?.text,
+            __html: sanitizePreviewHtml(renderContent?.[0]?.text),
           }}
         />
       )}
@@ -303,7 +304,7 @@ export const FacebookPreview: FC<{
                     <div
                       className="whitespace-pre-line text-[14px] font-[400]"
                       dangerouslySetInnerHTML={{
-                        __html: value.text,
+                        __html: sanitizePreviewHtml(value.text),
                       }}
                     />
                     {!!value.images?.length && (

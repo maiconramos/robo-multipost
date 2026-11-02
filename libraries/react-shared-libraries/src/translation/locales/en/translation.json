@@ -2985,5 +2985,6 @@
   "all_customers": "All customers",
   "switch_theme": "Switch theme",
   "filters": "Filters",
-  "list": "List"
+  "list": "List",
+  "agent_external_image": "External image (click to open)"
 }

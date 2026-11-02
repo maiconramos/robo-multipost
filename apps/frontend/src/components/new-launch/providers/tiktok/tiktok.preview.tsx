@@ -1,4 +1,5 @@
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
+import { sanitizePreviewHtml } from '@gitroom/helpers/utils/sanitize.preview.html';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
@@ -77,7 +78,7 @@ export const TiktokPreview: FC<{
         <div className="absolute pointer-events-none w-full h-full start-0 top-0 px-[12px] py-[25px] justify-end items-start text-white flex flex-col">
           <div className="text-[14px] font-[500]">@{integration?.name}</div>
           <div className="text-[13px] font-[400] whitespace-pre-line line-clamp-6 w-full"
-            dangerouslySetInnerHTML={{ __html: renderContent?.[0]?.text || '' }}
+            dangerouslySetInnerHTML={{ __html: sanitizePreviewHtml(renderContent?.[0]?.text) }}
           />
         </div>
       </div>

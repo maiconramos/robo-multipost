@@ -156,6 +156,38 @@ describe('IgWebhookController', () => {
     expect(flowsService.handlePostbackClick).toHaveBeenCalled();
   });
 
+  describe('verifyWebhook (GET) - handshake', () => {
+    const makeRes = () => {
+      const res: any = {};
+      res.status = jest.fn(() => res);
+      res.type = jest.fn(() => res);
+      res.send = jest.fn(() => res);
+      return res;
+    };
+
+    it('devolve o challenge numerico como texto puro', async () => {
+      const res = makeRes();
+      await controller.verifyWebhook('subscribe', 'multipost', '1158201444', res);
+      expect(res.status).toHaveBeenCalledWith(200);
+      expect(res.type).toHaveBeenCalledWith('text/plain');
+      expect(res.send).toHaveBeenCalledWith('1158201444');
+    });
+
+    it('recusa challenge com HTML (nao reflete na pagina)', async () => {
+      const res = makeRes();
+      await controller.verifyWebhook(
+        'subscribe',
+        'multipost',
+        '<script>alert(1)</script>',
+        res
+      );
+      expect(res.status).toHaveBeenCalledWith(400);
+      expect(res.send).not.toHaveBeenCalledWith(
+        expect.stringContaining('<script>')
+      );
+    });
+  });
+
   describe('handleWebhook (POST) - assinatura', () => {
     it('aceita assinatura valida com segredo global do ambiente e despacha o comentario', async () => {
       process.env.INSTAGRAM_APP_SECRET = 'env-secret';

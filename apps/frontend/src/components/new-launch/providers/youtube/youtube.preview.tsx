@@ -1,4 +1,5 @@
 import { FC } from 'react';
+import { sanitizePreviewHtml } from '@gitroom/helpers/utils/sanitize.preview.html';
 import { useIntegration } from '@gitroom/frontend/components/launches/helpers/use.integration';
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useMediaDirectory } from '@gitroom/react/helpers/use.media.directory';
@@ -154,7 +155,7 @@ export const YoutubePreview: FC<{
       </div>
       <div
         className="bg-youtubeBgAction rounded-[12px] p-[12px] text-[12px] font-[400] whitespace-pre-line"
-        dangerouslySetInnerHTML={{ __html: renderContent?.[0]?.text }}
+        dangerouslySetInnerHTML={{ __html: sanitizePreviewHtml(renderContent?.[0]?.text) }}
       />
     </div>
   );

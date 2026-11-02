@@ -70,8 +70,15 @@ export default function OAuthAuthorizePage() {
           })
         ).json();
 
-        if (result.redirect) {
+        // so http(s): nunca navega para javascript:/data: vindo do app
+        if (
+          typeof result.redirect === 'string' &&
+          /^https?:\/\//i.test(result.redirect)
+        ) {
           window.location.href = result.redirect;
+        } else if (result.redirect) {
+          setError('Invalid redirect URL');
+          setSubmitting(false);
         }
       } catch {
         setError('Failed to process authorization');

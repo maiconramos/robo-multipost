@@ -59,22 +59,30 @@ export class IgWebhookController {
       return res.status(403).send('Forbidden');
     }
 
+    // O challenge da Meta e numerico. Devolver o texto cru como text/html
+    // (padrao do Express) refletia HTML/script no dominio da app.
+    if (typeof challenge !== 'string' || !/^\d{1,64}$/.test(challenge)) {
+      return res.status(400).type('text/plain').send('Invalid challenge');
+    }
+    const sendChallenge = () =>
+      res.status(200).type('text/plain').send(challenge);
+
     // 1) Accept platform default token (zero-config)
     if (token === DEFAULT_IG_WEBHOOK_VERIFY_TOKEN) {
-      return res.status(200).send(challenge);
+      return sendChallenge();
     }
 
     // 2) Accept custom token from any per-workspace credential
     const all = await this._credentialService.findAllDecrypted('facebook');
     const match = all.some((c) => c.data?.webhookVerifyToken === token);
     if (match) {
-      return res.status(200).send(challenge);
+      return sendChallenge();
     }
 
     // 3) Fallback to global env var
     const envToken = process.env.INSTAGRAM_WEBHOOK_VERIFY_TOKEN;
     if (envToken && token === envToken) {
-      return res.status(200).send(challenge);
+      return sendChallenge();
     }
 
     return res.status(403).send('Forbidden');

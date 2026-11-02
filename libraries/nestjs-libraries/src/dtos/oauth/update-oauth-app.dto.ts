@@ -17,6 +17,11 @@ export class UpdateOAuthAppDto {
 
   @IsString()
   @IsOptional()
-  @IsUrl({ require_tld: false })
+  // so http(s): a tela de consentimento navega para este endereco
+  @IsUrl({
+    require_tld: false,
+    require_protocol: true,
+    protocols: ['http', 'https'],
+  })
   redirectUrl?: string;
 }

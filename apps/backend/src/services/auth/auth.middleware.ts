@@ -1,4 +1,4 @@
-import { Injectable, NestMiddleware } from '@nestjs/common';
+import { HttpException, Injectable, NestMiddleware } from '@nestjs/common';
 import { Request, Response, NextFunction } from 'express';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { Role, User } from '@prisma/client';
@@ -12,6 +12,7 @@ import {
   asSessionPayload,
   isSessionRevoked,
 } from '@gitroom/nestjs-libraries/services/auth/session.token';
+import { isCrossSiteCookieMutation } from '@gitroom/nestjs-libraries/services/auth/csrf.origin';
 
 export const removeAuth = (res: Response) => {
   res.cookie('auth', '', {
@@ -40,6 +41,11 @@ export class AuthMiddleware implements NestMiddleware {
     const auth = req.headers.auth || req.cookies.auth;
     if (!auth) {
       throw new HttpForbiddenException();
+    }
+    // CSRF: o cookie e SameSite=None, entao formulario de outro site levava a
+    // sessao junto. 403 simples (nao HttpForbiddenException: nao desloga).
+    if (isCrossSiteCookieMutation(req as any)) {
+      throw new HttpException({ message: 'CSRF_ORIGIN_MISMATCH' }, 403);
     }
     try {
       // Verify the JWT signature only. Never trust authorization-relevant

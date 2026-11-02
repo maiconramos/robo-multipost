@@ -265,3 +265,34 @@ describe('AuthMiddleware - somente tokens de sessao validos', () => {
     expect(next).toHaveBeenCalled();
   });
 });
+
+describe('AuthMiddleware - CSRF pelo cookie', () => {
+  const original = process.env.FRONTEND_URL;
+  afterAll(() => {
+    if (original === undefined) delete process.env.FRONTEND_URL;
+    else process.env.FRONTEND_URL = original;
+  });
+
+  it('POST com cookie vindo de outro site recebe 403 sem deslogar', async () => {
+    process.env.FRONTEND_URL = 'https://app.exemplo.com';
+    const users = createMock<UsersService>();
+    const middleware = new AuthMiddleware(
+      createMock<OrganizationService>() as any,
+      users as any,
+      createMock<ProfileService>() as any
+    );
+    const req: any = {
+      method: 'POST',
+      headers: { origin: 'https://atacante.com' },
+      cookies: { auth: 'jwt' },
+    };
+    const next = jest.fn();
+
+    const err: any = await middleware.use(req, {} as any, next).catch((e) => e);
+
+    expect(err?.getStatus?.()).toBe(403);
+    expect(err?.constructor?.name).not.toBe('HttpForbiddenException');
+    expect(users.getUserById).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+});
