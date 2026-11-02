@@ -112,3 +112,18 @@ describe('SetsRepository', () => {
     });
   });
 });
+
+describe('SetsRepository - editar por id respeita o perfil', () => {
+  it('nao edita registro de outro perfil pelo id', async () => {
+    const mock = createPrismaRepositoryMock('sets');
+    (mock.model.sets as any).findFirst.mockResolvedValue(null);
+    const repo = new SetsRepository(mock as any);
+    await expect(repo.createSet('org', { id: 'set-B', name: 'x', content: '{}' } as any, 'prof-A')).rejects.toMatchObject({ status: 404 });
+    expect((mock.model.sets as any).findFirst).toHaveBeenCalledWith(
+      expect.objectContaining({
+        where: expect.objectContaining({ id: 'set-B', organizationId: 'org', profileId: 'prof-A' }),
+      })
+    );
+    expect((mock.model.sets as any).upsert).not.toHaveBeenCalled();
+  });
+});

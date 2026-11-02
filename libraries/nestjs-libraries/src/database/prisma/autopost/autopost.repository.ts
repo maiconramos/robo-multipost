@@ -1,5 +1,5 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { v4 as uuidv4 } from 'uuid';
 import { AutopostDto } from '@gitroom/nestjs-libraries/dtos/autopost/autopost.dto';
 
@@ -82,6 +82,21 @@ export class AutopostRepository {
   }
 
   async createAutopost(orgId: string, body: AutopostDto, id?: string, profileId?: string) {
+    // editar por id so dentro do proprio perfil
+    if (id) {
+      const existing = await this._autoPost.model.autoPost.findFirst({
+        where: {
+          id,
+          organizationId: orgId,
+          deletedAt: null,
+          ...(profileId ? { profileId } : {}),
+        },
+        select: { id: true },
+      });
+      if (!existing) {
+        throw new HttpException('Autopost not found', HttpStatus.NOT_FOUND);
+      }
+    }
     const { id: newId, active } = await this._autoPost.model.autoPost.upsert({
       where: {
         id: id || uuidv4(),

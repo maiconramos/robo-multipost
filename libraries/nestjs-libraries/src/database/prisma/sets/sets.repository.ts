@@ -1,5 +1,5 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { SetsDto } from '@gitroom/nestjs-libraries/dtos/sets/sets.dto';
 import { v4 as uuidv4 } from 'uuid';
 
@@ -39,6 +39,20 @@ export class SetsRepository {
   }
 
   async createSet(orgId: string, body: SetsDto, profileId?: string) {
+    // editar por id so dentro do proprio perfil
+    if (body.id) {
+      const existing = await this._sets.model.sets.findFirst({
+        where: {
+          id: body.id,
+          organizationId: orgId,
+          ...(profileId ? { profileId } : {}),
+        },
+        select: { id: true },
+      });
+      if (!existing) {
+        throw new HttpException('Set not found', HttpStatus.NOT_FOUND);
+      }
+    }
     const { id } = await this._sets.model.sets.upsert({
       where: {
         id: body.id || uuidv4(),
