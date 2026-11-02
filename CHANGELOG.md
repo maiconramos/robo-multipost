@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — webhook das automações do Facebook
+
+- O webhook público das automações do Facebook não pode mais ser travado por requisições falsas. Antes, 60 requisições lixo em 10 segundos bloqueavam as entregas reais da Meta para todas as contas. Agora o limite é separado por app, requisição malformada não conta, e as entregas reais recentes continuam passando mesmo durante um ataque.
+
 ### Segurança — limites das automações antigas no painel
 
 - O editor visual das automações antigas do Instagram passa a ter os mesmos limites da API pública: até 100 blocos, espera (DELAY) de no máximo 30 dias, sem ciclos e sem combinações de ramos que multipliquem respostas e DMs. Antes, um fluxo montado no painel podia disparar milhares de respostas por comentário ou ficar esperando para sempre. Fluxos já salvos só são checados quando forem salvos de novo.

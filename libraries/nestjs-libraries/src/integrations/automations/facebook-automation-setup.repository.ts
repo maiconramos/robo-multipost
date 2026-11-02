@@ -100,12 +100,13 @@ export class FacebookAutomationSetupRepository implements OnModuleDestroy {
     return result;
   }
 
-  async allowWebhook() {
+  // orcamento de buscas por app (antes um balde unico da instancia inteira)
+  async allowWebhook(appId: string) {
     try {
       const count = await this.cache().eval(
         "local n = redis.call('INCR', KEYS[1]); if n == 1 then redis.call('EXPIRE', KEYS[1], 20) end; return n",
         1,
-        `fbauto:public-budget:${Math.floor(Date.now() / 10000)}`
+        `fbauto:public-budget:${appId}:${Math.floor(Date.now() / 10000)}`
       );
       return typeof count === 'number' && count <= 60;
     } catch {

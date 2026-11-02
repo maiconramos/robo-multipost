@@ -743,6 +743,38 @@ describe('FacebookAutomationSetupService', () => {
     expect(graph.subscribePage).not.toHaveBeenCalled();
   });
 
+  it('entrega legitima recente segue funcionando com o orcamento anonimo esgotado', async () => {
+    const raw = payload();
+    const sig = 'sha256=' + createHmac('sha256', 'SECRET').update(raw).digest('hex');
+    await service.receive('456', raw, sig);
+    expect(repo.saveReceipt).toHaveBeenCalledTimes(1);
+
+    // atacante esgota o orcamento: a proxima entrega real usa as conexoes ja
+    // validadas, sem consultar o banco
+    repo.allowWebhook.mockResolvedValue(false);
+    repo.findConnections.mockClear();
+    const raw2 = payload();
+    await service.receive(
+      '456',
+      raw2,
+      'sha256=' + createHmac('sha256', 'SECRET').update(raw2).digest('hex')
+    );
+    expect(repo.findConnections).not.toHaveBeenCalled();
+    expect(repo.saveReceipt).toHaveBeenCalledTimes(2);
+
+    // e lixo com assinatura errada continua recusado
+    await expect(
+      service.receive('456', payload(), 'sha256=' + '0'.repeat(64))
+    ).rejects.toMatchObject({ status: 403 });
+  });
+
+  it('verificacao malformada nao gasta o orcamento', async () => {
+    await expect(
+      service.verify('456', 'subscribe', 'nao-hex', '123')
+    ).rejects.toMatchObject({ status: 403 });
+    expect(repo.allowWebhook).not.toHaveBeenCalled();
+  });
+
   it('rejeita assinatura incorreta sem gravar recibo', async () => {
     await expect(
       service.receive('456', payload(), 'sha256=' + '0'.repeat(64))

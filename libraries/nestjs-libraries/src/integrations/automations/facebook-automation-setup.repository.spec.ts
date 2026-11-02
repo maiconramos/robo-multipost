@@ -388,11 +388,20 @@ describe('FacebookAutomationSetupRepository', () => {
       .mockResolvedValueOnce(60)
       .mockResolvedValueOnce(61)
       .mockRejectedValueOnce(new Error('private redis details'));
-    expect(await repository.allowWebhook()).toBe(true);
-    expect(await repository.allowWebhook()).toBe(false);
-    await expect(repository.allowWebhook()).rejects.toMatchObject({
+    expect(await repository.allowWebhook('456')).toBe(true);
+    expect(await repository.allowWebhook('456')).toBe(false);
+    await expect(repository.allowWebhook('456')).rejects.toMatchObject({
       status: 503,
       message: 'SETUP_STORAGE_UNAVAILABLE',
     });
+  });
+
+  it('orcamento e separado por app (lixo num app nao trava os outros)', async () => {
+    (ioRedis.eval as jest.Mock).mockResolvedValue(1);
+    await repository.allowWebhook('111');
+    await repository.allowWebhook('222');
+    const keys = (ioRedis.eval as jest.Mock).mock.calls.slice(-2).map((c) => c[2]);
+    expect(keys[0]).toMatch(/^fbauto:public-budget:111:/);
+    expect(keys[1]).toMatch(/^fbauto:public-budget:222:/);
   });
 });

@@ -35,6 +35,9 @@ import type {
   FacebookAppWebhookView,
 } from '../../dtos/integrations/facebook-automation.dto';
 
+const WEBHOOK_CONNECTION_CACHE_MS = 60_000;
+const WEBHOOK_CONNECTION_CACHE_MAX = 500;
+
 @Injectable()
 export class FacebookAutomationSetupService {
   constructor(
@@ -736,14 +739,42 @@ export class FacebookAutomationSetupService {
     return active;
   }
 
+  // Conexoes ja resolvidas para (app, paginas) com entrega valida recente: a
+  // Meta continua sendo atendida mesmo com o orcamento anonimo esgotado (antes
+  // 60 GET/POST lixo em 10 s derrubavam as entregas reais de todo mundo).
+  private readonly connectionCache = new Map<
+    string,
+    { at: number; connections: FacebookSetupConnection[] }
+  >();
+
+  private cachedConnections(key: string) {
+    const hit = this.connectionCache.get(key);
+    if (!hit) return undefined;
+    if (Date.now() - hit.at > WEBHOOK_CONNECTION_CACHE_MS) {
+      this.connectionCache.delete(key);
+      return undefined;
+    }
+    return hit.connections;
+  }
+
+  private rememberConnections(
+    key: string,
+    connections: FacebookSetupConnection[]
+  ) {
+    if (this.connectionCache.size >= WEBHOOK_CONNECTION_CACHE_MAX) {
+      const oldest = this.connectionCache.keys().next().value;
+      if (oldest !== undefined) this.connectionCache.delete(oldest);
+    }
+    this.connectionCache.set(key, { at: Date.now(), connections });
+  }
+
   async verify(
     appId: string,
     mode: unknown,
     token: unknown,
     challenge: unknown
   ) {
-    if (!(await this.repository.allowWebhook()))
-      throw new HttpException('WEBHOOK_RATE_LIMIT', 429);
+    // formato antes do orcamento: requisicao malformada nao gasta o limite
     if (
       mode !== 'subscribe' ||
       typeof token !== 'string' ||
@@ -752,6 +783,8 @@ export class FacebookAutomationSetupService {
       !/^\d{1,100}$/.test(challenge)
     )
       throw new HttpException('INVALID_CHALLENGE', 403);
+    if (!(await this.repository.allowWebhook(appId)))
+      throw new HttpException('WEBHOOK_RATE_LIMIT', 429);
     const connections = await this.currentConnections(appId);
     if (
       !connections.some((connection) =>
@@ -770,8 +803,6 @@ export class FacebookAutomationSetupService {
     raw: Buffer | undefined,
     signature: string | undefined
   ) {
-    if (!(await this.repository.allowWebhook()))
-      throw new HttpException('WEBHOOK_RATE_LIMIT', 429);
     if (
       !Buffer.isBuffer(raw) ||
       raw.length > 1024 * 1024 ||
@@ -797,14 +828,24 @@ export class FacebookAutomationSetupService {
           )
       ),
     ];
-    const connections = await this.currentConnections(appId, pageIds);
-    if (!connections.length) return { received: true };
+    if (!pageIds.length) return { received: true };
+    const cacheKey = `${appId}:${[...pageIds].sort().join(',')}`;
+    let connections = this.cachedConnections(cacheKey);
+    if (!connections) {
+      // orcamento so para a busca no banco, e por app
+      if (!(await this.repository.allowWebhook(appId)))
+        throw new HttpException('WEBHOOK_RATE_LIMIT', 429);
+      connections = await this.currentConnections(appId, pageIds);
+      if (!connections.length) return { received: true };
+    }
     let events: ReturnType<typeof parseFacebookCommentWebhook>['events'];
     try {
       events = parseFacebookCommentWebhook(raw, signature, connections).events;
     } catch {
       throw new HttpException('INVALID_WEBHOOK_SIGNATURE', 403);
     }
+    // assinatura conferida: guarda as conexoes para as proximas entregas
+    this.rememberConnections(cacheKey, connections);
     const messengerEvents = parseFacebookMessengerWebhook(
       raw,
       signature,
