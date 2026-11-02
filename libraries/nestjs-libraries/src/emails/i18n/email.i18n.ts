@@ -44,7 +44,7 @@ export function resolveOrgLang(
 // do catalogo sao confiaveis e contem HTML proposital como <a>/<br>). Espelha o
 // comportamento padrao do i18next no frontend (escapeValue: true), fechando XSS
 // via params vindos de texto livre do usuario (ex.: integration.name, error).
-function escapeHtml(value: string): string {
+export function escapeHtml(value: string): string {
   return value
     .replace(/&/g, '&amp;')
     .replace(/</g, '&lt;')

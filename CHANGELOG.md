@@ -7,6 +7,15 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — cobrança
+
+- Só administradores da organização podem cancelar, trocar o plano, abrir o portal de pagamento, aplicar desconto, encerrar o teste, resgatar código vitalício ou gerar pagamento em cripto. Antes, qualquer membro — até um cliente com acesso só de visualização — conseguia.
+- O desconto de retenção agora respeita as regras (plano mensal, já pago, sem outro desconto). Antes, a checagem era ignorada e o cupom entrava em qualquer assinatura.
+- O resgate de código vitalício passa a exigir o formato do código emitido e ganhou limite de 10 tentativas por hora. Antes, dava para "acertar" um código inventado com algumas centenas de tentativas.
+- O retorno de pagamento em cripto (NOWPayments) passa a exigir a assinatura da NOWPayments (`NOWPAYMENTS_IPN_SECRET`) e só vale para a organização do próprio pedido. Antes, qualquer um com a URL de retorno conseguia dar plano vitalício para qualquer organização. Quem usa NOWPayments precisa configurar `NOWPAYMENTS_IPN_SECRET`.
+- O motivo do cancelamento e o nome da organização são escapados no e-mail enviado ao operador (antes era possível inserir links e imagens no e-mail).
+- O gerador de posts antigo (que usa a chave OpenAI da instância) ganhou limite de 10 gerações por hora por usuário.
+
 ### Segurança — créditos e limites de IA
 
 - O limite de créditos de IA por perfil (Configurações > Créditos de IA, modo gerenciado) agora vale de verdade para imagens e vídeos, inclusive quando a geração é pedida pelo assistente ou pelo MCP. Antes, um perfil bloqueado ou com limite conseguia gerar sem parar, e o uso aparecia como zero para o administrador.

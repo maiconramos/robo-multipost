@@ -14,6 +14,12 @@ import { TrackEnum } from '@gitroom/nestjs-libraries/user/track.enum';
 
 const stripe = new Stripe(process.env.STRIPE_SECRET_KEY || 'sk_nothing');
 
+// Plaintext de um codigo vitalicio gerado por CodesService.generateCodes.
+export const isLifetimeCodeFormat = (plain: unknown): plain is string =>
+  typeof plain === 'string' &&
+  plain.length <= 512 &&
+  /^[\x20-\x7e]+:\d{1,4}$/.test(plain);
+
 @Injectable()
 export class StripeService {
   constructor(
@@ -595,7 +601,9 @@ export class StripeService {
   }
 
   async applyDiscount(customer: string) {
-    const check = this.checkDiscount(customer);
+    // checkDiscount e async: sem await a Promise era sempre "verdadeira" e o
+    // cupom entrava em qualquer assinatura (anual, trial, com outro desconto)
+    const check = await this.checkDiscount(customer);
     if (!check) {
       return false;
     }
@@ -953,6 +961,14 @@ export class StripeService {
 
     try {
       const testCode = AuthService.fixedDecryption(code);
+      // A cifra (CBC sem autenticacao) aceita qualquer bloco com padding
+      // valido (~1 em 256): so vale o formato emitido pelo CodesService,
+      // `<token do provedor>:<0..9999>`, em texto imprimivel.
+      if (!isLifetimeCodeFormat(testCode)) {
+        return {
+          success: false,
+        };
+      }
       const findCode = await this._subscriptionService.getCode(testCode);
       if (findCode) {
         return {

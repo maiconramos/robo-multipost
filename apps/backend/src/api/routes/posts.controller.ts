@@ -13,7 +13,10 @@ import {
   Put,
   Query,
   Res,
+  UseGuards,
 } from '@nestjs/common';
+import { Throttle } from '@nestjs/throttler';
+import { ThrottlerOrgUserGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { PostsService } from '@gitroom/nestjs-libraries/database/prisma/posts/posts.service';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
@@ -370,6 +373,10 @@ export class PostsController {
 
   @Post('/generator')
   @CheckPolicies([AuthorizationActions.Create, Sections.POSTS_PER_MONTH])
+  // gerador legado: gasta a OPENAI_API_KEY da instancia (texto e DALL-E) fora
+  // dos creditos de IA — limite por org + usuario
+  @UseGuards(ThrottlerOrgUserGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600_000 } })
   async generatePosts(
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile | null,

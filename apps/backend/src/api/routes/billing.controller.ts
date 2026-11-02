@@ -1,4 +1,13 @@
-import { Body, Controller, Get, HttpException, Param, Post, Req } from '@nestjs/common';
+import {
+  Body,
+  Controller,
+  Get,
+  HttpException,
+  Param,
+  Post,
+  Req,
+  UseGuards,
+} from '@nestjs/common';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
 import { StripeService } from '@gitroom/nestjs-libraries/services/stripe.service';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
@@ -11,6 +20,19 @@ import { Request } from 'express';
 import { Nowpayments } from '@gitroom/nestjs-libraries/crypto/nowpayments';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { SkipProfileAccess } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
+import { CheckPolicies } from '@gitroom/backend/services/auth/permissions/permissions.ability';
+import {
+  AuthorizationActions,
+  Sections,
+} from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import { Throttle } from '@nestjs/throttler';
+import { ThrottlerOrgUserGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
+import { escapeHtml } from '@gitroom/nestjs-libraries/emails/i18n/email.i18n';
+
+// Mexer na assinatura (cobrar, cancelar, trocar plano, portal com faturas e
+// cartao) e coisa de administrador da org (@CheckPolicies Sections.ADMIN) — a
+// tela de Billing so aparece para ADMIN/SUPERADMIN, mas as rotas aceitavam
+// qualquer membro.
 
 @ApiTags('Billing')
 @SkipProfileAccess()
@@ -43,11 +65,13 @@ export class BillingController {
   }
 
   @Post('/apply-discount')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async applyDiscount(@GetOrgFromRequest() org: Organization) {
     await this._stripeService.applyDiscount(org.paymentId);
   }
 
   @Post('/finish-trial')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async finishTrial(@GetOrgFromRequest() org: Organization) {
     try {
       await this._stripeService.finishTrial(org.paymentId);
@@ -65,6 +89,7 @@ export class BillingController {
   }
 
   @Post('/embedded')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   embedded(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
@@ -82,6 +107,7 @@ export class BillingController {
   }
 
   @Post('/subscribe')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   subscribe(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
@@ -99,6 +125,7 @@ export class BillingController {
   }
 
   @Get('/portal')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async modifyPayment(@GetOrgFromRequest() org: Organization) {
     const customer = await this._stripeService.getCustomerByOrganizationId(
       org.id
@@ -115,6 +142,7 @@ export class BillingController {
   }
 
   @Post('/cancel')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async cancel(
     @GetOrgFromRequest() org: Organization,
     @GetUserFromRequest() user: User,
@@ -123,7 +151,10 @@ export class BillingController {
     await this._notificationService.sendEmail(
       process.env.EMAIL_FROM_ADDRESS,
       'Subscription Cancelled',
-      `Organization ${org.name} has cancelled their subscription because: ${body.feedback}`,
+      // texto livre do usuario vai para o e-mail do operador: escapa o HTML
+      `Organization ${escapeHtml(String(org.name ?? ''))} has cancelled their subscription because: ${escapeHtml(
+        String(body?.feedback ?? '')
+      ).slice(0, 2000)}`,
       user.email
     );
 
@@ -131,6 +162,7 @@ export class BillingController {
   }
 
   @Post('/prorate')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   prorate(
     @GetOrgFromRequest() org: Organization,
     @Body() body: BillingSubscribeDto
@@ -139,6 +171,10 @@ export class BillingController {
   }
 
   @Post('/lifetime')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
+  // codigo sem autenticacao propria (cifra CBC): limita tentativas
+  @UseGuards(ThrottlerOrgUserGuard)
+  @Throttle({ default: { limit: 10, ttl: 3600_000 } })
   async lifetime(
     @GetOrgFromRequest() org: Organization,
     @Body() body: { code: string }
@@ -201,6 +237,7 @@ export class BillingController {
   }
 
   @Get('/crypto')
+  @CheckPolicies([AuthorizationActions.Create, Sections.ADMIN])
   async crypto(@GetOrgFromRequest() org: Organization) {
     return this._nowpayments.createPaymentPage(org.id);
   }

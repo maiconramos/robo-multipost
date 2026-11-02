@@ -1,4 +1,5 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, Logger } from '@nestjs/common';
+import { createHmac, timingSafeEqual } from 'crypto';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { SubscriptionService } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.service';
@@ -21,24 +22,88 @@ export interface ProcessPayment {
   outcome_currency: string;
 }
 
+// Assinatura do IPN da NOWPayments: HMAC-SHA512 do corpo com as chaves
+// ordenadas (recursivo), com o "IPN secret" da conta, no header
+// x-nowpayments-sig (documentacao oficial do IPN).
+const sortKeys = (value: unknown): unknown => {
+  if (Array.isArray(value)) return value.map(sortKeys);
+  if (value && typeof value === 'object') {
+    return Object.keys(value as Record<string, unknown>)
+      .sort()
+      .reduce((acc, key) => {
+        acc[key] = sortKeys((value as Record<string, unknown>)[key]);
+        return acc;
+      }, {} as Record<string, unknown>);
+  }
+  return value;
+};
+
+export const isValidNowpaymentsSignature = (
+  body: unknown,
+  signature: unknown,
+  secret: string | undefined
+): boolean => {
+  if (!secret || typeof signature !== 'string' || !signature) return false;
+  const expected = createHmac('sha512', secret)
+    .update(JSON.stringify(sortKeys(body)))
+    .digest('hex');
+  const a = Buffer.from(expected);
+  const b = Buffer.from(signature.trim().toLowerCase());
+  return a.length === b.length && timingSafeEqual(a, b);
+};
+
 @Injectable()
 export class Nowpayments {
+  private readonly _logger = new Logger(Nowpayments.name);
+
   constructor(private _subscriptionService: SubscriptionService) {}
 
-  async processPayment(path: string, body: ProcessPayment) {
-    const decrypt = AuthService.verifyJWT(path) as any;
-    if (!decrypt || !decrypt.order_id) {
-      return;
+  async processPayment(
+    path: string,
+    body: ProcessPayment,
+    signature?: string
+  ): Promise<ProcessPayment | undefined> {
+    // Sem a assinatura do IPN qualquer um com a URL de callback marcava o
+    // pedido como pago; o corpo tambem escolhia a org. Falha fechado.
+    if (
+      !isValidNowpaymentsSignature(
+        body,
+        signature,
+        process.env.NOWPAYMENTS_IPN_SECRET
+      )
+    ) {
+      this._logger.warn(
+        'NOWPayments IPN recusado: assinatura ausente/invalida ou NOWPAYMENTS_IPN_SECRET nao configurado.'
+      );
+      return undefined;
+    }
+
+    let decrypt: { order_id?: unknown } | null = null;
+    try {
+      decrypt = AuthService.verifyJWT(path) as { order_id?: unknown };
+    } catch {
+      return undefined;
+    }
+    if (!decrypt || typeof decrypt.order_id !== 'string' || !decrypt.order_id) {
+      return undefined;
+    }
+
+    // o pedido do corpo tem que ser o mesmo assinado na URL de callback
+    if (typeof body?.order_id !== 'string' || body.order_id !== decrypt.order_id) {
+      return undefined;
     }
 
     if (
       body.payment_status !== 'confirmed' &&
       body.payment_status !== 'finished'
     ) {
-      return;
+      return undefined;
     }
 
-    const [org, make] = body.order_id.split('_');
+    const [org, make] = decrypt.order_id.split('_');
+    if (!org || !make) {
+      return undefined;
+    }
     await this._subscriptionService.lifeTime(org, make, 'PRO');
     return body;
   }

@@ -7,6 +7,7 @@ import {
   Body,
   Controller,
   Get,
+  Headers,
   Param,
   Post,
   Query,
@@ -300,9 +301,13 @@ export class PublicController {
   }
 
   @Post('/crypto/:path')
-  async cryptoPost(@Body() body: any, @Param('path') path: string) {
+  async cryptoPost(
+    @Body() body: any,
+    @Param('path') path: string,
+    @Headers('x-nowpayments-sig') signature?: string
+  ) {
     // `path` e o JWT portador do pedido: nunca logar.
-    return this._nowpayments.processPayment(path, body);
+    return this._nowpayments.processPayment(path, body, signature);
   }
 
   @Get('/stream')
