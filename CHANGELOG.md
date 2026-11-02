@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — reconexão de canal a partir de outro site
+
+- O link de reconexão de canal (que desconecta o acesso antigo no Google/YouTube antes de pedir permissão de novo) não pode mais ser disparado por outro site com o seu login. Ele também só atua no canal da mesma rede social.
+
 ### Correção — chave Zernio voltava sozinha
 
 - Remover a chave Zernio (ou desligar o compartilhamento com os perfis) agora é definitivo. Antes, a cada reinício da app a chave antiga do Late era copiada de volta. Na primeira inicialização desta versão, a cópia é feita uma última vez e a chave antiga do Late é apagada.

@@ -45,6 +45,22 @@ const header = (req: CsrfRequestLike, name: string) => {
   return Array.isArray(value) ? value[0] : value;
 };
 
+/**
+ * Requisicao vinda de outro site (qualquer metodo): Origin fora da instancia
+ * ou, sem Origin, Sec-Fetch-Site cross-site. Para GET com efeito colateral
+ * (o cookie SameSite=None vai junto num <img> ou link de outro site).
+ */
+export function isCrossSiteRequest(
+  req: CsrfRequestLike,
+  allowed: Set<string> = allowedRequestOrigins()
+): boolean {
+  const origin = header(req, 'origin');
+  if (origin) {
+    return !allowed.has(origin);
+  }
+  return header(req, 'sec-fetch-site') === 'cross-site';
+}
+
 export function isCrossSiteCookieMutation(
   req: CsrfRequestLike,
   allowed: Set<string> = allowedRequestOrigins()
@@ -56,11 +72,7 @@ export function isCrossSiteCookieMutation(
   if (header(req, 'auth')) return false;
   if (!req.cookies?.auth) return false;
 
-  const origin = header(req, 'origin');
-  if (origin) {
-    return !allowed.has(origin);
-  }
-  // sem Origin (navegador antigo / cliente nao-navegador): usa o Fetch
+  // sem Origin (navegador antigo / cliente nao-navegador) vale o Fetch
   // Metadata quando houver
-  return header(req, 'sec-fetch-site') === 'cross-site';
+  return isCrossSiteRequest(req, allowed);
 }

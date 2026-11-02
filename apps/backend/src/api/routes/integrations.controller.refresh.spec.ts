@@ -29,7 +29,7 @@ const build = (channelProfileId: string | null, found = true) => {
   };
   const integrationService = {
     getIntegrationsByInternalId: jest.fn().mockResolvedValue([
-      { id: 'int-9', organizationId: 'org-1', profileId: channelProfileId, token: 'OLD' },
+      { id: 'int-9', organizationId: 'org-1', profileId: channelProfileId, providerIdentifier: 'youtube', token: 'OLD' },
     ]),
     getChannelProfileByInternalId: jest
       .fn()
@@ -111,5 +111,29 @@ describe('IntegrationsController DELETE / (deleteChannel)', () => {
     ).rejects.toMatchObject({ status: 400 });
     expect(integrationService.validateIntegrationProfile).not.toHaveBeenCalled();
     expect(integrationService.getPostsForChannel).not.toHaveBeenCalled();
+  });
+});
+
+describe('IntegrationsController GET /social/:integration (refresh) - outro site', () => {
+  it('pedido vindo de outro site nao revoga o token do canal', async () => {
+    process.env.FRONTEND_URL = 'https://app.exemplo.com';
+    const { controller, provider } = build('prof-1');
+    await expect(
+      controller.getIntegrationUrl('youtube', 'yt-1', '', '', adminOrg, profile, {
+        headers: { 'sec-fetch-site': 'cross-site' },
+      } as any)
+    ).rejects.toMatchObject({ status: 403 });
+    expect(provider.revokeToken).not.toHaveBeenCalled();
+  });
+
+  it('canal de outra rede com o mesmo internalId nao e revogado', async () => {
+    const { controller, provider, integrationService } = build('prof-1');
+    integrationService.getIntegrationsByInternalId.mockResolvedValue([
+      { id: 'int-x', organizationId: 'org-1', profileId: 'prof-1', providerIdentifier: 'gmb', token: 'OUTRO' },
+    ]);
+    await controller.getIntegrationUrl('youtube', 'yt-1', '', '', adminOrg, profile, {
+      headers: { origin: 'https://app.exemplo.com' },
+    } as any);
+    expect(provider.revokeToken).not.toHaveBeenCalled();
   });
 });

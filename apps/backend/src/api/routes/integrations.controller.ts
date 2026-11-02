@@ -10,11 +10,13 @@ import {
   Put,
   Query,
   Logger,
+  Req,
   UseGuards,
   UsePipes,
   ValidationPipe,
 } from '@nestjs/common';
 import { Throttle } from '@nestjs/throttler';
+import { Request } from 'express';
 import { ThrottlerOrgUserGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import {
   FarcasterChannelSignerDto,
@@ -56,6 +58,7 @@ import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profil
 import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
+import { isCrossSiteRequest } from '@gitroom/nestjs-libraries/services/auth/csrf.origin';
 
 @ApiTags('Integrations')
 @Controller('/integrations')
@@ -307,8 +310,15 @@ export class IntegrationsController {
     @Query('externalUrl') externalUrl: string,
     @Query('onboarding') onboarding: string,
     @GetOrgFromRequest() org: Organization,
-    @GetProfileFromRequest() profile: Profile | null
+    @GetProfileFromRequest() profile: Profile | null,
+    @Req() req?: Request
   ) {
+    // GET com efeito colateral: com ?refresh= o token antigo e revogado no
+    // provider. O guard de CSRF so cobre POST/PUT/PATCH/DELETE, e o cookie
+    // (SameSite=None) vai junto num <img> ou link de outro site.
+    if (refresh && req && isCrossSiteRequest(req as any)) {
+      throw new HttpException({ message: 'CSRF_ORIGIN_MISMATCH' }, 403);
+    }
     if (
       !this._integrationManager
         .getAllowedSocialsIntegrations()
@@ -442,6 +452,9 @@ export class IntegrationsController {
         const existing = matches.find(
           (i) =>
             i.organizationId === org.id &&
+            // mesmo provider da URL: o internalId sozinho pode casar canal
+            // de outra rede
+            i.providerIdentifier === integration &&
             (restrictTo === undefined ||
               !i.profileId ||
               i.profileId === restrictTo)
