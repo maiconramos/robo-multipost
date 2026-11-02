@@ -12,6 +12,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Webhook criado em um perfil deixa de receber os posts publicados por canais de outros perfis da mesma organização. Webhooks de administrador (sem perfil) e canais sem perfil continuam funcionando como antes.
 - Não é mais possível vincular a um webhook canais de outro perfil ou organização, nem editar pelo id um webhook de outro perfil (resposta 404). Editar o próprio webhook não muda mais o perfil dele.
 
+### Segurança — exclusão de mídia não apaga arquivos de terceiros
+
+- Excluir uma mídia da biblioteca agora remove do storage apenas o arquivo da própria mídia. A miniatura não é mais apagada junto, porque é uma URL informada pelo navegador e podia apontar para arquivos de outras organizações (fotos de canais, imagens de posts).
+- Salvar a miniatura de uma mídia exige que ela seja um arquivo do próprio storage da instância (sem parâmetros extras) e só funciona para mídias do perfil ativo. Manter a miniatura atual continua permitido.
+
 ### Segurança — conversas do assistente de IA por perfil
 
 - As conversas do assistente de IA passam a ser guardadas e listadas por perfil: um membro só vê e abre as conversas do perfil ativo. Conversas antigas (gravadas antes desta versão para a organização inteira) continuam visíveis apenas para administradores da organização. A memória de longo prazo do assistente também fica separada por perfil.

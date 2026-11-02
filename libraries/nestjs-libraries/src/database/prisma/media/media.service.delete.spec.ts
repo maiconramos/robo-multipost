@@ -67,19 +67,17 @@ describe('MediaService.deleteMediaBulk', () => {
     mockStorage.removeFile.mockResolvedValue(undefined);
   });
 
-  it('remove arquivo e thumbnail do bucket antes de marcar deletedAt', async () => {
+  it('remove so o arquivo da midia (nunca a miniatura informada pelo cliente) antes de marcar deletedAt', async () => {
     const { service, repository } = buildService();
     repository.getMediaForDeletion.mockResolvedValue([
-      candidate({ thumbnail: 'https://bucket.example.com/thumb.jpg' }),
+      candidate({ thumbnail: 'https://bucket.example.com/arquivo-de-outra-org.jpg' }),
     ] as any);
 
     const result = await service.deleteMediaBulk('org-1', ['media-1'], 'prof-1');
 
+    expect(mockStorage.removeFile).toHaveBeenCalledTimes(1);
     expect(mockStorage.removeFile).toHaveBeenCalledWith(
       'https://bucket.example.com/foto.png'
-    );
-    expect(mockStorage.removeFile).toHaveBeenCalledWith(
-      'https://bucket.example.com/thumb.jpg'
     );
     expect(repository.deleteMediaBulk).toHaveBeenCalledWith(
       'org-1',
@@ -163,10 +161,7 @@ describe('MediaService.deleteMediaBulk', () => {
 
     const result = await service.deleteMediaBulk('org-1', ['media-1']);
 
-    expect(mockStorage.removeFile).toHaveBeenCalledTimes(1);
-    expect(mockStorage.removeFile).toHaveBeenCalledWith(
-      'https://bucket.example.com/thumb.jpg'
-    );
+    expect(mockStorage.removeFile).not.toHaveBeenCalled();
     expect(result.deleted).toEqual(['media-1']);
   });
 
@@ -239,5 +234,58 @@ describe('MediaService.getMedia', () => {
       true,
       false,
     ]);
+  });
+});
+
+describe('MediaService.saveMediaInformation', () => {
+  const ORIGINAL = process.env.FRONTEND_URL;
+  beforeAll(() => {
+    process.env.FRONTEND_URL = 'https://app.example.com';
+  });
+  afterAll(() => {
+    process.env.FRONTEND_URL = ORIGINAL;
+  });
+
+  it('nao altera midia de outro perfil', async () => {
+    const { service, repository } = buildService();
+    repository.getMediaForInformation.mockResolvedValue(null as any);
+    await expect(
+      service.saveMediaInformation('org-1', { id: 'media-B', alt: 'x' } as any, 'prof-A')
+    ).rejects.toMatchObject({ status: 404 });
+    expect(repository.getMediaForInformation).toHaveBeenCalledWith('org-1', 'media-B', 'prof-A');
+    expect(repository.saveMediaInformation).not.toHaveBeenCalled();
+  });
+
+  it('recusa miniatura que nao e um arquivo canonico do proprio storage', async () => {
+    const { service, repository } = buildService();
+    repository.getMediaForInformation.mockResolvedValue({ id: 'media-1', thumbnail: null } as any);
+    for (const thumbnail of [
+      'https://app.example.com/uploads/2026/11/01/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png?v=1',
+      'https://outro.example.com/uploads/2026/11/01/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png',
+    ]) {
+      await expect(
+        service.saveMediaInformation('org-1', { id: 'media-1', alt: '', thumbnail } as any, 'prof-A')
+      ).rejects.toMatchObject({ status: 400 });
+    }
+    expect(repository.saveMediaInformation).not.toHaveBeenCalled();
+  });
+
+  it('aceita miniatura recem enviada ao proprio storage e a miniatura atual', async () => {
+    const { service, repository } = buildService();
+    repository.getMediaForInformation.mockResolvedValue({
+      id: 'media-1',
+      thumbnail: 'https://legado.example.com/thumb.jpg?x=1',
+    } as any);
+    await service.saveMediaInformation(
+      'org-1',
+      { id: 'media-1', alt: '', thumbnail: 'https://app.example.com/uploads/2026/11/01/aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa.png' } as any,
+      'prof-A'
+    );
+    await service.saveMediaInformation(
+      'org-1',
+      { id: 'media-1', alt: 'novo', thumbnail: 'https://legado.example.com/thumb.jpg?x=1' } as any,
+      'prof-A'
+    );
+    expect(repository.saveMediaInformation).toHaveBeenCalledTimes(2);
   });
 });

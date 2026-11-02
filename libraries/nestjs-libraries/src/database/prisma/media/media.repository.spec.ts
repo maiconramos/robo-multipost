@@ -10,6 +10,22 @@ const buildRepository = () => {
 };
 
 describe('MediaRepository', () => {
+  describe('getMediaForInformation', () => {
+    it('busca a midia pela org, sem excluidas e no escopo do perfil ativo', async () => {
+      const { repository, mediaMock } = buildRepository();
+      await repository.getMediaForInformation('org-1', 'm-1', 'prof-A');
+      expect((mediaMock.model.media as any).findFirst).toHaveBeenCalledWith({
+        where: {
+          id: 'm-1',
+          organizationId: 'org-1',
+          deletedAt: null,
+          OR: [{ profileId: 'prof-A' }, { profileId: null }],
+        },
+        select: { id: true, thumbnail: true },
+      });
+    });
+  });
+
   describe('findPendingPostsUsingMedia', () => {
     it('procura a midia em image e em settings dos posts que ainda vao publicar', async () => {
       const { repository, postMock } = buildRepository();

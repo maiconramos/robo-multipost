@@ -200,9 +200,10 @@ export class MediaController {
   @Post('/information')
   saveMediaInformation(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Body() body: SaveMediaInformationDto
   ) {
-    return this._mediaService.saveMediaInformation(org.id, body);
+    return this._mediaService.saveMediaInformation(org.id, body, profile?.id);
   }
 
   @Post('/upload-simple')

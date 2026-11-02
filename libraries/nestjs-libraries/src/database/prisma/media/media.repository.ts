@@ -181,6 +181,18 @@ export class MediaRepository {
     });
   }
 
+  getMediaForInformation(org: string, id: string, profileId?: string) {
+    return this._media.model.media.findFirst({
+      where: {
+        id,
+        organizationId: org,
+        deletedAt: null,
+        ...this.profileFilter(profileId),
+      },
+      select: { id: true, thumbnail: true },
+    });
+  }
+
   saveMediaInformation(org: string, data: SaveMediaInformationDto) {
     return this._media.model.media.update({
       where: {

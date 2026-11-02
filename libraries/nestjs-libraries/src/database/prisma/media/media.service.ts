@@ -1,4 +1,5 @@
-import { HttpException, Injectable, Logger } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable, Logger } from '@nestjs/common';
+import { normalizeOwnMediaUrl } from '@gitroom/helpers/utils/inline.images';
 import {
   MediaRepository,
   MediaUsageCandidate,
@@ -155,13 +156,12 @@ export class MediaService {
         continue;
       }
 
-      const files = [
-        ...new Set(
-          [media.path, media.thumbnail].filter(
-            (path): path is string => !!path && !stillReferenced.has(path)
-          )
-        ),
-      ];
+      // So o arquivo da propria midia sai do storage. A miniatura e uma URL
+      // informada pelo cliente e nao tem dono registrado: apagar por ela
+      // permitiria remover arquivos de outras organizacoes.
+      const files = [media.path].filter(
+        (path): path is string => !!path && !stillReferenced.has(path)
+      );
 
       try {
         for (const file of files) {
@@ -337,7 +337,28 @@ export class MediaService {
     };
   }
 
-  saveMediaInformation(org: string, data: SaveMediaInformationDto) {
+  async saveMediaInformation(
+    org: string,
+    data: SaveMediaInformationDto,
+    profileId?: string
+  ) {
+    const current = await this._mediaRepository.getMediaForInformation(
+      org,
+      data.id,
+      profileId
+    );
+    if (!current) {
+      throw new HttpException('Media not found', HttpStatus.NOT_FOUND);
+    }
+    // miniatura nova precisa ser um arquivo do proprio storage, sem query nem
+    // fragmento; manter a atual continua permitido
+    if (
+      data.thumbnail &&
+      data.thumbnail !== current.thumbnail &&
+      normalizeOwnMediaUrl(data.thumbnail) !== data.thumbnail
+    ) {
+      throw new HttpException('Invalid thumbnail', HttpStatus.BAD_REQUEST);
+    }
     return this._mediaRepository.saveMediaInformation(org, data);
   }
 
