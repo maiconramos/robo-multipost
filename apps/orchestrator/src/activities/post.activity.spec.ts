@@ -483,6 +483,61 @@ describe('PostActivity.sendWebhooks', () => {
     );
   });
 
+  it('webhook de outro perfil nao recebe o post do canal', async () => {
+    const { activity, postService, webhooksService, integrationService } =
+      buildActivity();
+    integrationService.getIntegrationById.mockResolvedValue({
+      ...integration,
+      profileId: 'profile-B',
+    } as any);
+    webhooksService.getWebhooks.mockResolvedValue([
+      { url: 'https://hooks.example/perfil-a', profileId: 'profile-A', integrations: [] },
+      { url: 'https://hooks.example/perfil-b', profileId: 'profile-B', integrations: [] },
+      { url: 'https://hooks.example/org', profileId: null, integrations: [] },
+    ] as any);
+    postService.getPostByForWebhookId.mockResolvedValue([] as any);
+
+    await activity.sendWebhooks('1789', 'org-1', 'integration-1');
+
+    expect((ssrfSafeFetch as jest.Mock).mock.calls.map(([url]) => url)).toEqual(
+      ['https://hooks.example/perfil-b', 'https://hooks.example/org']
+    );
+  });
+
+  it('canal sem perfil (org-wide) continua notificando webhooks de qualquer perfil', async () => {
+    const { activity, postService, webhooksService, integrationService } =
+      buildActivity();
+    integrationService.getIntegrationById.mockResolvedValue({
+      ...integration,
+      profileId: null,
+    } as any);
+    webhooksService.getWebhooks.mockResolvedValue([
+      { url: 'https://hooks.example/perfil-a', profileId: 'profile-A', integrations: [] },
+    ] as any);
+    postService.getPostByForWebhookId.mockResolvedValue([] as any);
+
+    await activity.sendWebhooks('1789', 'org-1', 'integration-1');
+
+    expect(ssrfSafeFetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('canal nao encontrado so notifica webhooks sem perfil', async () => {
+    const { activity, postService, webhooksService, integrationService } =
+      buildActivity();
+    integrationService.getIntegrationById.mockResolvedValue(null as any);
+    webhooksService.getWebhooks.mockResolvedValue([
+      { url: 'https://hooks.example/perfil-a', profileId: 'profile-A', integrations: [] },
+      { url: 'https://hooks.example/org', profileId: null, integrations: [] },
+    ] as any);
+    postService.getPostByForWebhookId.mockResolvedValue([] as any);
+
+    await activity.sendWebhooks('1789', 'org-1', 'integration-1');
+
+    expect((ssrfSafeFetch as jest.Mock).mock.calls.map(([url]) => url)).toEqual(
+      ['https://hooks.example/org']
+    );
+  });
+
   it('falha de um webhook nao impede os demais', async () => {
     const { activity, postService, webhooksService } = buildActivity();
     webhooksService.getWebhooks.mockResolvedValue([

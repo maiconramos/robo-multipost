@@ -109,7 +109,7 @@ Cada perfil tem seus proprios:
 - **Integracoes** — canais de redes sociais conectados
 - **Posts** — publicacoes agendadas e publicadas
 - **Credenciais OAuth** — tokens de acesso das redes sociais
-- **Webhooks** — notificacoes de eventos
+- **Webhooks** — notificacoes de eventos. Um webhook de perfil so recebe posts de canais desse perfil ou de canais sem perfil (org-wide); webhooks sem perfil (criados por admin) recebem todos. So e possivel vincular canais visiveis ao perfil e editar webhooks do proprio perfil
 - **Auto Post** — regras de publicacao automatica
 - **Sets** — conjuntos de canais pre-configurados
 - **Late API key** — chave de acesso a API Late (TikTok/Pinterest alternativo)

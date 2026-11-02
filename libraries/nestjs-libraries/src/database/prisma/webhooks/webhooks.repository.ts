@@ -1,11 +1,14 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable } from '@nestjs/common';
+import { HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { WebhooksDto } from '@gitroom/nestjs-libraries/dtos/webhooks/webhooks.dto';
 import { v4 as uuidv4 } from 'uuid';
 
 @Injectable()
 export class WebhooksRepository {
-  constructor(private _webhooks: PrismaRepository<'webhooks'>) {}
+  constructor(
+    private _webhooks: PrismaRepository<'webhooks'>,
+    private _integration: PrismaRepository<'integration'>
+  ) {}
 
   getTotal(orgId: string, profileId?: string) {
     return this._webhooks.model.webhooks.count({
@@ -56,6 +59,40 @@ export class WebhooksRepository {
   }
 
   async createWebhook(orgId: string, body: WebhooksDto, profileId?: string) {
+    // Canais vinculados precisam ser da org e visiveis ao perfil (proprio ou
+    // org-wide); editar por id so dentro do proprio perfil.
+    const integrationIds = [
+      ...new Set((body.integrations || []).map((integration) => integration.id)),
+    ];
+    if (integrationIds.length) {
+      const allowed = await this._integration.model.integration.count({
+        where: {
+          id: { in: integrationIds },
+          organizationId: orgId,
+          deletedAt: null,
+          ...(profileId ? { OR: [{ profileId }, { profileId: null }] } : {}),
+        },
+      });
+      if (allowed !== integrationIds.length) {
+        throw new HttpException('Integration not found', HttpStatus.NOT_FOUND);
+      }
+    }
+
+    if (body.id) {
+      const existing = await this._webhooks.model.webhooks.findFirst({
+        where: {
+          id: body.id,
+          organizationId: orgId,
+          deletedAt: null,
+          ...(profileId ? { profileId } : {}),
+        },
+        select: { id: true },
+      });
+      if (!existing) {
+        throw new HttpException('Webhook not found', HttpStatus.NOT_FOUND);
+      }
+    }
+
     const { id } = await this._webhooks.model.webhooks.upsert({
       where: {
         id: body.id || uuidv4(),
@@ -70,7 +107,6 @@ export class WebhooksRepository {
       update: {
         url: body.url,
         name: body.name,
-        ...(profileId ? { profileId } : {}),
       },
     });
 

@@ -730,11 +730,24 @@ export class PostActivity {
 
   @ActivityMethod()
   async sendWebhooks(postId: string, orgId: string, integrationId: string) {
+    // Webhook de perfil so recebe posts de canais visiveis a esse perfil (o
+    // proprio perfil ou canal org-wide). Canal nao encontrado: so webhooks de
+    // org (sem perfil) ou vinculados explicitamente ao canal.
+    const channel = await this._integrationService.getIntegrationById(
+      orgId,
+      integrationId
+    );
+    const channelProfileId = channel ? channel.profileId ?? null : undefined;
     const webhooks = (await this._webhookService.getWebhooks(orgId)).filter(
       (f) => {
+        const profileAllowed =
+          !f.profileId ||
+          channelProfileId === null ||
+          f.profileId === channelProfileId;
         return (
-          f.integrations.length === 0 ||
-          f.integrations.some((i) => i.integration.id === integrationId)
+          profileAllowed &&
+          (f.integrations.length === 0 ||
+            f.integrations.some((i) => i.integration.id === integrationId))
         );
       }
     );
