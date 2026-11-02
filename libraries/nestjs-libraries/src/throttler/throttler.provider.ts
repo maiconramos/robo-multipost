@@ -2,6 +2,7 @@ import { ThrottlerGuard, ThrottlerRequest } from '@nestjs/throttler';
 import { ExecutionContext, Injectable } from '@nestjs/common';
 import { Request } from 'express';
 import { isIP } from 'net';
+import { createHash } from 'crypto';
 import { extractBasicCredentials } from '@gitroom/nestjs-libraries/chat/oauth-types';
 
 const canonicalPath = (req: { path?: string; url?: string }) =>
@@ -179,6 +180,12 @@ export class ThrottlerFarcasterLoginGuard extends ThrottlerRealIpGuard {
 // um teto unico deixaria qualquer um bloquear o login de todo mundo.
 export const LOCAL_LOGIN_LIMIT = 20;
 export const LOCAL_LOGIN_TTL_MS = 10 * 60_000;
+// Por conta (e-mail): o IP vem do x-forwarded-for, que so e confiavel quando
+// o proxy da frente o sobrescreve; com a porta do container exposta (ou um
+// proxy que so acrescenta), trocar o cabeçalho a cada tentativa driblava o
+// limite por IP. Este balde nao depende do IP.
+export const LOCAL_LOGIN_EMAIL_LIMIT = 30;
+export const LOCAL_LOGIN_EMAIL_TTL_MS = 15 * 60_000;
 
 @Injectable()
 export class ThrottlerLocalLoginGuard extends ThrottlerRealIpGuard {
@@ -201,10 +208,22 @@ export class ThrottlerLocalLoginGuard extends ThrottlerRealIpGuard {
   protected override async handleRequest(
     requestProps: ThrottlerRequest
   ): Promise<boolean> {
-    return super.handleRequest({
+    await super.handleRequest({
       ...requestProps,
       limit: LOCAL_LOGIN_LIMIT,
       ttl: LOCAL_LOGIN_TTL_MS,
+    });
+    const req = requestProps.context.switchToHttp().getRequest<Request>();
+    const email = String(req.body?.email || '').trim().toLowerCase();
+    if (!email) {
+      return true;
+    }
+    const emailKey = createHash('sha256').update(email).digest('hex');
+    return super.handleRequest({
+      ...requestProps,
+      limit: LOCAL_LOGIN_EMAIL_LIMIT,
+      ttl: LOCAL_LOGIN_EMAIL_TTL_MS,
+      getTracker: async () => `local-login-email:${emailKey}`,
     });
   }
 }

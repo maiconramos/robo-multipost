@@ -11,6 +11,7 @@ import { Test } from '@nestjs/testing';
 import { APP_GUARD } from '@nestjs/core';
 import { Throttle, ThrottlerModule } from '@nestjs/throttler';
 import {
+  LOCAL_LOGIN_EMAIL_LIMIT,
   LOCAL_LOGIN_LIMIT,
   REAL_IP_GLOBAL_CEILING_FACTOR,
   ThrottlerBehindProxyGuard,
@@ -404,11 +405,11 @@ describe('limite do login por senha (LOCAL)', () => {
   afterAll(async () => {
     await app?.close();
   });
-  const login = async (ip: string, provider = 'LOCAL') => {
+  const login = async (ip: string, provider = 'LOCAL', email = 'a@b.com') => {
     const response = await fetch(url + '/auth/login', {
       method: 'POST',
       headers: { 'content-type': 'application/json', 'x-forwarded-for': ip },
-      body: JSON.stringify({ provider, email: 'a@b.com', password: 'x' }),
+      body: JSON.stringify({ provider, email, password: 'x' }),
     });
     await response.text();
     return response.status;
@@ -429,5 +430,16 @@ describe('limite do login por senha (LOCAL)', () => {
 
   it('login social nao entra no limite de senha', async () => {
     expect(await login('203.0.113.50', 'GOOGLE')).toBe(201);
+  });
+
+  it(`trocar o IP a cada tentativa nao dribla o limite por conta (${LOCAL_LOGIN_EMAIL_LIMIT})`, async () => {
+    const statuses: number[] = [];
+    for (let i = 0; i <= LOCAL_LOGIN_EMAIL_LIMIT; i++) {
+      statuses.push(await login(`198.51.100.${i + 1}`, 'LOCAL', 'Alvo@Empresa.com'));
+    }
+    expect(statuses.slice(0, LOCAL_LOGIN_EMAIL_LIMIT).every((s) => s === 201)).toBe(true);
+    expect(statuses[LOCAL_LOGIN_EMAIL_LIMIT]).toBe(429);
+    // outra conta segue normal
+    expect(await login('198.51.100.250', 'LOCAL', 'outra@empresa.com')).toBe(201);
   });
 });

@@ -36,7 +36,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Segurança — login
 
-- O login por senha ganhou limite de 20 tentativas a cada 10 minutos por endereço de internet, e a verificação da senha não trava mais o servidor. Antes, não havia limite e cada tentativa congelava a app por um instante para todo mundo.
+- O login por senha ganhou limite de 20 tentativas a cada 10 minutos por endereço de internet e de 30 tentativas a cada 15 minutos por conta (e-mail), e a verificação da senha não trava mais o servidor. Antes, não havia limite e cada tentativa congelava a app por um instante para todo mundo. O limite por conta vale mesmo quando o endereço de internet é falsificado.
 - Login com Google, GitHub ou provedor genérico (OIDC) só aceita o token obtido pelo próprio fluxo de login desta instância, e só uma vez. Antes, um token emitido para outro site (que também usa "Entrar com Google/GitHub") entrava na conta da pessoa.
 - Login com provedor genérico (OIDC) recusa respostas sem o identificador do usuário (`sub`). Antes, nesse caso, a pessoa podia entrar na conta de outro usuário desse provedor.
 
