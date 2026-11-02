@@ -1030,6 +1030,23 @@ export class PostsService {
     }));
   }
 
+  private internalPlugTargetIds(settings: any): string[] {
+    if (!settings || typeof settings !== 'object') {
+      return [];
+    }
+    const ids = Object.entries(settings)
+      .filter(
+        ([key, value]) =>
+          key.indexOf('plug-') > -1 &&
+          key.endsWith('--integrations') &&
+          Array.isArray(value)
+      )
+      .flatMap(([, value]) =>
+        (value as any[]).map((item) => item?.id).filter(Boolean)
+      );
+    return [...new Set(ids.map((id) => String(id)))];
+  }
+
   public async checkInternalPlug(
     integration: Integration,
     orgId: string,
@@ -1428,6 +1445,15 @@ export class PostsService {
           await this._integrationService.validateIntegrationProfile(
             orgId,
             post.integration.id,
+            profileId
+          );
+        }
+        // canais alvo de plugs internos (settings 'plug--<nome>--integrations')
+        // seguem a mesma regra do canal do post
+        for (const targetId of this.internalPlugTargetIds(post?.settings)) {
+          await this._integrationService.validateIntegrationProfile(
+            orgId,
+            targetId,
             profileId
           );
         }

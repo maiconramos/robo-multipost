@@ -730,7 +730,15 @@ export class IntegrationService {
       data.integration
     );
 
-    if (!getIntegration || !originalIntegration) {
+    if (!getIntegration || !originalIntegration || getIntegration.disabled) {
+      return;
+    }
+    // canal alvo precisa ser do mesmo perfil do canal do post (ou sem perfil):
+    // settings vem do cliente e nao podem agir com o token de outro perfil
+    if (
+      getIntegration.profileId &&
+      getIntegration.profileId !== originalIntegration.profileId
+    ) {
       return;
     }
     // Plug methods leem .token de AMBAS as integracoes internamente.

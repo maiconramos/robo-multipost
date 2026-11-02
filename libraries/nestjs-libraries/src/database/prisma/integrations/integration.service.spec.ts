@@ -30,6 +30,46 @@ const makeService = (repo: any) =>
     {} as any
   );
 
+describe('IntegrationService.processInternalPlug - escopo de perfil', () => {
+  const build = (target: any) => {
+    const original = { id: 'int-A', profileId: 'perfil-A', token: 'enc-a', providerIdentifier: 'linkedin' };
+    const repo = {
+      getIntegrationById: jest.fn(async (_org: string, id: string) =>
+        id === 'int-A' ? { ...original } : target ? { ...target } : null
+      ),
+    };
+    const manager = { getInternalPlugs: jest.fn(), getSocialIntegration: jest.fn() };
+    const encryption = { decrypt: jest.fn((v: string) => v) };
+    const service = new IntegrationService(
+      repo as any, {} as any, manager as any, {} as any, {} as any, {} as any, encryption as any, {} as any, {} as any
+    );
+    return { service, manager };
+  };
+  const data = {
+    post: 'remote-1', originalIntegration: 'int-A', integration: 'int-B', plugName: 'linkedin-add-comment',
+    orgId: 'org', delay: 0, information: {},
+  };
+
+  it('nao executa plug com canal alvo de outro perfil', async () => {
+    const { service, manager } = build({ id: 'int-B', profileId: 'perfil-B', token: 'enc-b', providerIdentifier: 'linkedin' });
+    await expect(service.processInternalPlug(data)).resolves.toBeUndefined();
+    expect(manager.getInternalPlugs).not.toHaveBeenCalled();
+  });
+
+  it('nao executa plug com canal alvo desativado', async () => {
+    const { service, manager } = build({ id: 'int-B', profileId: 'perfil-A', disabled: true, token: 'enc-b', providerIdentifier: 'linkedin' });
+    await expect(service.processInternalPlug(data)).resolves.toBeUndefined();
+    expect(manager.getInternalPlugs).not.toHaveBeenCalled();
+  });
+
+  it('segue para o plug quando o canal alvo e do mesmo perfil', async () => {
+    const { service, manager } = build({ id: 'int-B', profileId: 'perfil-A', token: 'enc-b', providerIdentifier: 'linkedin' });
+    manager.getInternalPlugs.mockReturnValue({ internalPlugs: [] });
+    await service.processInternalPlug(data);
+    expect(manager.getInternalPlugs).toHaveBeenCalledWith('linkedin');
+  });
+});
+
 describe('IntegrationService', () => {
   it('usa namespace novo de analytics sem reutilizar variacao fabricada do cache antigo', async () => {
     const metric = [{ label: 'Views', data: [{ total: '12', date: 'day' }] }];

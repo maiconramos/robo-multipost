@@ -125,4 +125,30 @@ describe('PostsService.createPost - derivacao de profileId', () => {
     );
     expect(repo.createOrUpdatePost).not.toHaveBeenCalled();
   });
+
+  it('canal alvo de plug interno de outro perfil e recusado antes de gravar', async () => {
+    integrationService.validateIntegrationProfile.mockImplementation(
+      async (_org, id) => {
+        if (id === 'int-outro-perfil') {
+          throw new Error('Integration does not belong to this profile');
+        }
+      }
+    );
+    const service = buildService(repo, integrationService);
+    const body = makeBody();
+    (body.posts[0].settings as any)['plug--linkedin-add-comment--integrations'] = [
+      { id: 'int-outro-perfil' },
+    ];
+    (body.posts[0].settings as any)['plug--linkedin-add-comment--comment'] = 'texto';
+
+    await expect(
+      service.createPost('org-1', body as any, 'prof-1')
+    ).rejects.toThrow('Integration does not belong to this profile');
+    expect(integrationService.validateIntegrationProfile).toHaveBeenCalledWith(
+      'org-1',
+      'int-outro-perfil',
+      'prof-1'
+    );
+    expect(repo.createOrUpdatePost).not.toHaveBeenCalled();
+  });
 });
