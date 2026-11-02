@@ -172,7 +172,7 @@ export class OrganizationService {
       }
     }
     const timeLimit = dayjs().add(1, 'hour').format('YYYY-MM-DD HH:mm:ss');
-    const id = makeId(5);
+    const id = makeId(20);
     // O convite e assinado com o JWT_SECRET compartilhado por todos os tokens
     // da instancia. So campos conhecidos entram: espalhar o body deixava um
     // admin carimbar claims extras (ex.: `billing`) que rotas publicas como

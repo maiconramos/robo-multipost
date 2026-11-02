@@ -10,7 +10,9 @@ const build = () => {
     {} as any,
     {} as any,
     createPrismaRepositoryMock('oAuthAuthorization') as unknown as
-      ConstructorParameters<typeof OrganizationRepository>[4]
+      ConstructorParameters<typeof OrganizationRepository>[4],
+    createPrismaRepositoryMock('consumedInvite') as unknown as
+      ConstructorParameters<typeof OrganizationRepository>[5]
   );
   return {
     repo,

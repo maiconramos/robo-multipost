@@ -58,6 +58,10 @@ Para ter acesso a outra organizacao, o caminho e ser **convidado** por um admin 
 3. O convidado recebe um link por email
 4. Ao clicar no link, o usuario e vinculado a organizacao
 
+Regras do convite:
+- Convite com e-mail so funciona para a conta com esse e-mail (sem diferenciar maiusculas), em todas as portas: registro, login social e `POST /user/join-org` (usuario ja logado — `AuthService.getInviteForUser`). Convite so com link (sem e-mail) vale para quem tem o link.
+- Cada convite vale uma unica vez. O aceite grava o id do convite na tabela `ConsumedInvite` (chave primaria), entao duas requisicoes simultaneas nao entram as duas, e aceitar outro convite depois nao "reabre" o anterior. `User.inviteId` continua sendo gravado como marcador legado e tambem e consultado.
+
 ### Como alternar entre organizacoes
 
 Se o usuario pertence a 2+ organizacoes, um seletor aparece automaticamente no top bar (icone de pessoa). Ao clicar em outra org, a pagina recarrega no contexto da nova organizacao.

@@ -18,7 +18,8 @@ export class OrganizationRepository {
     private _userOrg: PrismaRepository<'userOrganization'>,
     private _user: PrismaRepository<'user'>,
     private _profileMember: PrismaRepository<'profileMember'>,
-    private _oauthAuth: PrismaRepository<'oAuthAuthorization'>
+    private _oauthAuth: PrismaRepository<'oAuthAuthorization'>,
+    private _consumedInvite: PrismaRepository<'consumedInvite'>
   ) {}
 
   createMaxUser(id: string, name: string, saasName: string, email: string) {
@@ -227,11 +228,18 @@ export class OrganizationRepository {
   }
 
   async isInviteConsumed(inviteId: string) {
-    const existing = await this._user.model.user.findFirst({
-      where: { inviteId },
-      select: { id: true },
-    });
-    return !!existing;
+    const [consumed, legacy] = await Promise.all([
+      this._consumedInvite.model.consumedInvite.findUnique({
+        where: { id: inviteId },
+        select: { id: true },
+      }),
+      // marcador legado (convites aceitos antes da tabela ConsumedInvite)
+      this._user.model.user.findFirst({
+        where: { inviteId },
+        select: { id: true },
+      }),
+    ]);
+    return !!consumed || !!legacy;
   }
 
   async addUserToOrg(
@@ -240,13 +248,7 @@ export class OrganizationRepository {
     orgId: string,
     role: 'USER' | 'ADMIN'
   ) {
-    const checkIfInviteExists = await this._user.model.user.findFirst({
-      where: {
-        inviteId: id,
-      },
-    });
-
-    if (checkIfInviteExists) {
+    if (await this.isInviteConsumed(id)) {
       return false;
     }
 
@@ -271,13 +273,35 @@ export class OrganizationRepository {
       return false;
     }
 
-    const create = await this._userOrg.model.userOrganization.create({
-      data: {
-        role,
-        userId,
-        organizationId: orgId,
-      },
-    });
+    // Reserva atomica do convite: com duas requisicoes ao mesmo tempo, so uma
+    // grava o id (chave primaria); a outra recebe P2002 e nao entra.
+    try {
+      await this._consumedInvite.model.consumedInvite.create({
+        data: { id, userId, organizationId: orgId },
+      });
+    } catch (err: any) {
+      if (err?.code === 'P2002') {
+        return false;
+      }
+      throw err;
+    }
+
+    let create;
+    try {
+      create = await this._userOrg.model.userOrganization.create({
+        data: {
+          role,
+          userId,
+          organizationId: orgId,
+        },
+      });
+    } catch (err) {
+      // entrada falhou (ex.: ja e membro): devolve o convite
+      await this._consumedInvite.model.consumedInvite
+        .delete({ where: { id } })
+        .catch(() => undefined);
+      throw err;
+    }
 
     await this._user.model.user.update({
       where: {

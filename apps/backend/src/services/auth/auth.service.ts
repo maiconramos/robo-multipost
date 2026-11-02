@@ -214,6 +214,27 @@ export class AuthService {
     return true;
   }
 
+  /**
+   * Convite para um usuario ja logado (POST /user/join-org). Convite com
+   * e-mail so vale para a conta com esse e-mail, como no registro e no OAuth;
+   * convite so com link (sem e-mail) continua valendo para quem tem o link.
+   */
+  public getInviteForUser(cookie: string | undefined, userEmail?: string) {
+    const invite = this.getOrgFromCookie(cookie);
+    if (!invite) {
+      return false;
+    }
+    const invitedEmail =
+      typeof invite.email === 'string' ? invite.email.trim().toLowerCase() : '';
+    if (
+      invitedEmail &&
+      invitedEmail !== (userEmail ?? '').trim().toLowerCase()
+    ) {
+      return false;
+    }
+    return invite;
+  }
+
   public getOrgFromCookie(cookie?: string) {
     if (!cookie) {
       return false;

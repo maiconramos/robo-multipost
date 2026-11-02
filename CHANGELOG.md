@@ -7,6 +7,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — convites de equipe
+
+- Um convite enviado para um e-mail agora só funciona na conta com esse e-mail também para quem já está logado. Antes, qualquer pessoa logada na instância que conseguisse o link entrava na organização com o papel do convite (inclusive administrador).
+- Cada convite só pode ser usado uma vez de verdade. Antes, dava para usar o mesmo link várias vezes clicando ao mesmo tempo, ou de novo depois que a pessoa convidada aceitasse outro convite.
+- Nova tabela `ConsumedInvite`, criada automaticamente no próximo início do app (sem perda de dados). Convites aceitos antes desta versão continuam marcados como usados.
+
 ### Segurança — sessão de login e "esqueci a senha"
 
 - O link de "esqueci a senha" e o link do e-mail de ativação não funcionam mais como login. Antes, quem visse um desses links (na caixa de e-mail, num encaminhamento ou no log do servidor) conseguia entrar na conta sem trocar a senha e sem prazo.

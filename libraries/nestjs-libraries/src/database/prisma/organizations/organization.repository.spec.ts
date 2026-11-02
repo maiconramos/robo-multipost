@@ -36,6 +36,11 @@ const mockProfileMemberModel = {
   model: { profileMember: { deleteMany: mockMemberDeleteMany } },
 };
 
+const mockConsumedFindUnique = jest.fn();
+const mockConsumedInviteModel = {
+  model: { consumedInvite: { findUnique: mockConsumedFindUnique } },
+};
+
 describe('OrganizationRepository', () => {
   let repository: OrganizationRepository;
 
@@ -46,8 +51,10 @@ describe('OrganizationRepository', () => {
       mockUserOrgModel as any,
       mockUserModel as any,
       mockProfileMemberModel as any,
-      mockOAuthAuthModel as any
+      mockOAuthAuthModel as any,
+      mockConsumedInviteModel as any
     );
+    mockConsumedFindUnique.mockResolvedValue(null);
   });
 
   describe('createOrgAndUser', () => {

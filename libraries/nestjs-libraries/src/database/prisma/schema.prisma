@@ -164,6 +164,18 @@ model UsedCodes {
   @@index([code])
 }
 
+// Convite de equipe ja usado. O id e chave primaria: so uma requisicao
+// consegue gravar, entao o convite vale uma unica vez (User.inviteId e o
+// marcador legado e e sobrescrito no aceite seguinte).
+model ConsumedInvite {
+  id             String   @id
+  userId         String
+  organizationId String
+  createdAt      DateTime @default(now())
+
+  @@index([organizationId])
+}
+
 model UserOrganization {
   id             String       @id @default(uuid())
   userId         String

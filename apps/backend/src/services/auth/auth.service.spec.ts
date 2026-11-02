@@ -394,3 +394,49 @@ describe('AuthService.forgotReturn - link de redefinicao de uso unico', () => {
     expect(deps.userService.getUserById).not.toHaveBeenCalled();
   });
 });
+
+describe('AuthService.getInviteForUser - convite preso ao e-mail (join-org)', () => {
+  let service: AuthService;
+  let verifySpy: jest.SpyInstance;
+  const invite = (email?: string) => ({
+    ...(email ? { email } : {}),
+    orgId: 'org-1',
+    id: 'inv-1',
+    role: 'ADMIN',
+    timeLimit: new Date(Date.now() + 3600_000).toISOString(),
+  });
+
+  beforeEach(() => {
+    const deps = makeDeps();
+    service = new AuthService(
+      deps.userService as any,
+      deps.orgService as any,
+      deps.notificationService as any,
+      deps.emailService as any,
+      deps.providerManager as any
+    );
+    verifySpy = jest.spyOn(AuthChecker, 'verifyJWT');
+  });
+
+  afterEach(() => {
+    verifySpy.mockRestore();
+  });
+
+  it('convite para outro e-mail e recusado para a conta logada', () => {
+    verifySpy.mockReturnValue(invite('convidado@empresa.com'));
+
+    expect(service.getInviteForUser('jwt', 'outra@pessoa.com')).toBe(false);
+  });
+
+  it('convite para o mesmo e-mail (sem diferenciar maiusculas) e aceito', () => {
+    verifySpy.mockReturnValue(invite('Convidado@Empresa.com'));
+
+    expect(service.getInviteForUser('jwt', 'convidado@empresa.com ')).toMatchObject({ orgId: 'org-1' });
+  });
+
+  it('convite so com link (sem e-mail) continua valendo para quem tem o link', () => {
+    verifySpy.mockReturnValue(invite());
+
+    expect(service.getInviteForUser('jwt', 'qualquer@pessoa.com')).toMatchObject({ orgId: 'org-1' });
+  });
+});

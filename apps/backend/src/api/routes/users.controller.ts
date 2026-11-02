@@ -233,7 +233,11 @@ export class UsersController {
     @Body('org') org: string,
     @Res({ passthrough: true }) response: Response
   ) {
-    const getOrgFromCookie = this._authService.getOrgFromCookie(org);
+    // convite com e-mail so entra na conta desse e-mail
+    const getOrgFromCookie = this._authService.getInviteForUser(
+      org,
+      user.email
+    );
 
     if (!getOrgFromCookie) {
       return response.status(200).json({ id: null });
