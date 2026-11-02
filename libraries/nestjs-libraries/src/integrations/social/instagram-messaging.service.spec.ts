@@ -21,6 +21,55 @@ describe('refresh concorrente do token Instagram', () => {
   });
 });
 
+describe('InstagramMessagingService.loadState - canal sem perfil', () => {
+  const originalFetch = global.fetch;
+  afterEach(() => { global.fetch = originalFetch; });
+
+  it('canal sem perfil le a credencial da org, nunca de um perfil qualquer', async () => {
+    const credentials = createMock<CredentialService>();
+    credentials.getRawForOrgWide.mockResolvedValue({
+      data: { metaSystemUserToken: 'SU-DEFAULT' },
+      profileId: 'prof-default',
+    });
+
+    const state = await new InstagramMessagingService(credentials).loadState('org', null);
+
+    expect(credentials.getRawForOrgWide).toHaveBeenCalledWith('org', 'facebook');
+    expect(credentials.getRaw).not.toHaveBeenCalled();
+    expect(state.metaSystemUserToken).toBe('SU-DEFAULT');
+    expect(state.credentialProfileId).toBe('prof-default');
+  });
+
+  it('canal com perfil le so a credencial daquele perfil', async () => {
+    const credentials = createMock<CredentialService>();
+    credentials.getRaw.mockResolvedValue({ metaSystemUserToken: 'SU-P' });
+
+    const state = await new InstagramMessagingService(credentials).loadState('org', 'p');
+
+    expect(credentials.getRaw).toHaveBeenCalledWith('org', 'facebook', 'p');
+    expect(credentials.getRawForOrgWide).not.toHaveBeenCalled();
+    expect(state.credentialProfileId).toBe('p');
+  });
+
+  it('renovacao do token grava na mesma linha de onde a credencial foi lida', async () => {
+    const credentials = createMock<CredentialService>();
+    const entry = { igUserId: '123', token: VALID_TOKEN, refreshedAt: new Date(Date.now() - 2 * 86400000).toISOString() };
+    credentials.getRawForOrgWide.mockResolvedValue({
+      data: { instagramTokens: JSON.stringify([entry]) },
+      profileId: 'prof-default',
+    });
+    credentials.replaceInstagramTokenAfterRefresh.mockResolvedValue(true);
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => ({ access_token: 'REFRESHED' }) });
+
+    const token = await new InstagramMessagingService(credentials).resolveIgUserToken('org', null, '123');
+
+    expect(token).toBe('REFRESHED');
+    expect(credentials.replaceInstagramTokenAfterRefresh).toHaveBeenCalledWith(
+      'org', 'prof-default', entry, 'REFRESHED'
+    );
+  });
+});
+
 // Roteia por substring da URL para nao depender da ordem das chamadas.
 function routeFetch(routes: Array<[string, any]>) {
   return jest.fn().mockImplementation((url: string) => {

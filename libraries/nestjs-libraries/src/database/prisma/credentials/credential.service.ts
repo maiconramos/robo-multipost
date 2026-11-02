@@ -166,6 +166,41 @@ export class CredentialService {
     return { data: this.redact(data), updatedAt: record.updatedAt };
   }
 
+  /**
+   * Credencial para canal sem perfil (org-wide): nunca "qualquer perfil".
+   * Usa a linha sem perfil, se existir, ou a do perfil Default da org.
+   * Devolve tambem de qual perfil a linha veio, para gravar no mesmo lugar.
+   */
+  async getRawForOrgWide(
+    organizationId: string,
+    provider: string
+  ): Promise<{ data: Record<string, string>; profileId?: string } | null> {
+    assertPublicProvider(provider);
+    let profileId: string | undefined;
+    let record = await this._credentialRepository.findExactByProvider(
+      organizationId,
+      provider
+    );
+    if (!record) {
+      const defaultProfile = await this._profileRepository.getDefaultProfile(
+        organizationId
+      );
+      if (defaultProfile) {
+        profileId = defaultProfile.id;
+        record = await this._credentialRepository.findExactByProvider(
+          organizationId,
+          provider,
+          profileId
+        );
+      }
+    }
+    if (!record) return null;
+    return {
+      data: this._encryptionService.decryptJson(record.encryptedData) as Record<string, string>,
+      profileId,
+    };
+  }
+
   async getRaw(
     organizationId: string,
     provider: string,

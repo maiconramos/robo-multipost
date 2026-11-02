@@ -53,6 +53,8 @@ export interface MessagingTokensState {
   metaSystemUserTokenValidatedAt?: string;
   metaSystemUserTokenInfo?: MetaSystemUserTokenInfo;
   instagramTokens: IgMessagingTokenEntry[];
+  /** Perfil da linha de credencial lida; a renovacao do token grava nela. */
+  credentialProfileId?: string;
 }
 
 export interface ValidateSystemUserResult {
@@ -119,7 +121,7 @@ export class InstagramMessagingService {
 
     const tokenToUse = await this.ensureFreshIgToken(
       params.organizationId,
-      params.profileId,
+      state.credentialProfileId,
       entry
     );
 
@@ -165,7 +167,7 @@ export class InstagramMessagingService {
       }
       const fresh = await this.ensureFreshIgToken(
         params.organizationId,
-        params.profileId,
+        state.credentialProfileId,
         entry
       );
       baseUrl = `${GRAPH_IG}/${params.recipientIgsid}`;
@@ -416,14 +418,18 @@ export class InstagramMessagingService {
     organizationId: string,
     profileId: string | null
   ): Promise<MessagingTokensState> {
-    const raw = await this._credentialService.getRaw(
-      organizationId,
-      'facebook',
-      profileId || undefined
-    );
+    // canal sem perfil: credencial da org (sem perfil ou perfil Default),
+    // nunca a primeira credencial de qualquer perfil
+    const orgWide = profileId
+      ? null
+      : await this._credentialService.getRawForOrgWide(organizationId, 'facebook');
+    const raw = profileId
+      ? await this._credentialService.getRaw(organizationId, 'facebook', profileId)
+      : orgWide?.data;
+    const credentialProfileId = profileId || orgWide?.profileId;
 
     if (!raw) {
-      return { instagramTokens: [] };
+      return { instagramTokens: [], credentialProfileId };
     }
 
     let tokens: IgMessagingTokenEntry[] = [];
@@ -451,6 +457,7 @@ export class InstagramMessagingService {
         raw.metaSystemUserTokenValidatedAt || undefined,
       metaSystemUserTokenInfo: info,
       instagramTokens: tokens,
+      credentialProfileId,
     };
   }
 
@@ -460,7 +467,7 @@ export class InstagramMessagingService {
    */
   private async ensureFreshIgToken(
     organizationId: string,
-    profileId: string | null,
+    credentialProfileId: string | undefined,
     entry: IgMessagingTokenEntry
   ): Promise<string> {
     const refreshedAt = Date.parse(entry.refreshedAt);
@@ -487,7 +494,7 @@ export class InstagramMessagingService {
     }
     if (!refreshed) return entry.token;
     const saved = await this._credentialService.replaceInstagramTokenAfterRefresh(
-      organizationId, profileId || undefined, entry, refreshed
+      organizationId, credentialProfileId, entry, refreshed
     );
     if (!saved) throw new HttpException('AUTHORIZATION_CHANGED', 409);
     return refreshed;
@@ -535,7 +542,7 @@ export class InstagramMessagingService {
     try {
       return await this.ensureFreshIgToken(
         organizationId,
-        profileId,
+        state.credentialProfileId,
         entry
       );
     } catch (e: any) {

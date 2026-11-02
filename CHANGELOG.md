@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — credenciais do Instagram em canais sem perfil
+
+- Automações de DM e checagem de "segue a conta" em canais sem perfil (da organização) passam a usar a credencial do Instagram da própria organização (sem perfil) ou, na falta dela, a do perfil padrão. Antes, o sistema podia usar a credencial cadastrada em um perfil qualquer da organização. A renovação automática do token também grava na mesma credencial de onde ele foi lido.
+
 ### Segurança — webhooks isolados por perfil
 
 - Webhook criado em um perfil deixa de receber os posts publicados por canais de outros perfis da mesma organização. Webhooks de administrador (sem perfil) e canais sem perfil continuam funcionando como antes.

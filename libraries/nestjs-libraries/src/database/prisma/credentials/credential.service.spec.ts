@@ -447,6 +447,56 @@ describe('CredentialService', () => {
     });
   });
 
+  describe('getRawForOrgWide (canal sem perfil)', () => {
+    const rec = (data: Record<string, string>): any => ({
+      encryptedData: JSON.stringify(data),
+    });
+
+    it('usa a linha sem perfil da org quando existe', async () => {
+      repository.findExactByProvider.mockResolvedValueOnce(rec({ clientId: 'org' }));
+
+      const res = await service.getRawForOrgWide('org-1', 'facebook');
+
+      expect(res).toEqual({ data: { clientId: 'org' }, profileId: undefined });
+      expect(repository.findExactByProvider).toHaveBeenCalledWith('org-1', 'facebook');
+      expect(profileRepository.getDefaultProfile).not.toHaveBeenCalled();
+    });
+
+    it('cai na credencial do perfil Default quando nao ha linha sem perfil', async () => {
+      repository.findExactByProvider
+        .mockResolvedValueOnce(null)
+        .mockResolvedValueOnce(rec({ clientId: 'default' }));
+      profileRepository.getDefaultProfile.mockResolvedValue({ id: 'prof-default' } as any);
+
+      const res = await service.getRawForOrgWide('org-1', 'facebook');
+
+      expect(res).toEqual({ data: { clientId: 'default' }, profileId: 'prof-default' });
+      expect(repository.findExactByProvider).toHaveBeenLastCalledWith(
+        'org-1',
+        'facebook',
+        'prof-default'
+      );
+    });
+
+    it('nunca usa a credencial de um perfil qualquer', async () => {
+      repository.findExactByProvider.mockResolvedValue(null);
+      repository.findByProvider.mockResolvedValue(rec({ clientId: 'outro-perfil' }));
+      profileRepository.getDefaultProfile.mockResolvedValue({ id: 'prof-default' } as any);
+
+      const res = await service.getRawForOrgWide('org-1', 'facebook');
+
+      expect(res).toBeNull();
+      expect(repository.findByProvider).not.toHaveBeenCalled();
+    });
+
+    it('bloqueia namespace interno de automacao', async () => {
+      await expect(
+        service.getRawForOrgWide('org-1', 'facebook-automation:456:123')
+      ).rejects.toThrow();
+      expect(repository.findExactByProvider).not.toHaveBeenCalled();
+    });
+  });
+
   describe('getSystemUserToken (self-heal de publicacao FB/IG)', () => {
     let envBackup: string | undefined;
 
