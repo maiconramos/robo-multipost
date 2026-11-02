@@ -690,6 +690,11 @@ export class IntegrationsController {
     @GetProfileFromRequest() profile: Profile | null,
     @Body('id') id: string
   ) {
+    // o mesmo valor vai para filtros Prisma: objeto ({ not: ... }) casaria
+    // canais de outros perfis no soft-delete dos posts
+    if (typeof id !== 'string' || !id) {
+      throw new HttpException('Invalid integration id', 400);
+    }
     await this._integrationService.validateIntegrationProfile(
       org.id,
       id,

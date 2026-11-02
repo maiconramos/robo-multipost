@@ -11,6 +11,9 @@ import {
   Validate,
   ValidateIf,
   ValidateNested,
+  IsInt,
+  Min,
+  Max,
 } from 'class-validator';
 import { Transform, Type } from 'class-transformer';
 import { MediaDto } from '@gitroom/nestjs-libraries/dtos/media/media.dto';
@@ -109,8 +112,12 @@ export class CreatePostDto {
   @IsBoolean()
   shortLink: boolean;
 
+  // repeticao em dias: inteiro positivo e limitado (o calendario expande as
+  // repeticoes num loop e o worker agenda a proxima pelo mesmo valor)
   @IsOptional()
-  @IsNumber()
+  @IsInt()
+  @Min(1)
+  @Max(3650) // mesmo teto do post-management (intervalInDays)
   inter?: number;
 
   @IsOptional()

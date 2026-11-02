@@ -7,6 +7,13 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — ajustes menores
+
+- MCP: uma chamada feita com a chave da organização inteira não herda mais o perfil de uma chamada anterior (poderia ver a base de conhecimento de outro cliente).
+- Excluir canal recusa um id que não seja texto. Antes, um valor especial podia apagar posts de canais de outros perfis.
+- "Repetir post a cada N dias" aceita só de 1 a 3650 dias (inteiro). Antes, valores negativos ou gigantes eram aceitos e sobrecarregavam o calendário.
+- Webhook do Instagram ignora contas com id em formato inválido (antes o valor ia direto para a busca no banco).
+
 ### Segurança — login
 
 - O login por senha ganhou limite de 20 tentativas a cada 10 minutos por endereço de internet, e a verificação da senha não trava mais o servidor. Antes, não havia limite e cada tentativa congelava a app por um instante para todo mundo.

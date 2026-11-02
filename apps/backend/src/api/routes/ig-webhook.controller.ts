@@ -104,7 +104,14 @@ export class IgWebhookController {
 
     // Limita o numero de entries processadas (protege contra fan-out de banco
     // pre-auth via `entry` array gigante — ver MAX_WEBHOOK_ENTRIES).
-    let entries = body.entry;
+    // id da conta sempre como string: um objeto ia direto para o filtro
+    // Prisma de internalId (resolveEntryOwners ja usava String(id))
+    let entries = body.entry.filter(
+      (entry: any) =>
+        entry &&
+        (typeof entry.id === 'string' || typeof entry.id === 'number') &&
+        String(entry.id).length > 0
+    );
     if (entries.length > MAX_WEBHOOK_ENTRIES) {
       this._logger.warn(
         `IG webhook: entry array too large (${entries.length}), truncating to ${MAX_WEBHOOK_ENTRIES}`
@@ -118,7 +125,7 @@ export class IgWebhookController {
     const scope = await this.verifySignature(req, ownersByEntryId);
 
     for (const entry of entries) {
-      const igAccountId = entry.id;
+      const igAccountId = String(entry.id);
 
       // Instagram DM webhooks come via entry.messaging (not entry.changes).
       // Story replies and reactions are the only DMs we handle right now.

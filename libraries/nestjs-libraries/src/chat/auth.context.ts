@@ -15,6 +15,10 @@ export const checkAuth = (
     const profileId = getProfileId();
     if (profileId) {
       (context.requestContext as any).set('profileId', profileId);
+    } else {
+      // credencial da org inteira: nunca herdar o perfil de uma chamada
+      // anterior que reaproveitou o mesmo requestContext
+      (context.requestContext as any).delete?.('profileId');
     }
   }
 };

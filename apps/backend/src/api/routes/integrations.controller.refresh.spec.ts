@@ -87,3 +87,29 @@ describe('IntegrationsController GET /social/:integration (refresh)', () => {
     expect(admin.integrationService.getChannelProfileByInternalId).not.toHaveBeenCalled();
   });
 });
+
+describe('IntegrationsController DELETE / (deleteChannel)', () => {
+  it('id que nao e texto (filtro Prisma) e recusado antes de qualquer consulta', async () => {
+    const integrationService = {
+      validateIntegrationProfile: jest.fn(),
+      getPostsForChannel: jest.fn(),
+      deleteChannel: jest.fn(),
+    };
+    const controller = new IntegrationsController(
+      {} as any,
+      integrationService as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+
+    await expect(
+      controller.deleteChannel(userOrg, profile, { not: 'int-x' } as any)
+    ).rejects.toMatchObject({ status: 400 });
+    expect(integrationService.validateIntegrationProfile).not.toHaveBeenCalled();
+    expect(integrationService.getPostsForChannel).not.toHaveBeenCalled();
+  });
+});

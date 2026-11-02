@@ -472,6 +472,21 @@ describe('IgWebhookController', () => {
     });
   });
 
+  describe('handleWebhook (POST) - id da conta sem tipo', () => {
+    it('entry.id que nao e texto/numero e ignorado (nao vira filtro Prisma)', async () => {
+      process.env.NODE_ENV = 'development';
+      const body = commentBody('x') as any;
+      body.entry[0].id = { not: 'nada' };
+
+      await controller.handleWebhook(makeReq(body));
+
+      for (const call of integrationService.getIntegrationsByInternalId.mock.calls) {
+        expect(typeof call[0]).toBe('string');
+      }
+      expect(flowsService.handleIncomingComment).not.toHaveBeenCalled();
+    });
+  });
+
   describe('handleWebhook (POST) - despacho por escopo', () => {
     const postbackBody = (igAccountId: string) => ({
       object: 'instagram',
