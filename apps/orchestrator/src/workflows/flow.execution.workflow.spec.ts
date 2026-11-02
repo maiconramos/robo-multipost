@@ -9,6 +9,7 @@ const activities = {
   appendExecutionLog: jest.fn(),
   createPendingPostback: jest.fn(),
   sendOpeningDmWithPostback: jest.fn(),
+  isFlowRunnable: jest.fn(),
 };
 jest.mock('@temporalio/workflow', () => ({
   proxyActivities: () => activities,
@@ -261,5 +262,70 @@ describe('DM com botao proprio por alternativa versionada', () => {
       input.executionId,
       expect.objectContaining({ status: 'FAILED' })
     );
+  });
+});
+
+
+describe('DELAY - automacao pausada ou canal desativado durante a espera', () => {
+  const input = {
+    executionId: 'e2',
+    flowId: 'f2',
+    integrationId: 'i',
+    triggerType: 'comment_on_post' as const,
+    igCommenterId: 'actor',
+    igCommentId: 'c',
+    igMediaId: 'p',
+  };
+  beforeEach(() => {
+    jest.clearAllMocks();
+    activities.getFlowWithNodes.mockResolvedValue({
+      integrationId: 'i',
+      organizationId: 'o',
+      nodes: [
+        { id: 'trigger', type: 'TRIGGER', data: '{}' },
+        { id: 'wait', type: 'DELAY', data: JSON.stringify({ duration: 2, unit: 'hours' }) },
+        { id: 'reply', type: 'REPLY_COMMENT', data: JSON.stringify({ message: 'oi' }) },
+        { id: 'dm', type: 'SEND_DM', data: JSON.stringify({ message: 'link' }) },
+      ],
+      edges: [
+        { sourceNodeId: 'trigger', targetNodeId: 'wait' },
+        { sourceNodeId: 'wait', targetNodeId: 'reply' },
+        { sourceNodeId: 'reply', targetNodeId: 'dm' },
+      ],
+    });
+  });
+
+  it('nao responde nem manda DM se a automacao parou de valer apos o DELAY', async () => {
+    (patched as jest.Mock).mockReturnValue(true);
+    activities.isFlowRunnable.mockResolvedValue(false);
+
+    await flowExecutionWorkflow(input);
+
+    expect(activities.isFlowRunnable).toHaveBeenCalledWith('f2');
+    expect(activities.replyToComment).not.toHaveBeenCalled();
+    expect(activities.sendDirectMessage).not.toHaveBeenCalled();
+    expect(activities.updateExecution).toHaveBeenCalledWith(
+      'e2',
+      expect.objectContaining({ status: 'CANCELLED' })
+    );
+  });
+
+  it('segue normalmente quando a automacao continua ativa', async () => {
+    (patched as jest.Mock).mockReturnValue(true);
+    activities.isFlowRunnable.mockResolvedValue(true);
+
+    await flowExecutionWorkflow(input);
+
+    expect(activities.replyToComment).toHaveBeenCalled();
+    expect(activities.sendDirectMessage).toHaveBeenCalled();
+  });
+
+  it('execucao antiga (replay sem o patch) nao ganha a checagem', async () => {
+    (patched as jest.Mock).mockReturnValue(false);
+
+    await flowExecutionWorkflow(input);
+
+    expect(activities.isFlowRunnable).not.toHaveBeenCalled();
+    expect(activities.replyToComment).toHaveBeenCalled();
   });
 });

@@ -103,6 +103,8 @@ Every Flow step that touches Meta endpoints must go through `resolveIgRoute`. Se
 
 ## Known Pitfalls
 
+0. **Symptom:** a legacy (V1) Instagram automation keeps replying/sending DMs after it was paused, deleted or its channel disabled → **Cause:** the lifecycle was checked only when `flowExecutionWorkflow` started, and a `DELAY` node sleeps durably in Temporal. **Fix:** after each `DELAY` sleep, behind `patched('flow-delay-lifecycle-recheck-v1')`, the workflow calls `FlowActivity.isFlowRunnable(flowId)` (flow exists, `ACTIVE`, channel not disabled/deleted); when false it sets `ctx.stopped`, skips every remaining node and the collected DMs, and marks the execution `CANCELLED`. Executions already sleeping before the deploy replay without the check (no history marker). Any new lifecycle-sensitive step after a sleep needs its own `patched()` id.
+
 1. **Symptom:** workflow "stuck" without completing even after an external signal → **Cause:** signal dispatched to the wrong workflowId, or workflow already expired. **Fix:** log `workflowId` when creating `PendingPostback` and when receiving the webhook; check `temporal workflow describe <id>`.
 2. **Symptom:** Instagram comment activity returning unexpected 400/403 → **Cause:** wrong host/token (e.g., trying to use a Page Access Token against `graph.instagram.com`). **Fix:** confirm you are using `resolveIgRoute(integration)`, not a hardcoded value.
 3. **Symptom:** second `sendPrivateReply` returns "subcode 2018278" → **Cause:** Meta only allows ONE private reply per comment. **Fix:** the second message must be a regular DM within the 24h window opened by the postback.

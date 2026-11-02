@@ -32,7 +32,23 @@ export const startMcp = async (app: INestApplication) => {
   const oauthService = app.get(OAuthService, { strict: false });
   const profileService = app.get(ProfileService, { strict: false });
 
+  // Mesmo portao de assinatura da API publica (PublicAuthMiddleware): com
+  // cobranca ligada, org sem assinatura nao usa o MCP.
   const resolveAuth = async (
+    token: string
+  ): Promise<{ org: any; profileId?: string } | null> => {
+    const resolved = await resolveCredential(token);
+    if (
+      resolved &&
+      !!process.env.STRIPE_SECRET_KEY &&
+      !resolved.org?.subscription
+    ) {
+      return null;
+    }
+    return resolved;
+  };
+
+  const resolveCredential = async (
     token: string
   ): Promise<{ org: any; profileId?: string } | null> => {
     if (token.startsWith('pos_')) {

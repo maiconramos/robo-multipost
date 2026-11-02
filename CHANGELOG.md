@@ -7,6 +7,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — automações antigas e MCP
+
+- Automações antigas do Instagram com etapa "esperar" agora conferem, depois da espera, se a automação continua ativa e se o canal continua ligado. Antes, pausar ou apagar a automação (ou desativar o canal) não impedia o envio de respostas e DMs que já estavam esperando. Vale para as execuções iniciadas depois desta versão.
+- Com cobrança ligada, o MCP passa a exigir assinatura ativa, como a API pública já fazia.
+
 ### Segurança — Discord, uploads e token da Meta
 
 - Discord: o post só sai em canal do mesmo servidor conectado. Antes, como o bot é o mesmo para todas as organizações, dava para publicar em canais de outra organização escolhendo o id do canal.

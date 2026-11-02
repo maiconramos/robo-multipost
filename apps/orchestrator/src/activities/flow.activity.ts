@@ -58,6 +58,21 @@ export class FlowActivity {
     return guard ? this._flowsService.getFlowById(flowId, guard) : this._flowsService.getFlowById(flowId);
   }
 
+  /**
+   * Depois de um DELAY a execucao acorda dias depois: so continua se a
+   * automacao ainda existe e esta ACTIVE e o canal nao foi desativado ou
+   * removido (antes, pausar/apagar nao parava as execucoes ja dormindo).
+   */
+  @ActivityMethod()
+  async isFlowRunnable(flowId: string) {
+    const flow: any = await this._flowsService.getFlowById(flowId);
+    if (!flow || flow.status !== 'ACTIVE') {
+      return false;
+    }
+    const integration = flow.integration;
+    return !!integration && !integration.disabled && !integration.deletedAt;
+  }
+
   @ActivityMethod()
   async replyToComment(
     integrationId: string,

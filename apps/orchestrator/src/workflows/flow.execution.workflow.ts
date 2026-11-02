@@ -16,6 +16,7 @@ const {
   appendExecutionLog,
   createPendingPostback,
   sendOpeningDmWithPostback,
+  isFlowRunnable,
 } = proxyActivities<FlowActivity>({
   startToCloseTimeout: '5 minute',
   taskQueue: 'main',
@@ -76,6 +77,11 @@ export interface FlowExecutionInput {
 
 /** Mutable context passed through the graph traversal. */
 interface TraversalContext {
+  /**
+   * A automacao foi pausada/apagada ou o canal desativado durante um DELAY:
+   * nada mais e enviado (nem as DMs acumuladas).
+   */
+  stopped?: boolean;
   /**
    * Collected DM messages. Meta only allows ONE private reply per comment
    * and `recipient: { id }` requires advanced access to instagram_manage_messages.
@@ -143,6 +149,15 @@ export async function flowExecutionWorkflow(input: FlowExecutionInput) {
       return;
     }
 
+    if (ctx.stopped) {
+      await updateExecution(input.executionId, {
+        status: 'CANCELLED' as any,
+        error: 'Automacao pausada/removida ou canal desativado durante a espera',
+        completedAt: new Date(),
+      });
+      return;
+    }
+
     // Send all collected DM messages.
     // - comment_on_post: ONE private reply per comment (Meta limit), combined.
     // - story_reply: regular DM using recipient:{id} — user already opened
@@ -205,6 +220,7 @@ async function traverseNode(
   if (depth > 50) {
     throw new Error('Max traversal depth exceeded');
   }
+  if (ctx.stopped) return;
 
   const node = nodes.find((n: any) => n.id === nodeId);
   if (!node) return;
@@ -475,6 +491,13 @@ async function traverseNode(
         );
         if (durationMs > 0) {
           await sleep(durationMs);
+          // patched: execucoes ja dormindo antes do deploy seguem o historico
+          if (
+            patched('flow-delay-lifecycle-recheck-v1') &&
+            !(await isFlowRunnable(input.flowId))
+          ) {
+            ctx.stopped = true;
+          }
         }
         break;
       }

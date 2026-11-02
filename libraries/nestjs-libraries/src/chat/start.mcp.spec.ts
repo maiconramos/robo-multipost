@@ -284,4 +284,26 @@ describe('startMcp', () => {
       })
     );
   });
+  it('com cobranca ligada, org sem assinatura nao usa o MCP (mesmo portao da API publica)', async () => {
+    process.env.STRIPE_SECRET_KEY = 'sk_test';
+    try {
+      const res = response();
+      await handlers.get('/mcp')!(
+        request({ headers: { authorization: 'Bearer org-key' } }),
+        res,
+        jest.fn()
+      );
+      expect(mockStartHTTP).not.toHaveBeenCalled();
+    } finally {
+      delete process.env.STRIPE_SECRET_KEY;
+    }
+
+    // sem cobranca (self-host) a mesma chave segue normalmente
+    await handlers.get('/mcp')!(
+      request({ headers: { authorization: 'Bearer org-key' } }),
+      response(),
+      jest.fn()
+    );
+    expect(mockStartHTTP).toHaveBeenCalledTimes(1);
+  });
 });
