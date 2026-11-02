@@ -7,6 +7,13 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — créditos e limites de IA
+
+- O limite de créditos de IA por perfil (Configurações > Créditos de IA, modo gerenciado) agora vale de verdade para imagens e vídeos, inclusive quando a geração é pedida pelo assistente ou pelo MCP. Antes, um perfil bloqueado ou com limite conseguia gerar sem parar, e o uso aparecia como zero para o administrador.
+- O limite padrão de créditos (`AI_CREDITS_DEFAULT_IMAGES`/`AI_CREDITS_DEFAULT_VIDEOS`) passa a ser contado por perfil, como documentado. Antes, um perfil podia gastar o total da organização e bloquear todos os outros.
+- Os limites de velocidade das rotas de IA (legenda, vídeo, pesquisa na web, assistente) passam a ser aplicados por usuário. Eles estavam declarados, mas nunca eram verificados. A geração de imagem também ganhou limite (30 por minuto).
+- Só um vídeo de IA por vez em cada perfil. Quando a geração demorava, o navegador mostrava "tente novamente" enquanto o vídeo continuava sendo gerado, e cada nova tentativa era cobrada de novo no kie.ai. A mensagem agora avisa que o vídeo vai aparecer na biblioteca.
+
 ### Segurança — configuração da instalação
 
 - O webhook do Instagram passa a recusar eventos sem assinatura válida também no container de produção. Antes, como o container não define `NODE_ENV`, a instância aceitava eventos falsos quando não havia segredo configurado ou com `SKIP_IG_WEBHOOK_HMAC=true`. Agora isso só é permitido com `NODE_ENV=development`.

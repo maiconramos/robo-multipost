@@ -1279,7 +1279,7 @@
   "ai_video_done": "Vídeo gerado",
   "ai_video_not_configured": "Configure suas chaves em Configurações > Modelos de IA > Vídeo",
   "ai_video_rate_limit": "Aguarde um instante antes de gerar outro vídeo.",
-  "ai_video_timeout": "Geração demorou demais (>10min). Tente novamente.",
+  "ai_video_timeout": "A geração está demorando. O vídeo continua sendo gerado e aparece na biblioteca de mídia quando terminar — não é preciso gerar de novo.",
   "ai_video_upstream_error": "kie.ai falhou ao gerar o vídeo",
   "ai_video_generic_error": "Erro ao gerar vídeo",
   "ai_video_invalid_response": "Resposta inválida do servidor",

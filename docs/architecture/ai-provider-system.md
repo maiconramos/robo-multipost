@@ -319,8 +319,21 @@ Todos os endpoints sao **admin-only** para escrita
 |---|---|---|---|
 | POST | `/ai/text/caption` | `{ action, content, platform?, tone? }` | `{ text }` |
 
-Rate limit: `@Throttle({ default: { limit: 30, ttl: 60_000 } })` —
-sobrescreve o default global (30/h) para 30/min por usuario.
+Rate limit: `@UseGuards(ThrottlerOrgUserGuard)` + `@Throttle({ default: { limit: 30, ttl: 60_000 } })` —
+30/min por org + usuario. O guard global (`ThrottlerBehindProxyGuard`) so
+avalia as rotas da lista dele, entao toda rota de IA paga precisa do
+`ThrottlerOrgUserGuard` explicito, senao o `@Throttle` nao vale. Mesmo padrao
+em `/ai/video/generate` (10/min), `/ai/web-search/*`, `/copilot/chat`,
+`/copilot/agent` e `/media/generate-image(-with-prompt)` (30/min).
+
+Creditos (modo `AI_CREDITS_MODE=managed`): toda geracao de imagem/video passa
+por `SubscriptionService.checkCreditsForProfile(org, tipo, profileId)`, que
+carrega o perfil e aplica o limite dele (0 = bloqueado; `AI_CREDITS_DEFAULT_*`
+conta o uso do proprio perfil). O check fica em `MediaService.generateImage` /
+`generateAiVideo` / `generateVideo`, entao vale para a rota, o assistente e o
+MCP. `/ai/video/generate` tambem trava um video por vez por perfil
+(`ai-video:inflight:<org>:<perfil>` no Redis, 16 min): o job passa dos 180 s
+do nginx e cada "tentar de novo" disparava outro job pago.
 
 ---
 

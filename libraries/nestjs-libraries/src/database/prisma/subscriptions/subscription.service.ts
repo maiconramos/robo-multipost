@@ -3,6 +3,7 @@ import { pricing } from '@gitroom/nestjs-libraries/database/prisma/subscriptions
 import { SubscriptionRepository } from '@gitroom/nestjs-libraries/database/prisma/subscriptions/subscription.repository';
 import { IntegrationService } from '@gitroom/nestjs-libraries/database/prisma/integrations/integration.service';
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
+import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { Organization } from '@prisma/client';
 import dayjs from 'dayjs';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
@@ -12,7 +13,8 @@ export class SubscriptionService {
   constructor(
     private readonly _subscriptionRepository: SubscriptionRepository,
     private readonly _integrationService: IntegrationService,
-    private readonly _organizationService: OrganizationService
+    private readonly _organizationService: OrganizationService,
+    private readonly _profileService: ProfileService
   ) {}
 
   getSubscriptionByOrganizationId(organizationId: string) {
@@ -262,6 +264,25 @@ export class SubscriptionService {
       profile?.id
     );
     return { credits: defaultLimit - totalUse };
+  }
+
+  /**
+   * Creditos do perfil ativo. `checkCredits` so aplica o limite do perfil
+   * quando recebe o objeto do perfil; aqui ele e carregado pelo id, para que
+   * rota, assistente e MCP respeitem o mesmo limite (0 = bloqueado).
+   */
+  async checkCreditsForProfile(
+    organization: Organization,
+    checkType: 'ai_images' | 'ai_videos',
+    profileId?: string | null
+  ) {
+    if ((process.env.AI_CREDITS_MODE ?? 'unlimited') === 'unlimited') {
+      return { credits: 999999 };
+    }
+    const profile = profileId
+      ? await this._profileService.getAiCredits(organization.id, profileId)
+      : null;
+    return this.checkCredits(organization, checkType, profile ?? undefined);
   }
 
   async getUsedCredits(organizationId: string, type: string, profileId?: string) {

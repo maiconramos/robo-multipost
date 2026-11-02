@@ -1,6 +1,7 @@
-import { Body, Controller, Logger, Post } from '@nestjs/common';
+import { Body, Controller, Logger, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { ThrottlerOrgUserGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { Organization, Profile } from '@prisma/client';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
@@ -23,6 +24,9 @@ export class AiVideoController {
    * Rate limit: 10/min — video e caro em tempo (10min de polling) e custo,
    * queremos limite mais agressivo que texto/imagem.
    */
+  // o guard global so avalia rotas da lista dele: sem este guard o
+  // @Throttle abaixo nunca era aplicado (conta por org + usuario)
+  @UseGuards(ThrottlerOrgUserGuard)
   @Throttle({ default: { limit: 10, ttl: 60_000 } })
   @Post('/generate')
   async generate(

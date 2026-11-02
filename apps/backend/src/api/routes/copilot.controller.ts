@@ -8,6 +8,7 @@ import {
   Query,
   Param,
   HttpException,
+  UseGuards,
 } from '@nestjs/common';
 import {
   CopilotRuntime,
@@ -15,6 +16,7 @@ import {
   copilotRuntimeNodeHttpEndpoint,
 } from '@copilotkit/runtime';
 import { Throttle } from '@nestjs/throttler';
+import { ThrottlerOrgUserGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import {
   ScopedCopilotRunner,
   isCopilotThreadMutation,
@@ -103,6 +105,9 @@ export class CopilotController {
   // Limite explicito de 30/min (o global e 30/h) — cada chamada de chat
   // consome a credencial de IA paga do workspace. Paridade com
   // ai-text.controller.ts.
+  // o guard global so avalia rotas da lista dele: sem este guard o
+  // @Throttle abaixo nunca era aplicado (conta por org + usuario)
+  @UseGuards(ThrottlerOrgUserGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('/chat')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
@@ -142,6 +147,9 @@ export class CopilotController {
     return copilotRuntimeHandler(req, res);
   }
 
+  // o guard global so avalia rotas da lista dele: sem este guard o
+  // @Throttle abaixo nunca era aplicado (conta por org + usuario)
+  @UseGuards(ThrottlerOrgUserGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('/agent')
   @CheckPolicies([AuthorizationActions.Create, Sections.AI])
@@ -251,11 +259,13 @@ export class CopilotController {
   @Get('/credits')
   calculateCredits(
     @GetOrgFromRequest() organization: Organization,
+    @GetProfileFromRequest() profile: { id: string } | null,
     @Query('type') type: 'ai_images' | 'ai_videos'
   ) {
-    return this._subscriptionService.checkCredits(
+    return this._subscriptionService.checkCreditsForProfile(
       organization,
-      type || 'ai_images'
+      type === 'ai_videos' ? 'ai_videos' : 'ai_images',
+      profile?.id
     );
   }
 

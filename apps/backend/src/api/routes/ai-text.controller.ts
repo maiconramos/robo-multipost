@@ -1,6 +1,7 @@
-import { Body, Controller, Post } from '@nestjs/common';
+import { Body, Controller, Post, UseGuards } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { ThrottlerOrgUserGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { Organization, Profile } from '@prisma/client';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
@@ -29,6 +30,9 @@ export class AiTextController {
    * A persona do perfil (se existir) é carregada aqui e injetada no
    * system prompt para o LLM respeitar tom de voz, restrições e CTAs.
    */
+  // o guard global so avalia rotas da lista dele: sem este guard o
+  // @Throttle abaixo nunca era aplicado (conta por org + usuario)
+  @UseGuards(ThrottlerOrgUserGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('/caption')
   async caption(

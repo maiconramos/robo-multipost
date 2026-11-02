@@ -26,6 +26,11 @@ import {
   AiVideoService,
   GenerateVideoInput,
 } from '@gitroom/nestjs-libraries/ai/ai-video.service';
+import { randomUUID } from 'crypto';
+import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
+
+// createTask (30 s) + polling (ate 10 min) + download (ate 5 min), com folga
+const AI_VIDEO_LOCK_SECONDS = 16 * 60;
 
 /**
  * Por que uma mídia não pôde ser excluída:
@@ -233,6 +238,28 @@ export class MediaService {
     return this._mediaRepository.getMediaById(id);
   }
 
+  // Limite de creditos do perfil (AI_CREDITS_MODE=managed). Vale para a rota,
+  // o assistente e o MCP, que chamam este servico direto.
+  private async assertAiCredits(
+    org: Organization,
+    type: 'ai_images' | 'ai_videos',
+    profileId?: string
+  ) {
+    const { credits } = await this._subscriptionService.checkCreditsForProfile(
+      org,
+      type,
+      profileId
+    );
+    if (credits <= 0) {
+      throw new HttpException(
+        type === 'ai_images'
+          ? 'Sem créditos de imagem de IA neste perfil este mês.'
+          : 'Sem créditos de vídeo de IA neste perfil este mês.',
+        HttpStatus.TOO_MANY_REQUESTS
+      );
+    }
+  }
+
   async generateImage(
     prompt: string,
     org: Organization,
@@ -241,6 +268,7 @@ export class MediaService {
     aspectRatio?: AiAspectRatio,
     extra?: { mode?: ImageMode; referenceImageUrl?: string }
   ) {
+    await this.assertAiCredits(org, 'ai_images', profileId);
     const generating = await this._subscriptionService.useCredit(
       org,
       'ai_images',
@@ -291,7 +319,8 @@ export class MediaService {
           );
           throw err;
         }
-      }
+      },
+      profileId
     );
 
     return generating;
@@ -382,9 +411,10 @@ export class MediaService {
   // profileId: o video entra na biblioteca do perfil (chave de perfil ou
   // membro), nao na da org inteira
   async generateVideo(org: Organization, body: VideoDto, profileId?: string) {
-    const totalCredits = await this._subscriptionService.checkCredits(
+    const totalCredits = await this._subscriptionService.checkCreditsForProfile(
       org,
-      'ai_videos'
+      'ai_videos',
+      profileId
     );
 
     if (totalCredits.credits <= 0) {
@@ -422,7 +452,8 @@ export class MediaService {
           undefined,
           profileId
         );
-      }
+      },
+      profileId
     );
   }
 
@@ -446,29 +477,57 @@ export class MediaService {
     input: GenerateVideoInput,
     profileId?: string
   ) {
-    return this._subscriptionService.useCredit(
-      org,
-      'ai_videos',
-      async () => {
-        const generated = await this._aiVideoService.generate(
-          org.id,
-          input,
-          profileId
-        );
+    await this.assertAiCredits(org, 'ai_videos', profileId);
 
-        const file = await this.storage.uploadSimple(generated.url);
-        if (!file) {
-          throw new HttpException(
-            'Falha ao baixar video do kie.ai para storage proprio.',
-            502
-          );
-        }
-
-        const fileName = file.split('/').pop() ?? 'video.mp4';
-        return this.saveFile(org.id, fileName, file, undefined, profileId);
-      },
-      profileId
+    // Um video por vez por perfil. A geracao passa dos 180 s do nginx: o
+    // navegador recebe 504 e o job segue rodando (o video cai na biblioteca).
+    // Sem a trava, cada "tentar de novo" disparava outro job pago no kie.ai.
+    const lockKey = `ai-video:inflight:${org.id}:${profileId ?? 'org'}`;
+    const lockToken = randomUUID();
+    const acquired = await ioRedis.set(
+      lockKey,
+      lockToken,
+      'EX',
+      AI_VIDEO_LOCK_SECONDS,
+      'NX'
     );
+    if (!acquired) {
+      throw new HttpException(
+        'Já existe um vídeo de IA sendo gerado neste perfil. Ele aparece na biblioteca de mídia quando terminar.',
+        HttpStatus.TOO_MANY_REQUESTS
+      );
+    }
+
+    try {
+      return await this._subscriptionService.useCredit(
+        org,
+        'ai_videos',
+        async () => {
+          const generated = await this._aiVideoService.generate(
+            org.id,
+            input,
+            profileId
+          );
+
+          const file = await this.storage.uploadSimple(generated.url);
+          if (!file) {
+            throw new HttpException(
+              'Falha ao baixar video do kie.ai para storage proprio.',
+              502
+            );
+          }
+
+          const fileName = file.split('/').pop() ?? 'video.mp4';
+          return this.saveFile(org.id, fileName, file, undefined, profileId);
+        },
+        profileId
+      );
+    } finally {
+      // so solta a propria trava (a de outra geracao, apos o TTL, fica)
+      if ((await ioRedis.get(lockKey)) === lockToken) {
+        await ioRedis.del(lockKey);
+      }
+    }
   }
 
   async videoFunction(identifier: string, functionName: string, body: any) {

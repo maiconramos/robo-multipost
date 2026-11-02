@@ -37,6 +37,7 @@ describe('MediaService.generateImage', () => {
     const aiImage = createMock<AiImageService>();
     const aiText = createMock<AiTextService>();
     const subscription = createMock<SubscriptionService>();
+    subscription.checkCreditsForProfile.mockResolvedValue({ credits: 999999 });
 
     subscription.useCredit.mockImplementation(async (_org, _type, func) => {
       return func();
@@ -63,7 +64,8 @@ describe('MediaService.generateImage', () => {
     expect(subscription.useCredit).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'org-1' }),
       'ai_images',
-      expect.any(Function)
+      expect.any(Function),
+      undefined
     );
     expect(aiImage.generate).toHaveBeenCalledWith(
       'org-1',
@@ -79,6 +81,7 @@ describe('MediaService.generateImage', () => {
     const aiImage = createMock<AiImageService>();
     const aiText = createMock<AiTextService>();
     const subscription = createMock<SubscriptionService>();
+    subscription.checkCreditsForProfile.mockResolvedValue({ credits: 999999 });
 
     subscription.useCredit.mockImplementation(async (_org, _type, func) => func());
     aiText.generatePromptForPicture.mockResolvedValue(
@@ -120,6 +123,7 @@ describe('MediaService.generateImage', () => {
     const aiImage = createMock<AiImageService>();
     const aiText = createMock<AiTextService>();
     const subscription = createMock<SubscriptionService>();
+    subscription.checkCreditsForProfile.mockResolvedValue({ credits: 999999 });
     // Importar o tipo HttpException via require pra evitar problemas de
     // alias no spec
     // eslint-disable-next-line @typescript-eslint/no-var-requires
@@ -163,6 +167,7 @@ describe('MediaService.generateImage', () => {
     const aiImage = createMock<AiImageService>();
     const aiText = createMock<AiTextService>();
     const subscription = createMock<SubscriptionService>();
+    subscription.checkCreditsForProfile.mockResolvedValue({ credits: 999999 });
 
     subscription.useCredit.mockImplementation(async (_org, _type, func) => func());
     aiText.generatePromptForPicture.mockRejectedValue(
@@ -189,6 +194,7 @@ describe('MediaService.generateImage', () => {
     const aiImage = createMock<AiImageService>();
     const aiText = createMock<AiTextService>();
     const subscription = createMock<SubscriptionService>();
+    subscription.checkCreditsForProfile.mockResolvedValue({ credits: 999999 });
 
     subscription.useCredit.mockImplementation(async (_org, _type, func) => func());
     aiImage.generate.mockResolvedValue({
@@ -222,6 +228,7 @@ describe('MediaService.generateImage', () => {
     const aiImage = createMock<AiImageService>();
     const aiText = createMock<AiTextService>();
     const subscription = createMock<SubscriptionService>();
+    subscription.checkCreditsForProfile.mockResolvedValue({ credits: 999999 });
 
     subscription.useCredit.mockImplementation(async (_org, _type, func) => func());
     aiImage.generate.mockResolvedValue({
@@ -246,5 +253,56 @@ describe('MediaService.generateImage', () => {
     expect(aiImage.generate).toHaveBeenCalledWith('org-1', 'prompt', undefined, {
       aspectRatio: '9:16',
     });
+  });
+  it('perfil sem creditos de imagem nao gera nem consome credito', async () => {
+    const aiImage = createMock<AiImageService>();
+    const subscription = createMock<SubscriptionService>();
+    subscription.checkCreditsForProfile.mockResolvedValue({ credits: 0 });
+    const service = new MediaService(
+      null as any,
+      null as any,
+      subscription,
+      null as any,
+      aiImage,
+      createMock<AiTextService>(),
+      createMock<AiVideoService>()
+    );
+
+    await expect(
+      service.generateImage('um gato', buildOrg(), false, 'prof-bloqueado')
+    ).rejects.toMatchObject({ status: 429 });
+    expect(subscription.checkCreditsForProfile).toHaveBeenCalledWith(
+      expect.objectContaining({ id: 'org-1' }),
+      'ai_images',
+      'prof-bloqueado'
+    );
+    expect(subscription.useCredit).not.toHaveBeenCalled();
+    expect(aiImage.generate).not.toHaveBeenCalled();
+  });
+
+  it('uso de credito de imagem fica registrado no perfil', async () => {
+    const aiImage = createMock<AiImageService>();
+    const subscription = createMock<SubscriptionService>();
+    subscription.checkCreditsForProfile.mockResolvedValue({ credits: 5 });
+    subscription.useCredit.mockImplementation(async (_o, _t, func) => func());
+    aiImage.generate.mockResolvedValue({ base64: 'B64' } as any);
+    const service = new MediaService(
+      null as any,
+      null as any,
+      subscription,
+      null as any,
+      aiImage,
+      createMock<AiTextService>(),
+      createMock<AiVideoService>()
+    );
+
+    await service.generateImage('um gato', buildOrg(), false, 'prof-1');
+
+    expect(subscription.useCredit).toHaveBeenCalledWith(
+      expect.anything(),
+      'ai_images',
+      expect.any(Function),
+      'prof-1'
+    );
   });
 });

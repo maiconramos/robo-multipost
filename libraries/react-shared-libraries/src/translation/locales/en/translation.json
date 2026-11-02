@@ -1279,7 +1279,7 @@
   "ai_video_done": "Video generated",
   "ai_video_not_configured": "Configure your keys at Settings > AI Models > Video",
   "ai_video_rate_limit": "Wait a moment before generating another video.",
-  "ai_video_timeout": "Generation took too long (>10min). Try again.",
+  "ai_video_timeout": "Generation is taking a while. The video is still being generated and will show up in the media library when it is done — no need to generate it again.",
   "ai_video_upstream_error": "kie.ai failed to generate the video",
   "ai_video_generic_error": "Error generating video",
   "ai_video_invalid_response": "Invalid server response",

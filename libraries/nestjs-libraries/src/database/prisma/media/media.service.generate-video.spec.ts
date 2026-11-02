@@ -40,7 +40,7 @@ describe('MediaService.generateVideo', () => {
     const repository = createMock<MediaRepository>();
     repository.saveFile.mockResolvedValue({ id: 'm-1' } as any);
     const subscription = {
-      checkCredits: jest.fn().mockResolvedValue({ credits: 3 }),
+      checkCreditsForProfile: jest.fn().mockResolvedValue({ credits: 3 }),
       useCredit: jest.fn(async (_org: any, _type: string, fn: () => any) => fn()),
     };
     const instance = {

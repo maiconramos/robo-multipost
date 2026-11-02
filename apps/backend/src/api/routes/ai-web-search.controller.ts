@@ -4,9 +4,11 @@ import {
   HttpException,
   Logger,
   Post,
+  UseGuards,
 } from '@nestjs/common';
 import { ApiTags } from '@nestjs/swagger';
 import { Throttle } from '@nestjs/throttler';
+import { ThrottlerOrgUserGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { Organization, Profile } from '@prisma/client';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
@@ -37,6 +39,9 @@ export class AiWebSearchController {
    * Endpoint puro de search — usado pelo `webSearchTool` do agente.
    * Composer NAO chama este, chama `/generate-post` que orquestra tudo.
    */
+  // o guard global so avalia rotas da lista dele: sem este guard o
+  // @Throttle abaixo nunca era aplicado (conta por org + usuario)
+  @UseGuards(ThrottlerOrgUserGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('/search')
   async search(
@@ -61,6 +66,9 @@ export class AiWebSearchController {
   /**
    * Endpoint puro de extract — usado pelo `extractUrlsTool` do agente.
    */
+  // o guard global so avalia rotas da lista dele: sem este guard o
+  // @Throttle abaixo nunca era aplicado (conta por org + usuario)
+  @UseGuards(ThrottlerOrgUserGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('/extract')
   async extract(
@@ -88,6 +96,9 @@ export class AiWebSearchController {
    *
    * Retorna `{ text, sources, partial? }` pronto para `editor.commands.setContent`.
    */
+  // o guard global so avalia rotas da lista dele: sem este guard o
+  // @Throttle abaixo nunca era aplicado (conta por org + usuario)
+  @UseGuards(ThrottlerOrgUserGuard)
   @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('/generate-post')
   async generatePost(

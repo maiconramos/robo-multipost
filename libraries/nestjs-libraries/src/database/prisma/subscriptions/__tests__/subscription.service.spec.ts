@@ -43,6 +43,10 @@ const mockOrganizationService = {
   disableOrEnableNonSuperAdminUsers: jest.fn(),
 } as any;
 
+const mockProfileService = {
+  getAiCredits: jest.fn(),
+} as any;
+
 const makeOrg = (overrides?: Partial<Organization>): Organization =>
   ({
     id: 'org-1',
@@ -69,7 +73,8 @@ describe('SubscriptionService', () => {
     service = new SubscriptionService(
       mockRepository,
       mockIntegrationService,
-      mockOrganizationService
+      mockOrganizationService,
+      mockProfileService
     );
   });
 
@@ -114,6 +119,47 @@ describe('SubscriptionService', () => {
   });
 
   // --- Wave 2: Per-profile credit tests ---
+
+  describe('checkCreditsForProfile - limite do perfil ativo', () => {
+    afterEach(() => {
+      delete process.env.AI_CREDITS_MODE;
+      delete process.env.AI_CREDITS_DEFAULT_IMAGES;
+    });
+
+    it('modo unlimited nao consulta o perfil', async () => {
+      process.env.AI_CREDITS_MODE = 'unlimited';
+      const result = await service.checkCreditsForProfile(makeOrg(), 'ai_images', 'profile-1');
+      expect(result).toEqual({ credits: 999999 });
+      expect(mockProfileService.getAiCredits).not.toHaveBeenCalled();
+    });
+
+    it('perfil bloqueado (0) pelo admin fica sem creditos', async () => {
+      process.env.AI_CREDITS_MODE = 'managed';
+      mockProfileService.getAiCredits.mockResolvedValue(makeProfile({ aiImageCredits: 0 }));
+
+      const result = await service.checkCreditsForProfile(makeOrg(), 'ai_images', 'profile-1');
+
+      expect(mockProfileService.getAiCredits).toHaveBeenCalledWith('org-1', 'profile-1');
+      expect(result).toEqual({ credits: 0 });
+    });
+
+    it('limite padrao da env conta o uso do proprio perfil, nao o da org', async () => {
+      process.env.AI_CREDITS_MODE = 'managed';
+      process.env.AI_CREDITS_DEFAULT_IMAGES = '10';
+      mockProfileService.getAiCredits.mockResolvedValue(makeProfile());
+      mockRepository.getCreditsFrom.mockResolvedValue(4);
+
+      const result = await service.checkCreditsForProfile(makeOrg(), 'ai_images', 'profile-1');
+
+      expect(result).toEqual({ credits: 6 });
+      expect(mockRepository.getCreditsFrom).toHaveBeenCalledWith(
+        'org-1',
+        expect.anything(),
+        'ai_images',
+        'profile-1'
+      );
+    });
+  });
 
   describe('checkCredits - managed mode with profile', () => {
     beforeEach(() => {

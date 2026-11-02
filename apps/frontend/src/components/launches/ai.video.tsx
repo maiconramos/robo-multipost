@@ -140,7 +140,7 @@ const VideoModal: FC<VideoModalProps> = ({ close, setLoading, onChange }) => {
           backendMessage ||
             t(
               'ai_video_timeout',
-              'Geração demorou demais (>10min). Tente novamente.'
+              'A geração está demorando. O vídeo continua sendo gerado e aparece na biblioteca de mídia quando terminar — não é preciso gerar de novo.'
             ),
           'warning'
         );

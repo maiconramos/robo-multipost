@@ -12,12 +12,15 @@ import {
   UploadedFile,
   UseInterceptors,
   UsePipes,
+  UseGuards,
 } from '@nestjs/common';
 import { Request, Response } from 'express';
 import { GetOrgFromRequest } from '@gitroom/nestjs-libraries/user/org.from.request';
 import { GetProfileFromRequest } from '@gitroom/nestjs-libraries/user/profile.from.request';
 import { Organization, Profile } from '@prisma/client';
 import { MediaService } from '@gitroom/nestjs-libraries/database/prisma/media/media.service';
+import { Throttle } from '@nestjs/throttler';
+import { ThrottlerOrgUserGuard } from '@gitroom/nestjs-libraries/throttler/throttler.provider';
 import { ApiTags } from '@nestjs/swagger';
 import handleR2Upload from '@gitroom/nestjs-libraries/upload/r2.uploader';
 import { FileInterceptor } from '@nestjs/platform-express';
@@ -69,6 +72,9 @@ export class MediaController {
     return this._mediaService.generateVideo(org, body, profile?.id);
   }
 
+  // geracao paga: limite por org + usuario
+  @UseGuards(ThrottlerOrgUserGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('/generate-image')
   async generateImage(
     @GetOrgFromRequest() org: Organization,
@@ -79,7 +85,12 @@ export class MediaController {
     aspectRatio?: '1:1' | '9:16' | '16:9',
     extra?: { mode?: ImageMode; referenceImageUrl?: string }
   ) {
-    const total = await this._subscriptionService.checkCredits(org);
+    // limite do perfil ativo (antes so o total da org era olhado)
+    const total = await this._subscriptionService.checkCreditsForProfile(
+      org,
+      'ai_images',
+      profile?.id
+    );
     if (total.credits <= 0) {
       return false;
     }
@@ -98,6 +109,9 @@ export class MediaController {
     };
   }
 
+  // geracao paga: limite por org + usuario
+  @UseGuards(ThrottlerOrgUserGuard)
+  @Throttle({ default: { limit: 30, ttl: 60_000 } })
   @Post('/generate-image-with-prompt')
   async generateImageFromText(
     @GetOrgFromRequest() org: Organization,
