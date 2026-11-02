@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Corrigido — capa de Shorts após o processamento
+
+- YouTube nativo aguarda o vídeo e a geração das miniaturas ficarem prontos antes de enviar a capa selecionada. Evita o aceite da imagem enquanto o processamento ainda pode substituí-la por um quadro automático do Short. Espera limitada a dois minutos; falhas preservam o ID e o link do vídeo enviado, sem novo upload automático. Publicações sem capa não aguardam essa etapa.
+
 ### Segurança — conteúdo do proxy de vídeo
 
 - Proxy recusa respostas HTML/SVG e outros tipos inesperados, normaliza mídia MP4/binária para `video/mp4` e aplica `nosniff` e CSP com sandbox. Impede que conteúdo ativo da origem seja servido como documento sob o domínio da aplicação.

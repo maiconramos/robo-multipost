@@ -57,3 +57,33 @@ Rota/arquivo de teste temporários e AGENTS gerado pelo Next removidos após a p
 Build de produção do backend aprovado após a correção final. A validação completa em Node 22.23.4 e os três builds são conferidos no CI antes da nova imagem.
 
 Publicação da correção: `0.7.0-rc.9`, após integrar o PR #349. [CI 41336840910](https://github.com/maiconramos/robo-multipost/actions/runs/41336840910) aprovado para `6723289c`, com os três builds em Node 22.23.4. O commit posterior altera somente a versão e este registro operacional. A publicação da imagem atualiza `prerelease`, preservando `latest`, sem deploy automático na VPS.
+
+## Capa de Shorts e processamento — 01/11/2026
+
+O teste real em dois vídeos sintéticos privados do canal autorizado reproduziu uma corrida: enviar a imagem imediatamente após `videos.insert` devolveu sucesso em `thumbnails.set` e `hasCustomThumbnail: true`, mas o Studio mostrou o quadro azul automático do vídeo. Após `processingStatus: succeeded` e `thumbnailsAvailability: available`, reenviar a capa pela mesma API padrão, sem MIME explícito nem campos extras de Shorts, fez a imagem verde aparecer no Studio depois de recarregar. Os vídeos públicos e o workflow n8n de referência não foram alterados. A prova não cobre a exibição no feed público de Shorts.
+
+A hipótese inicial de que seria necessário usar a API interna do Studio não se confirmou. O Studio envia `videoStill.isForShort` e `image.isUploadedForShort`, mas esses campos não são necessários no controle que funcionou. Acrescentar esses nomes à query ou ao corpo de outras operações, assim como acrescentar um parâmetro inventado, pode devolver HTTP 200 sem comprovar que o campo teve efeito. Os GETs do proprietário continuam retornando dimensões tradicionais de miniaturas; `part=shorts` e `part=thumbnailDetails` foram recusados com `400 unknownPart`. `hasCustomThumbnail` sozinho não confirma a capa vertical apresentada no Studio.
+
+Contrato da correção no provider nativo:
+
+- Somente quando existe capa, após obter o ID de `videos.insert`, consultar `videos.list` com `id` do vídeo enviado e `part=processingDetails,status`.
+- Exigir simultaneamente `processingDetails.processingStatus=succeeded` e `processingDetails.thumbnailsAvailability=available` para baixar e aplicar a imagem. Ignorar itens de outro ID; ausência ou estado desconhecido nunca libera o envio.
+- Limitar a espera total a 120 segundos, incluindo consultas e intervalos. Consultas sem repetição automática, timeout de até 10 segundos limitado ao orçamento restante, intervalos de até 5 segundos.
+- Encerrar imediatamente em processamento `failed/terminated` ou upload `failed/rejected/deleted`. Timeout ou erro da API também encerram a etapa de capa.
+- Toda falha após o aceite do vídeo permanece dentro do tratamento `PublishedWithError`, preservando o ID e a URL. Não propagar um erro que reinicie o upload. A mensagem usa orientação estática para o Studio; nunca incorpora o corpo bruto da API.
+- Sem capa, não consultar nem aguardar o processamento. Preservar a prioridade de `settings.thumbnail.path` sobre `media[0].thumbnail`, download com proteção SSRF e envio pela API pública.
+
+O V112 já mantém heartbeat durante `postSocialPending`; nenhuma alteração de workflow, schema, credenciais, interface ou contrato público é necessária. A espera também vale para vídeos tradicionais com capa, pois não há detecção de Shorts por heurística de duração ou dimensões nesta correção. Se o processamento ultrapassar dois minutos, o vídeo permanece enviado e a capa deve ser definida manualmente no Studio; não há promessa de preenchimento posterior automático.
+
+Referências: [estado de processamento e disponibilidade das miniaturas](https://developers.google.com/youtube/data/reference/rest/v3/videos#processingDetails), [envio da imagem pela API pública](https://developers.google.com/youtube/data/reference/rest/v3/thumbnails/set).
+
+Testes de regressão cobrem a ordem das operações, condições de prontidão independentes, estados ausentes/desconhecidos/terminais, orçamento com consultas lentas, falhas HTTP e preservação do ID sem repetição do upload. A validação do código corrigido e sua disponibilização são registradas separadamente da investigação real acima; a alteração local não é um deploy na VPS.
+
+### Validação do provider corrigido
+
+- Node 22.23.4: 60 testes direcionados do provider/classe base e 33 do orchestrator aprovados; builds de produção do backend e orchestrator aprovados. Prettier e `git diff --check` aprovados.
+- Prova real com cópia isolada do `YoutubeProvider.post` corrigido no container local, sem trocar o código ou reiniciar os serviços da aplicação. O arquivo executado tinha o mesmo SHA-256 do provider da branch. Upload único de vídeo sintético privado de sete segundos no Alma Fitness, com a imagem selecionada baixada pelo transporte SSRF existente.
+- Sete consultas reais: primeiro `processing/inProgress`, depois `succeeded/inProgress` e finalmente `succeeded/available`. O provider aguardou cerca de 33 segundos após o aceite do vídeo antes de enviar a capa e retornou sucesso com o ID/URL. GET final confirmou privacidade `private` e `hasCustomThumbnail: true`; o Studio mostrou a capa amarela selecionada e reconheceu o link como Short, sem salvamento manual posterior. A prova não valida a exibição no feed público nem o carregamento da correção pelo worker em execução.
+- Revisões de plano, código, segurança e documentação sem bloqueadores remanescentes. O caso explícito de `RefreshToken` durante o polling também foi coberto: preserva a referência sem novo upload e não expõe a mensagem original.
+- Lint não pôde ser confirmado: a raiz não define script `lint`; `pnpm lint` resolveu o executável externo do sistema, que falhou. Nenhuma mudança de configuração de lint foi incluída nesta correção.
+- Sem migração, alteração de credenciais, modificação do workflow n8n ou deploy na VPS. A imagem RC.9 em execução ainda precisa ser substituída por uma versão que contenha esta correção.
