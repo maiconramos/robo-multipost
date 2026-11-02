@@ -12,6 +12,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Webhook criado em um perfil deixa de receber os posts publicados por canais de outros perfis da mesma organização. Webhooks de administrador (sem perfil) e canais sem perfil continuam funcionando como antes.
 - Não é mais possível vincular a um webhook canais de outro perfil ou organização, nem editar pelo id um webhook de outro perfil (resposta 404). Editar o próprio webhook não muda mais o perfil dele.
 
+### Segurança — conexão de canais
+
+- Membros com papel de visualização (VIEWER) não conseguem mais iniciar, renovar ou concluir a conexão de canais — antes, abrir o link de reconexão podia revogar o acesso de um canal do perfil e a escolha de página era liberada para eles.
+- O link de conexão sem login (escolha da página/conta no passo 2) agora só vale para o canal criado por esse mesmo link e só uma vez. Antes, qualquer link válido da organização servia para finalizar um canal pendente de outro perfil.
+
 ### Segurança — modelos, assinaturas e RSS automático por perfil
 
 - Editar um modelo (Sets), uma assinatura ou uma regra de RSS automático (Autopost) pelo id agora só funciona dentro do perfil ativo (resposta 404 para itens de outro perfil). Editar uma assinatura não muda mais o perfil dela, e marcar uma assinatura como padrão só desmarca as do mesmo perfil.

@@ -118,7 +118,7 @@ For encrypting sensitive values (OAuth tokens, AI keys, messaging tokens): use t
 
 - `getOrgRole(org)` (`src/user/org.role.ts`) is the canonical, fail-closed way to read a resolved org's role (`org.users[0]?.role ?? Role.USER`) — use it instead of accessing `org.users[0].role` directly in new guards/services.
 - `ProfileAccessGuard` (`src/services/auth/profile-access/`) is the global guard enforcing per-profile isolation (closed-by-default): org `ADMIN`/`SUPERADMIN` get implicit access to every profile (no `ProfileMember` rows needed); org `USER` needs a resolved `req.profile` (set by `AuthMiddleware`) or gets `403 NO_PROFILE_ASSIGNED`. Decorators: `@ProfileManage({ param })` (require `OWNER`/`MANAGER`), `@SkipProfileAccess()` (exempt a route).
-- `isAuthBypassPath` (`src/services/auth/auth-bypass-paths.ts`) is the shared, exact-segment path-bypass helper used by both `PoliciesGuard` and `ProfileAccessGuard` — never write an ad-hoc `path.indexOf('/auth')`-style substring check for a new bypass list; it would also match unrelated routes like `/oauth/authorize`.
+- `isAuthBypassPath` (`src/services/auth/auth-bypass-paths.ts`) is the exact-segment path-bypass helper used by `PoliciesGuard`; `ProfileAccessGuard` uses the narrower `isProfileAccessBypassPath` (only `/auth` and `/integrations/social-connect`, so the authenticated `/integrations/provider/:id/connect` keeps the VIEWER rule). `@DenyViewer()` blocks VIEWER even on a GET with side effects (e.g. `GET /integrations/social/:integration`) — never write an ad-hoc `path.indexOf('/auth')`-style substring check for a new bypass list; it would also match unrelated routes like `/oauth/authorize`.
 
 ## Key File Map
 

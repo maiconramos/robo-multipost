@@ -3,6 +3,7 @@ import { SetMetadata } from '@nestjs/common';
 export const SKIP_PROFILE_ACCESS_KEY = 'skip_profile_access';
 export const PROFILE_MANAGE_KEY = 'profile_manage';
 export const ALLOW_VIEWER_KEY = 'allow_viewer';
+export const DENY_VIEWER_KEY = 'deny_viewer';
 
 // Isenta um handler ou controller inteiro do ProfileAccessGuard. Usar apenas
 // em rotas que precisam responder para org USER sem perfil atribuido
@@ -25,3 +26,7 @@ export const ProfileManage = (options: ProfileManageOptions = {}) =>
 // Usado em acoes de REVISAO do cliente (aprovar/pedir alteracao/comentar) —
 // o VIEWER continua exigindo perfil atribuido (nao burla NO_PROFILE_ASSIGNED).
 export const AllowViewer = () => SetMetadata(ALLOW_VIEWER_KEY, true);
+
+// Bloqueia o VIEWER mesmo em GET: para rotas GET com efeito colateral
+// (ex.: iniciar ou renovar a conexao de um canal).
+export const DenyViewer = () => SetMetadata(DENY_VIEWER_KEY, true);

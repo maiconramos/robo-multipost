@@ -12,3 +12,13 @@ export const isAuthBypassPath = (path: string): boolean =>
   BYPASS_PREFIXES.some(
     (prefix) => path === prefix || path.startsWith(`${prefix}/`)
   );
+
+// O ProfileAccessGuard so dispensa o fluxo de auth e o callback publico de
+// conexao. `/integrations/provider/:id/connect` e autenticado e precisa da
+// regra de VIEWER/perfil (so o PoliciesGuard continua dispensando o plano).
+const PROFILE_ACCESS_BYPASS_PREFIXES = ['/auth', '/integrations/social-connect'];
+
+export const isProfileAccessBypassPath = (path: string): boolean =>
+  PROFILE_ACCESS_BYPASS_PREFIXES.some(
+    (prefix) => path === prefix || path.startsWith(`${prefix}/`)
+  );

@@ -7,6 +7,7 @@ import {
 } from './profile-access.exception';
 import {
   ALLOW_VIEWER_KEY,
+  DENY_VIEWER_KEY,
   PROFILE_MANAGE_KEY,
   SKIP_PROFILE_ACCESS_KEY,
 } from './profile-access.decorators';
@@ -269,5 +270,48 @@ describe('ProfileAccessGuard', () => {
       await expect(guard.canActivate(context)).resolves.toBe(true);
       expect(profileService.getEffectiveProfileRole).not.toHaveBeenCalled();
     });
+  });
+
+  it('VIEWER e bloqueado em GET marcado com DenyViewer (conexao de canal)', async () => {
+    const guard = makeGuard({ [DENY_VIEWER_KEY]: true });
+    const context = makeContext({
+      path: '/integrations/social/youtube',
+      method: 'GET',
+      org: orgWithRole('USER'),
+      user,
+      profile: { id: 'prof-1' },
+      profileRole: 'VIEWER',
+    });
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      ProfileReadOnlyException
+    );
+  });
+
+  it('EDITOR continua podendo iniciar a conexao de canal', async () => {
+    const guard = makeGuard({ [DENY_VIEWER_KEY]: true });
+    const context = makeContext({
+      path: '/integrations/social/youtube',
+      method: 'GET',
+      org: orgWithRole('USER'),
+      user,
+      profile: { id: 'prof-1' },
+      profileRole: 'EDITOR',
+    });
+    await expect(guard.canActivate(context)).resolves.toBe(true);
+  });
+
+  it('VIEWER nao finaliza a escolha de pagina do canal (rota autenticada nao e mais bypass)', async () => {
+    const guard = makeGuard();
+    const context = makeContext({
+      path: '/integrations/provider/int-1/connect',
+      method: 'POST',
+      org: orgWithRole('USER'),
+      user,
+      profile: { id: 'prof-1' },
+      profileRole: 'VIEWER',
+    });
+    await expect(guard.canActivate(context)).rejects.toBeInstanceOf(
+      ProfileReadOnlyException
+    );
   });
 });

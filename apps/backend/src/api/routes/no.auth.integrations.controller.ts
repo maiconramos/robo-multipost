@@ -282,6 +282,12 @@ export class NoAuthIntegrationsController {
         profileId
       );
 
+    // o passo 2 (escolha da pagina sem login) so vale para o canal criado
+    // por este mesmo state
+    if (integrationProvider.isBetweenSteps && !refresh) {
+      await ioRedis.set(`pending:${body.state}`, createUpdate.id, 'EX', 3600);
+    }
+
     this._refreshIntegrationService
       .startRefreshWorkflow(org.id, createUpdate.id, integrationProvider)
       .catch((err) => {
@@ -381,15 +387,28 @@ export class NoAuthIntegrationsController {
     }
 
     const organization = await ioRedis.get(`organization:${body.state}`);
-    if (!organization) {
-      throw new Error('Organization not found');
+    const pendingId = await ioRedis.get(`pending:${body.state}`);
+    if (!organization || !pendingId || pendingId !== id) {
+      throw new HttpException(
+        'This connection link expired or was already used, please connect the channel again',
+        400
+      );
     }
 
     const org = await this._organizationService.getOrgById(organization);
 
     const { state: _state, ...page } = body;
     void _state;
-    return this._integrationService.saveProviderPage(org.id, id, page);
+    const result = await this._integrationService.saveProviderPage(
+      org.id,
+      id,
+      page
+    );
+    // state consumido: nao serve para outra escolha de pagina
+    await ioRedis.del(`pending:${body.state}`);
+    await ioRedis.del(`organization:${body.state}`);
+    await ioRedis.del(`login:${body.state}`);
+    return result;
   }
 
   @Get('/zernio/callback')

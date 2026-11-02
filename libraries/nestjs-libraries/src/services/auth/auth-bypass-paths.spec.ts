@@ -30,3 +30,13 @@ describe('isAuthBypassPath', () => {
     expect(isAuthBypassPath('/profiles/abc/members')).toBe(false);
   });
 });
+
+describe('isProfileAccessBypassPath', () => {
+  it('dispensa so o fluxo de auth e o callback publico de conexao', () => {
+    const { isProfileAccessBypassPath } = jest.requireActual('./auth-bypass-paths');
+    expect(isProfileAccessBypassPath('/auth/login')).toBe(true);
+    expect(isProfileAccessBypassPath('/integrations/social-connect/x')).toBe(true);
+    expect(isProfileAccessBypassPath('/integrations/provider/int-1/connect')).toBe(false);
+    expect(isProfileAccessBypassPath('/oauth/authorize')).toBe(false);
+  });
+});

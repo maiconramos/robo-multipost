@@ -3,7 +3,7 @@ import { Reflector } from '@nestjs/core';
 import { Request } from 'express';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { getOrgRole } from '@gitroom/nestjs-libraries/user/org.role';
-import { isAuthBypassPath } from '@gitroom/nestjs-libraries/services/auth/auth-bypass-paths';
+import { isProfileAccessBypassPath } from '@gitroom/nestjs-libraries/services/auth/auth-bypass-paths';
 import {
   NoProfileAssignedException,
   ProfileManageDeniedException,
@@ -11,6 +11,7 @@ import {
 } from './profile-access.exception';
 import {
   ALLOW_VIEWER_KEY,
+  DENY_VIEWER_KEY,
   PROFILE_MANAGE_KEY,
   ProfileManageOptions,
   SKIP_PROFILE_ACCESS_KEY,
@@ -44,8 +45,9 @@ export class ProfileAccessGuard implements CanActivate {
       return true;
     }
 
-    // Mesmos bypasses de path do PoliciesGuard (matching por segmento).
-    if (isAuthBypassPath(request.path)) {
+    // Bypass de path (matching por segmento): so fluxo de auth e callback
+    // publico de conexao; o page-select autenticado segue as regras abaixo.
+    if (isProfileAccessBypassPath(request.path)) {
       return true;
     }
 
@@ -86,6 +88,14 @@ export class ProfileAccessGuard implements CanActivate {
         throw new ProfileManageDeniedException();
       }
       return true;
+    }
+
+    const denyViewer = this._reflector.getAllAndOverride<boolean>(
+      DENY_VIEWER_KEY,
+      [context.getHandler(), context.getClass()]
+    );
+    if (request.profileRole === 'VIEWER' && denyViewer) {
+      throw new ProfileReadOnlyException();
     }
 
     if (request.profileRole === 'VIEWER' && request.method !== 'GET') {

@@ -1,3 +1,4 @@
+import { DenyViewer } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
 import {
   Body,
   Controller,
@@ -299,6 +300,7 @@ export class IntegrationsController {
 
   @Get('/social/:integration')
   @CheckPolicies([AuthorizationActions.Create, Sections.CHANNEL])
+  @DenyViewer()
   async getIntegrationUrl(
     @Param('integration') integration: string,
     @Query('refresh') refresh: string,
