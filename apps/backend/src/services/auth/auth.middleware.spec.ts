@@ -11,6 +11,8 @@ import { UsersService } from '@gitroom/nestjs-libraries/database/prisma/users/us
 import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/organizations/organization.service';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 
+const nowIat = () => Math.floor(Date.now() / 1000);
+
 const makeReqRes = () => {
   const req: any = { headers: { auth: 'signed.jwt.token' }, cookies: {} };
   const res: any = { cookie: jest.fn(), header: jest.fn() };
@@ -44,7 +46,7 @@ describe('AuthMiddleware - resolucao de perfil', () => {
     profiles = createMock<ProfileService>();
     middleware = new AuthMiddleware(orgs as any, users as any, profiles as any);
     verifySpy = jest.spyOn(AuthService, 'verifyJWT');
-    verifySpy.mockReturnValue({ id: 'user-1' } as any);
+    verifySpy.mockReturnValue({ id: 'user-1', iat: nowIat() } as any);
     users.getUserById.mockResolvedValue({
       id: 'user-1',
       activated: true,
@@ -173,7 +175,7 @@ describe('AuthMiddleware - re-resolucao de usuario do banco', () => {
   });
 
   it('re-resolve o usuario pelo id do token e rejeita se nao existe no banco', async () => {
-    verifySpy.mockReturnValue({ id: 'user-1', isSuperAdmin: true } as any);
+    verifySpy.mockReturnValue({ id: 'user-1', isSuperAdmin: true, iat: nowIat() } as any);
     users.getUserById.mockResolvedValue(null as any);
     const { req, res, next } = makeReqRes();
 
@@ -184,7 +186,7 @@ describe('AuthMiddleware - re-resolucao de usuario do banco', () => {
   });
 
   it('rejeita usuario nao ativado mesmo com token valido (activated vem do banco)', async () => {
-    verifySpy.mockReturnValue({ id: 'user-1', activated: true } as any);
+    verifySpy.mockReturnValue({ id: 'user-1', activated: true, iat: nowIat() } as any);
     users.getUserById.mockResolvedValue({
       id: 'user-1',
       activated: false,
@@ -194,5 +196,72 @@ describe('AuthMiddleware - re-resolucao de usuario do banco', () => {
     await expect(middleware.use(req, res, next)).rejects.toBeDefined();
     expect(users.getUserById).toHaveBeenCalledWith('user-1');
     expect(next).not.toHaveBeenCalled();
+  });
+});
+
+describe('AuthMiddleware - somente tokens de sessao validos', () => {
+  let middleware: AuthMiddleware;
+  let users: ReturnType<typeof createMock<UsersService>>;
+  let orgs: ReturnType<typeof createMock<OrganizationService>>;
+  let verifySpy: jest.SpyInstance;
+
+  beforeEach(() => {
+    users = createMock<UsersService>();
+    orgs = createMock<OrganizationService>();
+    const profiles = createMock<ProfileService>();
+    profiles.getProfilesByOrgId.mockResolvedValue([] as any);
+    middleware = new AuthMiddleware(orgs as any, users as any, profiles as any);
+    verifySpy = jest.spyOn(AuthService, 'verifyJWT');
+    users.getUserById.mockResolvedValue({ id: 'user-1', activated: true } as any);
+    orgs.getOrgsByUserId.mockResolvedValue([
+      { id: 'org-1', apiKey: 'k', users: [{ role: 'ADMIN', disabled: false }] },
+    ] as any);
+  });
+
+  afterEach(() => {
+    verifySpy.mockRestore();
+  });
+
+  it('link de redefinicao de senha nao vale como login', async () => {
+    verifySpy.mockReturnValue({ id: 'user-1', expires: '2099-01-01 00:00:00', iat: nowIat() } as any);
+    const { req, res, next } = makeReqRes();
+
+    await expect(middleware.use(req, res, next)).rejects.toBeDefined();
+    expect(users.getUserById).not.toHaveBeenCalled();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('link do e-mail de ativacao nao vale como login', async () => {
+    verifySpy.mockReturnValue({ id: 'user-1', providerName: 'LOCAL', activated: false, iat: nowIat() } as any);
+    const { req, res, next } = makeReqRes();
+
+    await expect(middleware.use(req, res, next)).rejects.toBeDefined();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('sessao emitida antes da troca de senha e recusada', async () => {
+    verifySpy.mockReturnValue({ id: 'user-1', iat: nowIat() - 3600 } as any);
+    users.getUserById.mockResolvedValue({
+      id: 'user-1',
+      activated: true,
+      sessionsValidAfter: new Date(Date.now() - 60_000),
+    } as any);
+    const { req, res, next } = makeReqRes();
+
+    await expect(middleware.use(req, res, next)).rejects.toBeDefined();
+    expect(next).not.toHaveBeenCalled();
+  });
+
+  it('sessao emitida depois da troca de senha passa', async () => {
+    verifySpy.mockReturnValue({ id: 'user-1', iat: nowIat() } as any);
+    users.getUserById.mockResolvedValue({
+      id: 'user-1',
+      activated: true,
+      sessionsValidAfter: new Date(Date.now() - 60_000),
+    } as any);
+    const { req, res, next } = makeReqRes();
+
+    await middleware.use(req, res, next);
+    expect(next).toHaveBeenCalled();
   });
 });

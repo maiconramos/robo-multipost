@@ -32,6 +32,13 @@ O usuario e criado no **registro** da aplicacao. Ao se registrar, o sistema cria
 - Ter roles diferentes em cada organizacao (SUPERADMIN, ADMIN, USER)
 - Alternar entre organizacoes pelo seletor no top bar
 
+### Sessao de login
+
+- A sessao e um JWT (cookie `auth` ou header `auth`) validado pelo `AuthMiddleware`. So o formato de sessao vale (`asSessionPayload` em `libraries/nestjs-libraries/src/services/auth/session.token.ts`): link de redefinicao de senha, convite, link do e-mail de ativacao e os demais tokens assinados com o mesmo `JWT_SECRET` sao recusados.
+- A sessao vale por no maximo 1 ano a partir da emissao (`iat`), o mesmo prazo do cookie.
+- Trocar a senha pelo "esqueci a senha" grava `User.sessionsValidAfter`: toda sessao emitida antes disso (em qualquer navegador) deixa de valer, e o link de redefinicao usado — ou qualquer outro emitido antes da troca — nao funciona de novo.
+- Sair (`/user/logout`) ainda so limpa o cookie do navegador atual; nao derruba sessoes em outros dispositivos.
+
 ---
 
 ## 2. Organizacao (Organization)

@@ -4,6 +4,7 @@ import { Provider } from '@prisma/client';
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
 import { UserDetailDto } from '@gitroom/nestjs-libraries/dtos/users/user.details.dto';
 import { EmailNotificationsDto } from '@gitroom/nestjs-libraries/dtos/users/email-notifications.dto';
+import { sessionsCutoffNow } from '@gitroom/nestjs-libraries/services/auth/session.token';
 
 @Injectable()
 export class UsersRepository {
@@ -103,6 +104,8 @@ export class UsersRepository {
       },
       data: {
         password: AuthService.hashPassword(password),
+        // derruba sessoes e links de redefinicao emitidos antes da troca
+        sessionsValidAfter: sessionsCutoffNow(),
       },
     });
   }

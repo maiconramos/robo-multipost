@@ -324,3 +324,73 @@ describe('AuthService.routeAuth - registro com DISABLE_REGISTRATION', () => {
     });
   });
 });
+
+describe('AuthService.forgotReturn - link de redefinicao de uso unico', () => {
+  let service: AuthService;
+  let deps: ReturnType<typeof makeDeps> & {
+    userService: { getUserById: jest.Mock; updatePassword: jest.Mock };
+  };
+  let verifySpy: jest.SpyInstance;
+  const nowIat = () => Math.floor(Date.now() / 1000);
+  const future = () => new Date(Date.now() + 10 * 60_000).toISOString();
+  const body = { token: 'reset-jwt', password: 'nova', repeatPassword: 'nova' } as any;
+
+  beforeEach(() => {
+    const base = makeDeps();
+    deps = {
+      ...base,
+      userService: {
+        ...base.userService,
+        getUserById: jest.fn(),
+        updatePassword: jest.fn().mockResolvedValue({ id: 'user-1' }),
+      },
+    } as any;
+    service = new AuthService(
+      deps.userService as any,
+      deps.orgService as any,
+      deps.notificationService as any,
+      deps.emailService as any,
+      deps.providerManager as any
+    );
+    verifySpy = jest.spyOn(AuthChecker, 'verifyJWT');
+  });
+
+  afterEach(() => {
+    verifySpy.mockRestore();
+  });
+
+  it('troca a senha com link valido ainda nao usado', async () => {
+    verifySpy.mockReturnValue({ id: 'user-1', expires: future(), iat: nowIat() - 60 });
+    deps.userService.getUserById.mockResolvedValue({
+      id: 'user-1',
+      providerName: Provider.LOCAL,
+      sessionsValidAfter: null,
+    });
+
+    await expect(service.forgotReturn(body)).resolves.toBeTruthy();
+    expect(deps.userService.updatePassword).toHaveBeenCalledWith('user-1', 'nova');
+  });
+
+  it('recusa reusar o link depois da troca de senha', async () => {
+    verifySpy.mockReturnValue({ id: 'user-1', expires: future(), iat: nowIat() - 120 });
+    deps.userService.getUserById.mockResolvedValue({
+      id: 'user-1',
+      providerName: Provider.LOCAL,
+      sessionsValidAfter: new Date(Date.now() - 30_000),
+    });
+
+    await expect(service.forgotReturn(body)).resolves.toBe(false);
+    expect(deps.userService.updatePassword).not.toHaveBeenCalled();
+  });
+
+  it('recusa link expirado sem consultar o banco', async () => {
+    verifySpy.mockReturnValue({
+      id: 'user-1',
+      expires: new Date(Date.now() - 60_000).toISOString(),
+      iat: nowIat() - 1800,
+    });
+
+    await expect(service.forgotReturn(body)).resolves.toBe(false);
+    expect(deps.userService.getUserById).not.toHaveBeenCalled();
+  });
+});

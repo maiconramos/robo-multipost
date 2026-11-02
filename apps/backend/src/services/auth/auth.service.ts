@@ -11,6 +11,7 @@ import { NotificationService } from '@gitroom/nestjs-libraries/database/prisma/n
 import { ForgotReturnPasswordDto } from '@gitroom/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { EmailService } from '@gitroom/nestjs-libraries/services/email.service';
 import { NewsletterService } from '@gitroom/nestjs-libraries/newsletter/newsletter.service';
+import { isIssuedBeforeCutoff } from '@gitroom/nestjs-libraries/services/auth/session.token';
 import {
   emailT,
   normalizeLang,
@@ -428,16 +429,28 @@ export class AuthService {
     );
   }
 
-  forgotReturn(body: ForgotReturnPasswordDto) {
+  async forgotReturn(body: ForgotReturnPasswordDto) {
     const user = AuthChecker.verifyJWT(body.token) as {
       id: string;
       expires: string;
+      iat?: number;
     };
     if (
       !user ||
       typeof user.id !== 'string' ||
       !user.expires ||
       dayjs(user.expires).isBefore(dayjs())
+    ) {
+      return false;
+    }
+
+    // Uso unico: a troca grava User.sessionsValidAfter, e todo link emitido
+    // antes dela (inclusive este) deixa de valer.
+    const current = await this._userService.getUserById(user.id);
+    if (
+      !current ||
+      current.providerName !== Provider.LOCAL ||
+      isIssuedBeforeCutoff(user.iat, current.sessionsValidAfter)
     ) {
       return false;
     }

@@ -122,6 +122,8 @@ model User {
   account               String?
   connectedAccount      Boolean              @default(false)
   lastOnline            DateTime             @default(now())
+  // sessoes (JWT) emitidas antes deste instante nao valem mais (troca de senha)
+  sessionsValidAfter    DateTime?
   ip                    String?
   agent                 String?
   comments              Comments[]

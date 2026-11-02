@@ -21,6 +21,23 @@ describe('UsersRepository', () => {
     }
   );
 
+  it('troca de senha grava o corte que derruba sessoes e links antigos', async () => {
+    const prisma = createPrismaRepositoryMock('user');
+    prisma.model.user.update.mockResolvedValue({});
+    const repository = new UsersRepository(prisma as any);
+    const before = Math.floor(Date.now() / 1000) * 1000;
+
+    await repository.updatePassword('user-1', 'nova-senha');
+
+    const call = prisma.model.user.update.mock.calls[0][0];
+    expect(call.where).toEqual({ id: 'user-1', providerName: Provider.LOCAL });
+    expect(call.data.password).toEqual(expect.any(String));
+    expect(call.data.password).not.toBe('nova-senha');
+    expect(call.data.sessionsValidAfter).toBeInstanceOf(Date);
+    expect(call.data.sessionsValidAfter.getTime()).toBeGreaterThanOrEqual(before);
+    expect(call.data.sessionsValidAfter.getTime() % 1000).toBe(0);
+  });
+
   it('busca conta local por email sem diferenciar maiusculas e minusculas', async () => {
     const prisma = createPrismaRepositoryMock('user');
     prisma.model.user.findFirst.mockResolvedValue(null);

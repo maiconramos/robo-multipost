@@ -8,6 +8,10 @@ import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profil
 import { getCookieUrlFromDomain } from '@gitroom/helpers/subdomain/subdomain.management';
 import { HttpForbiddenException } from '@gitroom/nestjs-libraries/services/exception.filter';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
+import {
+  asSessionPayload,
+  isSessionRevoked,
+} from '@gitroom/nestjs-libraries/services/auth/session.token';
 
 export const removeAuth = (res: Response) => {
   res.cookie('auth', '', {
@@ -41,10 +45,12 @@ export class AuthMiddleware implements NestMiddleware {
       // Verify the JWT signature only. Never trust authorization-relevant
       // claims (id, isSuperAdmin, activated) from the token body — always
       // re-resolve the user from the database using the id.
-      const payload = AuthService.verifyJWT(auth) as User | null;
+      // So o formato de sessao vale: link de redefinicao de senha, convite,
+      // link de ativacao e afins usam o mesmo JWT_SECRET e sao recusados.
+      const payload = asSessionPayload(AuthService.verifyJWT(auth));
       const orgHeader = req.cookies.showorg || req.headers.showorg;
 
-      if (!payload?.id || typeof payload.id !== 'string') {
+      if (!payload) {
         throw new HttpForbiddenException();
       }
 
@@ -57,6 +63,11 @@ export class AuthMiddleware implements NestMiddleware {
       }
 
       if (!user.activated) {
+        throw new HttpForbiddenException();
+      }
+
+      // expirada (> 1 ano) ou emitida antes da ultima troca de senha
+      if (isSessionRevoked(payload, user)) {
         throw new HttpForbiddenException();
       }
 

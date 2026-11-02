@@ -7,6 +7,14 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — sessão de login e "esqueci a senha"
+
+- O link de "esqueci a senha" e o link do e-mail de ativação não funcionam mais como login. Antes, quem visse um desses links (na caixa de e-mail, num encaminhamento ou no log do servidor) conseguia entrar na conta sem trocar a senha e sem prazo.
+- O link de "esqueci a senha" agora só pode ser usado uma vez. Depois da troca, ele e qualquer outro link pedido antes param de funcionar.
+- Trocar a senha pelo "esqueci a senha" desconecta a conta em todos os navegadores e dispositivos. Quem roubou uma sessão perde o acesso.
+- A sessão de login passa a valer no máximo 1 ano (o mesmo prazo do cookie). Depois disso é preciso entrar de novo.
+- Novo campo `sessionsValidAfter` na tabela de usuários, criado automaticamente no próximo início do app (sem perda de dados).
+
 ### Segurança — credenciais do Instagram em canais sem perfil
 
 - Automações de DM e checagem de "segue a conta" em canais sem perfil (da organização) passam a usar a credencial do Instagram da própria organização (sem perfil) ou, na falta dela, a do perfil padrão. Antes, o sistema podia usar a credencial cadastrada em um perfil qualquer da organização. A renovação automática do token também grava na mesma credencial de onde ele foi lido.
