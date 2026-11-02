@@ -99,6 +99,77 @@ describe('IntegrationRepository (B1 Etapa 2 - criptografia na escrita)', () => {
       expect(encryption.encrypt).not.toHaveBeenCalled();
     });
 
+    const connectAs = (profileId?: string) =>
+      repo.createOrUpdateIntegration(
+        undefined,
+        false,
+        'org-1',
+        'nome',
+        undefined,
+        'social',
+        'internal-1',
+        'instagram',
+        'TOKEN',
+        'REFRESH',
+        3600,
+        'user',
+        false,
+        undefined,
+        undefined,
+        undefined,
+        profileId
+      );
+
+    it('nao troca o token do canal vivo de outro perfil (409)', async () => {
+      prismaMock.model.integration.findFirst.mockResolvedValue({
+        profileId: 'prof-b',
+        deletedAt: null,
+      } as any);
+
+      await expect(connectAs('prof-a')).rejects.toMatchObject({ status: 409 });
+      expect(prismaMock.model.integration.upsert).not.toHaveBeenCalled();
+    });
+
+    it('canal apagado de outro perfil volta no perfil de quem conectou agora', async () => {
+      prismaMock.model.integration.findFirst.mockResolvedValue({
+        profileId: 'prof-b',
+        deletedAt: new Date(),
+      } as any);
+
+      await connectAs('prof-a');
+
+      expect(upsertArg().update.profileId).toBe('prof-a');
+      expect(upsertArg().update.deletedAt).toBeNull();
+    });
+
+    it('reconexao (refresh) do canal pela tela de Status nao e bloqueada', async () => {
+      prismaMock.model.integration.findFirst.mockResolvedValue({
+        profileId: 'prof-b',
+        deletedAt: null,
+      } as any);
+
+      await repo.createOrUpdateIntegration(
+        undefined, false, 'org-1', 'nome', undefined, 'social', 'internal-1',
+        'instagram', 'TOKEN', 'REFRESH', 3600, 'user', false, 'internal-1',
+        undefined, undefined, 'prof-a'
+      );
+
+      expect(prismaMock.model.integration.upsert).toHaveBeenCalled();
+      expect(upsertArg().update.profileId).toBeUndefined();
+    });
+
+    it('reconectar no proprio perfil segue normal', async () => {
+      prismaMock.model.integration.findFirst.mockResolvedValue({
+        profileId: 'prof-a',
+        deletedAt: null,
+      } as any);
+
+      await connectAs('prof-a');
+
+      expect(upsertArg().update.profileId).toBeUndefined();
+      expect(upsertArg().update.token).toBe(`${TOKEN_ENC_PREFIX}CIPHER(TOKEN)`);
+    });
+
     it('cifra tambem o updateMany do oneTimeToken (linhas irmas) por padrao', async () => {
       prismaMock.model.integration.findFirst.mockResolvedValue({
         rootInternalId: 'root-1',

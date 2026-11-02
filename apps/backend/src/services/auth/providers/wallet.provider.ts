@@ -70,12 +70,11 @@ export class WalletProvider extends AuthProviderAbstract {
     return code;
   }
 
-  async getUser(providerToken: string) {
+  async getUser(providerToken: string): Promise<{ id: string; email: string } | false> {
+    // assinatura invalida: sem identidade (antes devolvia id/email vazios, e o
+    // login seguia criando ou achando conta WALLET com id vazio)
     if ((await this.getToken(providerToken)) === '') {
-      return {
-        id: '',
-        email: '',
-      };
+      return false;
     }
 
     const { publicKey } = JSON.parse(

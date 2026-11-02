@@ -7,6 +7,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — canais entre perfis e ajustes de login
+
+- Conectar uma conta que já está ligada em outro perfil agora é recusado ("Esta conta já está conectada em outro perfil"). Antes, isso trocava o acesso do canal do outro cliente. Uma conta que foi apagada de um perfil, quando é conectada de novo em outro, passa a ficar no perfil novo (antes voltava para o perfil antigo). Reconectar pela tela de Status continua funcionando.
+- Login por carteira com assinatura inválida não cria mais conta vazia.
+- O id de voz do gerador de vídeo em slides (ElevenLabs) só aceita o formato de id.
+
 ### Segurança — reconexão de canal a partir de outro site
 
 - O link de reconexão de canal (que desconecta o acesso antigo no Google/YouTube antes de pedir permissão de novo) não pode mais ser disparado por outro site com o seu login. Ele também só atua no canal da mesma rede social.

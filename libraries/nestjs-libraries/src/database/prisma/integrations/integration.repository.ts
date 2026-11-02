@@ -1,5 +1,5 @@
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import dayjs from 'dayjs';
 import { Integration } from '@prisma/client';
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
@@ -363,6 +363,33 @@ export class IntegrationRepository {
           ]),
         }
       : {};
+    // A chave do canal e (org, internalId): conectar a mesma conta externa em
+    // outro perfil trocava o token do canal VIVO daquele perfil, e reviver um
+    // canal apagado o devolvia ao perfil antigo (o cliente anterior passava a
+    // ver a conta do novo). Canal vivo de outro perfil: 409. Apagado: vai para
+    // o perfil de quem conectou agora.
+    const existing = await this._integration.model.integration.findFirst({
+      where: { organizationId: org, internalId },
+      select: { profileId: true, deletedAt: true },
+    });
+    // reconexao (`refresh`) do proprio canal: o acesso ja foi checado na rota
+    // e o admin pode reconectar pela tela de Status estando em outro perfil
+    if (
+      !refresh &&
+      existing &&
+      !existing.deletedAt &&
+      profileId &&
+      existing.profileId &&
+      existing.profileId !== profileId
+    ) {
+      throw new HttpException(
+        'Esta conta já está conectada em outro perfil.',
+        HttpStatus.CONFLICT
+      );
+    }
+    const revivedProfile =
+      existing?.deletedAt && profileId ? { profileId } : {};
+
     const upsert = await this._integration.model.integration.upsert({
       where: {
         organizationId_internalId: {
@@ -421,6 +448,7 @@ export class IntegrationRepository {
         internalId,
         organizationId: org,
         deletedAt: null,
+        ...revivedProfile,
         refreshNeeded: false,
         refreshError: null,
         refreshErrorAt: null,

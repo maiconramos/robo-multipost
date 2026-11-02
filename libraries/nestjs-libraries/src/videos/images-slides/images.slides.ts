@@ -13,7 +13,7 @@ import { stringifySync } from 'subtitle';
 
 import pLimit from 'p-limit';
 import { FalService } from '@gitroom/nestjs-libraries/openai/fal.service';
-import { IsString } from 'class-validator';
+import { IsString, Matches } from 'class-validator';
 import { JSONSchema } from 'class-validator-jsonschema';
 const limit = pLimit(2);
 
@@ -33,6 +33,9 @@ class ImagesSlidesParams {
     description: 'Elevenlabs voice id, use a special tool to get it, this is a required filed',
   })
   @IsString()
+  // id do ElevenLabs (alfanumerico): ia direto no caminho da URL com a chave
+  // da instancia
+  @Matches(/^[A-Za-z0-9_-]{1,64}$/)
   voice: string;
 
   @JSONSchema({
@@ -96,7 +99,9 @@ export class ImagesSlides extends VideoAbstract<ImagesSlidesParams> {
               await (
                 await limit(() =>
                   fetch(
-                    `https://api.elevenlabs.io/v1/text-to-speech/${customParams.voice}?output_format=mp3_44100_128`,
+                    `https://api.elevenlabs.io/v1/text-to-speech/${encodeURIComponent(
+                      String(customParams.voice)
+                    )}?output_format=mp3_44100_128`,
                     {
                       method: 'POST',
                       headers: {
