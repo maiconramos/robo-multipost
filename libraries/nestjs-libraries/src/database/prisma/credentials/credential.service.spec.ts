@@ -524,13 +524,35 @@ describe('CredentialService', () => {
       expect(token).toBe('EAA-system');
     });
 
-    it('cai no fallback da env META_SYSTEM_USER_TOKEN quando o banco nao tem', async () => {
+    it('cai no fallback da env META_SYSTEM_USER_TOKEN quando o banco nao tem (instancia de uma org)', async () => {
       jest.spyOn(service, 'getRawShared').mockResolvedValue(null);
+      orgRepository.getCount.mockResolvedValue(1);
       process.env.META_SYSTEM_USER_TOKEN = 'EAA-env';
 
       const token = await service.getSystemUserToken('org-1', 'prof-2');
 
       expect(token).toBe('EAA-env');
+    });
+
+    it('com varias orgs e sem lista, o token do operador nao cura canal de outra org', async () => {
+      jest.spyOn(service, 'getRawShared').mockResolvedValue(null);
+      orgRepository.getCount.mockResolvedValue(3);
+      process.env.META_SYSTEM_USER_TOKEN = 'EAA-env';
+
+      await expect(service.getSystemUserToken('org-tenant')).resolves.toBeUndefined();
+    });
+
+    it('META_SYSTEM_USER_TOKEN_ORG_IDS libera so as orgs listadas', async () => {
+      jest.spyOn(service, 'getRawShared').mockResolvedValue(null);
+      process.env.META_SYSTEM_USER_TOKEN = 'EAA-env';
+      process.env.META_SYSTEM_USER_TOKEN_ORG_IDS = 'org-op, org-2';
+      try {
+        await expect(service.getSystemUserToken('org-2')).resolves.toBe('EAA-env');
+        await expect(service.getSystemUserToken('org-tenant')).resolves.toBeUndefined();
+        expect(orgRepository.getCount).not.toHaveBeenCalled();
+      } finally {
+        delete process.env.META_SYSTEM_USER_TOKEN_ORG_IDS;
+      }
     });
 
     it('retorna undefined quando nao ha token em lugar nenhum', async () => {

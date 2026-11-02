@@ -13,6 +13,17 @@ jest.mock(
   })
 );
 
+// file-type e ESM: detector falso por magic bytes (o real e testado em
+// allowed.upload.mime.spec.ts)
+jest.mock('file-type', () => ({
+  fileTypeFromBuffer: async (buf: Buffer) => {
+    if (buf[0] === 0xff && buf[1] === 0xd8) return { mime: 'image/jpeg', ext: 'jpg' };
+    if (buf[0] === 0x89 && buf.slice(1, 4).toString() === 'PNG') return { mime: 'image/png', ext: 'png' };
+    if (buf.slice(0, 4).toString() === 'RIFF') return { mime: 'image/webp', ext: 'webp' };
+    return undefined;
+  },
+}));
+
 import { loadFromUrlOrDataUrl } from './storage.helpers';
 import { isSafePublicHttpsUrl } from '@gitroom/nestjs-libraries/dtos/webhooks/webhook.url.validator';
 
@@ -34,25 +45,22 @@ describe('loadFromUrlOrDataUrl', () => {
     it('decodifica data URL base64 sem chamar fetch nem validar SSRF', async () => {
       const fetchSpy = jest.fn();
       globalThis.fetch = fetchSpy as any;
-      // "Hello" em base64
-      const dataUrl = 'data:image/png;base64,SGVsbG8=';
+      // assinatura PNG em base64
+      const dataUrl = 'data:image/png;base64,iVBORw0KGgo=';
 
       const result = await loadFromUrlOrDataUrl(dataUrl);
 
       expect(fetchSpy).not.toHaveBeenCalled();
       expect(mockIsSafe).not.toHaveBeenCalled();
-      expect(result.buffer.toString('utf8')).toBe('Hello');
+      expect(result.buffer[0]).toBe(0x89);
       expect(result.contentType).toBe('image/png');
       expect(result.extension).toBe('png');
     });
 
-    it('extrai extensao mesmo em mime composto (image/svg+xml)', async () => {
-      const dataUrl = 'data:image/svg+xml;base64,PHN2Zy8+';
-
-      const result = await loadFromUrlOrDataUrl(dataUrl);
-
-      expect(result.contentType).toBe('image/svg+xml');
-      expect(result.extension).toBe('svg');
+    it('recusa SVG/HTML (seriam servidos de volta no dominio da app)', async () => {
+      await expect(
+        loadFromUrlOrDataUrl('data:image/svg+xml;base64,PHN2Zy8+')
+      ).rejects.toThrow('nao permitido');
     });
 
     it('lanca erro em data URL invalida', async () => {
@@ -66,7 +74,7 @@ describe('loadFromUrlOrDataUrl', () => {
     it('valida SSRF e faz fetch com o dispatcher quando a URL e segura', async () => {
       mockIsSafe.mockResolvedValue(true);
       const fetchSpy = jest.fn(async (..._args: any[]) =>
-        new Response(Buffer.from([1, 2, 3]), {
+        new Response(Buffer.from([0xff, 0xd8, 3]), {
           status: 200,
           headers: { 'content-type': 'image/jpeg' },
         })
@@ -79,28 +87,56 @@ describe('loadFromUrlOrDataUrl', () => {
       expect(fetchSpy.mock.calls[0][0]).toBe('https://example.com/foo.jpg');
       expect(fetchSpy.mock.calls[0][1]).toMatchObject({
         dispatcher: { __mock: 'dispatcher' },
+        headers: { 'accept-encoding': 'identity' },
       });
       expect(result.contentType).toBe('image/jpeg');
-      expect(result.extension).toBe('jpeg');
+      expect(result.extension).toBe('jpg');
       expect(result.buffer.length).toBe(3);
     });
 
-    it('extrai extensao do content-type webp', async () => {
+    it('tipo vem do conteudo, nao do content-type do servidor', async () => {
       mockIsSafe.mockResolvedValue(true);
-      const fetchSpy = jest.fn(async () =>
-        new Response(Buffer.from([0]), {
+      globalThis.fetch = jest.fn(async () =>
+        new Response(Buffer.from('RIFFxxxxWEBP'), {
           status: 200,
-          headers: { 'content-type': 'image/webp' },
+          headers: { 'content-type': 'text/html' },
         })
-      );
-      globalThis.fetch = fetchSpy as any;
+      ) as any;
 
       const result = await loadFromUrlOrDataUrl(
-        'https://cdn.example.com/path/foo.webp?v=2'
+        'https://cdn.example.com/path/foo.html?v=2'
       );
 
       expect(result.contentType).toBe('image/webp');
       expect(result.extension).toBe('webp');
+    });
+
+    it('recusa pagina HTML servida como imagem', async () => {
+      mockIsSafe.mockResolvedValue(true);
+      globalThis.fetch = jest.fn(async () =>
+        new Response('<html><script>alert(1)</script></html>', {
+          status: 200,
+          headers: { 'content-type': 'image/png' },
+        })
+      ) as any;
+
+      await expect(
+        loadFromUrlOrDataUrl('https://example.com/avatar.png')
+      ).rejects.toThrow('nao permitido');
+    });
+
+    it('recusa resposta comprimida (gzip inflaria acima do limite na memoria)', async () => {
+      mockIsSafe.mockResolvedValue(true);
+      globalThis.fetch = jest.fn(async () =>
+        new Response(Buffer.from([0xff, 0xd8]), {
+          status: 200,
+          headers: { 'content-encoding': 'gzip' },
+        })
+      ) as any;
+
+      await expect(
+        loadFromUrlOrDataUrl('https://example.com/bomb.jpg')
+      ).rejects.toThrow('Compressed response refused');
     });
 
     it('recusa resposta acima de 1 GB (limite de upload de video)', async () => {

@@ -41,7 +41,20 @@ export interface PublicUrlFetchOptions {
    */
   honorSsrfOptOut?: boolean;
   headers?: Record<string, string>;
+  /**
+   * Midia: pede o arquivo sem compressao e recusa resposta comprimida. O
+   * fetch descomprime sozinho e o limite so ve o tamanho descomprimido: ~1 MiB
+   * de gzip virava 1 GiB na memoria.
+   */
+  identityEncoding?: boolean;
 }
+
+export const isEncodedResponse = (response: { headers: Headers }) => {
+  const encoding = (response.headers.get('content-encoding') || '')
+    .trim()
+    .toLowerCase();
+  return !!encoding && encoding !== 'identity';
+};
 
 const DEFAULT_TIMEOUT_MS = 30_000;
 const MAX_REDIRECTS = 5;
@@ -79,7 +92,16 @@ export async function fetchPublicUrl(
     try {
       response = await ssrfSafeFetch(currentUrl, {
         ...(unguarded ? {} : { dispatcher: ssrfSafeDispatcher }),
-        ...(options.headers ? { headers: options.headers } : {}),
+        ...(options.headers || options.identityEncoding
+          ? {
+              headers: {
+                ...(options.headers || {}),
+                ...(options.identityEncoding
+                  ? { 'accept-encoding': 'identity' }
+                  : {}),
+              },
+            }
+          : {}),
         redirect: 'manual',
         signal,
       });
@@ -123,6 +145,11 @@ export async function fetchPublicUrl(
       `HTTP ${response?.status ?? 0}`,
       response?.status
     );
+  }
+
+  if (options.identityEncoding && isEncodedResponse(response)) {
+    await cancelBody(response);
+    throw new PublicUrlFetchError('http', 'Compressed response refused');
   }
 
   try {

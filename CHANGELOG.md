@@ -7,6 +7,13 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — Discord, uploads e token da Meta
+
+- Discord: o post só sai em canal do mesmo servidor conectado. Antes, como o bot é o mesmo para todas as organizações, dava para publicar em canais de outra organização escolhendo o id do canal.
+- Arquivos baixados de links (avatar de canal, vídeo de IA, repost do Instagram, imagem gerada) só são salvos se forem imagem ou vídeo mp4 de verdade, conferido pelo conteúdo. Antes, um servidor podia entregar uma página HTML ou SVG que ficava hospedada no domínio da app.
+- O download de mídia por link recusa resposta comprimida. Antes, um arquivo pequeno comprimido podia ocupar até 2 GB de memória do servidor.
+- O token de System User da Meta configurado na instalação (`META_SYSTEM_USER_TOKEN`) só reconecta canais das organizações listadas em `META_SYSTEM_USER_TOKEN_ORG_IDS` ou, sem a lista, quando a instância tem uma única organização. Antes, ele reconectava canais de qualquer organização. Quem usa essa variável com várias organizações precisa preencher a lista.
+
 ### Segurança — ajustes menores
 
 - MCP: uma chamada feita com a chave da organização inteira não herda mais o perfil de uma chamada anterior (poderia ver a base de conhecimento de outro cliente).

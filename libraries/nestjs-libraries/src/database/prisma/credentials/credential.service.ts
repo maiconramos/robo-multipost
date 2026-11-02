@@ -75,11 +75,32 @@ export class CredentialService {
       'facebook',
       profileId
     );
-    return (
-      shared?.metaSystemUserToken ||
-      process.env.META_SYSTEM_USER_TOKEN ||
-      undefined
-    );
+    if (shared?.metaSystemUserToken) {
+      return shared.metaSystemUserToken;
+    }
+    const envToken = process.env.META_SYSTEM_USER_TOKEN;
+    if (!envToken) {
+      return undefined;
+    }
+    return (await this.envSystemUserTokenAllowed(organizationId))
+      ? envToken
+      : undefined;
+  }
+
+  // O token da env e do operador da instancia: em instancia com varias orgs
+  // ele so cura canais das orgs listadas em META_SYSTEM_USER_TOKEN_ORG_IDS.
+  // Sem a lista, so vale quando existe uma unica organizacao (self-host de
+  // um dono). Antes ele re-derivava o token de qualquer org que apontasse
+  // para uma pagina gerenciada pelo System User do operador.
+  private async envSystemUserTokenAllowed(organizationId: string) {
+    const allowList = (process.env.META_SYSTEM_USER_TOKEN_ORG_IDS || '')
+      .split(',')
+      .map((id) => id.trim())
+      .filter(Boolean);
+    if (allowList.length) {
+      return allowList.includes(organizationId);
+    }
+    return (await this._organizationRepository.getCount()) <= 1;
   }
 
   private redact(data: Record<string, string>): Record<string, string> {

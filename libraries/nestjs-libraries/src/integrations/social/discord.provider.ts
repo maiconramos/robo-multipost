@@ -5,7 +5,10 @@ import {
   SocialProvider,
 } from '@gitroom/nestjs-libraries/integrations/social/social.integrations.interface';
 import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.secure.id';
-import { SocialAbstract } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import {
+  BadBody,
+  SocialAbstract,
+} from '@gitroom/nestjs-libraries/integrations/social.abstract';
 import { Integration } from '@prisma/client';
 import { DiscordDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/discord.dto';
 import { Tool } from '@gitroom/nestjs-libraries/integrations/tool.decorator';
@@ -136,13 +139,41 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
       }));
   }
 
+  // O token do bot e o mesmo para todas as orgs da instancia: o canal vem do
+  // post (settings) e precisa ser do servidor (guild) deste canal conectado,
+  // senao uma org publicava em canais de outra.
+  private async assertChannelInGuild(guildId: string, channel: unknown) {
+    if (typeof channel !== 'string' || !/^\d{5,25}$/.test(channel)) {
+      throw new BadBody('discord', '{}', '', 'Canal do Discord inválido.');
+    }
+    const info = await (
+      await this.fetch(`https://discord.com/api/channels/${channel}`, {
+        headers: {
+          Authorization: `Bot ${process.env.DISCORD_BOT_TOKEN_ID}`,
+        },
+      })
+    ).json();
+    if (!info || String(info.guild_id) !== String(guildId)) {
+      throw new BadBody(
+        'discord',
+        '{}',
+        '',
+        'O canal escolhido não pertence a este servidor do Discord.'
+      );
+    }
+    return channel;
+  }
+
   async post(
     id: string,
     accessToken: string,
     postDetails: PostDetails[]
   ): Promise<PostResponse[]> {
     const [firstPost] = postDetails;
-    const channel = firstPost.settings.channel;
+    const channel = await this.assertChannelInGuild(
+      id,
+      firstPost.settings.channel
+    );
 
     const form = new FormData();
     form.append(
@@ -200,7 +231,10 @@ export class DiscordProvider extends SocialAbstract implements SocialProvider {
     integration: Integration
   ): Promise<PostResponse[]> {
     const [commentPost] = postDetails;
-    const channel = commentPost.settings.channel;
+    const channel = await this.assertChannelInGuild(
+      id,
+      commentPost.settings.channel
+    );
 
     // For Discord, we create a thread from the original message for comments
     // If we don't have a thread yet, create one

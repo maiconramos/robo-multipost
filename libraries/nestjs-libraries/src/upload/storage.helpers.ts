@@ -1,4 +1,5 @@
 import { fetchPublicUrl } from './public-url.fetch';
+import { detectAllowedUploadMime } from './allowed.upload.mime';
 
 // Mesmo teto do upload de video (`getMaxUploadSize`): o upload por URL tambem
 // recebe videos (repost do Instagram).
@@ -37,18 +38,27 @@ export async function loadFromUrlOrDataUrl(path: string): Promise<{
     const buffer = isBase64
       ? Buffer.from(data, 'base64')
       : Buffer.from(decodeURIComponent(data), 'utf8');
-    const extension =
-      contentType.split('/')[1]?.split('+')[0] || 'bin';
-    return { buffer, contentType, extension };
+    return typedMedia(buffer, contentType);
   }
 
-  const { buffer, contentType } = await fetchPublicUrl(path, {
+  const { buffer } = await fetchPublicUrl(path, {
     maxBytes: MAX_REMOTE_MEDIA_BYTES,
     timeoutMs: 5 * 60_000,
+    identityEncoding: true,
   });
-  const extension =
-    contentType.split('/')[1]?.split('+')[0] ||
-    path.split('?')[0].split('#')[0].split('.').pop() ||
-    'bin';
-  return { buffer, contentType, extension };
+  return typedMedia(buffer);
+}
+
+// Tipo e extensao saem do conteudo (magic bytes), nunca do Content-Type do
+// servidor remoto nem da extensao da URL: um avatar servido como text/html ou
+// SVG virava <hex>.html/.svg em /uploads, no dominio da app (XSS). Mesma
+// allowlist do upload comum (imagens e mp4).
+async function typedMedia(buffer: Buffer, declared?: string) {
+  const detected = await detectAllowedUploadMime(buffer);
+  if (!detected) {
+    throw new Error(
+      `Tipo de arquivo nao permitido para upload${declared ? ` (${declared.slice(0, 40)})` : ''}`
+    );
+  }
+  return { buffer, contentType: detected.mime, extension: detected.ext };
 }

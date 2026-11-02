@@ -67,6 +67,7 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
+import { isEncodedResponse } from '@gitroom/nestjs-libraries/upload/public-url.fetch';
 
 // Exemplos prontos exibidos no Swagger para POST /public/v1/posts. O body e
 // processado como `any` (mapeado para CreatePostDto), entao fornecemos exemplos
@@ -210,12 +211,18 @@ export class PublicIntegrationsController {
         // @ts-ignore — undici option, not in lib.dom fetch types
         dispatcher: ssrfSafeDispatcher,
         signal: AbortSignal.timeout(30_000),
+        // sem compressao: o limite de bytes so ve o tamanho descomprimido
+        headers: { 'accept-encoding': 'identity' },
       });
     } catch {
       throw new HttpException({ msg: 'Failed to fetch URL' }, 400);
     }
     if (!response.ok) {
       throw new HttpException({ msg: 'Failed to fetch URL' }, 400);
+    }
+    if (isEncodedResponse(response)) {
+      await response.body?.cancel().catch(() => undefined);
+      throw new HttpException({ msg: 'Compressed response refused' }, 400);
     }
 
     let buffer: Buffer;
