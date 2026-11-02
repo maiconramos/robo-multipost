@@ -1,7 +1,7 @@
 import { legacyFlowScopeMatches, legacyFlowIntegrationSelect } from './legacy-flow-scope';
 import { SharedFlowsRepository } from '../flows-v2/shared-flows.repository';
 import { PrismaRepository } from '@gitroom/nestjs-libraries/database/prisma/prisma.service';
-import { Injectable, Optional, HttpException } from '@nestjs/common';
+import { Injectable, Optional, HttpException, HttpStatus } from '@nestjs/common';
 import {
   FlowStatus,
   FlowExecutionStatus,
@@ -159,16 +159,24 @@ export class FlowsRepository {
     profileId?: string
   ) {
     if (status === FlowStatus.ACTIVE && this.sharedFlows) return this.sharedFlows.activateLegacy({ organizationId: orgId, ...(profileId ? { profileId } : {}) }, id);
-    return this._flow.model.flow.update({
-      where: {
-        id,
-        organizationId: orgId,
-        executionVersion: 1,
-        ...(profileId ? { profileId } : {}),
-        deletedAt: null,
-      },
-      data: { status },
-    });
+    return this._flow.model.flow
+      .update({
+        where: {
+          id,
+          organizationId: orgId,
+          executionVersion: 1,
+          ...(profileId ? { profileId } : {}),
+          deletedAt: null,
+        },
+        data: { status },
+      })
+      .catch((err: { code?: string }) => {
+        // automacao de outro perfil/org ou removida: 404, nao 500
+        if (err?.code === 'P2025') {
+          throw new HttpException('Automacao nao encontrada', HttpStatus.NOT_FOUND);
+        }
+        throw err;
+      });
   }
 
   async saveCanvas(

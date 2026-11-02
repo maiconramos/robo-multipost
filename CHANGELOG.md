@@ -7,6 +7,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — limites das automações antigas no painel
+
+- O editor visual das automações antigas do Instagram passa a ter os mesmos limites da API pública: até 100 blocos, espera (DELAY) de no máximo 30 dias, sem ciclos e sem combinações de ramos que multipliquem respostas e DMs. Antes, um fluxo montado no painel podia disparar milhares de respostas por comentário ou ficar esperando para sempre. Fluxos já salvos só são checados quando forem salvos de novo.
+- Pausar ou ativar a automação de outro perfil responde "não encontrada" em vez de erro interno.
+
 ### Segurança — dica (tooltip) com HTML
 
 - Textos de posts, da pré-visualização e do chat do assistente não guardam mais atributos `data-*` desconhecidos. O `data-tooltip-html` passava pelo filtro e, ao passar o mouse, a dica da app executava código. As menções e o aviso de "texto cortado" continuam funcionando.

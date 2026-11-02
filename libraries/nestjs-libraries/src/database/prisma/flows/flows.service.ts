@@ -45,6 +45,7 @@ import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integr
 import * as crypto from 'crypto';
 import { WorkflowIdReusePolicy } from '@temporalio/common';
 import { ScheduledPostsService } from '../scheduled-automations/scheduled-posts.service';
+import { assertCanvasBounds } from '@gitroom/nestjs-libraries/database/prisma/flows/canvas.bounds';
 
 // Janela de 24h da Meta para trocar mensagens apos interacao do usuario.
 // Usamos 23h para dar margem de seguranca e nao tentar DM expirado.
@@ -541,6 +542,8 @@ export class FlowsService {
     body: SaveCanvasDto,
     profileId?: string
   ) {
+    // mesmos limites do canvas da API publica: tamanho, DELAY e caminhos
+    assertCanvasBounds(body);
     for (const node of body.nodes.filter((n) => n.type === 'SEND_DM')) {
       let config: { messages?: unknown };
       try {

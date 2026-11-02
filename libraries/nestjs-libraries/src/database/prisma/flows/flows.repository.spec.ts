@@ -161,3 +161,31 @@ describe('isolamento em execucoes legadas ja ativas', () => {
     expect(await (repo[method] as any)('pb', {senderIgsid:'original',igAccountId:'account'})).toBeNull();
   });
 });
+
+describe('FlowsRepository.updateFlowStatus', () => {
+  it('automacao de outro perfil responde 404 (nao 500)', async () => {
+    const flow = createPrismaRepositoryMock('flow');
+    flow.model.flow.update.mockRejectedValue(
+      Object.assign(new Error('Record to update not found'), { code: 'P2025' })
+    );
+    const repo = new FlowsRepository(
+      flow as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any,
+      {} as any
+    );
+
+    await expect(
+      repo.updateFlowStatus('org-1', 'flow-b', 'PAUSED' as any, 'prof-a')
+    ).rejects.toMatchObject({ status: 404 });
+    expect(flow.model.flow.update.mock.calls[0][0].where).toMatchObject({
+      id: 'flow-b',
+      organizationId: 'org-1',
+      profileId: 'prof-a',
+    });
+  });
+});
