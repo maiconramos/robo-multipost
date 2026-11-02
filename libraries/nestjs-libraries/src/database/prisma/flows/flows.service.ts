@@ -1840,9 +1840,10 @@ export class FlowsService {
     orgId: string,
     flowId: string,
     aliasMediaId: string,
-    addedBy?: string
+    addedBy?: string,
+    profileId?: string
   ) {
-    const flow = await this._flowsRepository.getFlow(orgId, flowId);
+    const flow = await this._flowsRepository.getFlow(orgId, flowId, profileId);
     if (!flow) {
       throw new BadRequestException('Flow not found');
     }
@@ -1868,8 +1869,12 @@ export class FlowsService {
     }
   }
 
-  async removeAlias(orgId: string, aliasId: string) {
-    const ok = await this._flowsRepository.deleteAliasForOrg(orgId, aliasId);
+  async removeAlias(orgId: string, aliasId: string, profileId?: string) {
+    const ok = await this._flowsRepository.deleteAliasForOrg(
+      orgId,
+      aliasId,
+      profileId
+    );
     if (!ok) {
       throw new BadRequestException('Alias not found or not in this org');
     }
@@ -1880,7 +1885,17 @@ export class FlowsService {
     return this._flowsRepository.listAliasesByFlow(orgId, flowId);
   }
 
-  lookupAliasFlows(orgId: string, integrationId: string, aliasMediaId: string) {
+  async lookupAliasFlows(
+    orgId: string,
+    integrationId: string,
+    aliasMediaId: string,
+    profileId?: string
+  ) {
+    await this._integrationService.validateIntegrationProfile(
+      orgId,
+      integrationId,
+      profileId
+    );
     return this._flowsRepository.findFlowsByAlias(
       orgId,
       integrationId,

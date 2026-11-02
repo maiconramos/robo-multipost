@@ -76,6 +76,7 @@ describe('UnmatchedCommentService', () => {
 
     integrationService = {
       getIntegrationById: jest.fn(),
+      validateIntegrationProfile: jest.fn().mockResolvedValue(undefined),
     } as any;
 
     instagramProvider = {
@@ -474,7 +475,7 @@ describe('UnmatchedCommentService', () => {
 
       const result = await service.listAliasesEnriched('org-1', 'f-1');
 
-      expect(repo.listAliasesByFlow).toHaveBeenCalledWith('org-1', 'f-1');
+      expect(repo.listAliasesByFlow).toHaveBeenCalledWith('org-1', 'f-1', undefined);
       expect(result).toHaveLength(1);
       expect(result[0]).toMatchObject({
         id: 'a-1',

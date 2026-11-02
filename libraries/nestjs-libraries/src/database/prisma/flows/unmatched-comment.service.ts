@@ -23,11 +23,17 @@ export class UnmatchedCommentService {
     private _encryption: EncryptionService
   ) {}
 
-  listInbox(
+  async listInbox(
     orgId: string,
     integrationId: string,
-    options: { status?: UnmatchedStatus; page?: number; limit?: number }
+    options: { status?: UnmatchedStatus; page?: number; limit?: number },
+    profileId?: string
   ) {
+    await this._integrationService.validateIntegrationProfile(
+      orgId,
+      integrationId,
+      profileId
+    );
     return this._flowsRepository.listUnmatchedByIntegration(
       orgId,
       integrationId,
@@ -39,7 +45,8 @@ export class UnmatchedCommentService {
     orgId: string,
     unmatchedCommentId: string,
     flowId: string,
-    boundBy?: string
+    boundBy?: string,
+    profileId?: string
   ) {
     const unmatched = await this._flowsRepository.findUnmatchedById(
       orgId,
@@ -48,8 +55,13 @@ export class UnmatchedCommentService {
     if (!unmatched) {
       throw new BadRequestException('UnmatchedComment not found');
     }
+    await this._integrationService.validateIntegrationProfile(
+      orgId,
+      unmatched.integrationId,
+      profileId
+    );
 
-    const flow = await this._flowsRepository.getFlow(orgId, flowId);
+    const flow = await this._flowsRepository.getFlow(orgId, flowId, profileId);
     if (!flow || flow.integrationId !== unmatched.integrationId) {
       throw new BadRequestException(
         'Flow does not belong to the same integration as this comment'
@@ -109,7 +121,8 @@ export class UnmatchedCommentService {
     orgId: string,
     unmatchedCommentId: string,
     reason?: string,
-    ignoredBy?: string
+    ignoredBy?: string,
+    profileId?: string
   ) {
     const unmatched = await this._flowsRepository.findUnmatchedById(
       orgId,
@@ -118,6 +131,11 @@ export class UnmatchedCommentService {
     if (!unmatched) {
       throw new BadRequestException('UnmatchedComment not found');
     }
+    await this._integrationService.validateIntegrationProfile(
+      orgId,
+      unmatched.integrationId,
+      profileId
+    );
 
     await this._flowsRepository.upsertIgnoredMedia({
       integrationId: unmatched.integrationId,
@@ -230,8 +248,12 @@ export class UnmatchedCommentService {
    * caption) — cache Redis evita rebatida no Graph API. Falhas pontuais
    * degradam para alias sem metadata, nao bloqueiam a UI.
    */
-  async listAliasesEnriched(orgId: string, flowId: string) {
-    const aliases = await this._flowsRepository.listAliasesByFlow(orgId, flowId);
+  async listAliasesEnriched(orgId: string, flowId: string, profileId?: string) {
+    const aliases = await this._flowsRepository.listAliasesByFlow(
+      orgId,
+      flowId,
+      profileId
+    );
     return Promise.all(
       aliases.map(async (alias) => {
         const metadata = await this.getMediaMetadataCached({

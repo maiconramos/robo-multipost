@@ -653,10 +653,13 @@ export class FlowsRepository {
     return this._flowMediaAlias.model.flowMediaAlias.create({ data });
   }
 
-  async deleteAliasForOrg(orgId: string, aliasId: string) {
+  async deleteAliasForOrg(orgId: string, aliasId: string, profileId?: string) {
     const existing =
       await this._flowMediaAlias.model.flowMediaAlias.findFirst({
-        where: { id: aliasId, flow: { organizationId: orgId } },
+        where: {
+          id: aliasId,
+          flow: { organizationId: orgId, ...(profileId ? { profileId } : {}) },
+        },
         select: { id: true },
       });
     if (!existing) return false;
@@ -666,11 +669,16 @@ export class FlowsRepository {
     return true;
   }
 
-  listAliasesByFlow(orgId: string, flowId: string) {
+  listAliasesByFlow(orgId: string, flowId: string, profileId?: string) {
     return this._flowMediaAlias.model.flowMediaAlias.findMany({
       where: {
         flowId,
-        flow: { organizationId: orgId, deletedAt: null, executionVersion: 1 },
+        flow: {
+          organizationId: orgId,
+          deletedAt: null,
+          executionVersion: 1,
+          ...(profileId ? { profileId } : {}),
+        },
       },
       orderBy: { createdAt: 'desc' },
     });

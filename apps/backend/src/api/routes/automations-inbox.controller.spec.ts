@@ -47,18 +47,19 @@ describe('AutomationsInboxController', () => {
         limit: 20,
       });
 
-      await controller.listInbox({ id: 'org-1' } as any, {
+      await controller.listInbox({ id: 'org-1' } as any, { id: 'prof-A' } as any, {
         integrationId: 'int-1',
         status: UnmatchedStatus.PENDING,
         page: 2,
         limit: 10,
       });
 
-      expect(unmatchedService.listInbox).toHaveBeenCalledWith('org-1', 'int-1', {
-        status: UnmatchedStatus.PENDING,
-        page: 2,
-        limit: 10,
-      });
+      expect(unmatchedService.listInbox).toHaveBeenCalledWith(
+        'org-1',
+        'int-1',
+        { status: UnmatchedStatus.PENDING, page: 2, limit: 10 },
+        'prof-A'
+      );
     });
   });
 
@@ -67,6 +68,7 @@ describe('AutomationsInboxController', () => {
       await controller.bindFromInbox(
         { id: 'org-1' } as any,
         { id: 'u-1' } as any,
+        { id: 'prof-A' } as any,
         { unmatchedCommentId: 'uc-1', flowId: 'f-1' }
       );
 
@@ -74,7 +76,8 @@ describe('AutomationsInboxController', () => {
         'org-1',
         'uc-1',
         'f-1',
-        'u-1'
+        'u-1',
+        'prof-A'
       );
     });
   });
@@ -84,6 +87,7 @@ describe('AutomationsInboxController', () => {
       await controller.ignoreFromInbox(
         { id: 'org-1' } as any,
         { id: 'u-1' } as any,
+        { id: 'prof-A' } as any,
         { unmatchedCommentId: 'uc-1', reason: 'spam' }
       );
 
@@ -91,7 +95,8 @@ describe('AutomationsInboxController', () => {
         'org-1',
         'uc-1',
         'spam',
-        'u-1'
+        'u-1',
+        'prof-A'
       );
     });
   });
@@ -102,12 +107,14 @@ describe('AutomationsInboxController', () => {
 
       const result = await controller.listAliases(
         { id: 'org-1' } as any,
+        { id: 'prof-A' } as any,
         'f-1'
       );
 
       expect(unmatchedService.listAliasesEnriched).toHaveBeenCalledWith(
         'org-1',
-        'f-1'
+        'f-1',
+        'prof-A'
       );
       expect(result).toEqual([{ id: 'a-1' }]);
     });
@@ -118,6 +125,7 @@ describe('AutomationsInboxController', () => {
       await controller.createAlias(
         { id: 'org-1' } as any,
         { id: 'u-1' } as any,
+        { id: 'prof-A' } as any,
         { flowId: 'f-1', aliasMediaId: 'media-X' }
       );
 
@@ -125,16 +133,21 @@ describe('AutomationsInboxController', () => {
         'org-1',
         'f-1',
         'media-X',
-        'u-1'
+        'u-1',
+        'prof-A'
       );
     });
   });
 
   describe('deleteAlias', () => {
     it('deve delegar para removeAlias', async () => {
-      await controller.deleteAlias({ id: 'org-1' } as any, 'a-1');
+      await controller.deleteAlias({ id: 'org-1' } as any, { id: 'prof-A' } as any, 'a-1');
 
-      expect(flowsService.removeAlias).toHaveBeenCalledWith('org-1', 'a-1');
+      expect(flowsService.removeAlias).toHaveBeenCalledWith(
+        'org-1',
+        'a-1',
+        'prof-A'
+      );
     });
   });
 
@@ -144,7 +157,7 @@ describe('AutomationsInboxController', () => {
         { id: 'a-1', flowId: 'f-1', flow: { id: 'f-1', name: 'Flow A' } },
       ]);
 
-      const result = await controller.lookupAlias({ id: 'org-1' } as any, {
+      const result = await controller.lookupAlias({ id: 'org-1' } as any, { id: 'prof-A' } as any, {
         integrationId: 'int-1',
         aliasMediaId: 'media-X',
       });
@@ -152,7 +165,8 @@ describe('AutomationsInboxController', () => {
       expect(flowsService.lookupAliasFlows).toHaveBeenCalledWith(
         'org-1',
         'int-1',
-        'media-X'
+        'media-X',
+        'prof-A'
       );
       expect(result).toHaveLength(1);
     });

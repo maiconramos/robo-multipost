@@ -575,3 +575,56 @@ describe('FlowsService - alternativas de mensagem privada', () => {
     });
   });
 });
+
+describe('FlowsService - aliases restritos ao perfil ativo', () => {
+  let repository: ReturnType<typeof createMock<FlowsRepository>>;
+  let integrations: ReturnType<typeof createMock<IntegrationService>>;
+  let service: FlowsService;
+
+  beforeEach(() => {
+    repository = createMock<FlowsRepository>();
+    integrations = createMock<IntegrationService>();
+    service = new FlowsService(
+      repository,
+      createMock<TemporalService>(),
+      integrations,
+      createMock<IntegrationManager>(),
+      createMock<CredentialService>(),
+      createMock<InstagramMessagingService>(),
+      createMock<ProfileService>(),
+      createMock<EncryptionService>(),
+      createMock<StatusEventService>()
+    );
+  });
+
+  it('criar alias procura o flow dentro do perfil ativo', async () => {
+    repository.getFlow.mockResolvedValue(null);
+    await expect(
+      service.addManualAlias(ORG, 'flow-de-outro-perfil', '123', 'user-1', PROFILE)
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.getFlow).toHaveBeenCalledWith(ORG, 'flow-de-outro-perfil', PROFILE);
+    expect(repository.createAlias).not.toHaveBeenCalled();
+  });
+
+  it('remover alias filtra pelo perfil ativo', async () => {
+    repository.deleteAliasForOrg.mockResolvedValue(false);
+    await expect(
+      service.removeAlias(ORG, 'alias-de-outro-perfil', PROFILE)
+    ).rejects.toBeInstanceOf(BadRequestException);
+    expect(repository.deleteAliasForOrg).toHaveBeenCalledWith(
+      ORG,
+      'alias-de-outro-perfil',
+      PROFILE
+    );
+  });
+
+  it('busca por alias exige canal visivel ao perfil', async () => {
+    integrations.validateIntegrationProfile.mockRejectedValue(
+      new Error('Integration does not belong to this profile')
+    );
+    await expect(
+      service.lookupAliasFlows(ORG, 'int-de-outro-perfil', '123', PROFILE)
+    ).rejects.toThrow('Integration does not belong to this profile');
+    expect(repository.findFlowsByAlias).not.toHaveBeenCalled();
+  });
+});

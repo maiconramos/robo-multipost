@@ -72,6 +72,7 @@ const mockTemporalService = {
 
 const mockEnsureWebhookSubscription = jest.fn().mockResolvedValue(true);
 const mockIntegrationService = {
+  validateIntegrationProfile: jest.fn().mockResolvedValue(undefined),
   getIntegrationById: jest.fn().mockResolvedValue({
     id: 'int-1',
     token: 'page-token',
@@ -1985,7 +1986,8 @@ describe('FlowsService', () => {
 
       expect(mockRepository.deleteAliasForOrg).toHaveBeenCalledWith(
         'org-1',
-        'a-1'
+        'a-1',
+        undefined
       );
       expect(result).toEqual({ deleted: true });
     });
