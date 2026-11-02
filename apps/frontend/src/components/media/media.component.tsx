@@ -56,6 +56,7 @@ import {
 import { useLaunchStore } from '@gitroom/frontend/components/new-launch/store';
 import { useShallow } from 'zustand/react/shallow';
 import { LoadingComponent } from '@gitroom/frontend/components/layout/loading';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 const Polonto = dynamic(
   () => import('@gitroom/frontend/components/launches/polonto')
 );
@@ -246,6 +247,8 @@ export const MediaBox: FC<{
   const uploaderRef = useRef<any>(null);
   const mediaDirectory = useMediaDirectory();
   const [loading, setLoading] = useState(false);
+  // Visualizador so le: sem enviar, importar ou excluir (o backend ja recusa)
+  const { canWrite } = useProfilePermissions();
 
   const uppy = useUppyUploader({
     allowedFileTypes:
@@ -559,6 +562,9 @@ export const MediaBox: FC<{
   }, [selectedToDelete, mutate, reportDeletion, t]);
 
   const btn = useMemo(() => {
+    if (!canWrite) {
+      return null;
+    }
     return (
       <button
         disabled={loading}
@@ -577,11 +583,11 @@ export const MediaBox: FC<{
         </div>
       </button>
     );
-  }, [t, loading]);
+  }, [t, loading, canWrite]);
 
   return (
     <DropFiles
-      disabled={loading}
+      disabled={loading || !canWrite}
       className="flex flex-col flex-1"
       onDrop={dragAndDrop}
     >
@@ -617,11 +623,13 @@ export const MediaBox: FC<{
               className={clsx('flex gap-[8px]', !standalone && 'mobile:hidden')}
             >
               {btn}
-              <ThirdPartyMediaLibrary onImported={() => mutate()} />
+              {canWrite && (
+                <ThirdPartyMediaLibrary onImported={() => mutate()} />
+              )}
             </div>
           )}
         </div>
-        {standalone && !isLoading && !!mediaList.length && (
+        {standalone && canWrite && !isLoading && !!mediaList.length && (
           <div className="flex flex-wrap items-center gap-[12px] mt-[10px]">
             <button
               type="button"
@@ -714,7 +722,9 @@ export const MediaBox: FC<{
                 </div>
                 <div className="forceChange flex gap-[8px] mobile:w-full mobile:max-w-[300px] mobile:child:flex-1">
                   {btn}
-                  <ThirdPartyMediaLibrary onImported={() => mutate()} />
+                  {canWrite && (
+                <ThirdPartyMediaLibrary onImported={() => mutate()} />
+              )}
                 </div>
               </>
             )}
@@ -752,11 +762,14 @@ export const MediaBox: FC<{
                   )}
                   onClick={
                     standalone
-                      ? () => toggleDeleteSelection(media)
+                      ? canWrite
+                        ? () => toggleDeleteSelection(media)
+                        : undefined
                       : addRemoveSelected(media)
                   }
                 >
                   {standalone &&
+                    canWrite &&
                     (media.inUse ? (
                       <div
                         title={t(
@@ -783,7 +796,7 @@ export const MediaBox: FC<{
                     <div className="text-white flex z-[101] justify-center items-center text-[14px] font-[500] w-[24px] h-[24px] rounded-full bg-[#612BD3] absolute -bottom-[10px] -end-[10px]">
                       {selected.findIndex((z: any) => z.id === media.id) + 1}
                     </div>
-                  ) : (
+                  ) : !canWrite ? null : (
                     <DeleteCircleIcon
                       className={clsx(
                         'cursor-pointer hidden z-[100] group-hover:block absolute -top-[5px] -end-[5px]',
@@ -855,7 +868,9 @@ export const MediaBox: FC<{
             {!isLoading && !!data?.results?.length && (
               <div className="hidden mobile:flex gap-[8px] mobile:child:flex-1">
                 {btn}
+                {canWrite && (
                 <ThirdPartyMediaLibrary onImported={() => mutate()} />
+              )}
               </div>
             )}
             <button

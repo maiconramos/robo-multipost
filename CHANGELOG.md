@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Melhoria — Visualizador na biblioteca de mídia
+
+- Quem tem acesso só de visualização não vê mais os botões de enviar, importar e excluir mídia (o servidor já recusava essas ações).
+
 ### Segurança — canais entre perfis e ajustes de login
 
 - Conectar uma conta que já está ligada em outro perfil agora é recusado ("Esta conta já está conectada em outro perfil"). Antes, isso trocava o acesso do canal do outro cliente. Uma conta que foi apagada de um perfil, quando é conectada de novo em outro, passa a ficar no perfil novo (antes voltava para o perfil antigo). Reconectar pela tela de Status continua funcionando.
