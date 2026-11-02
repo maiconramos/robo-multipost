@@ -56,6 +56,9 @@ export const sanitizeChatContent = (value: unknown): string => {
       // Primeira barreira de esquema (javascript:/vbscript:/relativo). O
       // reforco de `src` acima cobre o `data:` que este regex nao bloqueia.
       ALLOWED_URI_REGEXP: /^https?:\/\//i,
+      // data-* fica de fora: o ToolTip global (react-tooltip) renderiza
+      // `data-tooltip-html` como HTML ao passar o mouse (XSS)
+      ALLOW_DATA_ATTR: false,
     });
   } finally {
     DOMPurify.removeHook('uponSanitizeAttribute');

@@ -1,4 +1,4 @@
-import DOMPurify from 'isomorphic-dompurify';
+import { sanitizeWithDataAttrAllowlist } from '@gitroom/helpers/utils/dompurify.data.attrs';
 
 // As pre-visualizacoes do composer montam HTML a partir do texto do post
 // depois do stripHtmlValidation('normal', ..., true), que tira as tags e
@@ -35,13 +35,20 @@ const ALLOWED_ATTR = [
   'data-tooltip-content',
 ];
 
+const PREVIEW_DATA_ATTRS = new Set(['data-tooltip-id', 'data-tooltip-content']);
+
 export const sanitizePreviewHtml = (html: unknown): string => {
   if (typeof html !== 'string' || !html) {
     return '';
   }
-  return DOMPurify.sanitize(html, {
-    ALLOWED_TAGS,
-    ALLOWED_ATTR,
-    ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/|#)/i,
-  });
+  // so os data-* do tooltip de texto; `data-tooltip-html` viraria HTML vivo
+  return sanitizeWithDataAttrAllowlist(
+    html,
+    {
+      ALLOWED_TAGS,
+      ALLOWED_ATTR,
+      ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/|#)/i,
+    },
+    PREVIEW_DATA_ATTRS
+  );
 };

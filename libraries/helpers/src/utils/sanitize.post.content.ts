@@ -1,4 +1,4 @@
-import DOMPurify from 'isomorphic-dompurify';
+import { sanitizeWithDataAttrAllowlist } from '@gitroom/helpers/utils/dompurify.data.attrs';
 import {
   MediaPrefix,
   rewriteInlineImages,
@@ -19,6 +19,9 @@ const ALLOWED_TAGS = [
   'span',
   'img',
 ];
+
+// so a mencao; qualquer outro data-* (ex.: data-tooltip-html) cai
+const POST_DATA_ATTRS = new Set(['data-mention-id', 'data-mention-label']);
 
 const ALLOWED_ATTR = [
   'href',
@@ -54,11 +57,11 @@ export const sanitizePostContent = (
   );
 
   return rewriteInlineImages(
-    DOMPurify.sanitize(paragraphs, {
+    sanitizeWithDataAttrAllowlist(paragraphs, {
       ALLOWED_TAGS,
       ALLOWED_ATTR,
       ALLOWED_URI_REGEXP: /^(?:https?:|mailto:|\/|#)/i,
-    }),
+    }, POST_DATA_ATTRS),
     { prefixes: mediaPrefixes }
   );
 };

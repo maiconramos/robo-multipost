@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — dica (tooltip) com HTML
+
+- Textos de posts, da pré-visualização e do chat do assistente não guardam mais atributos `data-*` desconhecidos. O `data-tooltip-html` passava pelo filtro e, ao passar o mouse, a dica da app executava código. As menções e o aviso de "texto cortado" continuam funcionando.
+
 ### Segurança — `NOT_SECURED: "false"` ligava o modo sem HTTPS
 
 - A variável `NOT_SECURED` agora é lida como liga/desliga: só `true` (ou `1`/`yes`/`on`) ativa o modo para instalação sem HTTPS. Antes, qualquer valor preenchido — inclusive `"false"`, como nos modelos de instalação — ativava esse modo, e o cookie de login ficava sem as proteções de HTTPS e legível por JavaScript. Instalações com `NOT_SECURED: "false"` passam a usar o modo seguro automaticamente; quem entrou antes continua logado.
