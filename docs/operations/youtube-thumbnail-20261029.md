@@ -87,3 +87,9 @@ Testes de regressão cobrem a ordem das operações, condições de prontidão i
 - Revisões de plano, código, segurança e documentação sem bloqueadores remanescentes. O caso explícito de `RefreshToken` durante o polling também foi coberto: preserva a referência sem novo upload e não expõe a mensagem original.
 - Lint não pôde ser confirmado: a raiz não define script `lint`; `pnpm lint` resolveu o executável externo do sistema, que falhou. Nenhuma mudança de configuração de lint foi incluída nesta correção.
 - Sem migração, alteração de credenciais, modificação do workflow n8n ou deploy na VPS. A imagem RC.9 em execução ainda precisa ser substituída por uma versão que contenha esta correção.
+
+### Desbloqueio do CI — 02/11/2026
+
+O primeiro CI do PR #350 falhou em um teste preexistente do diagnóstico do Messenger: a expressão que proibia o ID de remetente `987` também encontrava esses dígitos no timestamp válido de expiração `1793589878041`. Os testes do provider do YouTube passaram nessa execução.
+
+A reprodução fixa `Date.now()` no instante da falha e restaura o relógio ao terminar. A verificação passou a distinguir o ID completo como string e a exigir a estrutura exata da observação, mantendo a recusa de texto, ID de mensagem e campos extras. Nenhum código de produção do Facebook foi alterado. O teste falhou antes do ajuste e, depois dele, os 105 testes direcionados de setup do Facebook, inspeção do Messenger e provider do YouTube passaram em Node 22.23.4.
