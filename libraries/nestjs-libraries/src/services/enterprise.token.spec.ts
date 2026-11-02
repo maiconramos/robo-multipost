@@ -1,4 +1,4 @@
-import { sign } from 'jsonwebtoken';
+import { sign, verify } from 'jsonwebtoken';
 import {
   InvalidEnterpriseTokenError,
   verifyEnterpriseToken,
@@ -91,5 +91,15 @@ describe('verifyEnterpriseToken', () => {
     expect(() => verifyEnterpriseToken(undefined)).toThrow(
       InvalidEnterpriseTokenError
     );
+  });
+
+  it('desliga as rotas enterprise quando o JWT_SECRET e o valor de exemplo do compose', () => {
+    const placeholder =
+      'random string that is unique to every install - just type random characters here!';
+    const forged = sign({ id: 'ext-1', saasName: 'x' }, placeholder);
+
+    expect(() =>
+      verifyEnterpriseToken(forged, (t) => verify(t, placeholder), placeholder)
+    ).toThrow(InvalidEnterpriseTokenError);
   });
 });

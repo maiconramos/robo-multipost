@@ -79,15 +79,19 @@ pipeline {
                     // 4. Use withSonarQubeEnv to set up the secure variables (HOST and TOKEN)
                     withSonarQubeEnv(installationName: 'SonarQube-Server') {
                         // 5. Execute the scanner using the Groovy variable directly with PR parameters.
+                        // PR_KEY/PR_BRANCH/PR_BASE vem do PR (o nome da branch e
+                        // escolhido por quem abre o PR): o shell le as variaveis de
+                        // ambiente entre aspas (\$VAR), nunca interpolacao Groovy no
+                        // texto do script, que seria interpretado como comando.
                         sh """
-                            echo "Starting SonarQube Pull Request Analysis for PR #${PR_KEY}"
+                            echo "Starting SonarQube Pull Request Analysis for PR #\$PR_KEY"
                             
                             '${scannerBinPath}' \\
                                 -Dsonar.projectVersion=${commitShaShort} \\
                                 -Dsonar.sources=. \\
-                                -Dsonar.pullrequest.key=${PR_KEY} \\
-                                -Dsonar.pullrequest.branch=${PR_BRANCH} \\
-                                -Dsonar.pullrequest.base=${PR_BASE}
+                                -Dsonar.pullrequest.key="\$PR_KEY" \\
+                                -Dsonar.pullrequest.branch="\$PR_BRANCH" \\
+                                -Dsonar.pullrequest.base="\$PR_BASE"
                                 
                             # SONAR_HOST_URL and SONAR_TOKEN are automatically passed as environment variables
                             # by the withSonarQubeEnv block.

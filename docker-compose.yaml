@@ -8,6 +8,11 @@ services:
       MAIN_URL: 'http://localhost:4007'
       FRONTEND_URL: 'http://localhost:4007'
       NEXT_PUBLIC_BACKEND_URL: 'http://localhost:4007/api'
+      # TROQUE antes do primeiro start (openssl rand -hex 32). Este valor e lido
+      # daqui, nao do .env. Com o texto de exemplo qualquer pessoa assina tokens
+      # da instancia (o backend avisa no log e desliga /enterprise). Instalacao
+      # que ja roda com ele: siga docs/operations/jwt-secret.md ANTES de trocar
+      # (sem isso as credenciais salvas deixam de abrir).
       JWT_SECRET: 'random string that is unique to every install - just type random characters here!'
       DATABASE_URL: 'postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local'
       REDIS_URL: 'redis://postiz-redis:6379'
@@ -292,8 +297,10 @@ services:
 
   temporal:
     container_name: temporal
+    # Temporal sem autenticacao: so a propria maquina acessa (a app usa a rede
+    # interna temporal:7233). Para acesso remoto use um tunel SSH.
     ports:
-      - '7233:7233'
+      - '127.0.0.1:7233:7233'
     image: temporalio/auto-setup:1.28.1
     depends_on:
       - temporal-postgresql
@@ -337,8 +344,10 @@ services:
       - TEMPORAL_CORS_ORIGINS=http://127.0.0.1:3000
     networks:
       - temporal-network
+    # Painel do Temporal sem login: so a propria maquina (tunel SSH:
+    # ssh -L 8080:127.0.0.1:8080 usuario@servidor)
     ports:
-      - '8080:8080'
+      - '127.0.0.1:8080:8080'
 
 volumes:
   postgres-volume:

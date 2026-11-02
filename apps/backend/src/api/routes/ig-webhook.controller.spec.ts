@@ -350,6 +350,32 @@ describe('IgWebhookController', () => {
       expect(flowsService.handleIncomingComment).toHaveBeenCalledTimes(1);
     });
 
+    it('falha fechado sem NODE_ENV (container de producao) quando nao ha segredo', async () => {
+      delete process.env.NODE_ENV;
+      integrationService.getIntegrationsByInternalId.mockResolvedValue([
+        integration('int-1', 'org-1'),
+      ] as any);
+
+      await expect(
+        controller.handleWebhook(makeReq(commentBody('account-1')))
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(flowsService.handleIncomingComment).not.toHaveBeenCalled();
+    });
+
+    it('ignora SKIP_IG_WEBHOOK_HMAC sem NODE_ENV (container de producao)', async () => {
+      delete process.env.NODE_ENV;
+      process.env.SKIP_IG_WEBHOOK_HMAC = 'true';
+      process.env.INSTAGRAM_APP_SECRET = 'env-secret';
+      integrationService.getIntegrationsByInternalId.mockResolvedValue([
+        integration('int-1', 'org-1'),
+      ] as any);
+
+      await expect(
+        controller.handleWebhook(makeReq(commentBody('account-1')))
+      ).rejects.toBeInstanceOf(ForbiddenException);
+      expect(flowsService.handleIncomingComment).not.toHaveBeenCalled();
+    });
+
     it('retorna 403 quando falta o header x-hub-signature-256', async () => {
       process.env.INSTAGRAM_APP_SECRET = 'env-secret';
       integrationService.getIntegrationsByInternalId.mockResolvedValue([

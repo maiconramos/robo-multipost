@@ -398,9 +398,11 @@ apps/frontend/src/components/automations/
    credencial da(s) org(s) dona(s) da conta recebida (resolvida por
    `internalId`). O segredo de uma org NAO valida evento de outra
    (fecha falsificacao cross-tenant), e o despacho e filtrado pelo mesmo
-   escopo (comentario, story reply e postback). Em **producao** a validacao
-   **falha fechada**: sem segredo resolvido o evento e recusado, e
-   `SKIP_IG_WEBHOOK_HMAC=true` e ignorado (so vale fora de producao).
+   escopo (comentario, story reply e postback). A validacao **falha
+   fechada** em qualquer ambiente que nao declare `NODE_ENV=development` (ou
+   `test`): sem segredo resolvido o evento e recusado, e
+   `SKIP_IG_WEBHOOK_HMAC=true` e ignorado. O container de producao nao define
+   `NODE_ENV`, por isso a regra nao depende de `NODE_ENV=production`.
    `CredentialService.findAllDecrypted` (a varredura cross-org de segredos)
    e resiliente: uma credencial que nao descriptografa (ex.: `ENCRYPTION_KEY`
    trocada apos salvar) e **pulada com log**, nao derruba o webhook de todos —

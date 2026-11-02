@@ -7,6 +7,13 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — configuração da instalação
+
+- O webhook do Instagram passa a recusar eventos sem assinatura válida também no container de produção. Antes, como o container não define `NODE_ENV`, a instância aceitava eventos falsos quando não havia segredo configurado ou com `SKIP_IG_WEBHOOK_HMAC=true`. Agora isso só é permitido com `NODE_ENV=development`.
+- O backend avisa no log quando o `JWT_SECRET` é o texto de exemplo do repositório (ou tem menos de 32 caracteres) e desliga as rotas `/enterprise` enquanto a chave for de exemplo — com ela, qualquer pessoa conseguia criar uma organização administradora sem login. Guia de troca segura em `docs/operations/jwt-secret.md`.
+- No `docker-compose.yaml`, o Temporal (porta 7233) e o painel do Temporal (porta 8080) ficam acessíveis só pela própria máquina. Antes, qualquer um na internet podia ver, parar ou iniciar tarefas agendadas de todas as contas. Para acessar o painel de fora, use um túnel SSH.
+- Pipeline do Jenkins: o nome da branch do PR não é mais colado no comando do shell.
+
 ### Segurança — convites de equipe
 
 - Um convite enviado para um e-mail agora só funciona na conta com esse e-mail também para quem já está logado. Antes, qualquer pessoa logada na instância que conseguisse o link entrava na organização com o papel do convite (inclusive administrador).

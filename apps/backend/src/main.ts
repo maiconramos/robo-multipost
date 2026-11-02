@@ -17,6 +17,7 @@ import { AppModule } from './app.module';
 import { SubscriptionExceptionFilter } from '@gitroom/backend/services/auth/permissions/subscription.exception';
 import { HttpExceptionFilter } from '@gitroom/nestjs-libraries/services/exception.filter';
 import { ConfigurationChecker } from '@gitroom/helpers/configuration/configuration.checker';
+import { isPlaceholderJwtSecret } from '@gitroom/helpers/auth/jwt-secret.strength';
 import { startMcp } from '@gitroom/nestjs-libraries/chat/start.mcp';
 import { PrismaClient } from '@prisma/client';
 import { facebookAutomationBodyParser } from '@gitroom/nestjs-libraries/integrations/automations/facebook-automation-body-parser';
@@ -152,6 +153,13 @@ function checkConfiguration() {
   const checker = new ConfigurationChecker();
   checker.readEnvFromProcess();
   checker.check();
+
+  if (isPlaceholderJwtSecret(process.env.JWT_SECRET)) {
+    Logger.error(
+      'JWT_SECRET esta com o valor de exemplo do repositorio: qualquer pessoa consegue assinar tokens desta instancia. As rotas /enterprise ficam desligadas. Troque por um valor aleatorio longo (openssl rand -hex 32); se ENCRYPTION_KEY estiver vazia, antes defina ENCRYPTION_KEY com o JWT_SECRET ATUAL para nao perder as credenciais salvas.',
+      'Security'
+    );
+  }
 
   if (checker.hasIssues()) {
     for (const issue of checker.getIssues()) {

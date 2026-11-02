@@ -99,7 +99,7 @@ Edite o arquivo `.env` (ou as variáveis no `docker-compose.yml`) com pelo menos
 | `NEXT_PUBLIC_BACKEND_URL` | URL pública da API | `https://seu-dominio.com/api` |
 | `DATABASE_URL` | Conexão PostgreSQL | `postgresql://postiz-user:postiz-password@postiz-postgres:5432/postiz-db-local` |
 | `REDIS_URL` | Conexão Redis | `redis://postiz-redis:6379` |
-| `JWT_SECRET` | Chave JWT (string longa aleatória) | Use `openssl rand -base64 32` |
+| `JWT_SECRET` | Chave JWT (string longa aleatória). No `docker-compose.yml` ela fica **no próprio compose**, não no `.env`: troque a linha antes do primeiro start. Já roda com o valor de exemplo? Veja [`docs/operations/jwt-secret.md`](docs/operations/jwt-secret.md) antes de trocar | Use `openssl rand -hex 32` |
 | `IS_GENERAL` | Modo self-hosted | `true` |
 | `STORAGE_PROVIDER` | Provider de storage | `local` |
 

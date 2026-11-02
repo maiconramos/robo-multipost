@@ -526,7 +526,12 @@ export class IgWebhookController {
     }
 
     const totalSecrets = envSecrets.length + credGroups.size;
-    const isProd = process.env.NODE_ENV === 'production';
+    // Sem assinatura so em desenvolvimento/teste declarado. O container de
+    // producao nao define NODE_ENV, entao "nao e production" nao prova nada:
+    // ausente ou qualquer outro valor = falha fechado.
+    const unsignedAllowed = ['development', 'test'].includes(
+      process.env.NODE_ENV ?? ''
+    );
 
     this._logger.log(
       `IG webhook signature check: hasSignature=${!!signature} hasRawBody=${hasRawBody} rawBodyLen=${rawBodyStr.length} envSecrets=${envSecrets.length} credSecrets=${credGroups.size} ownerOrgs=${ownerOrgIds.size}`
@@ -534,9 +539,9 @@ export class IgWebhookController {
 
     if (totalSecrets === 0) {
       // Nenhum segredo resolvido para a(s) conta(s) recebida(s).
-      if (isProd) {
+      if (!unsignedAllowed) {
         this._logger.error(
-          'IG webhook: no signing secret resolved for the incoming account(s) in production — rejecting (fail closed).'
+          'IG webhook: no signing secret resolved for the incoming account(s) — rejecting (fail closed). Unsigned events are only accepted with NODE_ENV=development.'
         );
         throw new ForbiddenException('No signing secret configured');
       }
@@ -549,9 +554,9 @@ export class IgWebhookController {
     // Skip via env var — util quando o proxy re-serializa o corpo e quebra a
     // assinatura. NUNCA honrado em producao (fail closed, D2).
     if (process.env.SKIP_IG_WEBHOOK_HMAC === 'true') {
-      if (isProd) {
+      if (!unsignedAllowed) {
         this._logger.warn(
-          'IG webhook: SKIP_IG_WEBHOOK_HMAC=true is IGNORED in production — validating signature.'
+          'IG webhook: SKIP_IG_WEBHOOK_HMAC=true is IGNORED outside NODE_ENV=development — validating signature.'
         );
       } else {
         this._logger.warn(

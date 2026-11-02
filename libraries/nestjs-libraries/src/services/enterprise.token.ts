@@ -1,4 +1,5 @@
 import { AuthService } from '@gitroom/helpers/auth/auth.service';
+import { isPlaceholderJwtSecret } from '@gitroom/helpers/auth/jwt-secret.strength';
 
 /**
  * Claims que identificam tokens de OUTRO proposito assinados com o mesmo
@@ -28,9 +29,17 @@ export class InvalidEnterpriseTokenError extends Error {
 
 export function verifyEnterpriseToken<T extends object>(
   params: unknown,
-  verify: (token: string) => unknown = (token) => AuthService.verifyJWT(token)
+  verify: (token: string) => unknown = (token) => AuthService.verifyJWT(token),
+  jwtSecret: string | undefined = process.env.JWT_SECRET
 ): T {
   if (typeof params !== 'string' || !params) {
+    throw new InvalidEnterpriseTokenError();
+  }
+
+  // Com a chave de exemplo do repositorio, qualquer um assina este token e
+  // ganha uma organizacao SUPERADMIN sem login: as rotas enterprise ficam
+  // desligadas ate o JWT_SECRET ser trocado.
+  if (isPlaceholderJwtSecret(jwtSecret)) {
     throw new InvalidEnterpriseTokenError();
   }
 

@@ -1,6 +1,11 @@
 import { readFileSync, existsSync } from 'fs';
 import * as dotenv from 'dotenv';
 import { resolve } from 'path';
+import {
+  isPlaceholderJwtSecret,
+  isShortJwtSecret,
+  MIN_JWT_SECRET_LENGTH,
+} from '@gitroom/helpers/auth/jwt-secret.strength';
 
 export class ConfigurationChecker {
   cfg: dotenv.DotenvParseOutput;
@@ -25,7 +30,9 @@ export class ConfigurationChecker {
 
   check() {
     this.checkDatabaseServers();
-    this.checkNonEmpty('JWT_SECRET');
+    if (this.checkNonEmpty('JWT_SECRET')) {
+      this.checkJwtSecret();
+    }
     this.checkIsValidUrl('MAIN_URL');
     this.checkIsValidUrl('FRONTEND_URL');
     this.checkIsValidUrl('NEXT_PUBLIC_BACKEND_URL');
@@ -51,6 +58,21 @@ export class ConfigurationChecker {
     }
 
     return true;
+  }
+
+  checkJwtSecret() {
+    const secret = this.get('JWT_SECRET');
+    if (isPlaceholderJwtSecret(secret)) {
+      this.issues.push(
+        'JWT_SECRET is the example value published in the repository: anyone can forge tokens for this instance. Set a long random value (openssl rand -hex 32). If ENCRYPTION_KEY is empty, first set ENCRYPTION_KEY to the CURRENT JWT_SECRET so stored credentials stay readable.'
+      );
+      return;
+    }
+    if (isShortJwtSecret(secret)) {
+      this.issues.push(
+        `JWT_SECRET is shorter than ${MIN_JWT_SECRET_LENGTH} characters. Use a long random value (openssl rand -hex 32).`
+      );
+    }
   }
 
   get(key: string): string | undefined {
