@@ -220,8 +220,14 @@ export class FlowsService {
 
   async checkIntegrationWebhook(
     orgId: string,
-    integrationId: string
+    integrationId: string,
+    profileId?: string
   ): Promise<{ ok: boolean; error?: string; subscribed?: boolean }> {
+    await this._integrationService.validateIntegrationProfile(
+      orgId,
+      integrationId,
+      profileId
+    );
     const integration = await this._integrationService.getIntegrationById(
       orgId,
       integrationId
@@ -1303,8 +1309,14 @@ export class FlowsService {
     orgId: string,
     integrationId: string,
     cursor?: string,
-    limit = 25
+    limit = 25,
+    profileId?: string
   ) {
+    await this._integrationService.validateIntegrationProfile(
+      orgId,
+      integrationId,
+      profileId
+    );
     const integration = await this._integrationService.getIntegrationById(
       orgId,
       integrationId
@@ -1349,7 +1361,16 @@ export class FlowsService {
     }
   }
 
-  async getInstagramStoriesByIntegration(orgId: string, integrationId: string) {
+  async getInstagramStoriesByIntegration(
+    orgId: string,
+    integrationId: string,
+    profileId?: string
+  ) {
+    await this._integrationService.validateIntegrationProfile(
+      orgId,
+      integrationId,
+      profileId
+    );
     const integration = await this._integrationService.getIntegrationById(
       orgId,
       integrationId
@@ -1389,8 +1410,8 @@ export class FlowsService {
     }
   }
 
-  getExecution(orgId: string, id: string) {
-    return this._flowsRepository.getExecution(id, orgId);
+  getExecution(orgId: string, id: string, flowId?: string, profileId?: string) {
+    return this._flowsRepository.getExecution(id, orgId, flowId, profileId);
   }
 
   appendExecutionLog(
@@ -1406,8 +1427,24 @@ export class FlowsService {
     return this._flowsRepository.appendExecutionLog(id, entry);
   }
 
-  getExecutions(orgId: string, flowId: string, page?: number, limit?: number) {
-    return this._flowsRepository.getExecutions(flowId, orgId, page, limit);
+  getExecutions(
+    orgId: string,
+    flowId: string,
+    page?: number,
+    limit?: number,
+    profileId?: string
+  ) {
+    // pagina >= 1 e limite entre 1 e 50 (mesmo teto do /automation-history)
+    const safePage = Number.isFinite(page) && page! >= 1 ? Math.floor(page!) : 1;
+    const safeLimit =
+      Number.isFinite(limit) && limit! >= 1 ? Math.min(Math.floor(limit!), 50) : 20;
+    return this._flowsRepository.getExecutions(
+      flowId,
+      orgId,
+      safePage,
+      safeLimit,
+      profileId
+    );
   }
 
   async updateExecution(

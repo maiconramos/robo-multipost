@@ -101,26 +101,31 @@ export class FlowsController {
   @Get('/integrations/:integrationId/posts')
   async getIntegrationPosts(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('integrationId') integrationId: string,
     @Query('cursor') cursor?: string,
     @Query('limit') limit?: string
   ) {
+    const parsed = limit ? parseInt(limit, 10) : 25;
     return this._flowsService.getInstagramPostsByIntegration(
       org.id,
       integrationId,
       cursor,
-      limit ? parseInt(limit, 10) : 25
+      Number.isFinite(parsed) && parsed >= 1 ? Math.min(parsed, 50) : 25,
+      profile?.id
     );
   }
 
   @Get('/integrations/:integrationId/stories')
   async getIntegrationStories(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('integrationId') integrationId: string
   ) {
     return this._flowsService.getInstagramStoriesByIntegration(
       org.id,
-      integrationId
+      integrationId,
+      profile?.id
     );
   }
 
@@ -180,9 +185,14 @@ export class FlowsController {
   @Get('/integrations/:integrationId/webhook-status')
   async checkIntegrationWebhook(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('integrationId') integrationId: string
   ) {
-    return this._flowsService.checkIntegrationWebhook(org.id, integrationId);
+    return this._flowsService.checkIntegrationWebhook(
+      org.id,
+      integrationId,
+      profile?.id
+    );
   }
 
   @Get('/:id/posts')
@@ -197,6 +207,7 @@ export class FlowsController {
   @Get('/:id/executions')
   async getExecutions(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
     @Param('id') id: string,
     @Query('page') page?: string,
     @Query('limit') limit?: string
@@ -205,15 +216,18 @@ export class FlowsController {
       org.id,
       id,
       page ? parseInt(page, 10) : undefined,
-      limit ? parseInt(limit, 10) : undefined
+      limit ? parseInt(limit, 10) : undefined,
+      profile?.id
     );
   }
 
   @Get('/:id/executions/:executionId')
   async getExecution(
     @GetOrgFromRequest() org: Organization,
+    @GetProfileFromRequest() profile: Profile | null,
+    @Param('id') id: string,
     @Param('executionId') executionId: string
   ) {
-    return this._flowsService.getExecution(org.id, executionId);
+    return this._flowsService.getExecution(org.id, executionId, id, profile?.id);
   }
 }

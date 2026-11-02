@@ -628,3 +628,51 @@ describe('FlowsService - aliases restritos ao perfil ativo', () => {
     expect(repository.findFlowsByAlias).not.toHaveBeenCalled();
   });
 });
+
+describe('FlowsService - execucoes e canais restritos ao perfil ativo', () => {
+  let repository: ReturnType<typeof createMock<FlowsRepository>>;
+  let integrations: ReturnType<typeof createMock<IntegrationService>>;
+  let service: FlowsService;
+
+  beforeEach(() => {
+    repository = createMock<FlowsRepository>();
+    integrations = createMock<IntegrationService>();
+    service = new FlowsService(
+      repository,
+      createMock<TemporalService>(),
+      integrations,
+      createMock<IntegrationManager>(),
+      createMock<CredentialService>(),
+      createMock<InstagramMessagingService>(),
+      createMock<ProfileService>(),
+      createMock<EncryptionService>(),
+      createMock<StatusEventService>()
+    );
+  });
+
+  it('lista de execucoes filtra pelo perfil e limita a pagina', async () => {
+    await service.getExecutions(ORG, FLOW, 0, 500, PROFILE);
+    expect(repository.getExecutions).toHaveBeenCalledWith(FLOW, ORG, 1, 50, PROFILE);
+  });
+
+  it('execucao individual exige o flow e o perfil informados', async () => {
+    await service.getExecution(ORG, 'exec-1', FLOW, PROFILE);
+    expect(repository.getExecution).toHaveBeenCalledWith('exec-1', ORG, FLOW, PROFILE);
+  });
+
+  it('posts, stories e status do webhook recusam canal de outro perfil antes de usar o token', async () => {
+    integrations.validateIntegrationProfile.mockRejectedValue(
+      new Error('Integration does not belong to this profile')
+    );
+    await expect(
+      service.getInstagramPostsByIntegration(ORG, 'int-B', undefined, 25, PROFILE)
+    ).rejects.toThrow('Integration does not belong to this profile');
+    await expect(
+      service.getInstagramStoriesByIntegration(ORG, 'int-B', PROFILE)
+    ).rejects.toThrow('Integration does not belong to this profile');
+    await expect(
+      service.checkIntegrationWebhook(ORG, 'int-B', PROFILE)
+    ).rejects.toThrow('Integration does not belong to this profile');
+    expect(integrations.getIntegrationById).not.toHaveBeenCalled();
+  });
+});

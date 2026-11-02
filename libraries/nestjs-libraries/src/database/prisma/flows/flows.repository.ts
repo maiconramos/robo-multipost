@@ -332,15 +332,28 @@ export class FlowsRepository {
     });
   }
 
-  getExecution(id: string, orgId: string) {
+  getExecution(id: string, orgId: string, flowId?: string, profileId?: string) {
     return this._flowExecution.model.flowExecution.findFirst({
-      where: { id, flow: { organizationId: orgId } },
+      where: {
+        id,
+        ...(flowId ? { flowId } : {}),
+        flow: { organizationId: orgId, ...(profileId ? { profileId } : {}) },
+      },
     });
   }
 
-  getExecutions(flowId: string, orgId: string, page = 1, limit = 20) {
+  getExecutions(
+    flowId: string,
+    orgId: string,
+    page = 1,
+    limit = 20,
+    profileId?: string
+  ) {
     return this._flowExecution.model.flowExecution.findMany({
-      where: { flowId, flow: { organizationId: orgId } },
+      where: {
+        flowId,
+        flow: { organizationId: orgId, ...(profileId ? { profileId } : {}) },
+      },
       orderBy: { createdAt: 'desc' },
       skip: (page - 1) * limit,
       take: limit,
