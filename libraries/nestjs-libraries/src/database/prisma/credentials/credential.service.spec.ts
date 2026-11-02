@@ -542,17 +542,13 @@ describe('CredentialService', () => {
       await expect(service.getSystemUserToken('org-tenant')).resolves.toBeUndefined();
     });
 
-    it('META_SYSTEM_USER_TOKEN_ORG_IDS libera so as orgs listadas', async () => {
-      jest.spyOn(service, 'getRawShared').mockResolvedValue(null);
+    it('token salvo na propria org continua valendo com varias orgs (perfil/Default compartilhado)', async () => {
+      jest.spyOn(service, 'getRawShared').mockResolvedValue({ metaSystemUserToken: 'EAA-org' });
+      orgRepository.getCount.mockResolvedValue(3);
       process.env.META_SYSTEM_USER_TOKEN = 'EAA-env';
-      process.env.META_SYSTEM_USER_TOKEN_ORG_IDS = 'org-op, org-2';
-      try {
-        await expect(service.getSystemUserToken('org-2')).resolves.toBe('EAA-env');
-        await expect(service.getSystemUserToken('org-tenant')).resolves.toBeUndefined();
-        expect(orgRepository.getCount).not.toHaveBeenCalled();
-      } finally {
-        delete process.env.META_SYSTEM_USER_TOKEN_ORG_IDS;
-      }
+
+      await expect(service.getSystemUserToken('org-agencia', 'prof-cliente')).resolves.toBe('EAA-org');
+      expect(orgRepository.getCount).not.toHaveBeenCalled();
     });
 
     it('retorna undefined quando nao ha token em lugar nenhum', async () => {

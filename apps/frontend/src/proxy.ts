@@ -8,6 +8,7 @@ import {
   headerName,
   languages,
 } from '@gitroom/react/translation/i18n.config';
+import { isNotSecured } from '@gitroom/helpers/utils/not.secured';
 acceptLanguage.languages(languages);
 
 // This function can be marked `async` if using `await` inside
@@ -64,7 +65,7 @@ export async function proxy(request: NextRequest) {
     );
     response.cookies.set('auth', '', {
       path: '/',
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -115,7 +116,7 @@ export async function proxy(request: NextRequest) {
     if (org) {
       const redirect = NextResponse.redirect(new URL(`/`, nextUrl.href));
       redirect.cookies.set('org', org, {
-        ...(!process.env.NOT_SECURED
+        ...(!isNotSecured()
           ? {
               path: '/',
               secure: true,
@@ -147,7 +148,7 @@ export async function proxy(request: NextRequest) {
       );
       if (id) {
         redirect.cookies.set('showorg', id, {
-          ...(!process.env.NOT_SECURED
+          ...(!isNotSecured()
             ? {
                 path: '/',
                 secure: true,

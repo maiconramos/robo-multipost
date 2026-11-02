@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — `NOT_SECURED: "false"` ligava o modo sem HTTPS
+
+- A variável `NOT_SECURED` agora é lida como liga/desliga: só `true` (ou `1`/`yes`/`on`) ativa o modo para instalação sem HTTPS. Antes, qualquer valor preenchido — inclusive `"false"`, como nos modelos de instalação — ativava esse modo, e o cookie de login ficava sem as proteções de HTTPS e legível por JavaScript. Instalações com `NOT_SECURED: "false"` passam a usar o modo seguro automaticamente; quem entrou antes continua logado.
+
 ### Segurança — automações antigas e MCP
 
 - Automações antigas do Instagram com etapa "esperar" agora conferem, depois da espera, se a automação continua ativa e se o canal continua ligado. Antes, pausar ou apagar a automação (ou desativar o canal) não impedia o envio de respostas e DMs que já estavam esperando. Vale para as execuções iniciadas depois desta versão.
@@ -17,7 +21,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Discord: o post só sai em canal do mesmo servidor conectado. Antes, como o bot é o mesmo para todas as organizações, dava para publicar em canais de outra organização escolhendo o id do canal.
 - Arquivos baixados de links (avatar de canal, vídeo de IA, repost do Instagram, imagem gerada) só são salvos se forem imagem ou vídeo mp4 de verdade, conferido pelo conteúdo. Antes, um servidor podia entregar uma página HTML ou SVG que ficava hospedada no domínio da app.
 - O download de mídia por link recusa resposta comprimida. Antes, um arquivo pequeno comprimido podia ocupar até 2 GB de memória do servidor.
-- O token de System User da Meta configurado na instalação (`META_SYSTEM_USER_TOKEN`) só reconecta canais das organizações listadas em `META_SYSTEM_USER_TOKEN_ORG_IDS` ou, sem a lista, quando a instância tem uma única organização. Antes, ele reconectava canais de qualquer organização. Quem usa essa variável com várias organizações precisa preencher a lista.
+- O token de System User da Meta configurado na instalação (`META_SYSTEM_USER_TOKEN`) só é usado quando a instância tem uma única organização (o caso comum: uma agência com um perfil por cliente). Com várias organizações, ele não é mais emprestado a outras organizações; cada uma configura o seu em Configurações > Credenciais, no perfil ou no perfil Padrão (compartilhado ou não), como já funcionava.
 
 ### Segurança — ajustes menores
 
@@ -48,7 +52,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Só administradores da organização podem cancelar, trocar o plano, abrir o portal de pagamento, aplicar desconto, encerrar o teste, resgatar código vitalício ou gerar pagamento em cripto. Antes, qualquer membro — até um cliente com acesso só de visualização — conseguia.
 - O desconto de retenção agora respeita as regras (plano mensal, já pago, sem outro desconto). Antes, a checagem era ignorada e o cupom entrava em qualquer assinatura.
 - O resgate de código vitalício passa a exigir o formato do código emitido e ganhou limite de 10 tentativas por hora. Antes, dava para "acertar" um código inventado com algumas centenas de tentativas.
-- O retorno de pagamento em cripto (NOWPayments) passa a exigir a assinatura da NOWPayments (`NOWPAYMENTS_IPN_SECRET`) e só vale para a organização do próprio pedido. Antes, qualquer um com a URL de retorno conseguia dar plano vitalício para qualquer organização. Quem usa NOWPayments precisa configurar `NOWPAYMENTS_IPN_SECRET`.
+- O retorno de pagamento em cripto (NOWPayments) só vale para a organização do próprio pedido (a que está assinada na URL de retorno). Antes, quem tivesse uma URL de retorno conseguia dar plano vitalício para qualquer organização.
 - O motivo do cancelamento e o nome da organização são escapados no e-mail enviado ao operador (antes era possível inserir links e imagens no e-mail).
 - O gerador de posts antigo (que usa a chave OpenAI da instância) ganhou limite de 10 gerações por hora por usuário.
 

@@ -39,6 +39,7 @@ import {
   AuthorizationActions,
   Sections,
 } from '@gitroom/backend/services/auth/permissions/permission.exception.class';
+import { isNotSecured } from '@gitroom/helpers/utils/not.secured';
 
 @ApiTags('User')
 // Rotas de identidade/sessao precisam responder para org USER sem perfil
@@ -168,7 +169,7 @@ export class UsersController {
 
     response.cookie('impersonate', id, {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -178,7 +179,7 @@ export class UsersController {
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
     });
 
-    if (process.env.NOT_SECURED) {
+    if (isNotSecured()) {
       response.header('impersonate', id);
     }
   }
@@ -278,7 +279,7 @@ export class UsersController {
   ) {
     response.cookie('showorg', id, {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -288,7 +289,7 @@ export class UsersController {
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
     });
 
-    if (process.env.NOT_SECURED) {
+    if (isNotSecured()) {
       response.header('showorg', id);
     }
 
@@ -302,7 +303,7 @@ export class UsersController {
   ) {
     response.cookie('showprofile', id, {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -312,7 +313,7 @@ export class UsersController {
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
     });
 
-    if (process.env.NOT_SECURED) {
+    if (isNotSecured()) {
       response.header('showprofile', id);
     }
 
@@ -336,7 +337,7 @@ export class UsersController {
     response.header('logout', 'true');
     response.cookie('auth', '', {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -349,7 +350,7 @@ export class UsersController {
 
     response.cookie('showorg', '', {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -362,7 +363,7 @@ export class UsersController {
 
     response.cookie('impersonate', '', {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -400,7 +401,7 @@ export class UsersController {
     if (!req.cookies.track) {
       res.cookie('track', uniqueId, {
         domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-        ...(!process.env.NOT_SECURED
+        ...(!isNotSecured()
           ? {
               secure: true,
               httpOnly: true,

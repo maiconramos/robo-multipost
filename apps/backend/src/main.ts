@@ -1,4 +1,5 @@
 import { initializeSentry } from '@gitroom/nestjs-libraries/sentry/initialize.sentry';
+import { isNotSecured } from '@gitroom/helpers/utils/not.secured';
 initializeSentry('backend', true);
 import compression from 'compression';
 
@@ -26,7 +27,7 @@ async function start() {
   const app = await NestFactory.create(AppModule, {
     rawBody: true,
     cors: {
-      ...(!process.env.NOT_SECURED ? { credentials: true } : {}),
+      ...(!isNotSecured() ? { credentials: true } : {}),
       allowedHeaders: [
         'Content-Type',
         'Authorization',
@@ -47,7 +48,7 @@ async function start() {
         'onboarding',
         'activate',
         'x-copilotkit-runtime-client-gql-version',
-        ...(process.env.NOT_SECURED ? ['auth', 'showorg', 'impersonate'] : []),
+        ...(isNotSecured() ? ['auth', 'showorg', 'impersonate'] : []),
       ],
       origin: [
         process.env.FRONTEND_URL,

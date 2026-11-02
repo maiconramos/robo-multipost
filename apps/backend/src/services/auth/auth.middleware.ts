@@ -13,11 +13,12 @@ import {
   isSessionRevoked,
 } from '@gitroom/nestjs-libraries/services/auth/session.token';
 import { isCrossSiteCookieMutation } from '@gitroom/nestjs-libraries/services/auth/csrf.origin';
+import { isNotSecured } from '@gitroom/helpers/utils/not.secured';
 
 export const removeAuth = (res: Response) => {
   res.cookie('auth', '', {
     domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-    ...(!process.env.NOT_SECURED
+    ...(!isNotSecured()
       ? {
           secure: true,
           httpOnly: true,

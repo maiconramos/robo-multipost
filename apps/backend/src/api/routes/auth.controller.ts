@@ -39,6 +39,7 @@ import {
 } from '@gitroom/nestjs-libraries/user/user.agent';
 import { Provider } from '@prisma/client';
 import * as Sentry from '@sentry/nestjs';
+import { isNotSecured } from '@gitroom/helpers/utils/not.secured';
 
 const FARCASTER = 'FARCASTER';
 
@@ -46,7 +47,7 @@ const FARCASTER = 'FARCASTER';
 const farcasterCookieOptions = () => ({
   domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
   httpOnly: true,
-  ...(!process.env.NOT_SECURED
+  ...(!isNotSecured()
     ? { secure: true, sameSite: 'none' as const }
     : {}),
   expires: new Date(Date.now() + FARCASTER_SIGNER_TTL_SECONDS * 1000),
@@ -116,7 +117,7 @@ export class AuthController {
 
       response.cookie('auth', jwt, {
         domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-        ...(!process.env.NOT_SECURED
+        ...(!isNotSecured()
           ? {
               secure: true,
               httpOnly: true,
@@ -126,14 +127,14 @@ export class AuthController {
         expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
       });
 
-      if (process.env.NOT_SECURED) {
+      if (isNotSecured()) {
         response.header('auth', jwt);
       }
 
       if (typeof addedOrg !== 'boolean' && addedOrg?.organizationId) {
         response.cookie('showorg', addedOrg.organizationId, {
           domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-          ...(!process.env.NOT_SECURED
+          ...(!isNotSecured()
             ? {
                 secure: true,
                 httpOnly: true,
@@ -143,7 +144,7 @@ export class AuthController {
           expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
         });
 
-        if (process.env.NOT_SECURED) {
+        if (isNotSecured()) {
           response.header('showorg', addedOrg.organizationId);
         }
       }
@@ -196,7 +197,7 @@ export class AuthController {
 
       response.cookie('auth', jwt, {
         domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-        ...(!process.env.NOT_SECURED
+        ...(!isNotSecured()
           ? {
               secure: true,
               httpOnly: true,
@@ -206,14 +207,14 @@ export class AuthController {
         expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
       });
 
-      if (process.env.NOT_SECURED) {
+      if (isNotSecured()) {
         response.header('auth', jwt);
       }
 
       if (typeof addedOrg !== 'boolean' && addedOrg?.organizationId) {
         response.cookie('showorg', addedOrg.organizationId, {
           domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-          ...(!process.env.NOT_SECURED
+          ...(!isNotSecured()
             ? {
                 secure: true,
                 httpOnly: true,
@@ -223,7 +224,7 @@ export class AuthController {
           expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
         });
 
-        if (process.env.NOT_SECURED) {
+        if (isNotSecured()) {
           response.header('showorg', addedOrg.organizationId);
         }
       }
@@ -315,7 +316,7 @@ export class AuthController {
 
     response.cookie('auth', activate, {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -325,7 +326,7 @@ export class AuthController {
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
     });
 
-    if (process.env.NOT_SECURED) {
+    if (isNotSecured()) {
       response.header('auth', activate);
     }
 
@@ -400,7 +401,7 @@ export class AuthController {
 
     response.cookie('auth', jwt, {
       domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-      ...(!process.env.NOT_SECURED
+      ...(!isNotSecured()
         ? {
             secure: true,
             httpOnly: true,
@@ -410,7 +411,7 @@ export class AuthController {
       expires: new Date(Date.now() + 1000 * 60 * 60 * 24 * 365),
     });
 
-    if (process.env.NOT_SECURED) {
+    if (isNotSecured()) {
       response.header('auth', jwt);
     }
 

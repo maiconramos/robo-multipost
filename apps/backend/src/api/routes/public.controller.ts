@@ -7,7 +7,6 @@ import {
   Body,
   Controller,
   Get,
-  Headers,
   Param,
   Post,
   Query,
@@ -39,6 +38,7 @@ import { ReviewLinksService } from '@gitroom/nestjs-libraries/database/prisma/re
 import { CommentKind } from '@prisma/client';
 import { buildAgentSkillMarkdown } from '@gitroom/nestjs-libraries/agent/agent.skill.template';
 import { SkipProfileAccess } from '@gitroom/nestjs-libraries/services/auth/profile-access/profile-access.decorators';
+import { isNotSecured } from '@gitroom/helpers/utils/not.secured';
 
 const pump = promisify(pipeline);
 
@@ -233,7 +233,7 @@ export class PublicController {
     if (!req.cookies.track) {
       res.cookie('track', uniqueId, {
         domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-        ...(!process.env.NOT_SECURED
+        ...(!isNotSecured()
           ? {
               secure: true,
               httpOnly: true,
@@ -247,7 +247,7 @@ export class PublicController {
     if (body.fbclid && !req.cookies.fbclid) {
       res.cookie('fbclid', body.fbclid, {
         domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
-        ...(!process.env.NOT_SECURED
+        ...(!isNotSecured()
           ? {
               secure: true,
               httpOnly: true,
@@ -301,13 +301,9 @@ export class PublicController {
   }
 
   @Post('/crypto/:path')
-  async cryptoPost(
-    @Body() body: any,
-    @Param('path') path: string,
-    @Headers('x-nowpayments-sig') signature?: string
-  ) {
+  async cryptoPost(@Body() body: any, @Param('path') path: string) {
     // `path` e o JWT portador do pedido: nunca logar.
-    return this._nowpayments.processPayment(path, body, signature);
+    return this._nowpayments.processPayment(path, body);
   }
 
   @Get('/stream')

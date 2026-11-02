@@ -82,25 +82,14 @@ export class CredentialService {
     if (!envToken) {
       return undefined;
     }
-    return (await this.envSystemUserTokenAllowed(organizationId))
+    // A env e do operador da instancia: so vale quando existe uma unica
+    // organizacao (agencia com um perfil por cliente). Com varias orgs ela
+    // re-derivava o token de qualquer org que apontasse para uma pagina do
+    // BM do operador; ai cada org configura o seu em Settings > Credenciais
+    // (por perfil ou no perfil Default, compartilhado ou nao).
+    return (await this._organizationRepository.getCount()) <= 1
       ? envToken
       : undefined;
-  }
-
-  // O token da env e do operador da instancia: em instancia com varias orgs
-  // ele so cura canais das orgs listadas em META_SYSTEM_USER_TOKEN_ORG_IDS.
-  // Sem a lista, so vale quando existe uma unica organizacao (self-host de
-  // um dono). Antes ele re-derivava o token de qualquer org que apontasse
-  // para uma pagina gerenciada pelo System User do operador.
-  private async envSystemUserTokenAllowed(organizationId: string) {
-    const allowList = (process.env.META_SYSTEM_USER_TOKEN_ORG_IDS || '')
-      .split(',')
-      .map((id) => id.trim())
-      .filter(Boolean);
-    if (allowList.length) {
-      return allowList.includes(organizationId);
-    }
-    return (await this._organizationRepository.getCount()) <= 1;
   }
 
   private redact(data: Record<string, string>): Record<string, string> {

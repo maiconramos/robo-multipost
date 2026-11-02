@@ -1,4 +1,5 @@
 import { SentryComponent } from '@gitroom/frontend/components/layout/sentry.component';
+import { isNotSecured } from '@gitroom/helpers/utils/not.secured';
 
 export const dynamic = 'force-dynamic';
 import '../global.scss';
@@ -61,7 +62,7 @@ export default async function AppLayout({ children }: { children: ReactNode }) {
           facebookPixel={process.env.NEXT_PUBLIC_FACEBOOK_PIXEL!}
           telegramBotName={process.env.TELEGRAM_BOT_NAME!}
           neynarClientId={process.env.NEYNAR_CLIENT_ID!}
-          isSecured={!process.env.NOT_SECURED}
+          isSecured={!isNotSecured()}
           disableImageCompression={!!process.env.DISABLE_IMAGE_COMPRESSION}
           disableXAnalytics={!!process.env.DISABLE_X_ANALYTICS}
           sentryDsn={process.env.NEXT_PUBLIC_SENTRY_DSN!}

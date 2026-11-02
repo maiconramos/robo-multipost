@@ -145,7 +145,7 @@ token e detectada no post-time).
 | Uso | Metodo | Heranca de perfil |
 |---|---|---|
 | Messaging/DM/follow-check | `CredentialService.getMessagingTokens` (`getRaw`); canal sem perfil via `InstagramMessagingService.loadState` → `getRawForOrgWide` | NAO herda — match exato do perfil. Canal sem perfil: linha sem perfil da org, senao a do perfil Default (nunca a de um perfil qualquer); o lazy refresh grava na mesma linha (`credentialProfileId`) |
-| Self-heal de publicacao | `CredentialService.getSystemUserToken` (`getRawShared`) | Herda do perfil Default (se `shareProviderCredentialsWithProfiles`) e cai na env `META_SYSTEM_USER_TOKEN` — so para orgs em `META_SYSTEM_USER_TOKEN_ORG_IDS` ou, sem a lista, quando a instancia tem uma unica organizacao |
+| Self-heal de publicacao | `CredentialService.getSystemUserToken` (`getRawShared`) | Herda do perfil Default (se `shareProviderCredentialsWithProfiles`) e cai na env `META_SYSTEM_USER_TOKEN` — a env so vale quando a instancia tem uma unica organizacao (nunca empresta o token do operador a outra org) |
 
 Ou seja: um token colado no perfil Default cura a publicacao de TODOS os
 perfis (override por perfil continua valendo), mas messaging continua
