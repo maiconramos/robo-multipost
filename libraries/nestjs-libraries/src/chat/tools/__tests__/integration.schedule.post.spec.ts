@@ -2,6 +2,8 @@ jest.mock('../../../integrations/integration.manager', () => ({
   socialIntegrationList: [{ identifier: 'instagram', maxLength: () => 2200 }, { identifier: 'threads', maxLength: () => 500 }],
 }));
 jest.mock('file-type', () => ({ fileTypeFromBuffer: jest.fn() }));
+// Unit tests must not start the real telemetry aggregator and its flush timer.
+jest.mock('@sentry/nestjs', () => ({ metrics: { count: jest.fn() } }));
 import {
   IntegrationSchedulePostTool,
   schedulePostInputSchema,

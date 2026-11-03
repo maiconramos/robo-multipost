@@ -1,6 +1,20 @@
+/** Private source path is created by the backend, never supplied by an API/tool. */
+export interface UploadSourceFile {
+  sourcePath: string;
+  filename: string;
+  mimeType: string;
+  size: number;
+}
+export interface StoredUploadFile {
+  filename: string;
+  path: string;
+  mimetype: string;
+  originalname: string;
+}
 export interface IUploadProvider {
   uploadSimple(path: string): Promise<string>;
   uploadFile(file: Express.Multer.File): Promise<any>;
+  uploadFromFile(file: UploadSourceFile): Promise<StoredUploadFile>;
   /**
    * Remove do storage o arquivo apontado por `publicPath` — o mesmo valor
    * gravado em `Media.path`/`Media.thumbnail` (URL pública servida ao browser),

@@ -1,0 +1,9 @@
+{
+  "extends": "../tsconfig.base.json",
+  "compilerOptions": {
+    "module": "commonjs",
+    "target": "ES2021",
+    "esModuleInterop": true
+  },
+  "include": ["upload-media-mcp.ts", "upload-media-mcp.spec.ts"]
+}
