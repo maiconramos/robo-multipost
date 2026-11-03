@@ -832,6 +832,47 @@ describe('gerenciamento de automacoes por API e agentes', () => {
     expect(flows.getFlows).not.toHaveBeenCalled();
     expect(shared.list).not.toHaveBeenCalled();
   });
+  it('associacao historica flow A canal B impede detalhe canvas aliases e historico', async () => {
+    integrations.getIntegrationById.mockResolvedValue({
+      id: 'ig',
+      profileId: 'outro',
+    } as never);
+    const payload = {
+      expectedUpdatedAt: '2026-10-27T12:00:00.000Z',
+      nodes: [
+        {
+          id: 'trigger',
+          type: 'TRIGGER',
+          data: '{"triggerType":"comment_on_post","mode":"all"}',
+          positionX: 0,
+          positionY: 0,
+        },
+      ],
+      edges: [] as { source: string; target: string }[],
+    };
+    for (const operation of [
+      () => service.detail(scope, 'ig-flow', 1),
+      () => service.canvas(scope, 'ig-flow', 1, payload),
+      () => service.aliases(scope, 'ig-flow', { operation: 'list' }),
+      () => service.executionHistory(scope, 'ig-flow', 1, {}),
+      () => service.executionDetail(scope, 'ig-flow', 1, 'exec'),
+    ])
+      await expect(operation()).rejects.toThrow('CHANNEL_NOT_FOUND');
+    expect(flows.saveCanvas).not.toHaveBeenCalled();
+    expect(flows.listAliases).not.toHaveBeenCalled();
+    expect(executionHistory.list).not.toHaveBeenCalled();
+    expect(executionHistory.detail).not.toHaveBeenCalled();
+  });
+  it('status V2 tambem recusa associacao historica de outro cliente', async () => {
+    integrations.getIntegrationById.mockResolvedValue({
+      id: 'fb',
+      profileId: 'outro',
+    } as never);
+    await expect(
+      service.status(scope, 'fb-flow', 2, 'PAUSED', 2)
+    ).rejects.toThrow('CHANNEL_NOT_FOUND');
+    expect(shared.status).not.toHaveBeenCalled();
+  });
 });
 
 describe('historico normalizado da fachada', () => {
@@ -839,13 +880,17 @@ describe('historico normalizado da fachada', () => {
   const scope = { organizationId: 'org', profileId: 'escorpiano' };
   const facade = () =>
     new AutomationManagementService(
-      {} as any,
-      {} as any,
+      { getFlow: jest.fn().mockResolvedValue({ integrationId: 'ig' }) } as any,
+      { get: jest.fn().mockResolvedValue({ channels: [] }) } as any,
       {} as any,
       {} as any,
       {} as any,
       h,
-      {} as any
+      {
+        getIntegrationById: jest
+          .fn()
+          .mockResolvedValue({ id: 'ig', profileId: 'escorpiano' }),
+      } as any
     );
   beforeEach(() => jest.clearAllMocks());
   it.each([

@@ -10,6 +10,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 ### Corrigido — isolamento de clientes no MCP
 
 - Chave de organização pode consultar posts e automações de todos os clientes, com identificação do perfil, ou selecionar um cliente por chamada. Operações de cliente exigem perfil explícito e validam canal, post, automação e mídia registrada; chave de perfil não pode selecionar outro. Removida a queda silenciosa no Default das operações MCP.
+- Associações antigas de automação/perfil/canal incompatíveis são recusadas no detalhe, canvas, aliases, estado e histórico, sem reatribuição automática.
 - Lotes preservam o perfil validado de cada destino, inclusive nos recibos de resultado incerto. Autenticação por requisição impede conservar um perfil anterior; uploads em partes e retomada do cliente local ficam vinculados ao cliente escolhido. Geração de mídia, persona, conhecimento e credenciais usam o perfil selecionado.
 
 ### Adicionado — mídia e consultas pelo MCP

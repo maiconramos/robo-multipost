@@ -33,6 +33,8 @@ A REST conserva a autenticação e a seleção explícita existente por `?profil
 a fachada legada sem perfil mantém seu contrato Default. Não executar
 sincronização destrutiva do banco ao atualizar ou fazer rollback.
 
+Associações históricas de automação/perfil/canal incompatíveis são recusadas no detalhe, canvas, aliases, estado e histórico, preservando os registros sem reatribuição automática.
+
 ## Validação
 
 Regressões cobrem chaves de organização/perfil, recursos de outra organização,

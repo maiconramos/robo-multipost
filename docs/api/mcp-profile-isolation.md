@@ -56,6 +56,7 @@ campo para selecionar um cliente/perfil do MultiPost.
   da primeira gravação; um destino incompatível impede iniciar o lote.
 - Cada destino guarda seu próprio perfil validado até a persistência. Recibos
   confirmados e IDs de resultado incerto incluem `profileId` para recuperação.
+- Associações históricas inconsistentes (automação em A com canal de B) são recusadas também no detalhe, canvas, aliases, estado e histórico. Não são migradas nem reatribuídas automaticamente.
 - Posts e automações existentes continuam passando pelos serviços com escopo
   obrigatório de organização e perfil; a consulta geral é um caminho separado,
   somente de leitura. Cursor/canal de outra organização são recusados.

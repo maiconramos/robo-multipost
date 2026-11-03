@@ -373,9 +373,44 @@ export class AutomationManagementService {
       };
     }
   }
+  private async assertChannelOwners(scope: FlowScope, ids: string[]) {
+    for (const id of new Set(ids)) {
+      const channel = await this.integrations.getIntegrationById(
+        scope.organizationId,
+        id
+      );
+      if (
+        !channel ||
+        channel.deletedAt ||
+        channel.profileId !== scope.profileId
+      )
+        failAutomation('CHANNEL_NOT_FOUND', 404);
+    }
+  }
+  private async assertOwnership(scope: FlowScope, id: string, version: number) {
+    if (version === 2) {
+      const flow = await this.shared.get(scope, id);
+      await this.assertChannelOwners(
+        scope,
+        flow.channels.map((c) => c.integrationId)
+      );
+    } else if (version === 1) {
+      const flow = await this.flows.getFlow(
+        scope.organizationId,
+        id,
+        scope.profileId
+      );
+      if (!flow) failAutomation('FLOW_NOT_FOUND', 404);
+      await this.assertChannelOwners(scope, [flow.integrationId]);
+    } else failAutomation('INVALID_EXECUTION_VERSION');
+  }
   async detail(scope: FlowScope, id: string, version: number) {
     if (version === 2) {
       const flow = await this.shared.get(scope, id);
+      await this.assertChannelOwners(
+        scope,
+        flow.channels.map((c) => c.integrationId)
+      );
       const config = this.sharedConfiguration(flow);
       return { ...flow, quickEditable: !!config, configuration: config };
     }
@@ -386,6 +421,7 @@ export class AutomationManagementService {
       scope.profileId
     );
     if (!flow) failAutomation('FLOW_NOT_FOUND', 404);
+    await this.assertChannelOwners(scope, [flow.integrationId]);
     const aliases = await this.flows.listAliases(scope.organizationId, id);
     let config: AutomationConfiguration | null = null;
     try {
@@ -662,6 +698,7 @@ export class AutomationManagementService {
     if (version === 2) {
       if (status === 'DRAFT') failAutomation('V2_STATUS_UNSUPPORTED');
       if (!expectedRevision) failAutomation('REVISION_REQUIRED');
+      await this.assertOwnership(scope, id, version);
       return this.shared.status(
         scope,
         id,
@@ -755,6 +792,7 @@ export class AutomationManagementService {
     const engine = this.historyEngine(version);
     const parsed = automationHistoryQuerySchema.safeParse(query);
     if (!parsed.success) failAutomation('INVALID_HISTORY_QUERY');
+    await this.assertOwnership(scope, id, version);
     return this.executionHistoryService.list(scope, engine, id, parsed.data);
   }
   async executionDetail(
@@ -763,12 +801,9 @@ export class AutomationManagementService {
     version: number,
     executionId: string
   ) {
-    return this.executionHistoryService.detail(
-      scope,
-      this.historyEngine(version),
-      id,
-      executionId
-    );
+    const engine = this.historyEngine(version);
+    await this.assertOwnership(scope, id, version);
+    return this.executionHistoryService.detail(scope, engine, id, executionId);
   }
   async history(
     scope: FlowScope,
@@ -799,6 +834,7 @@ export class AutomationManagementService {
       scope.profileId
     );
     if (!flow) failAutomation('FLOW_NOT_FOUND', 404);
+    await this.assertChannelOwners(scope, [flow.integrationId]);
     const q = parsed.data;
     const current = await this.flows.listAliases(scope.organizationId, id);
     if (q.operation === 'list')
