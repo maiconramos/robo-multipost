@@ -18,6 +18,12 @@ export class AutopostRepository {
     });
   }
 
+  countActiveAutoposts(orgId: string) {
+    return this._autoPost.model.autoPost.count({
+      where: { organizationId: orgId, deletedAt: null },
+    });
+  }
+
   getAutoposts(orgId: string, profileId?: string) {
     return this._autoPost.model.autoPost.findMany({
       where: {

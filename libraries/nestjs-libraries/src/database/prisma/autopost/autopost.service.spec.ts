@@ -192,3 +192,37 @@ describe('AutopostService - conteudo do feed como dado nao confiavel', () => {
     expect(args.untrustedRule).toMatch(/UNTRUSTED/);
   });
 });
+
+describe('AutopostService.createAutopost - teto por organizacao', () => {
+  const makeService = (count: number) => {
+    const repo = {
+      countActiveAutoposts: jest.fn().mockResolvedValue(count),
+      createAutopost: jest.fn().mockResolvedValue({ id: 'ap-1' }),
+    };
+    const service = new AutopostService(repo as any, {} as any, {} as any, {} as any);
+    jest.spyOn(service as any, 'processCron').mockResolvedValue(undefined);
+    return { service, repo };
+  };
+
+  it('recusa nova regra quando a org ja tem o maximo', async () => {
+    const { service, repo } = makeService(200);
+    await expect(
+      service.createAutopost('org-1', { active: true } as any, undefined, 'prof-1')
+    ).rejects.toMatchObject({ status: 400 });
+    expect(repo.createAutopost).not.toHaveBeenCalled();
+  });
+
+  it('abaixo do teto cria normalmente', async () => {
+    const { service, repo } = makeService(10);
+    await expect(
+      service.createAutopost('org-1', { active: true } as any, undefined, 'prof-1')
+    ).resolves.toEqual({ id: 'ap-1' });
+    expect(repo.createAutopost).toHaveBeenCalled();
+  });
+
+  it('editar regra existente (com id) nao conta no teto', async () => {
+    const { service, repo } = makeService(500);
+    await service.createAutopost('org-1', { active: false } as any, 'ap-1', 'prof-1');
+    expect(repo.countActiveAutoposts).not.toHaveBeenCalled();
+  });
+});

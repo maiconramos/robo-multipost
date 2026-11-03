@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { Injectable, HttpException, HttpStatus } from '@nestjs/common';
 import { AutopostRepository } from '@gitroom/nestjs-libraries/database/prisma/autopost/autopost.repository';
 import { AutopostDto } from '@gitroom/nestjs-libraries/dtos/autopost/autopost.dto';
 import dayjs from 'dayjs';
@@ -81,6 +81,8 @@ const dallePrompt = z.object({
     .describe('Generated prompt from description to be sent to DallE'),
 });
 
+export const MAX_AUTOPOSTS_PER_ORG = 200;
+
 @Injectable()
 export class AutopostService {
   constructor(
@@ -102,6 +104,18 @@ export class AutopostService {
   }
 
   async createAutopost(orgId: string, body: AutopostDto, id?: string, profileId?: string) {
+    // cada regra e um cron que baixa o feed e pode gerar texto/imagem com IA:
+    // teto por organizacao (agencia com muitos clientes cabe com folga)
+    if (
+      !id &&
+      (await this._autopostsRepository.countActiveAutoposts(orgId)) >=
+        MAX_AUTOPOSTS_PER_ORG
+    ) {
+      throw new HttpException(
+        `Limite de ${MAX_AUTOPOSTS_PER_ORG} regras de RSS automático por organização.`,
+        HttpStatus.BAD_REQUEST
+      );
+    }
     const data = await this._autopostsRepository.createAutopost(
       orgId,
       body,
