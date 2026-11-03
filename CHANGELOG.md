@@ -7,6 +7,16 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Melhoria — Visualizador nas automações e textos da interface
+
+- Quem tem acesso só de visualização vê as automações e as regras de Repost, mas não vê mais os botões de criar, pausar, rodar, salvar ou excluir. No editor aparece o aviso "Acesso só de visualização". O servidor já recusava essas ações; antes a tela mostrava uma mensagem de validação que não tinha a ver com o problema ("Preencha o nome...") ou falhava sem aviso.
+- Quando o servidor recusa uma alteração por acesso só de visualização, qualquer tela mostra o aviso "Seu acesso a este perfil é só de visualização".
+- Excluir automação ou regra de Repost agora pede confirmação.
+- Login: "E-mail ou senha incorretos" em português, e um aviso claro quando o limite de tentativas é atingido (antes nada aparecia).
+- O bloco "esperar" do editor visual mostra a unidade traduzida (ex.: "2 horas").
+- A aba Perfis está traduzida e com acentos.
+- Sair da conta leva direto para a tela de login, e não para a de cadastro.
+
 ### Segurança — login com Google, GitHub e OIDC
 
 - O retorno do login social agora só vale no navegador que começou o login. Antes, alguém podia mandar um link com o código do próprio login e fazer a vítima entrar, sem perceber, na conta dele. Se o login demorar mais de 15 minutos ou for concluído em outro navegador, aparece "Login expirado ou iniciado em outro navegador. Tente entrar de novo.".

@@ -48,7 +48,12 @@ export const DelayNode: FC<NodeProps> = memo(({ data, selected }) => {
       </div>
       {duration > 0 && (
         <p className="text-[12px] text-customColor18">
-          {duration} {unit}
+          {duration}{' '}
+          {unit === 'hours'
+            ? t('hours', 'Hours').toLowerCase()
+            : unit === 'minutes'
+            ? t('minutes', 'Minutes').toLowerCase()
+            : t('seconds', 'Seconds').toLowerCase()}
         </p>
       )}
       <Handle

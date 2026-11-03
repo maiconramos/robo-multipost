@@ -54,9 +54,22 @@ export function Login() {
         setNotActivated(true);
       } else {
         form.setError('email', {
-          message: errorMessage,
+          message:
+            errorMessage === 'Invalid user name or password'
+              ? t('login_invalid_credentials', 'E-mail ou senha incorretos.')
+              : errorMessage,
         });
       }
+      setLoading(false);
+    }
+    // limite de tentativas (por endereco de internet e por conta)
+    if (login.status === 429) {
+      form.setError('email', {
+        message: t(
+          'login_too_many_attempts',
+          'Muitas tentativas de login. Aguarde alguns minutos e tente de novo.'
+        ),
+      });
       setLoading(false);
     }
   };

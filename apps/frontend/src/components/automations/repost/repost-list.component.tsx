@@ -3,6 +3,8 @@
 import { FC, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
+import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import {
@@ -19,6 +21,9 @@ import {
 export const RepostListComponent: FC = () => {
   const t = useT();
   const router = useRouter();
+  // Visualizador: so le as regras
+  const { isViewer } = useProfilePermissions();
+  const canWrite = !isViewer;
   const fetchApi = useFetch();
   const toaster = useToaster();
   const { data: rules, isLoading, mutate } = useRepostRules();
@@ -80,6 +85,13 @@ export const RepostListComponent: FC = () => {
 
   const deleteRule = useCallback(
     async (id: string) => {
+      if (
+        !(await deleteDialog(
+          t('repost_delete_confirm', 'Tem certeza que deseja excluir esta regra de Repost?')
+        ))
+      ) {
+        return;
+      }
       try {
         const res = await fetchApi(`/repost/rules/${id}`, { method: 'DELETE' });
         if (!res.ok) {
@@ -117,12 +129,14 @@ export const RepostListComponent: FC = () => {
             )}
           </p>
         </div>
-        <button
-          onClick={() => router.push('/automations/reposts/new')}
-          className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80"
-        >
-          {t('repost_new_rule', 'Nova regra de Repost')}
-        </button>
+        {canWrite && (
+          <button
+            onClick={() => router.push('/automations/reposts/new')}
+            className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80"
+          >
+            {t('repost_new_rule', 'Nova regra de Repost')}
+          </button>
+        )}
       </div>
 
       {!Array.isArray(rules) || rules.length === 0 ? (
@@ -162,6 +176,7 @@ export const RepostListComponent: FC = () => {
                   key={rule.id}
                   rule={rule}
                   isLast={idx === rules.length - 1}
+                  readOnly={!canWrite}
                   onToggle={() => toggleRule(rule)}
                   onEdit={() => router.push(`/automations/reposts/${rule.id}`)}
                   onRun={() => runNow(rule.id)}
@@ -179,6 +194,7 @@ export const RepostListComponent: FC = () => {
 interface RowProps {
   rule: RepostRule;
   isLast: boolean;
+  readOnly?: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onRun: () => void;
@@ -188,6 +204,7 @@ interface RowProps {
 const RepostRuleRow: FC<RowProps> = ({
   rule,
   isLast,
+  readOnly,
   onToggle,
   onEdit,
   onRun,
@@ -209,6 +226,7 @@ const RepostRuleRow: FC<RowProps> = ({
           <button
             type="button"
             onClick={onToggle}
+            disabled={readOnly}
             role="switch"
             aria-checked={rule.enabled}
             aria-label={
@@ -216,7 +234,7 @@ const RepostRuleRow: FC<RowProps> = ({
                 ? t('repost_toggle_disable', 'Pausar')
                 : t('repost_toggle_enable', 'Ativar regra agora')
             }
-            className="relative inline-flex h-[22px] w-[42px] shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none"
+            className="relative inline-flex h-[22px] w-[42px] shrink-0 cursor-pointer rounded-full transition-colors duration-200 ease-in-out focus:outline-none disabled:cursor-not-allowed disabled:opacity-60"
             style={{
               backgroundColor: rule.enabled ? '#22c55e' : '#52525b',
             }}
@@ -332,7 +350,7 @@ const RepostRuleRow: FC<RowProps> = ({
 
       <td className="px-[16px] py-[14px] whitespace-nowrap">
         <div className="flex items-center justify-end gap-[8px]">
-          {rule.enabled && (
+          {rule.enabled && !readOnly && (
             <button
               type="button"
               onClick={onRun}
@@ -343,15 +361,17 @@ const RepostRuleRow: FC<RowProps> = ({
               {t('repost_run_now', 'Rodar agora')}
             </button>
           )}
-          <button
-            type="button"
-            onClick={onDelete}
-            title={t('delete', 'Excluir')}
-            className="inline-flex items-center gap-[6px] rounded-[4px] border border-[#ef4444]/50 bg-transparent px-[10px] py-[6px] text-[12px] text-[#ef4444] hover:bg-[#ef4444]/10"
-          >
-            <span aria-hidden>🗑</span>
-            {t('delete', 'Excluir')}
-          </button>
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={onDelete}
+              title={t('delete', 'Excluir')}
+              className="inline-flex items-center gap-[6px] rounded-[4px] border border-[#ef4444]/50 bg-transparent px-[10px] py-[6px] text-[12px] text-[#ef4444] hover:bg-[#ef4444]/10"
+            >
+              <span aria-hidden>🗑</span>
+              {t('delete', 'Excluir')}
+            </button>
+          )}
         </div>
       </td>
     </tr>

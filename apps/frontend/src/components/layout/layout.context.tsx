@@ -6,6 +6,7 @@ import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 import { useReturnUrl } from '@gitroom/frontend/app/(app)/auth/return.url.component';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import i18next from '@gitroom/react/translation/i18next';
+import { showToast } from '@gitroom/react/toaster/toaster';
 export default function LayoutContext(params: { children: ReactNode }) {
   if (params?.children) {
     // eslint-disable-next-line react/no-children-prop
@@ -117,6 +118,17 @@ function LayoutContextInner(params: { children: ReactNode }) {
           if (body?.code === 'NO_PROFILE_ASSIGNED') {
             window.location.reload();
             return false;
+          }
+          // Visualizador tentou alterar algo: aviso claro em vez da mensagem
+          // de validacao generica de cada tela
+          if (body?.code === 'PROFILE_READ_ONLY') {
+            showToast(
+              i18next.t(
+                'profile_read_only_toast',
+                'Seu acesso a este perfil é só de visualização. Peça a um administrador para fazer esta alteração.'
+              ),
+              'warning'
+            );
           }
         } catch (err) {
           // corpo nao-JSON: segue o fluxo normal

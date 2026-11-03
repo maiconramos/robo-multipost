@@ -8,6 +8,7 @@ import { useUser } from '@gitroom/frontend/components/layout/user.context';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
 interface Profile {
   id: string;
@@ -41,6 +42,7 @@ const CreateEditProfileModal: React.FC<{
   profile?: Profile;
   onSaved: () => void;
 }> = ({ profile, onSaved }) => {
+  const t = useT();
   const fetch = useFetch();
   const modals = useModals();
   const toast = useToaster();
@@ -59,18 +61,18 @@ const CreateEditProfileModal: React.FC<{
             method: 'PUT',
             body: JSON.stringify({ name: name.trim(), description: description.trim() || undefined }),
           });
-          toast.show('Perfil atualizado');
+          toast.show(t('profiles_updated', 'Perfil atualizado'));
         } else {
           await fetch('/profiles', {
             method: 'POST',
             body: JSON.stringify({ name: name.trim(), description: description.trim() || undefined }),
           });
-          toast.show('Perfil criado');
+          toast.show(t('profiles_created', 'Perfil criado'));
         }
         onSaved();
         modals.closeAll();
       } catch {
-        toast.show('Erro ao salvar perfil', 'warning');
+        toast.show(t('profiles_save_error', 'Erro ao salvar perfil'), 'warning');
       } finally {
         setSaving(false);
       }
@@ -81,28 +83,32 @@ const CreateEditProfileModal: React.FC<{
   return (
     <form onSubmit={handleSubmit} className="flex flex-col gap-[12px] p-[16px] pt-0">
       <div className="flex flex-col gap-[4px]">
-        <label className="text-[14px]">Nome</label>
+        <label className="text-[14px]">{t('profiles_name', 'Nome')}</label>
         <input
           type="text"
           value={name}
           onChange={(e) => setName(e.target.value)}
-          placeholder="Nome do perfil"
+          placeholder={t('profiles_name_placeholder', 'Nome do perfil')}
           className="bg-input border border-tableBorder rounded-[4px] px-[12px] py-[8px] text-[14px] outline-none"
           autoFocus
         />
       </div>
       <div className="flex flex-col gap-[4px]">
-        <label className="text-[14px]">Descricao</label>
+        <label className="text-[14px]">{t('profiles_description', 'Descrição')}</label>
         <input
           type="text"
           value={description}
           onChange={(e) => setDescription(e.target.value)}
-          placeholder="Descricao (opcional)"
+          placeholder={t('profiles_description_placeholder', 'Descrição (opcional)')}
           className="bg-input border border-tableBorder rounded-[4px] px-[12px] py-[8px] text-[14px] outline-none"
         />
       </div>
       <Button type="submit" disabled={saving || !name.trim()}>
-        {saving ? 'Salvando...' : profile ? 'Atualizar' : 'Criar Perfil'}
+        {saving
+          ? t('profiles_saving', 'Salvando...')
+          : profile
+          ? t('profiles_update', 'Atualizar')
+          : t('profiles_create', 'Criar perfil')}
       </Button>
     </form>
   );
@@ -112,6 +118,7 @@ const ManageMembersModal: React.FC<{
   profileId: string;
   profileName: string;
 }> = ({ profileId, profileName }) => {
+  const t = useT();
   const fetch = useFetch();
   const toast = useToaster();
 
@@ -158,20 +165,20 @@ const ManageMembersModal: React.FC<{
       method: 'POST',
       body: JSON.stringify({ userId: selectedUserId, role: selectedRole }),
     });
-    toast.show('Membro adicionado');
+    toast.show(t('profiles_member_added', 'Membro adicionado'));
     setSelectedUserId('');
     await mutate();
   }, [selectedUserId, selectedRole, profileId]);
 
   const removeMember = useCallback(
     (userId: string) => async () => {
-      if (!(await deleteDialog('Tem certeza que deseja remover este membro do perfil?'))) {
+      if (!(await deleteDialog(t('profiles_member_remove_confirm', 'Tem certeza que deseja remover este membro do perfil?')))) {
         return;
       }
       await fetch(`/profiles/${profileId}/members/${userId}`, {
         method: 'DELETE',
       });
-      toast.show('Membro removido');
+      toast.show(t('profiles_member_removed', 'Membro removido'));
       await mutate();
     },
     [profileId]
@@ -179,7 +186,9 @@ const ManageMembersModal: React.FC<{
 
   return (
     <div className="flex flex-col gap-[16px] p-[16px] pt-0">
-      <h4 className="text-[16px] font-[600]">Membros de {profileName}</h4>
+      <h4 className="text-[16px] font-[600]">
+        {t('profiles_members_of', 'Membros de {{name}}', { name: profileName })}
+      </h4>
       <div className="flex flex-col gap-[8px]">
         {(members || []).map((m) => (
           <div key={m.userId} className="flex items-center gap-[12px]">
@@ -187,31 +196,33 @@ const ManageMembersModal: React.FC<{
               {m.user.name || m.user.email}
             </div>
             <div className="text-[12px] text-textItemBlur">
-              {m.role}
+              {t(`profile_role_${String(m.role).toLowerCase()}`, m.role)}
             </div>
             <Button
               className="!bg-customColor3 !h-[24px] border border-customColor21 rounded-[4px] text-[12px]"
               onClick={removeMember(m.userId)}
               secondary={true}
             >
-              Remover
+              {t('profiles_remove', 'Remover')}
             </Button>
           </div>
         ))}
         {(!members || members.length === 0) && (
-          <div className="text-[14px] text-textItemBlur">Nenhum membro</div>
+          <div className="text-[14px] text-textItemBlur">
+            {t('profiles_no_members', 'Nenhum membro')}
+          </div>
         )}
       </div>
       {availableUsers.length > 0 && (
         <div className="flex gap-[8px] items-end">
           <div className="flex flex-col gap-[4px] flex-1">
-            <label className="text-[12px]">Usuario</label>
+            <label className="text-[12px]">{t('profiles_user', 'Usuário')}</label>
             <select
               value={selectedUserId}
               onChange={(e) => setSelectedUserId(e.target.value)}
               className="bg-input border border-tableBorder rounded-[4px] px-[12px] py-[8px] text-[14px] outline-none"
             >
-              <option value="">Selecione...</option>
+              <option value="">{t('profiles_select', 'Selecione...')}</option>
               {availableUsers.map((u) => (
                 <option key={u.user.id} value={u.user.id}>
                   {u.user.email}
@@ -220,7 +231,7 @@ const ManageMembersModal: React.FC<{
             </select>
           </div>
           <div className="flex flex-col gap-[4px]">
-            <label className="text-[12px]">Role</label>
+            <label className="text-[12px]">{t('profiles_role', 'Papel')}</label>
             <select
               value={selectedRole}
               onChange={(e) => setSelectedRole(e.target.value)}
@@ -228,13 +239,13 @@ const ManageMembersModal: React.FC<{
             >
               {profileRoles.map((r) => (
                 <option key={r.value} value={r.value}>
-                  {r.name}
+                  {t(`profile_role_${r.value.toLowerCase()}`, r.name)}
                 </option>
               ))}
             </select>
           </div>
           <Button onClick={addMember} disabled={!selectedUserId}>
-            Adicionar
+            {t('profiles_add', 'Adicionar')}
           </Button>
         </div>
       )}
@@ -243,6 +254,7 @@ const ManageMembersModal: React.FC<{
 };
 
 export const ProfilesSettingsComponent = () => {
+  const t = useT();
   const fetch = useFetch();
   const user = useUser();
   const modals = useModals();
@@ -263,7 +275,7 @@ export const ProfilesSettingsComponent = () => {
       classNames: {
         modal: 'bg-transparent text-textColor',
       },
-      title: 'Criar Perfil',
+      title: t('profiles_create', 'Criar perfil'),
       withCloseButton: true,
       children: <CreateEditProfileModal onSaved={() => mutate()} />,
     });
@@ -275,7 +287,7 @@ export const ProfilesSettingsComponent = () => {
         classNames: {
           modal: 'bg-transparent text-textColor',
         },
-        title: 'Editar Perfil',
+        title: t('profiles_edit_title', 'Editar perfil'),
         withCloseButton: true,
         children: (
           <CreateEditProfileModal profile={profile} onSaved={() => mutate()} />
@@ -291,7 +303,7 @@ export const ProfilesSettingsComponent = () => {
         classNames: {
           modal: 'bg-transparent text-textColor',
         },
-        title: `Membros - ${profile.name}`,
+        title: t('profiles_members_title', 'Membros - {{name}}', { name: profile.name }),
         withCloseButton: true,
         size: 'lg',
         children: (
@@ -305,12 +317,18 @@ export const ProfilesSettingsComponent = () => {
   const deleteProfile = useCallback(
     (profile: Profile) => async () => {
       if (profile.isDefault) {
-        toast.show('Nao e possivel excluir o perfil padrao', 'warning');
+        toast.show(
+          t('profiles_cannot_delete_default', 'Não é possível excluir o perfil padrão'),
+          'warning'
+        );
         return;
       }
       if (
         !(await deleteDialog(
-          'Tem certeza que deseja excluir este perfil? Canais e automações serão desativados, e posts agendados ou em rascunho serão removidos. O histórico publicado será preservado.'
+          t(
+            'profiles_delete_confirm',
+            'Tem certeza que deseja excluir este perfil? Canais e automações serão desativados, e posts agendados ou em rascunho serão removidos. O histórico publicado será preservado.'
+          )
         ))
       ) {
         return;
@@ -321,13 +339,16 @@ export const ProfilesSettingsComponent = () => {
         });
         if (!res.ok) {
           const body = await res.json();
-          toast.show(body.message || 'Erro ao excluir perfil', 'warning');
+          toast.show(
+            body.message || t('profiles_delete_error', 'Erro ao excluir perfil'),
+            'warning'
+          );
           return;
         }
-        toast.show('Perfil excluido');
+        toast.show(t('profiles_deleted', 'Perfil excluído'));
         await mutate();
       } catch {
-        toast.show('Erro ao excluir perfil', 'warning');
+        toast.show(t('profiles_delete_error', 'Erro ao excluir perfil'), 'warning');
       }
     },
     [mutate]
@@ -337,9 +358,12 @@ export const ProfilesSettingsComponent = () => {
 
   return (
     <div className="flex flex-col">
-      <h3 className="text-[20px]">Perfis</h3>
+      <h3 className="text-[20px]">{t('profiles_title', 'Perfis')}</h3>
       <div className="text-customColor18 mt-[4px]">
-        Gerencie os perfis da sua organizacao. Cada perfil agrupa integracoes e conteudo separados.
+        {t(
+          'profiles_subtitle',
+          'Gerencie os perfis da sua organização. Cada perfil agrupa canais e conteúdo separados.'
+        )}
       </div>
       <div className="my-[16px] mt-[16px] bg-sixth border-fifth border rounded-[4px] p-[24px] flex flex-col gap-[24px]">
         <div className="flex flex-col gap-[16px]">
@@ -349,15 +373,15 @@ export const ProfilesSettingsComponent = () => {
                 <span className="font-[600]">{profile.name}</span>
                 {profile.isDefault && (
                   <span className="ml-[8px] text-[11px] bg-btnPrimary text-white px-[6px] py-[2px] rounded-[4px]">
-                    Default
+                    {t('profiles_default_badge', 'Padrão')}
                   </span>
                 )}
               </div>
               <div className="text-[12px] text-textItemBlur">
-                {profile._count.integrations} integracoes
+                {t('profiles_channels_count', '{{count}} canais', { count: profile._count.integrations })}
               </div>
               <div className="text-[12px] text-textItemBlur">
-                {profile.members.length} membros
+                {t('profiles_members_count', '{{count}} membros', { count: profile.members.length })}
               </div>
               <div className="flex gap-[8px]">
                 <Button
@@ -365,7 +389,7 @@ export const ProfilesSettingsComponent = () => {
                   onClick={openMembersModal(profile)}
                   secondary={true}
                 >
-                  Membros
+                  {t('profiles_members', 'Membros')}
                 </Button>
                 {isAdmin && (
                   <Button
@@ -373,7 +397,7 @@ export const ProfilesSettingsComponent = () => {
                     onClick={openEditModal(profile)}
                     secondary={true}
                   >
-                    Editar
+                    {t('profiles_edit', 'Editar')}
                   </Button>
                 )}
                 {isAdmin && !profile.isDefault && (
@@ -382,7 +406,7 @@ export const ProfilesSettingsComponent = () => {
                     onClick={deleteProfile(profile)}
                     secondary={true}
                   >
-                    Excluir
+                    {t('profiles_delete', 'Excluir')}
                   </Button>
                 )}
               </div>
@@ -391,7 +415,9 @@ export const ProfilesSettingsComponent = () => {
         </div>
         {isAdmin && (
           <div>
-            <Button onClick={openCreateModal}>Criar novo perfil</Button>
+            <Button onClick={openCreateModal}>
+              {t('profiles_create_new', 'Criar novo perfil')}
+            </Button>
           </div>
         )}
       </div>

@@ -13,7 +13,8 @@ export const NoProfileAssignedComponent: FC = () => {
   const t = useT();
   const logout = useCallback(async () => {
     await fetch('/user/logout', { method: 'POST' });
-    window.location.href = '/';
+    // direto para o login (a raiz sem sessao cai no cadastro)
+    window.location.href = '/auth/login';
   }, []);
 
   return (

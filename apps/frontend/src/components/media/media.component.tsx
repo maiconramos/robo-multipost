@@ -248,7 +248,10 @@ export const MediaBox: FC<{
   const mediaDirectory = useMediaDirectory();
   const [loading, setLoading] = useState(false);
   // Visualizador so le: sem enviar, importar ou excluir (o backend ja recusa)
-  const { canWrite } = useProfilePermissions();
+  // so esconde para quem e explicitamente Visualizador (papel ainda nao
+  // carregado nao conta)
+  const { isViewer } = useProfilePermissions();
+  const canWrite = !isViewer;
 
   const uppy = useUppyUploader({
     allowedFileTypes:

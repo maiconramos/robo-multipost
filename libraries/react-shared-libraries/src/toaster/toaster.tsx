@@ -112,6 +112,11 @@ export const Toaster = () => {
     </div>
   );
 };
+// fora de componentes (ex.: tratamento global de resposta no fetch)
+export const showToast = (text: string, type?: 'success' | 'warning') => {
+  toaster.emit('show', { text, type });
+};
+
 export const useToaster = () => {
   return {
     show: useCallback((text: string, type?: 'success' | 'warning') => {

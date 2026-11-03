@@ -2,6 +2,7 @@
 import { AutomationRequirementsContext } from './shared-requirements.component';
 import { useEffect, useId, useState, type ReactNode } from 'react';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 import {
   AutomationEditorFeedback,
   AutomationSaveAction,
@@ -29,6 +30,9 @@ export function AutomationWorkspace(
   const uid = useId();
   const nav = props.navigation;
   const mode = nav?.mode ?? 'quick';
+  // Visualizador: so le (salvar/ativar/pausar ficam desligados; o backend
+  // tambem recusa com PROFILE_READ_ONLY)
+  const { isViewer: viewOnly } = useProfilePermissions();
   const [historyError, setHistoryError] = useState<string | null>(null);
   useEffect(() => {
     if (mode !== 'history') setHistoryError(null);
@@ -77,6 +81,7 @@ export function AutomationWorkspace(
                 readOnly={mode === 'history'}
                 aria-readonly={mode === 'history'}
                 disabled={
+                  viewOnly ||
                   props.busy ||
                   nav?.switching ||
                   nav?.readOnly ||
@@ -99,8 +104,8 @@ export function AutomationWorkspace(
             </div>
             <AutomationStatusSwitch
               status={props.status}
-              busy={props.busy || !!nav?.switching}
-              valid={props.valid}
+              busy={props.busy || !!nav?.switching || viewOnly}
+              valid={props.valid && !viewOnly}
               pendingAction={nav?.switching ? undefined : props.pendingAction}
               onChange={(next) => {
                 if (mode === 'history' && next === 'ACTIVE' && props.dirty) {
@@ -110,13 +115,21 @@ export function AutomationWorkspace(
                 props.onStatusChange(next);
               }}
             />
-            {mode !== 'history' && (
+            {mode !== 'history' && !viewOnly && (
               <AutomationSaveAction
                 {...props}
                 valid={props.valid && !nav?.switching && !nav?.readOnly}
               />
             )}
           </div>
+          {viewOnly && (
+            <p role="status" className="text-xs text-newTextColor/60">
+              {t(
+                'automation_view_only',
+                'Acesso só de visualização: você pode ver esta automação, mas não alterá-la.'
+              )}
+            </p>
+          )}
           <AutomationEditorFeedback {...props} showProblems={false} />
           {mode === 'history' && props.dirty && (
             <p className="text-xs text-newTextColor/60">

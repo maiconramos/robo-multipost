@@ -28,7 +28,8 @@ export const LogoutComponent: FC<{ isIcon?: boolean }> = ({ isIcon }) => {
           method: 'POST',
         });
       }
-      window.location.href = '/';
+      // direto para o login (a raiz sem sessao cai no cadastro)
+      window.location.href = '/auth/login';
     }
   }, []);
   return (

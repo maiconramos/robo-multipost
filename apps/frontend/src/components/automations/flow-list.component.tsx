@@ -12,6 +12,8 @@ import { useToaster } from '@gitroom/react/toaster/toaster';
 import { NovaAutomacaoModal } from '@gitroom/frontend/components/automations/nova-automacao-modal.component';
 import { RepostListComponent } from '@gitroom/frontend/components/automations/repost/repost-list.component';
 import { PlatformIconBadge } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
+import { deleteDialog } from '@gitroom/react/helpers/delete.dialog';
 
 type FlowStatus = 'DRAFT' | 'ACTIVE' | 'PAUSED' | 'ARCHIVED';
 
@@ -89,6 +91,10 @@ export const FlowListComponent: FC = () => {
   const [busyId, setBusyId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [showNovaModal, setShowNovaModal] = useState(false);
+  // Visualizador so le: sem criar, pausar, editar ou excluir (o backend ja
+  // recusa com PROFILE_READ_ONLY)
+  const { isViewer } = useProfilePermissions();
+  const canWrite = !isViewer;
 
   const toggleFlow = useCallback(
     async (flow: FlowListItem) => {
@@ -119,6 +125,16 @@ export const FlowListComponent: FC = () => {
 
   const handleDelete = useCallback(
     async (id: string) => {
+      if (
+        !(await deleteDialog(
+          t(
+            'flow_delete_confirm',
+            'Tem certeza que deseja excluir esta automação?'
+          )
+        ))
+      ) {
+        return;
+      }
       try {
         const res = await fetchApi(`/flows/${id}`, { method: 'DELETE' });
         if (!res.ok) {
@@ -221,12 +237,14 @@ export const FlowListComponent: FC = () => {
           >
             {t('shared_logs', 'Log')}
           </button>
-          <button
-            onClick={() => setShowNovaModal(true)}
-            className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80"
-          >
-            {t('new_automation', 'Nova Automação')}
-          </button>
+          {canWrite && (
+            <button
+              onClick={() => setShowNovaModal(true)}
+              className="rounded-[4px] bg-btnPrimary px-[16px] py-[8px] text-[14px] text-white hover:opacity-80"
+            >
+              {t('new_automation', 'Nova Automação')}
+            </button>
+          )}
         </div>
       </div>
 
@@ -312,6 +330,7 @@ export const FlowListComponent: FC = () => {
                   flow={flow}
                   isLast={idx === rows.length - 1}
                   busy={busyId === flow.id}
+                  readOnly={!canWrite}
                   onToggle={() =>
                     flow.shared ? sharedAction(flow.shared) : toggleFlow(flow)
                   }
@@ -345,6 +364,7 @@ interface RowProps {
   flow: FlowListItem;
   isLast: boolean;
   busy?: boolean;
+  readOnly?: boolean;
   onToggle: () => void;
   onEdit: () => void;
   onDelete: () => void;
@@ -361,6 +381,7 @@ const FlowRow: FC<RowProps> = ({
   flow,
   isLast,
   busy,
+  readOnly,
   onToggle,
   onEdit,
   onDelete,
@@ -368,7 +389,7 @@ const FlowRow: FC<RowProps> = ({
   const t = useT();
   const isActive = flow.status === 'ACTIVE';
   const isToggleDisabled =
-    busy || flow.status === 'DRAFT' || flow.status === 'ARCHIVED';
+    readOnly || busy || flow.status === 'DRAFT' || flow.status === 'ARCHIVED';
   const execCount = flow.shared ? '—' : flow._count?.executions ?? 0;
   const integration = flow.integration;
   const summary = buildTriggerSummary(flow);
@@ -540,23 +561,27 @@ const FlowRow: FC<RowProps> = ({
             onClick={onEdit}
             className="inline-flex items-center gap-[6px] rounded-[4px] border border-newTableBorder bg-newBgColorInner px-[10px] py-[6px] text-[12px] text-textColor hover:bg-boxHover"
           >
-            {t('flow_action_edit', 'Editar')}
+            {readOnly
+              ? t('flow_action_view', 'Ver')
+              : t('flow_action_edit', 'Editar')}
           </button>
-          <button
-            type="button"
-            onClick={onDelete}
-            disabled={busy}
-            title={
-              flow.shared
+          {!readOnly && (
+            <button
+              type="button"
+              onClick={onDelete}
+              disabled={busy}
+              title={
+                flow.shared
+                  ? t('shared_archive')
+                  : t('flow_action_delete', 'Excluir')
+              }
+              className="inline-flex items-center gap-[6px] rounded-[4px] border border-[#ef4444]/50 bg-transparent px-[10px] py-[6px] text-[12px] text-[#ef4444] hover:bg-[#ef4444]/10"
+            >
+              {flow.shared
                 ? t('shared_archive')
-                : t('flow_action_delete', 'Excluir')
-            }
-            className="inline-flex items-center gap-[6px] rounded-[4px] border border-[#ef4444]/50 bg-transparent px-[10px] py-[6px] text-[12px] text-[#ef4444] hover:bg-[#ef4444]/10"
-          >
-            {flow.shared
-              ? t('shared_archive')
-              : t('flow_action_delete', 'Excluir')}
-          </button>
+                : t('flow_action_delete', 'Excluir')}
+            </button>
+          )}
         </div>
       </td>
     </tr>
