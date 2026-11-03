@@ -226,7 +226,14 @@ export function AutomationWorkspace(
                 ))}
               </ul>
             )}
-            {props.children}
+            {viewOnly ? (
+              // Visualizador: campos travados, nao so o Salvar escondido
+              <fieldset disabled className="contents">
+                {props.children}
+              </fieldset>
+            ) : (
+              props.children
+            )}
           </div>
           {mode === 'history' && (
             <div className="p-4 md:p-6 flex-1 min-w-0 overflow-y-auto">

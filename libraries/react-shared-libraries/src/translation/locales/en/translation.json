@@ -3028,5 +3028,8 @@
   "profiles_members": "Members",
   "profiles_edit": "Edit",
   "profiles_delete": "Delete",
-  "profiles_create_new": "Create new profile"
+  "profiles_create_new": "Create new profile",
+  "repost_view_only": "View-only access: you can see this rule but not change it.",
+  "profiles_channel_count_one": "1 channel",
+  "profiles_member_count_one": "1 member"
 }

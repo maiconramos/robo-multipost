@@ -11,6 +11,7 @@ import {
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useToaster } from '@gitroom/react/toaster/toaster';
+import { useProfilePermissions } from '@gitroom/frontend/hooks/use-profile-permissions';
 import {
   FORMAT_LABEL,
   GroupedDestination,
@@ -68,6 +69,8 @@ export const RepostRuleForm: FC<Props> = ({
   const t = useT();
   const fetchApi = useFetch();
   const toaster = useToaster();
+  // Visualizador so le a regra (o backend recusa com PROFILE_READ_ONLY)
+  const { isViewer } = useProfilePermissions();
   const { data: sourceCandidates, isLoading: loadingSources } =
     useRepostSourceCandidates();
 
@@ -146,6 +149,10 @@ export const RepostRuleForm: FC<Props> = ({
       });
       if (!res.ok) {
         const body = await res.json().catch(() => ({}));
+        // so leitura: o aviso traduzido ja e mostrado pelo fetch global
+        if (body?.code === 'PROFILE_READ_ONLY') {
+          return;
+        }
         toaster.show(
           body.message ||
             t('repost_save_failed', 'Falha ao salvar a regra de repost'),
@@ -214,6 +221,15 @@ export const RepostRuleForm: FC<Props> = ({
 
   return (
     <div className="flex flex-col gap-[20px]">
+      {isViewer && (
+        <p role="status" className="text-[13px] text-customColor18">
+          {t(
+            'repost_view_only',
+            'Acesso só de visualização: você pode ver esta regra, mas não alterá-la.'
+          )}
+        </p>
+      )}
+      <fieldset disabled={isViewer} className="contents">
       {/* Card superior: Fonte → Destinos */}
       <div className="rounded-[12px] border border-fifth bg-sixth/60 p-[24px]">
         <div className="flex flex-col lg:flex-row gap-[20px] items-stretch">
@@ -438,18 +454,21 @@ export const RepostRuleForm: FC<Props> = ({
                 {t('cancel', 'Cancelar')}
               </button>
             )}
-            <button
-              onClick={handleSubmit}
-              disabled={!canSave}
-              className="rounded-[6px] bg-btnPrimary px-[18px] py-[8px] text-[13px] text-white hover:opacity-80 disabled:opacity-50"
-            >
-              {saving
-                ? t('saving', 'Salvando...')
-                : t('save', 'Salvar')}
-            </button>
+            {!isViewer && (
+              <button
+                onClick={handleSubmit}
+                disabled={!canSave}
+                className="rounded-[6px] bg-btnPrimary px-[18px] py-[8px] text-[13px] text-white hover:opacity-80 disabled:opacity-50"
+              >
+                {saving
+                  ? t('saving', 'Salvando...')
+                  : t('save', 'Salvar')}
+              </button>
+            )}
           </div>
         </div>
       </div>
+      </fieldset>
     </div>
   );
 };

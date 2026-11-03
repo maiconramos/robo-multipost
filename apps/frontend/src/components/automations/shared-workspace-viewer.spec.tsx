@@ -35,7 +35,7 @@ describe('workspace da automacao - Visualizador', () => {
         onStatusChange={onStatusChange}
         navigation={{ mode: 'quick', onModeChange: vi.fn() }}
       >
-        <p>Formulario</p>
+        <input aria-label="Mensagem" defaultValue="oi" />
       </AutomationWorkspace>
     );
 
@@ -44,5 +44,9 @@ describe('workspace da automacao - Visualizador', () => {
     expect(screen.getByText('automation_view_only')).toBeTruthy();
     const toggle = screen.getByRole('switch');
     expect(toggle).toHaveProperty('disabled', true);
+    // campos do formulario tambem travados
+    expect(
+      (screen.getByRole('textbox', { name: 'Mensagem' }) as HTMLInputElement).matches(':disabled')
+    ).toBe(true);
   });
 });

@@ -378,10 +378,18 @@ export const ProfilesSettingsComponent = () => {
                 )}
               </div>
               <div className="text-[12px] text-textItemBlur">
-                {t('profiles_channels_count', '{{count}} canais', { count: profile._count.integrations })}
+                {profile._count.integrations === 1
+                  ? t('profiles_channel_count_one', '1 canal')
+                  : t('profiles_channels_count', '{{count}} canais', {
+                      count: profile._count.integrations,
+                    })}
               </div>
               <div className="text-[12px] text-textItemBlur">
-                {t('profiles_members_count', '{{count}} membros', { count: profile.members.length })}
+                {profile.members.length === 1
+                  ? t('profiles_member_count_one', '1 membro')
+                  : t('profiles_members_count', '{{count}} membros', {
+                      count: profile.members.length,
+                    })}
               </div>
               <div className="flex gap-[8px]">
                 <Button
