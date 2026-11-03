@@ -7,6 +7,12 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado — mídia e consultas pelo MCP
+
+- Agentes podem importar imagens e vídeos MP4 por URL HTTPS ou enviar vídeos locais de até 1 GiB em partes pelo MCP, com confirmação de offset, SHA-256 e gravação por streaming. Cliente programático permite retomar interrupções sem colocar os bytes no prompt da IA. Sessões privadas e temporárias ficam vinculadas à organização e ao perfil da conexão.
+- Arquivos pequenos usam base64 de até 2 MiB por chamada para respeitar o envelope MCP; imagens mantêm o limite total de 10 MiB e vídeos MP4 de 1 GiB. API e MCP compartilham validação do tipo real e limites; repetições da conclusão devolvem o mesmo recibo enquanto a sessão existir, e resultados incertos não são reenviados automaticamente.
+- Novas ferramentas consultam métricas de canais/publicações, notificações e organização/perfis acessíveis, sem expor chaves. Documentada a comparação com a API, incluindo as operações administrativas que continuam fora do MCP e os limites de upload.
+
 ### Corrigido — nome do log de automações
 
 - Botão de acesso aos comentários sem automação passa a se chamar “Log”. Rota, filtros e comportamento preservados.

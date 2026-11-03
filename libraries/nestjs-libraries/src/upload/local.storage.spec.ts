@@ -9,7 +9,10 @@ import { basename, join } from 'path';
 
 describe('LocalStorage.healthCheck', () => {
   it('resolve quando o diretorio e gravavel (garante o dir, sem escrever arquivo)', async () => {
-    const dir = join(tmpdir(), `robo-health-${process.pid}-${process.hrtime()[1]}`);
+    const dir = join(
+      tmpdir(),
+      `robo-health-${process.pid}-${process.hrtime()[1]}`
+    );
     const storage = new LocalStorage(dir);
 
     await expect(storage.healthCheck()).resolves.toBeUndefined();
@@ -73,10 +76,59 @@ describe('LocalStorage.removeFile', () => {
 });
 
 describe('LocalStorage.uploadFile', () => {
+  it('uploadFromFile rejeita symlink de origem', async () => {
+    const { mkdtemp, symlink, rm } = await import('fs/promises');
+    const dir = await mkdtemp(join(tmpdir(), 'robo-stream-link-'));
+    const source = join(dir, 'real');
+    writeFileSync(source, 'keep');
+    const link = join(dir, 'link');
+    await symlink(source, link);
+    try {
+      await expect(
+        new LocalStorage(join(dir, 'out')).uploadFromFile({
+          sourcePath: link,
+          filename: 'x.mp4',
+          mimeType: 'video/mp4',
+          size: 4,
+        })
+      ).rejects.toBeDefined();
+    } finally {
+      await rm(dir, { recursive: true, force: true });
+    }
+  });
+  it('copia arquivo grande de caminho interno sem buffer e preserva bytes', async () => {
+    const source = join(tmpdir(), `robo-stream-source-${process.pid}.mp4`);
+    const target = join(tmpdir(), `robo-stream-target-${process.pid}`);
+    const bytes = Buffer.from('video content');
+    const { readFile, rm } = await import('fs/promises');
+    writeFileSync(source, bytes);
+    const original = process.env.FRONTEND_URL;
+    process.env.FRONTEND_URL = 'https://app.local';
+    try {
+      const output = await new LocalStorage(target).uploadFromFile({
+        sourcePath: source,
+        filename: 'video.mp4',
+        mimeType: 'video/mp4',
+        size: bytes.length,
+      });
+      const path = output.path.replace('https://app.local/uploads', target);
+      expect(await readFile(path)).toEqual(bytes);
+      expect(output.originalname).toBe('video.mp4');
+      expect(JSON.stringify(output)).not.toContain(source);
+    } finally {
+      await rm(source, { force: true });
+      await rm(target, { recursive: true, force: true });
+      if (original === undefined) delete process.env.FRONTEND_URL;
+      else process.env.FRONTEND_URL = original;
+    }
+  });
   it('nomeia o arquivo com 32 hex de CSPRNG (unico controle de acesso em /uploads)', async () => {
     const ORIGINAL = process.env.FRONTEND_URL;
     process.env.FRONTEND_URL = 'https://app.local';
-    const dir = join(tmpdir(), `robo-upload-${process.pid}-${process.hrtime()[1]}`);
+    const dir = join(
+      tmpdir(),
+      `robo-upload-${process.pid}-${process.hrtime()[1]}`
+    );
     const storage = new LocalStorage(dir);
     const file = {
       originalname: 'foto.png',

@@ -14,6 +14,19 @@ import { GenerateVideoTool } from '@gitroom/nestjs-libraries/chat/tools/generate
 import { GenerateImageTool } from '@gitroom/nestjs-libraries/chat/tools/generate.image.tool';
 import { IntegrationListTool } from '@gitroom/nestjs-libraries/chat/tools/integration.list.tool';
 import { MediaListTool } from '@gitroom/nestjs-libraries/chat/tools/media.list.tool';
+import { UploadMediaTool, UploadMediaFromUrlTool } from './media.upload.tool';
+import {
+  BeginMediaUploadTool,
+  AppendMediaUploadTool,
+  CompleteMediaUploadTool,
+  GetMediaUploadTool,
+  AbortMediaUploadTool,
+} from './media.chunk-upload.tool';
+import {
+  GetAccountContextTool,
+  GetAnalyticsTool,
+  ListNotificationsTool,
+} from './operational.query.tool';
 import { KnowledgeQueryTool } from '@gitroom/nestjs-libraries/chat/tools/knowledge.query.tool';
 import { WebSearchTool } from '@gitroom/nestjs-libraries/chat/tools/web-search.tool';
 import { ExtractUrlsTool } from '@gitroom/nestjs-libraries/chat/tools/extract-urls.tool';
@@ -40,6 +53,16 @@ export const toolList = [
   GetPostOptionsTool,
   IntegrationListTool,
   MediaListTool,
+  UploadMediaTool,
+  UploadMediaFromUrlTool,
+  BeginMediaUploadTool,
+  AppendMediaUploadTool,
+  CompleteMediaUploadTool,
+  GetMediaUploadTool,
+  AbortMediaUploadTool,
+  GetAccountContextTool,
+  GetAnalyticsTool,
+  ListNotificationsTool,
   IntegrationValidationTool,
   IntegrationTriggerTool,
   IntegrationSchedulePostTool,

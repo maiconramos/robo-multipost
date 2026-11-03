@@ -1,5 +1,8 @@
 # Posts e agendamentos por API e MCP
 
+Para importar arquivos e consultar contexto, métricas e notificações, consulte
+[Mídia e consultas operacionais pelo MCP](mcp-media-parity.md).
+
 Gerenciamento de um destino existente, preservando ID, grupo, conta, comentários encadeados e vínculos com automações. Complementa [Automações por API e MCP](automations-agent-api.md). Publicar em Instagram e Facebook gera dois destinos: cada um tem seu ID e pode ter seu horário/automação.
 
 ## Autenticação e escopo

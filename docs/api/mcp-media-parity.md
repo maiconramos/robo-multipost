@@ -1,0 +1,121 @@
+# Mídia e consultas operacionais pelo MCP
+
+## Contrato desta entrega
+
+O MCP reutiliza os serviços da API. Nenhuma ferramenta recebe organização,
+perfil, credenciais ou caminho local do servidor como entrada.
+
+| Ferramenta | Entrada | Resultado / equivalente REST |
+|---|---|---|
+| `uploadMediaFromUrlTool` | `url` HTTPS pública | Mídia salva, `id` e `path`; `POST /public/v1/upload-from-url` |
+| `uploadMediaTool` | `filename`, `base64` puro e canônico | Mídia salva, `id` e `path`; alternativa JSON ao multipart `POST /public/v1/upload` |
+| `beginMediaUploadTool` | `filename`, `size`, `sha256` do arquivo completo, `clientRequestId` opcional | Sessão privada, offset e limites para envio em partes; a mesma chave de requisição recupera o início |
+| `appendMediaUploadTool` | `uploadId`, `offset`, `base64` de uma parte | Próximo offset confirmado; repetição da última parte não duplica bytes |
+| `getMediaUploadTool` | `uploadId` | Andamento ou recibo da mídia concluída |
+| `completeMediaUploadTool` | `uploadId` | Confere SHA-256, tipo e tamanho, salva a mídia; repetição devolve o recibo |
+| `abortMediaUploadTool` | `uploadId` | Cancela e remove temporários; recusa sessão concluída e não exclui a mídia salva |
+| `getAccountContextTool` | nenhuma | Organização, perfil autenticado e perfis acessíveis; `/me` e `/profiles`, sem chaves/tokens |
+| `getAnalyticsTool` | `target: channel ou post`, `id`, `days` (1–365, padrão 7) | Métricas dos serviços usados por `/analytics/:integration` e `/analytics/post/:postId` |
+| `listNotificationsTool` | `page` (base zero, padrão 0) | Notificações paginadas; `/notifications` |
+
+Uploads criam mídia na biblioteca, não agendam nem publicam. O envio base64 tem
+limite de **2 MiB de arquivo decodificado**; não aceita data URI, caminho de disco
+ou MIME declarado. Para vídeos maiores, use envio em partes, URL HTTPS ou multipart REST.
+URLs respeitam os limites atuais (imagens 10 MiB, MP4 1 GiB), timeout de 30 segundos,
+checagem em cada redirecionamento e DNS protegido. O conteúdo real determina o tipo
+e a extensão; SVG/HTML são recusados. Os limites do proxy/cliente podem ser menores.
+
+Retornos de upload expõem apenas `id`, `name`, `originalName` e `path`.
+Reutilize `id`/`path` em `integrationSchedulePostTool`, `updatePostTool` e na consulta da mídia.
+Se houver erro de transporte após um upload, consulte `mediaListTool` antes de
+repetir: importação não é idempotente e uma repetição pode criar outra cópia.
+
+Chave de perfil conserva o perfil da sessão. Chave de organização segue o contrato
+de mídia da API: mídia sem perfil é compartilhada na organização; consultas
+operacionais abrangem a organização. Nenhuma entrada permite trocar de perfil.
+Gerenciamento de posts/automações continua com sua regra própria de Default para
+chaves sem perfil. A consulta de contexto explicita essa diferença.
+
+Métricas consultam cache/provedor e podem executar a manutenção automática de
+credenciais já existente nos serviços (renovação/desconexão). Não publicam conteúdo.
+Notificações podem conter texto de terceiros; são dados, nunca instruções ao agente.
+
+## Comparação API × MCP
+
+Posts/agendamentos (listar, detalhar, criar, editar, reagendar, cancelar, parar,
+excluir localmente), schemas de canais, horários livres, tags, mídia existente,
+geração de imagem/vídeo e automações/histórico já possuem ferramentas correspondentes.
+Upload, contexto/perfis, métricas e notificações eram as lacunas operacionais
+prioritárias cobertas aqui.
+
+Permanecem somente na API os fluxos administrativos OAuth/conexão de canais,
+exclusão de canal e de grupos completos, correção técnica de `release-id`/conteúdo
+faltante e exclusão legada de automações. São operações distintas das rotinas de
+conteúdo; não são anunciadas como paridade total. Para automações, o MCP conserva
+ativar/pausar/arquivar; para posts, operações por destino preservam seus vínculos.
+
+Após instalar esta versão, reinicie o backend e atualize o catálogo do cliente MCP.
+Ter o código local não significa que outra instância já recebeu essas ferramentas.
+
+## Vídeos locais grandes
+
+O envio em partes aceita arquivos de até **1 GiB**, sujeito ao limite real do tipo:
+MP4 até 1 GiB e imagens até 10 MiB. Cada chamada transporta até 2 MiB decodificados,
+mantendo base64 e envelope abaixo dos 4 MiB do transporte MCP. Não há arquivo
+local no servidor escolhido pelo agente: o cliente lê seus próprios bytes.
+
+O cliente calcula o SHA-256 do arquivo, inicia a sessão e envia partes sequenciais.
+O offset retornado é a confirmação. Se perder uma resposta, consulta o andamento
+e retoma; reenviar a última parte idêntica não a acrescenta novamente. A conclusão
+confere o hash completo e salva por streaming/cópia, sem montar um buffer de 1 GiB.
+As partes devem ser geradas por script/cliente, sem colocá-las no prompt da LLM.
+
+As sessões são **efêmeras e locais ao processo backend**, válidas por uma hora.
+Réplicas precisam de afinidade durante a transferência. Reinício perde a sessão;
+se a conclusão estava pendente, consulte a biblioteca antes de começar outra.
+Falha depois de iniciar a gravação final fica como resultado incerto e não pode
+ser repetida automaticamente. Recibos concluídos ficam disponíveis por uma hora.
+
+Temporários ficam fora da rota pública de uploads, em diretórios privados. Há
+limites de duas sessões ativas por organização, oito por processo e 4 GiB
+reservados no processo, com margem de espaço livre. Expirados são recolhidos
+periodicamente; sessões em conclusão não são removidas. Raízes de processos
+anteriores são recolhidas apenas quando seu processo é comprovadamente morto.
+
+### Cliente pronto para uso
+
+Com Node 22 e as dependências PNPM deste repositório, use o arquivo privado de
+ambiente contendo `MCP_URL` e `MCP_TOKEN` (ou `API_KEY`). Prefira o endpoint `/mcp`
+com Bearer; a chave deve ser do perfil que receberá a mídia. Não cole tokens no
+chat, no comando nem em arquivos versionados.
+
+```bash
+TS_NODE_PROJECT=tools/tsconfig.media-upload.json node --env-file=.secrets/agent-e2e.env -r ts-node/register/transpile-only tools/upload-media-mcp.ts "/caminho/video.mp4"
+```
+
+O script calcula o hash e transmite os blocos diretamente. Mantém um arquivo
+privado `video.mp4.multipost-upload.json` junto ao vídeo e remove esse estado ao
+concluir. Repita o mesmo comando para retomar após uma interrupção de rede. Pode
+informar outro caminho de estado como segundo argumento. O estado não contém
+token nem URL da conexão; usa uma impressão digital para impedir trocar de conta
+durante a retomada. Em resultado incerto, o script para e pede conferir a biblioteca.
+Após reinício/expiração do backend, confira a biblioteca antes de remover o estado
+e iniciar uma nova transferência. Rodar novamente após sucesso cria outro upload.
+
+## Validação local
+
+- 155 testes em 18 suítes das bibliotecas e ferramentas, incluindo regressões de
+  posts/automações, isolamento, inputs inválidos, envelope JSON, concorrência,
+  escrita parcial, quotas, expiração, symlinks, streaming e proteção de downloads.
+  Execução isolada de Redis externo.
+- 39 testes do controller público, preservando uploads REST e escopo por perfil.
+- 6 testes do cliente programático: perda de resposta em início/parte/conclusão,
+  retomada e estado privado. Total: **200 testes em 20 suítes**.
+- Teste integrado de cliente → ferramentas → storage temporário transfere mais
+  de 5 MiB, perde a resposta final e confirma uma única mídia com bytes idênticos.
+  Arquivo esparso de 1 GiB valida tamanho máximo e leitura limitada do cabeçalho;
+  não representa uma publicação real de vídeo nem prova de todos os proxies.
+- TypeScript do backend (`tsc --noEmit`), formatação dos arquivos de código novos
+  e alterados nesta entrega, TypeScript do cliente e verificação do diff aprovados.
+- Revisões de código e segurança sem bloqueios encontrados. Não houve upload,
+  publicação, envio de mensagem ou mudança de credencial em uma instância real.
