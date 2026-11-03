@@ -1,8 +1,9 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { AgentToolInterface } from '../agent.tool.interface';
 import { ProfileService } from '../../database/prisma/profiles/profile.service';
 import { IntegrationService } from '../../database/prisma/integrations/integration.service';
+import { PostManagementService } from '../../database/prisma/posts/post-management.service';
 import { PostsService } from '../../database/prisma/posts/posts.service';
 import { NotificationService } from '../../database/prisma/notifications/notification.service';
 import { scopedAgentTool } from './scoped-agent-tool.helper';
@@ -15,7 +16,7 @@ export class GetAccountContextTool implements AgentToolInterface {
     return scopedAgentTool(
       this.profiles,
       this.name,
-      'Identifica organização, perfil autenticado e perfis acessíveis, sem chaves ou tokens. Chave de perfil mostra só o próprio; chave de organização mostra todos mas NÃO troca o contexto. Upload/consultas sem perfil são da organização; gerenciamento de posts e automações sem perfil resolve Default. Use conexão/chave do perfil correto antes de agir. Não retorna o usuário OAuth.',
+      'Identifica organização, perfil autenticado e perfis acessíveis, sem chaves ou tokens. Chave de perfil mostra só o próprio; chave de organização lista os perfis acessíveis. profileId é seleção validada por chamada, nunca troca a sessão. Listagens gerais abrangem a organização; criação, edição, upload e ações de cliente exigem perfil explícito em chave de organização, sem fallback Default. Não retorna o usuário OAuth.',
       z.object({}).strict(),
       async ({ organization, profileId }) => {
         const available = profileId
@@ -29,10 +30,14 @@ export class GetAccountContextTool implements AgentToolInterface {
           profile: profileId ? profiles[0] ?? null : null,
           profiles,
           mediaQueryScope: profileId ? 'profile' : 'organization',
-          postAutomationScope: profileId ? 'profile' : 'default',
+          postAutomationScope: profileId ? 'profile' : 'organization',
+          writeProfileRequired: !profileId,
         };
       },
-      true
+      true,
+      true,
+      false,
+      false
     );
   }
 }
@@ -42,7 +47,8 @@ export class GetAnalyticsTool implements AgentToolInterface {
   constructor(
     private readonly integrations: IntegrationService,
     private readonly posts: PostsService,
-    private readonly profiles: ProfileService
+    private readonly profiles: ProfileService,
+    private readonly management: PostManagementService
   ) {}
   name = 'getAnalyticsTool';
   run() {
@@ -57,8 +63,14 @@ export class GetAnalyticsTool implements AgentToolInterface {
           days: z.number().int().min(1).max(365).default(7),
         })
         .strict(),
-      async ({ organization, profileId }, input) =>
-        input.target === 'channel'
+      async ({ organization, profileId }, input) => {
+        if (!profileId) throw new HttpException('PROFILE_REQUIRED', 400);
+        await this.management.assertAnalyticsScope(
+          { organizationId: organization.id, profileId },
+          input.target,
+          input.id
+        );
+        return input.target === 'channel'
           ? this.integrations.checkAnalytics(
               organization,
               input.id,
@@ -72,7 +84,8 @@ export class GetAnalyticsTool implements AgentToolInterface {
               input.days,
               false,
               profileId
-            ),
+            );
+      },
       false
     );
   }

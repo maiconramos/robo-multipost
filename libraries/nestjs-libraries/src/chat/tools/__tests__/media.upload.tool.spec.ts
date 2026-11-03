@@ -73,14 +73,20 @@ describe('uploads MCP', () => {
       'YQ=='
     );
   });
-  it('chave de organizacao conserva midia compartilhada', async () => {
-    await tool(UploadMediaFromUrlTool).execute(
+  it('chave geral exige perfil explicito e nao salva midia compartilhada por acidente', async () => {
+    const result = await tool(UploadMediaFromUrlTool).execute(
       { url: 'https://cdn.example/x.png' },
+      context({ id: 'org' }, null)
+    );
+    expect(result.errors).toContain('PROFILE_REQUIRED');
+    expect(transfer.fromUrl).not.toHaveBeenCalled();
+    await tool(UploadMediaFromUrlTool).execute(
+      { url: 'https://cdn.example/x.png', profileId: 'p' },
       context({ id: 'org' }, null)
     );
     expect(transfer.fromUrl).toHaveBeenCalledWith(
       'org',
-      undefined,
+      'p',
       'https://cdn.example/x.png'
     );
   });

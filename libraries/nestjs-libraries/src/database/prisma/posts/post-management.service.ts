@@ -1,3 +1,4 @@
+import { parseFragment } from 'parse5';
 import { Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import {
@@ -23,8 +24,14 @@ import { isAllowedMediaPath, isRemoteMediaPath } from './media.path.guard';
 import { checkPublicHttpsUrl } from '../../../dtos/validators/is-public-https-url.validator';
 import { socialIntegrationList } from '../../../integrations/integration.manager';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
-import { countPostContent, countLengthUnit } from '@gitroom/helpers/utils/count.length';
-import { coerceJsonSettingValue, stringKeysOf } from '../../../chat/tools/settings.value.coercion';
+import {
+  countPostContent,
+  countLengthUnit,
+} from '@gitroom/helpers/utils/count.length';
+import {
+  coerceJsonSettingValue,
+  stringKeysOf,
+} from '../../../chat/tools/settings.value.coercion';
 
 function parse<T>(schema: z.ZodType<T>, raw: unknown): T {
   const result = schema.safeParse(raw);
@@ -81,7 +88,7 @@ export class PostManagementService {
       concurrency:
         'expectedVersion from detail; includes full message chain and tags',
       scope:
-        'one destination, authenticated profile; omitted org profile resolves Default',
+        'one destination validated against organization/profile; REST legacy without profile resolves Default; MCP organization credential must select profile per client operation, with a separate organization-wide read list',
       messages:
         'Full chain when provided. Root ID and existing child IDs are retained. New children omit id.',
       settings:
@@ -120,6 +127,8 @@ export class PostManagementService {
       deleted: !!root.deletedAt,
       version: snapshot.version,
       state: root.state,
+      profile: root.profile || null,
+      profileId: root.profileId,
       integrationId: root.integrationId,
       integration: {
         id: root.integration.id,
@@ -157,11 +166,36 @@ export class PostManagementService {
     const q = parse(managedPostListSchema, raw);
     if (q.startDate && q.endDate && new Date(q.startDate) > new Date(q.endDate))
       postError('INVALID_POST_DATE_RANGE');
+    if (q.integrationId && !(await this.repo.channel(scope, q.integrationId)))
+      postError('CHANNEL_NOT_FOUND', 404);
     if (q.cursor) await this.repo.detail(scope, q.cursor);
     const result = await this.repo.list(scope, q);
+    return this.projectList(result);
+  }
+  async listOrganization(organizationId: string, raw: unknown) {
+    if (!organizationId) postError('ORGANIZATION_REQUIRED', 401);
+    const q = parse(managedPostListSchema, raw);
+    if (q.startDate && q.endDate && new Date(q.startDate) > new Date(q.endDate))
+      postError('INVALID_POST_DATE_RANGE');
+    if (q.integrationId)
+      await this.repo.assertOrganizationChannel(
+        organizationId,
+        q.integrationId
+      );
+    if (q.cursor)
+      await this.repo.assertOrganizationCursor(organizationId, q.cursor, q);
+    return this.projectList(
+      await this.repo.listOrganization(organizationId, q)
+    );
+  }
+  private projectList(
+    result: Awaited<ReturnType<PostManagementRepository['list']>>
+  ) {
     return {
       posts: result.rows.map((row) => ({
         id: row.id,
+        profile: row.profile || null,
+        profileId: row.profileId,
         state: row.state,
         date: row.publishDate.toISOString(),
         content: row.content,
@@ -193,6 +227,54 @@ export class PostManagementService {
       ),
     };
   }
+  async assertAnalyticsScope(
+    scope: PostScope,
+    target: 'channel' | 'post',
+    id: string
+  ) {
+    if (target === 'channel') {
+      if (!(await this.repo.channel(scope, id)))
+        postError('CHANNEL_NOT_FOUND', 404);
+    } else await this.repo.detail(scope, id);
+  }
+  async assertMediaScope(
+    scope: PostScope,
+    media: Array<{ id?: string; path?: string; thumbnail?: string }>,
+    settings: Record<string, unknown>,
+    contents: string[] = []
+  ) {
+    const refs: Array<{ id?: string; path?: string }> = [];
+    const queue: unknown[] = [media, settings];
+    let inspected = 0;
+    while (queue.length) {
+      if (++inspected > 50000) postError('POST_MEDIA_REFERENCES_LIMIT');
+      const value = queue.pop();
+      if (
+        typeof value === 'string' &&
+        (/^https?:\/\//.test(value) || value.startsWith('/'))
+      )
+        refs.push({ path: value });
+      else if (Array.isArray(value)) queue.push(...value);
+      else if (value && typeof value === 'object') {
+        const item = value as Record<string, unknown>;
+        if (typeof item.id === 'string' && typeof item.path === 'string')
+          refs.push({ id: item.id, path: item.path });
+        queue.push(...Object.values(item));
+      }
+    }
+    const nodes: any[] = contents.map((content) => parseFragment(content));
+    while (nodes.length) {
+      const node = nodes.pop();
+      if (node.nodeName === 'img') {
+        const path = node.attrs?.find(
+          (a: { name: string }) => a.name === 'src'
+        )?.value;
+        if (path) refs.push({ path });
+      }
+      if (node.childNodes) nodes.push(...node.childNodes);
+    }
+    await this.repo.assertMediaScope(scope, refs);
+  }
   private current(
     snapshot: ManagedPostSnapshot,
     expected: string,
@@ -210,7 +292,9 @@ export class PostManagementService {
     const root = old.rows[0];
     const oldSettings = object(root.settings);
     const settings = { ...oldSettings };
-    const provider = socialIntegrationList.find(p => p.identifier === root.integration.providerIdentifier);
+    const provider = socialIntegrationList.find(
+      (p) => p.identifier === root.integration.providerIdentifier
+    );
     if (!provider) postError('UNSUPPORTED_PROVIDER');
     const stringKeys = stringKeysOf(provider.dto);
     const seen = new Set<string>();
@@ -223,7 +307,11 @@ export class PostManagementService {
       )
         postError('POST_SETTING_KEY_INVALID');
       seen.add(field.key);
-      settings[field.key] = coerceJsonSettingValue(stringKeys, field.key, field.value);
+      settings[field.key] = coerceJsonSettingValue(
+        stringKeys,
+        field.key,
+        field.value
+      );
     }
     for (const key of patch.removeSettingKeys || []) {
       if (
@@ -246,6 +334,13 @@ export class PostManagementService {
         )
           postError('POST_MEDIA_PATH_INVALID');
       }
+    if (patch.messages || patch.settings)
+      await this.assertMediaScope(
+        scope,
+        patch.messages?.flatMap((m) => m.media) || [],
+        settings,
+        patch.messages?.map((m) => m.content) || []
+      );
     const contents = patch.shortLink
       ? await this.shortLinks.convertTextToShortLinks(
           scope.organizationId,
@@ -283,9 +378,24 @@ export class PostManagementService {
       /* Missing legacy metadata uses the regular provider limit. */
     }
     for (const [index, message] of value.value.entries()) {
-      const length = countPostContent(provider.identifier, message.content, value.settings, index);
-      if (length > (provider.maxLength(verified, index === 0 ? value.settings : undefined) || 1000000))
-        postError(countLengthUnit(provider.identifier) === 'bytes' ? 'POST_CONTENT_TOO_LONG_BYTES' : 'POST_CONTENT_TOO_LONG');
+      const length = countPostContent(
+        provider.identifier,
+        message.content,
+        value.settings,
+        index
+      );
+      if (
+        length >
+        (provider.maxLength(
+          verified,
+          index === 0 ? value.settings : undefined
+        ) || 1000000)
+      )
+        postError(
+          countLengthUnit(provider.identifier) === 'bytes'
+            ? 'POST_CONTENT_TOO_LONG_BYTES'
+            : 'POST_CONTENT_TOO_LONG'
+        );
     }
     return {
       ...(patch.date ? { date: patch.date } : {}),

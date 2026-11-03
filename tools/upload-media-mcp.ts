@@ -30,6 +30,7 @@ type ResumeState = {
   fileHash: string;
   size: number;
   endpointFingerprint: string;
+  profileId?: string;
   clientRequestId: string;
   uploadId?: string;
 };
@@ -127,8 +128,17 @@ export async function transferLocalMedia(
   filePath: string,
   statePath: string,
   endpointFingerprint: string,
-  delay = sleep
+  delay = sleep,
+  profileId?: string
 ): Promise<Receipt> {
+  const connectionClient = client;
+  client = {
+    callTool: (input) =>
+      connectionClient.callTool({
+        ...input,
+        arguments: { ...input.arguments, ...(profileId ? { profileId } : {}) },
+      }),
+  };
   const info = await stat(filePath);
   if (!info.isFile() || info.size < 1 || info.size > 1024 ** 3)
     return failure('INVALID_FILE', 'Escolha um arquivo de até 1 GiB.');
@@ -161,6 +171,7 @@ export async function transferLocalMedia(
       state.fileHash !== fileHash ||
       state.size !== info.size ||
       state.endpointFingerprint !== endpointFingerprint ||
+      state.profileId !== profileId ||
       !/^[a-f0-9]{64}$/.test(state.clientRequestId) ||
       (state.uploadId && !/^[a-f0-9]{64}$/.test(state.uploadId))
     )
@@ -174,6 +185,7 @@ export async function transferLocalMedia(
       fileHash,
       size: info.size,
       endpointFingerprint,
+      profileId,
       clientRequestId: randomBytes(32).toString('hex'),
     };
     await saveState(statePath, state);
@@ -304,7 +316,14 @@ export async function transferLocalMedia(
 }
 
 async function main(): Promise<void> {
-  const file = process.argv[2];
+  const args = process.argv.slice(2);
+  const selector = args.indexOf('--profile');
+  const profileId =
+    selector >= 0 ? args[selector + 1] : process.env.MCP_PROFILE_ID;
+  if (selector >= 0 && (!profileId || profileId.startsWith('--')))
+    failure('PROFILE_REQUIRED', 'Informe o ID do perfil depois de --profile.');
+  if (selector >= 0) args.splice(selector, 2);
+  const file = args[0];
   const url = process.env.MCP_URL;
   const token = process.env.MCP_TOKEN || process.env.API_KEY;
   if (!file || !url || !token)
@@ -350,8 +369,10 @@ async function main(): Promise<void> {
     const result = await transferLocalMedia(
       adapter,
       file,
-      process.argv[3] || `${file}.multipost-upload.json`,
-      fingerprint
+      args[1] || `${file}.multipost-upload.json`,
+      fingerprint,
+      sleep,
+      profileId
     );
     console.log(JSON.stringify({ media: result }));
   } finally {

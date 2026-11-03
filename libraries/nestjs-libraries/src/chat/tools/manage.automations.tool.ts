@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { AgentToolInterface } from '../agent.tool.interface';
 import { AutomationManagementService } from '../../integrations/automations/automation-management.service';
@@ -71,7 +71,12 @@ export class GetAutomationOptionsTool implements AgentToolInterface {
       this.name,
       'Descobre capacidades/campos, contas, publicações, Stories, agendados internos, prontidão e ID de Dark Post Facebook por URL/ID. Consulta não ativa nem envia mensagens. Nenhum token é retornado. resource=capabilities não exige integrationId; os demais recursos de canal exigem o ID.',
       automationOptionsSchema,
-      (scope, i) => this.service.options(scope, i)
+      (scope, i) => this.service.options(scope, i),
+      (_org, i) => {
+        if (i.resource !== 'capabilities')
+          throw new HttpException('PROFILE_REQUIRED', 400);
+        return this.service.capabilities();
+      }
     );
   }
 }

@@ -3,7 +3,7 @@
 ## Contrato desta entrega
 
 O MCP reutiliza os serviços da API. Nenhuma ferramenta recebe organização,
-perfil, credenciais ou caminho local do servidor como entrada.
+credenciais ou caminho local do servidor como entrada. `profileId` é um seletor validado, conforme [Perfis de clientes no MCP](mcp-profile-isolation.md).
 
 | Ferramenta | Entrada | Resultado / equivalente REST |
 |---|---|---|
@@ -30,11 +30,7 @@ Reutilize `id`/`path` em `integrationSchedulePostTool`, `updatePostTool` e na co
 Se houver erro de transporte após um upload, consulte `mediaListTool` antes de
 repetir: importação não é idempotente e uma repetição pode criar outra cópia.
 
-Chave de perfil conserva o perfil da sessão. Chave de organização segue o contrato
-de mídia da API: mídia sem perfil é compartilhada na organização; consultas
-operacionais abrangem a organização. Nenhuma entrada permite trocar de perfil.
-Gerenciamento de posts/automações continua com sua regra própria de Default para
-chaves sem perfil. A consulta de contexto explicita essa diferença.
+Chave de perfil conserva o vínculo autenticado. Uma chave de organização pode selecionar `profileId` por chamada, validado contra a organização e os recursos. Novos uploads MCP exigem perfil explícito em chave geral; consultas de mídia sem seletor abrangem a organização e identificam o perfil de cada arquivo. Mídia legada compartilhada sem perfil continua consultável. Operações de cliente não usam Default implicitamente. A consulta de contexto não troca a sessão.
 
 Métricas consultam cache/provedor e podem executar a manutenção automática de
 credenciais já existente nos serviços (renovação/desconexão). Não publicam conteúdo.
@@ -86,11 +82,11 @@ anteriores são recolhidas apenas quando seu processo é comprovadamente morto.
 
 Com Node 22 e as dependências PNPM deste repositório, use o arquivo privado de
 ambiente contendo `MCP_URL` e `MCP_TOKEN` (ou `API_KEY`). Prefira o endpoint `/mcp`
-com Bearer; a chave deve ser do perfil que receberá a mídia. Não cole tokens no
+com Bearer; use chave de perfil ou selecione o destino com `--profile ID` (alternativa: `MCP_PROFILE_ID`) ao usar uma chave de organização. Não cole tokens no
 chat, no comando nem em arquivos versionados.
 
 ```bash
-TS_NODE_PROJECT=tools/tsconfig.media-upload.json node --env-file=.secrets/agent-e2e.env -r ts-node/register/transpile-only tools/upload-media-mcp.ts "/caminho/video.mp4"
+TS_NODE_PROJECT=tools/tsconfig.media-upload.json node --env-file=.secrets/agent-e2e.env -r ts-node/register/transpile-only tools/upload-media-mcp.ts "/caminho/video.mp4" --profile "ID_DO_CLIENTE"
 ```
 
 O script calcula o hash e transmite os blocos diretamente. Mantém um arquivo

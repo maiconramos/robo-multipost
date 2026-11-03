@@ -11,6 +11,7 @@ import {
 import { FlowsService } from '../../database/prisma/flows/flows.service';
 import { SharedFlowsService } from '../../database/prisma/flows-v2/shared-flows.service';
 import { ScheduledPostsService } from '../../database/prisma/scheduled-automations/scheduled-posts.service';
+import { IntegrationService } from '../../database/prisma/integrations/integration.service';
 import { ProfileService } from '../../database/prisma/profiles/profile.service';
 import { RepostService } from '../../database/prisma/repost/repost.service';
 import {
@@ -65,7 +66,8 @@ export class AutomationManagementService {
     private readonly scheduled: ScheduledPostsService,
     private readonly profiles: ProfileService,
     private readonly repostService: RepostService,
-    private readonly executionHistoryService: AutomationHistoryService
+    private readonly executionHistoryService: AutomationHistoryService,
+    private readonly integrations: IntegrationService
   ) {}
   async scope(organizationId: string, profileId?: string): Promise<FlowScope> {
     if (!organizationId) failAutomation('ORGANIZATION_REQUIRED', 401);
@@ -371,9 +373,44 @@ export class AutomationManagementService {
       };
     }
   }
+  private async assertChannelOwners(scope: FlowScope, ids: string[]) {
+    for (const id of new Set(ids)) {
+      const channel = await this.integrations.getIntegrationById(
+        scope.organizationId,
+        id
+      );
+      if (
+        !channel ||
+        channel.deletedAt ||
+        channel.profileId !== scope.profileId
+      )
+        failAutomation('CHANNEL_NOT_FOUND', 404);
+    }
+  }
+  private async assertOwnership(scope: FlowScope, id: string, version: number) {
+    if (version === 2) {
+      const flow = await this.shared.get(scope, id);
+      await this.assertChannelOwners(
+        scope,
+        flow.channels.map((c) => c.integrationId)
+      );
+    } else if (version === 1) {
+      const flow = await this.flows.getFlow(
+        scope.organizationId,
+        id,
+        scope.profileId
+      );
+      if (!flow) failAutomation('FLOW_NOT_FOUND', 404);
+      await this.assertChannelOwners(scope, [flow.integrationId]);
+    } else failAutomation('INVALID_EXECUTION_VERSION');
+  }
   async detail(scope: FlowScope, id: string, version: number) {
     if (version === 2) {
       const flow = await this.shared.get(scope, id);
+      await this.assertChannelOwners(
+        scope,
+        flow.channels.map((c) => c.integrationId)
+      );
       const config = this.sharedConfiguration(flow);
       return { ...flow, quickEditable: !!config, configuration: config };
     }
@@ -384,6 +421,7 @@ export class AutomationManagementService {
       scope.profileId
     );
     if (!flow) failAutomation('FLOW_NOT_FOUND', 404);
+    await this.assertChannelOwners(scope, [flow.integrationId]);
     const aliases = await this.flows.listAliases(scope.organizationId, id);
     let config: AutomationConfiguration | null = null;
     try {
@@ -569,6 +607,18 @@ export class AutomationManagementService {
     return this.detail(scope, id, version);
   }
   async list(scope: FlowScope, version?: number, integrationId?: string) {
+    if (integrationId) {
+      const channel = await this.integrations.getIntegrationById(
+        scope.organizationId,
+        integrationId
+      );
+      if (
+        !channel ||
+        channel.deletedAt ||
+        channel.profileId !== scope.profileId
+      )
+        failAutomation('CHANNEL_NOT_FOUND', 404);
+    }
     const result: Array<Record<string, unknown>> = [];
     if (!version || version === 1)
       for (const f of await this.flows.getFlows(
@@ -603,6 +653,39 @@ export class AutomationManagementService {
           });
     return result;
   }
+  async listOrganization(
+    organizationId: string,
+    version?: number,
+    integrationId?: string
+  ) {
+    if (!organizationId) failAutomation('ORGANIZATION_REQUIRED', 401);
+    const profiles = await this.profiles.getProfilesByOrgId(organizationId);
+    const results: Array<Record<string, unknown>> = [];
+    const channel = integrationId
+      ? await this.integrations.getIntegrationById(
+          organizationId,
+          integrationId
+        )
+      : null;
+    if (
+      integrationId &&
+      (!channel ||
+        channel.deletedAt ||
+        !profiles.some((p) => p.id === channel.profileId))
+    )
+      failAutomation('CHANNEL_NOT_FOUND', 404);
+    for (const profile of profiles) {
+      const scope = { organizationId, profileId: profile.id };
+      if (channel && channel.profileId !== profile.id) continue;
+      for (const flow of await this.list(scope, version, integrationId))
+        results.push({
+          ...flow,
+          profile: { id: profile.id, name: profile.name },
+          profileId: profile.id,
+        });
+    }
+    return results;
+  }
   async status(
     scope: FlowScope,
     id: string,
@@ -615,6 +698,7 @@ export class AutomationManagementService {
     if (version === 2) {
       if (status === 'DRAFT') failAutomation('V2_STATUS_UNSUPPORTED');
       if (!expectedRevision) failAutomation('REVISION_REQUIRED');
+      await this.assertOwnership(scope, id, version);
       return this.shared.status(
         scope,
         id,
@@ -708,6 +792,7 @@ export class AutomationManagementService {
     const engine = this.historyEngine(version);
     const parsed = automationHistoryQuerySchema.safeParse(query);
     if (!parsed.success) failAutomation('INVALID_HISTORY_QUERY');
+    await this.assertOwnership(scope, id, version);
     return this.executionHistoryService.list(scope, engine, id, parsed.data);
   }
   async executionDetail(
@@ -716,12 +801,9 @@ export class AutomationManagementService {
     version: number,
     executionId: string
   ) {
-    return this.executionHistoryService.detail(
-      scope,
-      this.historyEngine(version),
-      id,
-      executionId
-    );
+    const engine = this.historyEngine(version);
+    await this.assertOwnership(scope, id, version);
+    return this.executionHistoryService.detail(scope, engine, id, executionId);
   }
   async history(
     scope: FlowScope,
@@ -752,6 +834,7 @@ export class AutomationManagementService {
       scope.profileId
     );
     if (!flow) failAutomation('FLOW_NOT_FOUND', 404);
+    await this.assertChannelOwners(scope, [flow.integrationId]);
     const q = parsed.data;
     const current = await this.flows.listAliases(scope.organizationId, id);
     if (q.operation === 'list')

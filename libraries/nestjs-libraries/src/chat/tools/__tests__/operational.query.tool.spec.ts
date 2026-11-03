@@ -1,3 +1,6 @@
+jest.mock('../../../database/prisma/posts/post-management.service', () => ({
+  PostManagementService: class {},
+}));
 jest.mock('../../../database/prisma/profiles/profile.service', () => ({
   ProfileService: class {},
 }));
@@ -11,6 +14,8 @@ jest.mock(
   '../../../database/prisma/notifications/notification.service',
   () => ({ NotificationService: class {} })
 );
+import { HttpException } from '@nestjs/common';
+import { PostManagementService } from '../../../database/prisma/posts/post-management.service';
 import { createMock } from '../../../test';
 import { ProfileService } from '../../../database/prisma/profiles/profile.service';
 import { IntegrationService } from '../../../database/prisma/integrations/integration.service';
@@ -33,11 +38,13 @@ const context = (profileId?: string) => ({
 });
 describe('consultas operacionais MCP em paridade com REST', () => {
   const profiles = createMock<ProfileService>();
+  const management = createMock<PostManagementService>();
   const integrations = createMock<IntegrationService>();
   const posts = createMock<PostsService>();
   const notifications = createMock<NotificationService>();
   beforeEach(() => {
     jest.clearAllMocks();
+    management.assertAnalyticsScope.mockResolvedValue(undefined);
     profiles.getProfileById.mockResolvedValue({
       id: 'p',
       name: 'Perfil',
@@ -75,11 +82,17 @@ describe('consultas operacionais MCP em paridade com REST', () => {
     ).execute({}, context());
     expect(result.output.profile).toBeNull();
     expect(result.output.profiles).toHaveLength(2);
-    expect(result.output.postAutomationScope).toBe('default');
+    expect(result.output.postAutomationScope).toBe('organization');
+    expect(result.output.writeProfileRequired).toBe(true);
     expect(JSON.stringify(result)).not.toContain('SECRET');
   });
   it('consulta metricas de canal e post com escopo e dias validados', async () => {
-    const tool: any = new GetAnalyticsTool(integrations, posts, profiles).run();
+    const tool: any = new GetAnalyticsTool(
+      integrations,
+      posts,
+      profiles,
+      management
+    ).run();
     await tool.execute({ target: 'channel', id: 'ig', days: 30 }, context('p'));
     expect(integrations.checkAnalytics).toHaveBeenCalledWith(
       expect.objectContaining({ id: 'org' }),
@@ -106,7 +119,12 @@ describe('consultas operacionais MCP em paridade com REST', () => {
     'rejeita filtro invalido ou perfil fornecido pelo modelo',
     async (input) => {
       const result = await (
-        new GetAnalyticsTool(integrations, posts, profiles).run() as any
+        new GetAnalyticsTool(
+          integrations,
+          posts,
+          profiles,
+          management
+        ).run() as any
       ).execute(input, context('p'));
       expect(result.errors || result.error).toBeDefined();
       expect(posts.checkPostAnalytics).not.toHaveBeenCalled();
@@ -138,5 +156,36 @@ describe('consultas operacionais MCP em paridade com REST', () => {
     expect(result.errors).toContain('ORGANIZATION_REQUIRED');
     expect(profiles.getProfileById).not.toHaveBeenCalled();
     expect(profiles.getProfilesByOrgId).not.toHaveBeenCalled();
+  });
+  it('metricas de alvo incompatível retornam erro sem consultar provider', async () => {
+    management.assertAnalyticsScope.mockRejectedValueOnce(
+      new HttpException('CHANNEL_NOT_FOUND', 404)
+    );
+    const tool: any = new GetAnalyticsTool(
+      integrations,
+      posts,
+      profiles,
+      management
+    ).run();
+    const r = await tool.execute(
+      { target: 'channel', id: 'outro-cliente' },
+      context('p')
+    );
+    expect(r.errors).toContain('CHANNEL_NOT_FOUND');
+    expect(management.assertAnalyticsScope).toHaveBeenCalledWith(
+      { organizationId: 'org', profileId: 'p' },
+      'channel',
+      'outro-cliente'
+    );
+    expect(integrations.checkAnalytics).not.toHaveBeenCalled();
+    management.assertAnalyticsScope.mockRejectedValueOnce(
+      new HttpException('POST_NOT_FOUND', 404)
+    );
+    const post = await tool.execute(
+      { target: 'post', id: 'legado-sem-perfil' },
+      context('p')
+    );
+    expect(post.errors).toContain('POST_NOT_FOUND');
+    expect(posts.checkPostAnalytics).not.toHaveBeenCalled();
   });
 });

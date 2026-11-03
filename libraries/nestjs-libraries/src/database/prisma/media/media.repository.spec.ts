@@ -90,8 +90,20 @@ describe('MediaRepository', () => {
       ]);
 
       expect(result).toEqual([
-        { id: 'm-1', name: 'a.png', path: 'p1', thumbnail: null, usedAsAvatar: false },
-        { id: 'm-2', name: 'b.png', path: 'p2', thumbnail: null, usedAsAvatar: true },
+        {
+          id: 'm-1',
+          name: 'a.png',
+          path: 'p1',
+          thumbnail: null,
+          usedAsAvatar: false,
+        },
+        {
+          id: 'm-2',
+          name: 'b.png',
+          path: 'p2',
+          thumbnail: null,
+          usedAsAvatar: true,
+        },
       ]);
     });
   });
@@ -128,10 +140,24 @@ describe('MediaRepository', () => {
         originalName: { contains: 'Logo', mode: 'insensitive' },
       });
       expect(args.select.createdAt).toBe(true);
-      expect((mediaMock.model.media as any).count.mock.calls[0][0].where.originalName).toEqual({
+      expect(
+        (mediaMock.model.media as any).count.mock.calls[0][0].where.originalName
+      ).toEqual({
         contains: 'Logo',
         mode: 'insensitive',
       });
+    });
+  });
+  it('identifica cliente da midia sem incluir credenciais', async () => {
+    const { repository, mediaMock } = buildRepository();
+    (mediaMock.model.media as any).count.mockResolvedValue(0);
+    (mediaMock.model.media as any).findMany.mockResolvedValue([]);
+    await repository.getMedia('org', 1);
+    expect(
+      (mediaMock.model.media as any).findMany.mock.calls[0][0].select
+    ).toMatchObject({
+      profileId: true,
+      profile: { select: { id: true, name: true } },
     });
   });
 });

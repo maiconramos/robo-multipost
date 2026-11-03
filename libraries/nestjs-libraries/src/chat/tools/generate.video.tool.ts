@@ -1,3 +1,8 @@
+import { ProfileService } from '../../database/prisma/profiles/profile.service';
+import {
+  agentProfileSelector,
+  resolveAgentProfile,
+} from './agent-profile-scope';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
@@ -8,7 +13,10 @@ import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.co
 
 @Injectable()
 export class GenerateVideoTool implements AgentToolInterface {
-  constructor(private _mediaService: MediaService) {}
+  constructor(
+    private _mediaService: MediaService,
+    private readonly profiles: ProfileService
+  ) {}
   name = 'generateVideoTool';
 
   run() {
@@ -33,6 +41,7 @@ Pick based on the target platform; ask the user when ambiguous.
 
 Note: video generation is slow (can take up to ~10 minutes due to provider polling). Inform the user of the wait when calling this tool.`,
       inputSchema: z.object({
+        profileId: agentProfileSelector,
         prompt: z
           .string()
           .min(3)
@@ -71,9 +80,12 @@ Note: video generation is slow (can take up to ~10 minutes due to provider polli
       }),
       execute: async (input: any, options: any) => {
         checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const org = JSON.parse(requestContext.get('organization') as string);
-        const profileId = requestContext.get('profileId') as string | undefined;
+        const { organization: org, profileId } = await resolveAgentProfile(
+          this.profiles,
+          options,
+          input.profileId,
+          true
+        );
 
         try {
           return await this._mediaService.generateAiVideo(
