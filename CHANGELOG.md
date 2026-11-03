@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — tamanho de mídia baixada pelos canais
+
+- A mídia que os canais baixam para publicar tem teto de tamanho (1 GB, o mesmo do upload), e o vídeo do Bluesky tem teto de 100 MB (limite do próprio Bluesky) e prazo de download. Antes, um link de mídia muito grande podia encher a memória do servidor.
+
 ### Melhoria — Visualizador na biblioteca de mídia
 
 - Quem tem acesso só de visualização não vê mais os botões de enviar, importar e excluir mídia (o servidor já recusava essas ações).

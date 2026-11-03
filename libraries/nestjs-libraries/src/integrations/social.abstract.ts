@@ -25,6 +25,9 @@ const MAX_FAILURE_FIELD = 4_000;
 // so e atingido por uma transferencia travada depois dos headers (upstream
 // #2193).
 export const MEDIA_READ_TIMEOUT = 120_000;
+// teto do download de midia em memoria (o mesmo do upload de video): sem ele
+// uma URL de midia podia encher a memoria do worker
+export const MEDIA_READ_MAX_BYTES = 1024 * 1024 * 1024;
 
 // AbortSignal.timeout rejeita com TimeoutError; o axios reporta o abort como
 // requisicao cancelada (ERR_CANCELED) e o undici pode embrulhar o TimeoutError
@@ -160,6 +163,7 @@ export abstract class SocialAbstract {
         url: path,
         method: 'GET',
         responseType: 'arraybuffer',
+        maxContentLength: MEDIA_READ_MAX_BYTES,
         // O servidor responde os headers e o corpo para no meio: sem prazo a
         // leitura nunca termina e segura o slot da activity no worker (o
         // startToCloseTimeout falha a activity no servidor, mas nao para a

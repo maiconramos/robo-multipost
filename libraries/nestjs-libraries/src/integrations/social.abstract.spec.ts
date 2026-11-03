@@ -5,6 +5,7 @@ import {
   BadBody,
   PublishedWithError,
   heartbeatEndpoint,
+  MEDIA_READ_MAX_BYTES,
   MEDIA_READ_TIMEOUT,
   RefreshToken,
   SocialAbstract,
@@ -149,6 +150,7 @@ describe('SocialAbstract SSRF', () => {
       url: 'https://cdn.example/file',
       method: 'GET',
       responseType: 'arraybuffer',
+      maxContentLength: MEDIA_READ_MAX_BYTES,
       signal: expect.any(AbortSignal),
     });
   });
@@ -351,6 +353,18 @@ describe('SocialAbstract.readOrFetch (leitura travada)', () => {
       path: 'https://cdn.example/a.png',
     });
     expect(safeAxios).toHaveBeenCalledTimes(2);
+  });
+
+  it('pede o download com teto de bytes (midia gigante nao enche a memoria)', async () => {
+    const provider = new StallProvider();
+    const safeAxios = jest.fn().mockResolvedValue({ data: Buffer.from('img') });
+    mockAxios(provider, safeAxios);
+
+    await provider.read('https://cdn.example/a.png');
+
+    expect(safeAxios.mock.calls[0][0]).toMatchObject({
+      maxContentLength: MEDIA_READ_MAX_BYTES,
+    });
   });
 
   it('erro que nao e prazo estourado segue sem nova leitura', async () => {

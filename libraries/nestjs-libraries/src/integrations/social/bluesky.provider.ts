@@ -7,6 +7,7 @@ import {
 import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.secure.id';
 import {
   BadBody,
+  MEDIA_READ_TIMEOUT,
   RefreshToken,
   SocialAbstract,
 } from '@gitroom/nestjs-libraries/integrations/social.abstract';
@@ -30,6 +31,13 @@ import {
 } from '@gitroom/nestjs-libraries/dtos/webhooks/ssrf.safe.dispatcher';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
+import {
+  readResponseBodyWithLimit,
+  ResponseBodyTooLargeError,
+} from '@gitroom/nestjs-libraries/upload/bounded.response.reader';
+
+// limite de video do Bluesky (app.bsky.video)
+const BLUESKY_MAX_VIDEO_BYTES = 100 * 1024 * 1024;
 
 async function reduceImageBySize(url: string, maxSizeKB = 976) {
   try {
@@ -79,12 +87,27 @@ async function uploadVideo(
   async function downloadVideo(
     url: string
   ): Promise<{ video: Buffer; size: number }> {
-    const response = await ssrfSafeFetch(url);
+    const response = await ssrfSafeFetch(url, {
+      // sem prazo e sem teto o download segurava o worker e a memoria
+      signal: AbortSignal.timeout(MEDIA_READ_TIMEOUT),
+    });
     if (!response.ok) {
       throw new Error(`Failed to fetch video: ${response.statusText}`);
     }
-    const arrayBuffer = await response.arrayBuffer();
-    const video = Buffer.from(arrayBuffer);
+    let video: Buffer;
+    try {
+      video = await readResponseBodyWithLimit(response, BLUESKY_MAX_VIDEO_BYTES);
+    } catch (err) {
+      if (err instanceof ResponseBodyTooLargeError) {
+        throw new BadBody(
+          'bluesky',
+          '{}',
+          '',
+          'O vídeo passa de 100 MB, o limite do Bluesky.'
+        );
+      }
+      throw err;
+    }
     const size = video.length;
     return { video, size };
   }
