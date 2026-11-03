@@ -47,6 +47,7 @@ describe('AuthController — login com Farcaster', () => {
     };
     const authService = {
       checkExists: jest.fn(),
+      consumeOAuthLoginNonce: jest.fn().mockResolvedValue(undefined),
       routeAuth: jest.fn().mockResolvedValue({ jwt: 'jwt', addedOrg: false }),
       getOrgFromCookie: jest.fn().mockReturnValue(undefined),
     };
@@ -244,5 +245,55 @@ describe('AuthController — login com Farcaster', () => {
       ThrottlerFarcasterLoginGuard,
       ThrottlerLocalLoginGuard,
     ]);
+  });
+});
+
+describe('AuthController — login social preso ao navegador', () => {
+  const setup = () => {
+    const authService = {
+      issueOAuthLoginNonce: jest.fn().mockResolvedValue('nonce-xyz'),
+      consumeOAuthLoginNonce: jest.fn().mockResolvedValue(undefined),
+      oauthLink: jest.fn().mockReturnValue('https://github.com/login/oauth/authorize?x'),
+      checkExists: jest.fn().mockResolvedValue({ jwt: 'jwt' }),
+    };
+    const controller = new AuthController(
+      authService as any,
+      { hasProvider: jest.fn() } as any,
+      {} as any
+    );
+    return { controller, authService };
+  };
+
+  it('GET /oauth/:provider grava o nonce em cookie httpOnly', async () => {
+    const { controller } = setup();
+    const res = response();
+
+    const link = await controller.oauthLink('GITHUB', {}, res);
+
+    expect(link).toContain('github.com');
+    expect(res.cookie).toHaveBeenCalledWith(
+      'oauth_login',
+      'nonce-xyz',
+      expect.objectContaining({ httpOnly: true })
+    );
+  });
+
+  it('troca do code exige o cookie do mesmo navegador antes de chamar o provedor', async () => {
+    const { controller, authService } = setup();
+    authService.consumeOAuthLoginNonce.mockRejectedValue(
+      new HttpException('Login expirado ou iniciado em outro navegador. Tente entrar de novo.', 400)
+    );
+
+    await expect(
+      controller.oauthExists(
+        { cookies: {} } as any,
+        'code-do-atacante',
+        '',
+        'GITHUB',
+        response()
+      )
+    ).rejects.toMatchObject({ status: 400 });
+    expect(authService.consumeOAuthLoginNonce).toHaveBeenCalledWith('GITHUB', undefined);
+    expect(authService.checkExists).not.toHaveBeenCalled();
   });
 });

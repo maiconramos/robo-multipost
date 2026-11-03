@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Segurança — login com Google, GitHub e OIDC
+
+- O retorno do login social agora só vale no navegador que começou o login. Antes, alguém podia mandar um link com o código do próprio login e fazer a vítima entrar, sem perceber, na conta dele. Se o login demorar mais de 15 minutos ou for concluído em outro navegador, aparece "Login expirado ou iniciado em outro navegador. Tente entrar de novo.".
+
 ### Segurança — limite de regras de RSS automático
 
 - Cada organização pode ter até 200 regras de RSS automático. Antes não havia limite, e cada regra é uma tarefa periódica que baixa o feed e pode usar IA.

@@ -486,3 +486,40 @@ describe('AuthService.checkExists - token de conta nova fica preso a esta instan
     expect(await ioRedis.get(boundProviderTokenKey('GITHUB', 'novo-token')!)).toBe('1');
   });
 });
+
+describe('AuthService - nonce do login social', () => {
+  const build = () => {
+    const deps = makeDeps();
+    return new AuthService(
+      deps.userService as any,
+      deps.orgService as any,
+      deps.notificationService as any,
+      deps.emailService as any,
+      deps.providerManager as any
+    );
+  };
+
+  it('nonce emitido vale uma vez para o mesmo provedor', async () => {
+    const service = build();
+    const nonce = await service.issueOAuthLoginNonce('github');
+    expect(nonce).toEqual(expect.any(String));
+
+    await expect(service.consumeOAuthLoginNonce('GITHUB', nonce)).resolves.toBeUndefined();
+    await expect(service.consumeOAuthLoginNonce('GITHUB', nonce)).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('sem cookie, ou cookie de outro provedor, recusa', async () => {
+    const service = build();
+    const nonce = await service.issueOAuthLoginNonce('GOOGLE');
+
+    await expect(service.consumeOAuthLoginNonce('GITHUB', nonce)).rejects.toMatchObject({ status: 400 });
+    await expect(service.consumeOAuthLoginNonce('GOOGLE', undefined)).rejects.toMatchObject({ status: 400 });
+  });
+
+  it('login por senha, Farcaster e carteira nao usam o nonce', async () => {
+    const service = build();
+    await expect(service.issueOAuthLoginNonce('LOCAL')).resolves.toBeNull();
+    await expect(service.consumeOAuthLoginNonce('FARCASTER', undefined)).resolves.toBeUndefined();
+    await expect(service.consumeOAuthLoginNonce('WALLET', undefined)).resolves.toBeUndefined();
+  });
+});

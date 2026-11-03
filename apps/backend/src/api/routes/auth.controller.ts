@@ -26,6 +26,10 @@ import { Response, Request } from 'express';
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { LoginUserDto } from '@gitroom/nestjs-libraries/dtos/auth/login.user.dto';
 import { AuthService } from '@gitroom/backend/services/auth/auth.service';
+import {
+  OAUTH_LOGIN_COOKIE,
+  OAUTH_LOGIN_NONCE_TTL,
+} from '@gitroom/nestjs-libraries/services/auth/oauth.login.nonce';
 import { ForgotReturnPasswordDto } from '@gitroom/nestjs-libraries/dtos/auth/forgot-return.password.dto';
 import { ForgotPasswordDto } from '@gitroom/nestjs-libraries/dtos/auth/forgot.password.dto';
 import { ResendActivationDto } from '@gitroom/nestjs-libraries/dtos/auth/resend-activation.dto';
@@ -261,7 +265,23 @@ export class AuthController {
   }
 
   @Get('/oauth/:provider')
-  async oauthLink(@Param('provider') provider: string, @Query() query: any) {
+  async oauthLink(
+    @Param('provider') provider: string,
+    @Query() query: any,
+    @Res({ passthrough: true }) response?: Response
+  ) {
+    // login social preso a este navegador (ver consumeOAuthLoginNonce)
+    const nonce = await this._authService.issueOAuthLoginNonce(provider);
+    if (nonce && response) {
+      response.cookie(OAUTH_LOGIN_COOKIE, nonce, {
+        domain: getCookieUrlFromDomain(process.env.FRONTEND_URL!),
+        httpOnly: true,
+        ...(!isNotSecured()
+          ? { secure: true, sameSite: 'none' as const }
+          : {}),
+        expires: new Date(Date.now() + OAUTH_LOGIN_NONCE_TTL * 1000),
+      });
+    }
     return this._authService.oauthLink(provider, query);
   }
 
@@ -380,6 +400,14 @@ export class AuthController {
       await this._farcasterSignerService.claimLoginCode(
         code,
         req?.cookies?.[FARCASTER_LOGIN_COOKIE]
+      );
+    }
+
+    if (!farcaster) {
+      // o code so vale no navegador que comecou este login
+      await this._authService.consumeOAuthLoginNonce(
+        provider,
+        req?.cookies?.[OAUTH_LOGIN_COOKIE]
       );
     }
 

@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { HttpException, Injectable, Logger } from '@nestjs/common';
 import { Provider, User } from '@prisma/client';
 import { CreateOrgUserDto } from '@gitroom/nestjs-libraries/dtos/auth/create.org.user.dto';
 import { LoginUserDto } from '@gitroom/nestjs-libraries/dtos/auth/login.user.dto';
@@ -18,6 +18,12 @@ import {
 } from '@gitroom/nestjs-libraries/emails/i18n/email.i18n';
 import { createHash } from 'crypto';
 import { ioRedis } from '@gitroom/nestjs-libraries/redis/redis.service';
+import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.secure.id';
+import { isNotSecured } from '@gitroom/helpers/utils/not.secured';
+import {
+  OAUTH_LOGIN_NONCE_TTL,
+  oauthLoginNonceKey,
+} from '@gitroom/nestjs-libraries/services/auth/oauth.login.nonce';
 
 // Logins sociais cujo providerToken e um access token do provedor.
 const BOUND_TOKEN_PROVIDERS: string[] = [
@@ -572,6 +578,44 @@ export class AuthService {
   oauthLink(provider: string, query?: any) {
     const providerInstance = this._providerManager.getProvider(provider);
     return providerInstance.generateLink(query);
+  }
+
+  /**
+   * Login social amarrado ao navegador: o inicio do login (GET
+   * /auth/oauth/:provider) grava um nonce em cookie httpOnly, e a troca do
+   * code exige o mesmo cookie. Sem isso, um `?code=` obtido no login do
+   * atacante, aberto pela vitima, logava a vitima na conta do atacante
+   * (os providers nao mandam `state` proprio).
+   */
+  async issueOAuthLoginNonce(provider: string): Promise<string | null> {
+    const name = String(provider).toUpperCase();
+    if (!BOUND_TOKEN_PROVIDERS.includes(name)) {
+      return null;
+    }
+    const nonce = makeSecureId(32);
+    await ioRedis.set(
+      oauthLoginNonceKey(nonce),
+      name,
+      'EX',
+      OAUTH_LOGIN_NONCE_TTL
+    );
+    return nonce;
+  }
+
+  async consumeOAuthLoginNonce(provider: string, nonce: unknown) {
+    const name = String(provider).toUpperCase();
+    // modo sem HTTPS (NOT_SECURED): o cookie nao cruza origens; mantem o
+    // comportamento anterior
+    if (!BOUND_TOKEN_PROVIDERS.includes(name) || isNotSecured()) {
+      return;
+    }
+    const key = typeof nonce === 'string' && nonce ? oauthLoginNonceKey(nonce) : '';
+    if (!key || (await ioRedis.get(key)) !== name || (await ioRedis.del(key)) !== 1) {
+      throw new HttpException(
+        'Login expirado ou iniciado em outro navegador. Tente entrar de novo.',
+        400
+      );
+    }
   }
 
   async checkExists(provider: string, code: string, redirectUri?: string) {
