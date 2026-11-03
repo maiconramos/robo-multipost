@@ -49,7 +49,7 @@ export class GetAnalyticsTool implements AgentToolInterface {
     return scopedAgentTool(
       this.profiles,
       this.name,
-      'Consulta métricas de canal (target=channel, id de integrationListTool) ou publicação (target=post, ID interno de listPostsTool). Janela days entre 1 e 365, padrão 7. Usa os mesmos serviços/cache da API, respeitando o perfil. Pode executar manutenção automática existente de credenciais (renovar/desconectar); não publica. Disponibilidade depende do provider. Dados ausentes não significam métricas zero.',
+      'Consulta métricas de canal (target=channel, id de integrationList) ou publicação (target=post, ID interno de listPostsTool). Janela days entre 1 e 365, padrão 7. Usa os mesmos serviços/cache da API, respeitando o perfil. Pode executar manutenção automática existente de credenciais (renovar/desconectar); não publica. Disponibilidade depende do provider. Dados ausentes não significam métricas zero.',
       z
         .object({
           target: z.enum(['channel', 'post']),
