@@ -752,58 +752,82 @@ describe('FacebookAutomationSetupService', () => {
   });
 
   it('observa mensagem somente com armamento e nunca despacha ao motor de comentarios', async () => {
-    const events = { receive: jest.fn() };
-    const receiver = new FacebookAutomationSetupService(
-      repo,
-      creds,
-      provider,
-      graph,
-      systemUser,
-      events as any
-    );
-    const raw = Buffer.from(
-      JSON.stringify({
-        object: 'page',
-        entry: [
-          {
-            id: '123',
-            messaging: [
-              {
-                sender: { id: '987' },
-                recipient: { id: '123' },
-                timestamp: Date.now(),
-                message: { mid: 'm_private', text: 'PRIVADO' },
-              },
-            ],
-          },
-        ],
-      })
-    );
-    const signature =
-      'sha256=' + createHmac('sha256', 'SECRET').update(raw).digest('hex');
-    await expect(receiver.receive('456', raw, signature)).resolves.toEqual({
-      received: true,
-    });
-    expect(repo.saveMessengerObservation).not.toHaveBeenCalled();
-    const probe = {
-      ...context,
-      integrationId: 'integration',
-      pageId: '123',
-      appId: '456',
-      nonce: 'a'.repeat(32),
-      issuedAt: Date.now() - 1000,
-      expiresAt: Date.now() + 3600000,
-    };
-    repo.getMessengerProbe.mockResolvedValue(probe);
-    await receiver.receive('456', raw, signature);
-    expect(repo.saveMessengerObservation).toHaveBeenCalledTimes(1);
-    expect(repo.saveMessengerObservation.mock.lastCall[0]).toEqual(connection);
-    expect(
-      JSON.stringify(repo.saveMessengerObservation.mock.lastCall.slice(1))
-    ).not.toMatch(/PRIVADO|m_private|987/);
-    expect(events.receive).not.toHaveBeenCalled();
-    expect(repo.saveReceipt).not.toHaveBeenCalled();
-    expect(graph.subscribePage).not.toHaveBeenCalled();
+    // Reproduz o timestamp do CI que contem o ID curto do remetente.
+    const now = jest.spyOn(Date, 'now').mockReturnValue(1793586278041);
+    try {
+      const events = { receive: jest.fn() };
+      const receiver = new FacebookAutomationSetupService(
+        repo,
+        creds,
+        provider,
+        graph,
+        systemUser,
+        events as any
+      );
+      const raw = Buffer.from(
+        JSON.stringify({
+          object: 'page',
+          entry: [
+            {
+              id: '123',
+              messaging: [
+                {
+                  sender: { id: '987' },
+                  recipient: { id: '123' },
+                  timestamp: Date.now(),
+                  message: { mid: 'm_private', text: 'PRIVADO' },
+                },
+              ],
+            },
+          ],
+        })
+      );
+      const signature =
+        'sha256=' + createHmac('sha256', 'SECRET').update(raw).digest('hex');
+      await expect(receiver.receive('456', raw, signature)).resolves.toEqual({
+        received: true,
+      });
+      expect(repo.saveMessengerObservation).not.toHaveBeenCalled();
+      const probe = {
+        ...context,
+        integrationId: 'integration',
+        pageId: '123',
+        appId: '456',
+        nonce: 'a'.repeat(32),
+        issuedAt: Date.now() - 1000,
+        expiresAt: Date.now() + 3600000,
+      };
+      repo.getMessengerProbe.mockResolvedValue(probe);
+      await receiver.receive('456', raw, signature);
+      expect(repo.saveMessengerObservation).toHaveBeenCalledTimes(1);
+      expect(repo.saveMessengerObservation.mock.lastCall[0]).toEqual(
+        connection
+      );
+      expect(repo.saveMessengerObservation.mock.lastCall[2]).toEqual({
+        receivedAt: new Date(Date.now()).toISOString(),
+        occurredAt: Date.now(),
+        messageHash: expect.stringMatching(/^[a-f0-9]{64}$/),
+        hasText: true,
+        isEcho: false,
+        isUnsupported: false,
+        attachmentTypes: [],
+        fields: {
+          message: 'object',
+          'message.mid': 'string',
+          'message.text': 'string',
+        },
+        unknownFieldCount: 3,
+        truncated: false,
+      });
+      expect(
+        JSON.stringify(repo.saveMessengerObservation.mock.lastCall.slice(1))
+      ).not.toMatch(/PRIVADO|m_private|"987"/);
+      expect(events.receive).not.toHaveBeenCalled();
+      expect(repo.saveReceipt).not.toHaveBeenCalled();
+      expect(graph.subscribePage).not.toHaveBeenCalled();
+    } finally {
+      now.mockRestore();
+    }
   });
 
   it('modo completo preserva corpo de teste sem despachar DM ou alterar inscricoes', async () => {

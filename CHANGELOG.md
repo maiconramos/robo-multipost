@@ -13,6 +13,22 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Arquivos pequenos usam base64 de até 2 MiB por chamada para respeitar o envelope MCP; imagens mantêm o limite total de 10 MiB e vídeos MP4 de 1 GiB. API e MCP compartilham validação do tipo real e limites; repetições da conclusão devolvem o mesmo recibo enquanto a sessão existir, e resultados incertos não são reenviados automaticamente.
 - Novas ferramentas consultam métricas de canais/publicações, notificações e organização/perfis acessíveis, sem expor chaves. Documentada a comparação com a API, incluindo as operações administrativas que continuam fora do MCP e os limites de upload.
 
+### Corrigido — estabilidade da validação no CI
+
+- Teste de privacidade do diagnóstico do Messenger verifica o ID completo do remetente sem confundi-lo com parte de um timestamp válido. A observação continua limitada aos campos estruturais permitidos, sem texto, ID da mensagem ou identificação do remetente.
+
+### Corrigido — capa de Shorts após o processamento
+
+- YouTube nativo aguarda o vídeo e a geração das miniaturas ficarem prontos antes de enviar a capa selecionada. Evita o aceite da imagem enquanto o processamento ainda pode substituí-la por um quadro automático do Short. Espera limitada a dois minutos; falhas preservam o ID e o link do vídeo enviado, sem novo upload automático. Publicações sem capa não aguardam essa etapa.
+
+### Segurança — conteúdo do proxy de vídeo
+
+- Proxy recusa respostas HTML/SVG e outros tipos inesperados, normaliza mídia MP4/binária para `video/mp4` e aplica `nosniff` e CSP com sandbox. Impede que conteúdo ativo da origem seja servido como documento sob o domínio da aplicação.
+
+### Corrigido — avanço do vídeo para selecionar thumbnail
+
+- Proxy do seletor de quadros encaminha intervalos HTTP Range à origem e preserva respostas 206/416. Evita esperar pelo download inteiro do vídeo ao avançar. Intervalos inválidos ou múltiplos são recusados; validação SSRF, redirects seguros e cancelamento permanecem ativos, sem encaminhar cookies ou credenciais à origem.
+
 ### Corrigido — nome do log de automações
 
 - Botão de acesso aos comentários sem automação passa a se chamar “Log”. Rota, filtros e comportamento preservados.

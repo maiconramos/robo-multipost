@@ -311,9 +311,33 @@ export class PublicController {
     @Res() res: Response,
     @Req() req: Request
   ) {
+    // The proxy is served under the application's origin, so an upstream
+    // response must never become an active HTML/SVG document here.
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader(
+      'Content-Security-Policy',
+      "default-src 'none'; media-src 'self' blob:; sandbox"
+    );
     const { url } = query;
     if (!url.endsWith('mp4')) {
       return res.status(400).send('Invalid video URL');
+    }
+
+    // Browsers seek by requesting a single byte interval. Do not forward
+    // arbitrary request headers (especially cookies/authorization) upstream.
+    const range = req.headers?.range;
+    if (range !== undefined) {
+      if (
+        typeof range !== 'string' ||
+        range.length > 128 ||
+        !/^bytes=(?:\d+-\d*|-\d+)$/.test(range)
+      ) {
+        return res.status(400).send('Invalid video Range');
+      }
+      const [start, end] = range.slice('bytes='.length).split('-');
+      if (start && end && BigInt(end) < BigInt(start)) {
+        return res.status(400).send('Invalid video Range');
+      }
     }
 
     const ac = new AbortController();
@@ -336,6 +360,10 @@ export class PublicController {
         r = await fetch(currentUrl, {
           signal: ac.signal,
           redirect: 'manual',
+          headers: {
+            'Accept-Encoding': 'identity',
+            ...(range ? { Range: range } : {}),
+          },
           // @ts-ignore — undici option, not in lib.dom fetch types
           dispatcher: ssrfSafeDispatcher,
         });
@@ -349,6 +377,7 @@ export class PublicController {
 
       if (r.status >= 300 && r.status < 400) {
         const location = r.headers.get('location');
+        await r.body?.cancel().catch(() => undefined);
         if (!location) {
           return res.status(502).send('Redirect without Location');
         }
@@ -371,13 +400,33 @@ export class PublicController {
       return res.status(508).send('Too many redirects');
     }
 
+    if (r.status === 416) {
+      const contentRange = r.headers.get('content-range');
+      if (contentRange && /^bytes \*\/\d+$/.test(contentRange)) {
+        res.setHeader('Content-Range', contentRange);
+      }
+      await r.body?.cancel().catch(() => undefined);
+      return res.status(416).end();
+    }
+
     if (!r.ok && r.status !== 206) {
       res.status(r.status);
       throw new Error(`Upstream error: ${r.statusText}`);
     }
 
-    const type = r.headers.get('content-type') ?? 'application/octet-stream';
-    res.setHeader('Content-Type', type);
+    const type = (r.headers.get('content-type') ?? 'application/octet-stream')
+      .split(';')[0]
+      .trim()
+      .toLowerCase();
+    if (
+      !['video/mp4', 'application/mp4', 'application/octet-stream'].includes(
+        type
+      )
+    ) {
+      await r.body?.cancel().catch(() => undefined);
+      return res.status(502).send('Invalid video content type');
+    }
+    res.setHeader('Content-Type', 'video/mp4');
 
     const contentRange = r.headers.get('content-range');
     if (contentRange) res.setHeader('Content-Range', contentRange);
@@ -385,8 +434,8 @@ export class PublicController {
     const len = r.headers.get('content-length');
     if (len) res.setHeader('Content-Length', len);
 
-    const acceptRanges = r.headers.get('accept-ranges') ?? 'bytes';
-    res.setHeader('Accept-Ranges', acceptRanges);
+    const acceptRanges = r.headers.get('accept-ranges');
+    if (acceptRanges) res.setHeader('Accept-Ranges', acceptRanges);
 
     if (r.status === 206) res.status(206); // Partial Content for range responses
 

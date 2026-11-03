@@ -23,6 +23,11 @@ import dayjs from 'dayjs';
 import { GaxiosResponse } from 'gaxios/build/src/common';
 import Schema$Video = youtube_v3.Schema$Video;
 import { Rules } from '@gitroom/nestjs-libraries/chat/rules.description.decorator';
+import { timer } from '@gitroom/helpers/utils/timer';
+
+const THUMBNAIL_PROCESSING_TIMEOUT_MS = 120_000;
+const THUMBNAIL_PROCESSING_POLL_MS = 5_000;
+const THUMBNAIL_PROCESSING_REQUEST_TIMEOUT_MS = 10_000;
 
 const clientAndYoutube = (clientInformation?: ClientInformation) => {
   const client = new google.auth.OAuth2({
@@ -421,6 +426,7 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
 
     if (thumbnail) {
       try {
+        await this.waitForThumbnailProcessing(youtubeClient, videoId);
         await this.runInConcurrent(async () =>
           youtubeClient.thumbnails.set({
             videoId,
@@ -448,8 +454,8 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
           // so mensagem mapeada pelo handleErrors; 'Unknown Error' (erro nao
           // mapeado, falha ao baixar a imagem) vira a explicacao generica
           err instanceof BadBody &&
-            err.message &&
-            err.message !== 'Unknown Error'
+          err.message &&
+          err.message !== 'Unknown Error'
             ? err.message
             : 'Your video was uploaded to YouTube successfully, but we could not set the thumbnail. Set it manually in YouTube Studio.'
         );
@@ -464,6 +470,65 @@ export class YoutubeProvider extends SocialAbstract implements SocialProvider {
         status: 'success',
       },
     ];
+  }
+
+  private async waitForThumbnailProcessing(
+    youtubeClient: youtube_v3.Youtube,
+    videoId: string
+  ): Promise<void> {
+    // O aceite de thumbnails.set antes da geracao dos quadros pode alterar
+    // somente a miniatura tradicional; o processamento do Short a substitui.
+    const deadline = Date.now() + THUMBNAIL_PROCESSING_TIMEOUT_MS;
+    while (Date.now() < deadline) {
+      const remaining = deadline - Date.now();
+      if (remaining <= 0) break;
+      const response: GaxiosResponse<youtube_v3.Schema$VideoListResponse> =
+        await this.runInConcurrent(() =>
+          youtubeClient.videos.list(
+            { id: [videoId], part: ['processingDetails', 'status'] },
+            {
+              timeout: Math.min(
+                THUMBNAIL_PROCESSING_REQUEST_TIMEOUT_MS,
+                remaining
+              ),
+              retry: false,
+            }
+          )
+        );
+      if (Date.now() >= deadline) break;
+      const video = response?.data?.items?.find((item) => item.id === videoId);
+      const processing = video?.processingDetails;
+      if (
+        ['failed', 'terminated'].includes(processing?.processingStatus || '') ||
+        ['failed', 'rejected', 'deleted'].includes(
+          video?.status?.uploadStatus || ''
+        )
+      ) {
+        throw new BadBody(
+          this.identifier,
+          '',
+          {} as any,
+          'Your video was uploaded to YouTube, but YouTube processing failed. Check the video in YouTube Studio before setting its thumbnail.'
+        );
+      }
+      if (
+        processing?.processingStatus === 'succeeded' &&
+        processing.thumbnailsAvailability === 'available'
+      ) {
+        return;
+      }
+      const delay = Math.min(
+        THUMBNAIL_PROCESSING_POLL_MS,
+        deadline - Date.now()
+      );
+      if (delay > 0) await timer(delay);
+    }
+    throw new BadBody(
+      this.identifier,
+      '',
+      {} as any,
+      'Your video was uploaded to YouTube, but processing did not finish in time to set the thumbnail. Set it manually in YouTube Studio after processing finishes.'
+    );
   }
 
   async analytics(
