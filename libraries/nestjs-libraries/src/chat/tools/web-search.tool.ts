@@ -1,3 +1,8 @@
+import { ProfileService } from '../../database/prisma/profiles/profile.service';
+import {
+  agentProfileSelector,
+  resolveAgentProfile,
+} from './agent-profile-scope';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
@@ -8,7 +13,10 @@ import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.co
 
 @Injectable()
 export class WebSearchTool implements AgentToolInterface {
-  constructor(private _aiWebSearchService: AiWebSearchService) {}
+  constructor(
+    private _aiWebSearchService: AiWebSearchService,
+    private readonly profiles: ProfileService
+  ) {}
   name = 'webSearchTool';
 
   run() {
@@ -16,16 +24,14 @@ export class WebSearchTool implements AgentToolInterface {
       id: 'webSearchTool',
       description:
         'Search the public web for information. ' +
-        "Use ONLY when the topic is about external/world events, news, public figures, " +
+        'Use ONLY when the topic is about external/world events, news, public figures, ' +
         "third-party products/companies, or anything you don't have first-party context for. " +
         "NEVER use for facts about the USER's own brand/product/service — call " +
         '`knowledgeBaseQuery` first for that. ' +
         'When the user provides specific URLs, prefer `extractUrlsTool` instead.',
       inputSchema: z.object({
-        query: z
-          .string()
-          .min(2)
-          .describe('Search query in natural language'),
+        profileId: agentProfileSelector,
+        query: z.string().min(2).describe('Search query in natural language'),
         maxResults: z
           .number()
           .int()
@@ -66,9 +72,12 @@ export class WebSearchTool implements AgentToolInterface {
       }),
       execute: async (input: any, options: any) => {
         checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const org = JSON.parse(requestContext.get('organization') as string);
-        const profileId = requestContext.get('profileId') as string | undefined;
+        const { organization: org, profileId } = await resolveAgentProfile(
+          this.profiles,
+          options,
+          input.profileId,
+          true
+        );
 
         const result = await this._aiWebSearchService.search(
           org.id,

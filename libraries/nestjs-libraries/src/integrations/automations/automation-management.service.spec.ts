@@ -1,4 +1,5 @@
 jest.mock('../integration.manager', () => ({}));
+import { IntegrationService } from '../../database/prisma/integrations/integration.service';
 import { createMock } from '../../test';
 import { AutomationHistoryService } from '../../database/prisma/automation-history/automation-history.service';
 import { AutomationManagementService } from './automation-management.service';
@@ -15,6 +16,7 @@ import { automationCanvasSchema } from '../../dtos/flows/automation-management.d
 
 describe('gerenciamento de automacoes por API e agentes', () => {
   const scope = { organizationId: 'org', profileId: 'perfil' };
+  const integrations = createMock<IntegrationService>();
   const flows = createMock<FlowsService>();
   const shared = createMock<SharedFlowsService>();
   const scheduled = createMock<ScheduledPostsService>();
@@ -70,13 +72,22 @@ describe('gerenciamento de automacoes por API e agentes', () => {
   });
   beforeEach(() => {
     jest.clearAllMocks();
+    integrations.getIntegrationById.mockImplementation(
+      (org, id) =>
+        Promise.resolve({
+          id,
+          organizationId: org,
+          profileId: 'perfil',
+        }) as never
+    );
     service = new AutomationManagementService(
       flows,
       shared,
       scheduled,
       profiles,
       repost,
-      executionHistory
+      executionHistory,
+      integrations
     );
     profiles.getProfileById.mockResolvedValue({ id: 'perfil' } as any);
     profiles.getDefaultProfile.mockResolvedValue({ id: 'default' } as any);
@@ -778,6 +789,49 @@ describe('gerenciamento de automacoes por API e agentes', () => {
       }
     );
   });
+  it('lista geral identifica cliente de cada automacao sem usar Default', async () => {
+    profiles.getProfilesByOrgId.mockResolvedValue([
+      { id: 'a', name: 'AMZ' },
+      { id: 'b', name: 'Outro' },
+    ] as never);
+    flows.getFlows.mockResolvedValue([]);
+    shared.list.mockResolvedValue([]);
+    await service.listOrganization('org');
+    expect(flows.getFlows).toHaveBeenCalledWith('org', 'a');
+    expect(flows.getFlows).toHaveBeenCalledWith('org', 'b');
+    expect(shared.list).toHaveBeenCalledWith({
+      organizationId: 'org',
+      profileId: 'a',
+    });
+    expect(profiles.getDefaultProfile).not.toHaveBeenCalled();
+  });
+
+  it('filtro de canal desconectado consulta regras sem exigir prontidao', async () => {
+    profiles.getProfilesByOrgId.mockResolvedValue([
+      { id: 'a', name: 'AMZ' },
+    ] as never);
+    integrations.getIntegrationById.mockResolvedValue({
+      id: 'ig',
+      profileId: 'a',
+      disabled: true,
+    } as never);
+    flows.getFlows.mockResolvedValue([]);
+    shared.list.mockResolvedValue([]);
+    await service.listOrganization('org', 1, 'ig');
+    expect(flows.getFlows).toHaveBeenCalledWith('org', 'a');
+    expect(shared.listChannels).not.toHaveBeenCalled();
+  });
+  it('canal de outro perfil recusa leitura antes de consultar regras', async () => {
+    integrations.getIntegrationById.mockResolvedValueOnce({
+      id: 'fb',
+      profileId: 'outro',
+    } as never);
+    await expect(service.list(scope, 2, 'fb')).rejects.toThrow(
+      'CHANNEL_NOT_FOUND'
+    );
+    expect(flows.getFlows).not.toHaveBeenCalled();
+    expect(shared.list).not.toHaveBeenCalled();
+  });
 });
 
 describe('historico normalizado da fachada', () => {
@@ -790,7 +844,8 @@ describe('historico normalizado da fachada', () => {
       {} as any,
       {} as any,
       {} as any,
-      h
+      h,
+      {} as any
     );
   beforeEach(() => jest.clearAllMocks());
   it.each([

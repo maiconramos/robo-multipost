@@ -1,3 +1,8 @@
+import { ProfileService } from '../../database/prisma/profiles/profile.service';
+import {
+  agentProfileSelector,
+  resolveAgentProfile,
+} from './agent-profile-scope';
 import { AgentToolInterface } from '@gitroom/nestjs-libraries/chat/agent.tool.interface';
 import { createTool } from '@mastra/core/tools';
 import { z } from 'zod';
@@ -11,7 +16,10 @@ import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.co
 export class GenerateImageTool implements AgentToolInterface {
   private storage = UploadFactory.createStorage();
 
-  constructor(private _mediaService: MediaService) {}
+  constructor(
+    private _mediaService: MediaService,
+    private readonly profiles: ProfileService
+  ) {}
   name = 'generateImageTool';
 
   run() {
@@ -37,6 +45,7 @@ Style (optional): pass 'Realistic', 'Cartoon', 'Anime', 'Cyberpunk' etc when the
 
 manualPrompt: keep default (false) unless the user gave you a fully crafted prompt and asked to send it as-is. When false, the prompt is enriched by an LLM with cinematography details (camera, lighting, mood) before going to the image model.`,
       inputSchema: z.object({
+        profileId: agentProfileSelector,
         prompt: z
           .string()
           .describe(
@@ -57,7 +66,7 @@ manualPrompt: keep default (false) unless the user gave you a fully crafted prom
         aspectRatio: z
           .enum(['1:1', '9:16', '16:9'])
           .describe(
-            "Target aspect ratio. 1:1 = Instagram feed, 9:16 = Stories/Reels/TikTok, 16:9 = YouTube/LinkedIn."
+            'Target aspect ratio. 1:1 = Instagram feed, 9:16 = Stories/Reels/TikTok, 16:9 = YouTube/LinkedIn.'
           ),
         style: z
           .string()
@@ -78,10 +87,19 @@ manualPrompt: keep default (false) unless the user gave you a fully crafted prom
       }),
       execute: async (input: any, options: any) => {
         checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const org = JSON.parse(requestContext.get('organization') as string);
-        const personaRaw = requestContext.get('persona') as string;
-        const profileId = requestContext.get('profileId') as string | undefined;
+        const { organization: org, profileId } = await resolveAgentProfile(
+          this.profiles,
+          options,
+          input.profileId,
+          true
+        );
+        const selectedPersona = await this.profiles.getPersona(
+          org.id,
+          profileId
+        );
+        const personaRaw = selectedPersona
+          ? JSON.stringify(selectedPersona)
+          : undefined;
 
         // Persona (imageStyle) e style do agente sao concatenados no prompt
         // antes de mandar pro service. Quando manualPrompt=true, o

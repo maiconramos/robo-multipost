@@ -1,4 +1,4 @@
-import { Injectable } from '@nestjs/common';
+import { HttpException, Injectable } from '@nestjs/common';
 import { z } from 'zod';
 import { AgentToolInterface } from '../agent.tool.interface';
 import { automationTool } from './automation-tool.helper';
@@ -18,9 +18,10 @@ export class ListPostsTool implements AgentToolInterface {
     return automationTool(
       this.service,
       this.name,
-      'Lista posts/agendamentos existentes do perfil, com filtros de data, canal, estado e paginação. Não publica. Use o ID interno retornado para consultar/editar, nunca recrie um agendamento para corrigir conteúdo ou horário.',
+      'Lista posts/agendamentos existentes: chave geral sem profileId consulta a organização e identifica o cliente em cada post; profileId restringe ao cliente. Filtros de data, canal, estado e paginação. customer é agrupamento legado de canais, não o perfil do cliente. Não publica. Use o ID interno retornado para consultar/editar, nunca recrie um agendamento para corrigir conteúdo ou horário.',
       managedPostListSchema,
-      (scope, i) => this.service.list(scope, i)
+      (scope, i) => this.service.list(scope, i),
+      (org, i) => this.service.listOrganization(org, i)
     );
   }
 }
@@ -83,7 +84,12 @@ export class GetPostOptionsTool implements AgentToolInterface {
       this.name,
       'Descobre capabilities de gerenciamento, tags disponíveis e free_slot por integrationId no perfil. As consultas não agendam nem publicam. Settings específicos da rede são descobertos por integrationSchema.',
       managedPostOptionsSchema,
-      (scope, i) => this.service.options(scope, i)
+      (scope, i) => this.service.options(scope, i),
+      (_org, i) => {
+        if (i.resource !== 'capabilities')
+          throw new HttpException('PROFILE_REQUIRED', 400);
+        return this.service.capabilities();
+      }
     );
   }
 }

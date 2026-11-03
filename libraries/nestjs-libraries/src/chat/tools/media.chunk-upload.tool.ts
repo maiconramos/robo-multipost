@@ -20,7 +20,7 @@ export class BeginMediaUploadTool implements AgentToolInterface {
     return scopedAgentTool(
       this.profiles,
       this.name,
-      'Inicia envio de arquivo local em partes (MP4 até 1 GiB; imagens até 10 MiB). Cliente fornece filename, tamanho exato size e SHA-256 hexadecimal do arquivo inteiro. Não recebe caminho de disco: use script/cliente para ler os bytes. Retorna uploadId, offset, maxChunkBytes e validade. Sessão privada no escopo da chave, efêmera por backend/1 hora; réplicas exigem afinidade. Envie partes sem colocá-las no prompt da IA. Não publica conteúdo.',
+      'Inicia envio de arquivo local em partes (MP4 até 1 GiB; imagens até 10 MiB). Cliente fornece filename, tamanho exato size e SHA-256 hexadecimal do arquivo inteiro. Não recebe caminho de disco: use script/cliente para ler os bytes. Retorna uploadId, offset, maxChunkBytes e validade. Sessão privada vinculada ao perfil autenticado/selecionado; chave geral exige o mesmo profileId em todas as fases. Efêmera por backend/1 hora; réplicas exigem afinidade. Envie partes sem colocá-las no prompt da IA. Não publica conteúdo.',
       beginMediaUploadSchema,
       async ({ organization, profileId }, input) =>
         this.uploads.begin(organization.id, profileId, input),
@@ -44,6 +44,7 @@ export class AppendMediaUploadTool implements AgentToolInterface {
       async ({ organization, profileId }, input) =>
         this.uploads.append(organization.id, profileId, input),
       false,
+      true,
       true
     );
   }
@@ -63,6 +64,8 @@ export class GetMediaUploadTool implements AgentToolInterface {
       mediaUploadSessionSchema,
       async ({ organization, profileId }, input) =>
         this.uploads.status(organization.id, profileId, input.uploadId),
+      true,
+      true,
       true
     );
   }
@@ -83,6 +86,7 @@ export class CompleteMediaUploadTool implements AgentToolInterface {
       async ({ organization, profileId }, input) =>
         this.uploads.complete(organization.id, profileId, input.uploadId),
       false,
+      true,
       true
     );
   }
@@ -103,6 +107,7 @@ export class AbortMediaUploadTool implements AgentToolInterface {
       async ({ organization, profileId }, input) =>
         this.uploads.abort(organization.id, profileId, input.uploadId),
       false,
+      true,
       true
     );
   }

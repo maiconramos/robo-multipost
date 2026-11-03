@@ -4,24 +4,34 @@ import { z } from 'zod';
 import { Organization } from '@prisma/client';
 import { ProfileService } from '../../database/prisma/profiles/profile.service';
 import { checkAuth } from '../auth.context';
-import { readRequestContext } from './tool.context.helper';
+import {
+  agentProfileSelector,
+  resolveAgentProfile,
+} from './agent-profile-scope';
 
 export type AgentScope = { organization: Organization; profileId?: string };
 
-// Unlike post/automation management, an org-only media key stays org-scoped.
-export function scopedAgentTool<T extends z.ZodTypeAny>(
+// Selection is request-local. Only explicitly permitted reads may remain organization-wide.
+export function scopedAgentTool<T extends z.AnyZodObject>(
   profiles: ProfileService,
   id: string,
   description: string,
   inputSchema: T,
   execute: (scope: AgentScope, input: z.infer<T>) => Promise<unknown>,
   readOnly: boolean,
-  idempotent = readOnly
+  idempotent = readOnly,
+  requireProfile = !readOnly,
+  allowProfileSelection = true
 ) {
+  const schema = (
+    allowProfileSelection
+      ? inputSchema.extend({ profileId: agentProfileSelector })
+      : inputSchema
+  ).strict();
   return createTool({
     id,
     description,
-    inputSchema,
+    inputSchema: schema,
     mcp: {
       annotations: {
         readOnlyHint: readOnly,
@@ -33,7 +43,7 @@ export function scopedAgentTool<T extends z.ZodTypeAny>(
     execute: async (raw: unknown, options: unknown) => {
       try {
         checkAuth(raw, options);
-        const input = inputSchema.safeParse(raw);
+        const input = schema.safeParse(raw);
         if (!input.success)
           return {
             errors: JSON.stringify([
@@ -43,28 +53,21 @@ export function scopedAgentTool<T extends z.ZodTypeAny>(
               },
             ]),
           };
-        const context = readRequestContext(options);
-        const organization = JSON.parse(
-          String(context.get('organization') || 'null')
+        const { profileId: selected, ...data } = input.data as z.infer<T> & {
+          profileId?: string;
+        };
+        const scope = await resolveAgentProfile(
+          profiles,
+          options,
+          selected,
+          requireProfile
         );
-        if (typeof organization?.id !== 'string' || !organization.id)
-          throw new HttpException('ORGANIZATION_REQUIRED', 401);
-        const rawProfile = context.get('profileId');
-        if (
-          rawProfile !== undefined &&
-          rawProfile !== null &&
-          (typeof rawProfile !== 'string' || !rawProfile)
-        )
-          throw new HttpException('INVALID_PROFILE_CONTEXT', 403);
-        const profileId =
-          typeof rawProfile === 'string' ? rawProfile : undefined;
-        if (
-          profileId &&
-          !(await profiles.getProfileById(organization.id, profileId))
-        )
-          throw new HttpException('PROFILE_NOT_FOUND', 404);
         return {
-          output: await execute({ organization, profileId }, input.data),
+          output: await execute(scope, data as z.infer<T>),
+          scope: {
+            organizationId: scope.organization.id,
+            profile: scope.profile,
+          },
         };
       } catch (error) {
         let code = 'TOOL_FAILED';

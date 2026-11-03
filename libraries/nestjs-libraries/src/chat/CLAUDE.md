@@ -38,11 +38,11 @@ MCP tools live in `tools/`. Each tool implements the contract from `agent.tool.i
 
 ### Context propagation is mandatory
 
-User identity (org, profile) flows through `AsyncLocalStorage` in `async.storage.ts` + `auth.context.ts`. Tools that perform domain actions (create a post, look up an integration) read from this context — **never** receive `orgId` directly via the tool schema, because that is forgeable by the prompt.
+Authenticated organization and credential-bound profile flow through `AsyncLocalStorage` in `async.storage.ts` + `auth.context.ts`; **never** accept `orgId` via the tool schema. An organization credential may select a client with request-local `profileId` through `tools/agent-profile-scope.ts`, which validates organization ownership and rejects a different selection for a profile-bound credential. Client operations require an explicit/authenticated profile, never fall back to Default, and never persist the selection. General organization reads use their separate read-only paths. See [`docs/api/mcp-profile-isolation.md`](../../../../docs/api/mcp-profile-isolation.md).
 
 ### Persona is injected into the system prompt
 
-See `persona.helper.ts` in [`src/ai/`](../ai/CLAUDE.md). The active profile's persona is automatically injected into the agent's system prompt — individual tools do not need to load persona.
+See `persona.helper.ts` in [`src/ai/`](../ai/CLAUDE.md). The authenticated profile's persona is automatically injected into the agent's system prompt. When an organization credential selects a client per call, image generation resolves that client's persona through `ProfileService.getPersona(orgId, profileId)`; never reuse another profile's request-context persona.
 
 ## Instagram Webhook (HMAC)
 
@@ -83,9 +83,9 @@ Meta limits **one `sendPrivateReply` per comment**. After the postback, the 24h 
 | `generate.video.tool.ts` / `generate.video.options.tool.ts` | Video generation (catalog + execution) |
 | `video.function.tool.ts` | Video helpers |
 | `integration.list.tool.ts` | List the user's integrations |
-| `integration.schedule.post.ts` | Schedule a post via `PostsService`; each created item returns `previewUrl` (`${FRONTEND_URL}/p/<id>?share=true`) |
-| `media.list.tool.ts` | `mediaListTool` — read-only listing of the media library (search by original name, 18/page), scoped to the session profile via `requestContext.get('profileId')`; returns display fields only |
-| `integration.trigger.tool.ts` | Manual integration trigger — only `@Tool` methods, and only channels of the active profile (`requestContext.get('profileId')`), like the schedule tool |
+| `integration.schedule.post.ts` | Schedule via `PostsService`; organization credentials require `socialPost[].profileId` per destination. Confirmed/uncertain receipts preserve that profile; created items return `previewUrl` (`${FRONTEND_URL}/p/<id>?share=true`) |
+| `media.list.tool.ts` | `mediaListTool` — read-only media listing (original-name search, 18/page). Uses the authenticated/selected profile plus shared media; an organization credential without selection lists the organization. Returns display fields and profile ownership |
+| `integration.trigger.tool.ts` | Manual integration trigger — only `@Tool` methods and channels matching the authenticated/selected profile; organization credentials require explicit selection |
 | `integration.validation.tool.ts` | Validate an integration config |
 | `knowledge.query.tool.ts` | Query the profile's Knowledge Base (RAG) |
 | `web-search.tool.ts` | Web search via `AiWebSearchService` |
@@ -94,6 +94,7 @@ Meta limits **one `sendPrivateReply` per comment**. After the postback, the 24h 
 | `set.comment.automation.status.tool.ts` | Activate/pause/archive an automation via `FlowsService.updateFlowStatus` (no delete by design — REST/SDK only) |
 | `tool.list.ts` | Central registry of available tools |
 | `tool.context.helper.ts` | Helper to extract org/profile from `AsyncLocalStorage` |
+| `agent-profile-scope.ts` | Authoritative authenticated identity and validated request-local client selection; prevents profile-key mismatch and implicit Default fallback |
 
 ## Common Workflows
 
@@ -101,7 +102,7 @@ Meta limits **one `sendPrivateReply` per comment**. After the postback, the 24h 
 
 1. **Spec first** if the tool has non-trivial logic.
 2. Create `tools/<name>.tool.ts` exporting an object that satisfies `AgentToolInterface`: `id`, `description`, `inputSchema` (Zod), `execute(input, context)`.
-3. **Do not accept `orgId`/`profileId` in the schema** — read them from `AsyncLocalStorage` via `tool.context.helper.ts`.
+3. **Never accept `orgId` in the schema.** Read authenticated identity from context; use `agent-profile-scope.ts` for a validated request-local `profileId` selector, preserving the credential's scope and requiring a profile for client operations.
 4. Register in `tool.list.ts`.
 5. If the tool consumes AI: use the factory from [`src/ai/`](../ai/CLAUDE.md) — do not call OpenAI/OpenRouter directly.
 6. If the tool triggers an integration: use `IntegrationManager` (in `database/prisma/integrations/`).

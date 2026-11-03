@@ -12,6 +12,11 @@ import { timer } from '@gitroom/helpers/utils/timer';
 import { checkAuth } from '@gitroom/nestjs-libraries/chat/auth.context';
 import { RefreshIntegrationService } from '@gitroom/nestjs-libraries/integrations/refresh.integration.service';
 import { readRequestContext } from '@gitroom/nestjs-libraries/chat/tools/tool.context.helper';
+import { ProfileService } from '../../database/prisma/profiles/profile.service';
+import {
+  agentProfileSelector,
+  resolveAgentProfile,
+} from './agent-profile-scope';
 import { EncryptionService } from '@gitroom/nestjs-libraries/crypto/encryption.service';
 import { decryptIntegrationToken } from '@gitroom/nestjs-libraries/crypto/integration-token.helper';
 
@@ -21,7 +26,8 @@ export class IntegrationTriggerTool implements AgentToolInterface {
     private _integrationManager: IntegrationManager,
     private _integrationService: IntegrationService,
     private _refreshIntegrationService: RefreshIntegrationService,
-    private _encryption: EncryptionService
+    private _encryption: EncryptionService,
+    private readonly profiles: ProfileService
   ) {}
   name = 'triggerTool';
 
@@ -31,6 +37,7 @@ export class IntegrationTriggerTool implements AgentToolInterface {
       description: `After using the integrationSchema, we sometimes miss details we can\'t ask from the user, like ids.
       Sometimes this tool requires to user prompt for some settings, like a word to search for. methodName is required [input:callable-tools]`,
       inputSchema: z.object({
+        profileId: agentProfileSelector,
         integrationId: z.string().describe('The id of the integration'),
         methodName: z
           .string()
@@ -49,10 +56,13 @@ export class IntegrationTriggerTool implements AgentToolInterface {
       }),
       execute: async (input: any, options: any) => {
         checkAuth(input, options);
-        const requestContext = readRequestContext(options);
-        const organizationId = JSON.parse(
-          requestContext.get('organization') as string
-        ).id;
+        const { organization, profileId } = await resolveAgentProfile(
+          this.profiles,
+          options,
+          input.profileId,
+          true
+        );
+        const organizationId = organization.id;
 
         const getIntegration =
           await this._integrationService.getIntegrationById(
@@ -67,13 +77,7 @@ export class IntegrationTriggerTool implements AgentToolInterface {
         }
         // mesmo escopo da tool de agendamento: o canal precisa ser do perfil
         // ativo da sessao MCP
-        const profileId =
-          (requestContext.get('profileId') as string) || undefined;
-        if (
-          profileId &&
-          getIntegration.profileId &&
-          getIntegration.profileId !== profileId
-        ) {
+        if (getIntegration.profileId !== profileId) {
           // outputSchema e um array de registros: a string crua seria
           // rejeitada pela validacao de saida do Mastra
           return {

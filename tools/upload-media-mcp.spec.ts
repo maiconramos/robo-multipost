@@ -143,4 +143,45 @@ describe('cliente programatico de videos por MCP', () => {
       )
     ).toBe(true);
   });
+  it('inclui o perfil em todas as fases e recusa mudar cliente na retomada', async () => {
+    const file = join(dir, 'video.mp4');
+    const state = join(dir, 'state.json');
+    await writeFile(file, 'abcdefgh');
+    const client = fakeClient();
+    await transferLocalMedia(
+      client,
+      file,
+      state,
+      'endpoint',
+      async () => undefined,
+      'b'
+    );
+    expect(
+      client.callTool.mock.calls.every(
+        ([call]) => call.arguments.profileId === 'b'
+      )
+    ).toBe(true);
+    await expect(
+      transferLocalMedia(
+        { callTool: jest.fn().mockRejectedValue(new Error('offline')) },
+        file,
+        state,
+        'endpoint',
+        async () => undefined,
+        'a'
+      )
+    ).rejects.toThrow();
+    const next = { callTool: jest.fn() };
+    await expect(
+      transferLocalMedia(
+        next,
+        file,
+        state,
+        'endpoint',
+        async () => undefined,
+        'b'
+      )
+    ).rejects.toThrow(/arquivo ou a conexão/);
+    expect(next.callTool).not.toHaveBeenCalled();
+  });
 });
