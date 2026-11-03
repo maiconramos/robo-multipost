@@ -508,6 +508,16 @@ describe('AuthService - nonce do login social', () => {
     await expect(service.consumeOAuthLoginNonce('GITHUB', nonce)).rejects.toMatchObject({ status: 400 });
   });
 
+  it('celular e notebook entrando ao mesmo tempo: cada um usa o seu, nenhum derruba o outro', async () => {
+    const service = build();
+    const celular = await service.issueOAuthLoginNonce('GOOGLE');
+    const notebook = await service.issueOAuthLoginNonce('GOOGLE');
+    expect(celular).not.toBe(notebook);
+
+    await expect(service.consumeOAuthLoginNonce('GOOGLE', notebook)).resolves.toBeUndefined();
+    await expect(service.consumeOAuthLoginNonce('GOOGLE', celular)).resolves.toBeUndefined();
+  });
+
   it('sem cookie, ou cookie de outro provedor, recusa', async () => {
     const service = build();
     const nonce = await service.issueOAuthLoginNonce('GOOGLE');

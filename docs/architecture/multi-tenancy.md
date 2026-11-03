@@ -38,6 +38,7 @@ O usuario e criado no **registro** da aplicacao. Ao se registrar, o sistema cria
 - A sessao vale por no maximo 1 ano a partir da emissao (`iat`), o mesmo prazo do cookie.
 - Trocar a senha pelo "esqueci a senha" grava `User.sessionsValidAfter`: toda sessao emitida antes disso (em qualquer navegador) deixa de valer, e o link de redefinicao usado — ou qualquer outro emitido antes da troca — nao funciona de novo.
 - Sair (`/user/logout`) ainda so limpa o cookie do navegador atual; nao derruba sessoes em outros dispositivos.
+- Login com Google/GitHub/OIDC: a troca do code exige o cookie `oauth_login` do navegador que iniciou aquele login (vale 15 min, uso unico). Cada aparelho tem o seu: entrar no celular nao derruba a sessao do notebook, e a sessao da app nao depende da sessao no Google (deslogar dispositivos no Google nao desloga a app). So a troca de senha pelo "esqueci a senha" e o prazo de 1 ano encerram sessoes.
 
 ---
 
