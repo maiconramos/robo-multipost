@@ -186,7 +186,7 @@ No TikTok Business (`tiktok-business`), além das opções do TikTok (`privacy_l
 ## Upload, analytics e outros
 
 - **`POST /upload`** (multipart): campo `file`. Retorna `{ id, path }`.
-- **`POST /upload-from-url`**: `{ "url": "https://seu-cdn.com/imagem.jpg" }` (https público). Retorna `{ id, path }`.
+- **`POST /upload-from-url`**: `{ "url": "https://seu-cdn.com/imagem.jpg" }` (HTTPS público, incluindo links individuais do Google Drive com download permitido). Retorna `{ id, path }`. Veja [Google Drive](google-drive-media.md).
 - **`GET /analytics/:integration?date=30`**: estatísticas do canal nos últimos N dias.
 - **`GET /analytics/post/:postId?date=7`**: estatísticas de um post.
 - **`GET /posts?startDate=...&endDate=...`**: lista posts no intervalo (ISO 8601).

@@ -11,6 +11,28 @@ import {
 
 export type AgentScope = { organization: Organization; profileId?: string };
 
+// Public guidance is fixed locally: never forward a provider message or signed URL.
+const MEDIA_ERROR_GUIDANCE: Readonly<Record<string, string>> = {
+  UNSUPPORTED_MEDIA_TYPE:
+    'O conteúdo real não é uma imagem compatível nem um vídeo MP4. Envie uma imagem compatível ou converta o vídeo para MP4; apenas renomear a extensão não converte o formato.',
+  MEDIA_TOO_LARGE:
+    'O arquivo excede o limite aceito. Confira os limites da ferramenta e reduza o arquivo antes de enviar novamente.',
+  DRIVE_LINK_UNSUPPORTED:
+    'Envie o link individual de uma foto ou vídeo público do Google Drive, com download permitido. Pastas e documentos Google não são aceitos.',
+  DRIVE_ACCESS_DENIED:
+    'O Google recusou o download. Confira o compartilhamento por link e a permissão de download; não é necessário enviar senha ou token Google.',
+  DRIVE_DOWNLOAD_LIMIT:
+    'O Google sinalizou um limite de downloads. Aguarde e tente mais tarde; não repita a chamada continuamente.',
+  DRIVE_CONFIRMATION_UNSUPPORTED:
+    'Não foi possível resolver a confirmação pública do Google Drive. Confira o acesso sem login ou use outro link HTTPS direto para a mídia.',
+  MEDIA_FETCH_FAILED:
+    'Não foi possível baixar a mídia. Confira o link e a conexão. Se houve timeout de transporte, consulte mediaListTool antes de reenviar para evitar cópias.',
+  MEDIA_IMPORT_BUSY:
+    'O limite de importações simultâneas foi atingido. Aguarde as transferências em andamento antes de tentar novamente.',
+  MEDIA_TEMP_SPACE:
+    'O servidor não tem espaço temporário suficiente para importar a mídia. Solicite ao administrador a liberação de espaço antes de tentar novamente.',
+};
+
 // Selection is request-local. Only explicitly permitted reads may remain organization-wide.
 export function scopedAgentTool<T extends z.AnyZodObject>(
   profiles: ProfileService,
@@ -81,7 +103,15 @@ export function scopedAgentTool<T extends z.AnyZodObject>(
               ? candidate
               : `HTTP_${error.getStatus()}`;
         }
-        return { errors: JSON.stringify([{ error: code }]) };
+        const message = MEDIA_ERROR_GUIDANCE[code];
+        return {
+          errors: JSON.stringify([
+            {
+              error: code,
+              ...(typeof message === 'string' ? { message } : {}),
+            },
+          ]),
+        };
       }
     },
   });

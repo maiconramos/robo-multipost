@@ -167,6 +167,9 @@ describe('PublicIntegrationsController - upload (escopo por perfil)', () => {
     // storage e instanciado via UploadFactory.createStorage() no construtor;
     // sobrescrevemos com um mock para nao tocar disco/rede no teste.
     (transfer as any).storage = {
+      uploadFromFile: jest
+        .fn()
+        .mockResolvedValue({ originalname: 'x.jpg', path: '/uploads/x.jpg' }),
       uploadFile: jest
         .fn()
         .mockResolvedValue({ originalname: 'x.jpg', path: '/uploads/x.jpg' }),
@@ -235,6 +238,29 @@ describe('PublicIntegrationsController - upload (escopo por perfil)', () => {
       url: 'https://cdn.example.com/x.jpg',
     } as any);
 
+    expect(mediaService.saveFile).toHaveBeenCalledWith(
+      'org-1',
+      'x.jpg',
+      '/uploads/x.jpg',
+      undefined,
+      'prof-1'
+    );
+  });
+
+  it('uploadsFromUrl importa link comum do Drive e preserva perfil e contrato', async () => {
+    const fetchMock = jest.fn().mockResolvedValue(
+      new Response(new Uint8Array([1, 2, 3]), {
+        headers: { 'content-type': 'image/jpeg' },
+      })
+    );
+    (global as any).fetch = fetchMock;
+    await controller.uploadsFromUrl({ id: 'org-1' } as any, 'prof-1', {
+      url: 'https://drive.google.com/file/d/testFile12345/view?resourcekey=0-KEY',
+    } as any);
+    expect(fetchMock.mock.calls[0][0]).toContain(
+      'https://drive.google.com/uc?'
+    );
+    expect(fetchMock.mock.calls[0][0]).toContain('resourcekey=0-KEY');
     expect(mediaService.saveFile).toHaveBeenCalledWith(
       'org-1',
       'x.jpg',

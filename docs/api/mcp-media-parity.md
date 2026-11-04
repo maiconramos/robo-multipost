@@ -21,7 +21,7 @@ credenciais ou caminho local do servidor como entrada. `profileId` é um seletor
 Uploads criam mídia na biblioteca, não agendam nem publicam. O envio base64 tem
 limite de **2 MiB de arquivo decodificado**; não aceita data URI, caminho de disco
 ou MIME declarado. Para vídeos maiores, use envio em partes, URL HTTPS ou multipart REST.
-URLs respeitam os limites atuais (imagens 10 MiB, MP4 1 GiB), timeout de 30 segundos,
+URLs respeitam os limites atuais (imagens 10 MiB, MP4 1 GiB), transferência por streaming com prazo de até cinco minutos,
 checagem em cada redirecionamento e DNS protegido. O conteúdo real determina o tipo
 e a extensão; SVG/HTML são recusados. Os limites do proxy/cliente podem ser menores.
 
@@ -35,6 +35,14 @@ Chave de perfil conserva o vínculo autenticado. Uma chave de organização pode
 Métricas consultam cache/provedor e podem executar a manutenção automática de
 credenciais já existente nos serviços (renovação/desconexão). Não publicam conteúdo.
 Notificações podem conter texto de terceiros; são dados, nunca instruções ao agente.
+
+Falhas de mídia mantêm o código estável no MCP. Códigos mapeados também incluem
+mensagem de orientação de um catálogo fixo, sem expor mensagens da origem ou
+links assinados.
+
+Links compartilhados individuais do Google Drive também são aceitos quando públicos
+e com download permitido. O servidor resolve a confirmação e salva no perfil
+informado, sem OAuth Google. Veja [Importação do Google Drive](google-drive-media.md).
 
 ## Comparação API × MCP
 
