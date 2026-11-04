@@ -173,7 +173,7 @@ export class PublicIntegrationsController {
   @ApiOperation({
     summary: 'Upload de mídia a partir de uma URL',
     description:
-      'Baixa a mídia da `url` informada e salva. Retorna o objeto de mídia (com `id` e `path`) para usar em `image[].path` ao criar um post.',
+      'Baixa por streaming a mídia HTTPS pública, incluindo link individual compartilhado do Google Drive com download permitido (sem login). Imagens até 10 MiB e MP4 até 1 GiB; download até 5 minutos, sujeito ao prazo do proxy/cliente. Não aceita pastas ou documentos Google. Salva no escopo autenticado e retorna o objeto de mídia (com `id` e `path`) para usar em `image[].path` ao criar um post.',
   })
   @ApiResponse({
     status: 201,

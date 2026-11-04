@@ -7,6 +7,13 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Adicionado — importação de mídia pública do Google Drive
+
+- Erros de mídia no MCP incluem código estável e orientação segura para corrigir formato, tamanho ou acesso ao Drive. Um vídeo MOV renomeado para MP4 é recusado pelo conteúdo e o agente recebe orientação de conversão, sem exposição da mensagem original ou de links assinados.
+
+- API e MCP aceitam links compartilhados individuais de fotos e vídeos públicos do Drive, com download permitido, sem conectar uma conta Google. O servidor resolve a confirmação pública e salva a mídia no escopo informado.
+- Importação por URL passa a usar temporário privado e streaming, com limites de tamanho, prazo e concorrência, validação do conteúdo real e proteção de rede em cada redirecionamento.
+
 ### Corrigido — isolamento de clientes no MCP
 
 - Chave de organização pode consultar posts e automações de todos os clientes, com identificação do perfil, ou selecionar um cliente por chamada. Operações de cliente exigem perfil explícito e validam canal, post, automação e mídia registrada; chave de perfil não pode selecionar outro. Removida a queda silenciosa no Default das operações MCP.

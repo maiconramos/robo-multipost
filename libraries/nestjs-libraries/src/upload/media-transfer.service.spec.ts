@@ -1,3 +1,10 @@
+jest.mock('fs/promises', () => ({
+  ...jest.requireActual('fs/promises'),
+  rm: jest.fn((...args) => jest.requireActual('fs/promises').rm(...args)),
+  statfs: jest.fn((...args) =>
+    jest.requireActual('fs/promises').statfs(...args)
+  ),
+}));
 jest.mock('../database/prisma/media/media.service', () => ({
   MediaService: class {},
 }));
@@ -7,16 +14,21 @@ jest.mock('./upload.factory', () => ({
 jest.mock('./allowed.upload.mime', () => ({
   detectAllowedUploadMime: jest.fn(),
 }));
-jest.mock('./public-url.fetch', () => {
-  const actual = jest.requireActual('./public-url.fetch');
-  return { ...actual, fetchPublicUrl: jest.fn() };
+jest.mock('./public-media.download', () => {
+  const actual = jest.requireActual('./public-media.download');
+  return { ...actual, downloadPublicMedia: jest.fn() };
 });
 import { createMock } from '../test';
 import { MediaService } from '../database/prisma/media/media.service';
 import { IUploadProvider } from './upload.interface';
 import { UploadFactory } from './upload.factory';
 import { detectAllowedUploadMime } from './allowed.upload.mime';
-import { fetchPublicUrl, PublicUrlFetchError } from './public-url.fetch';
+import { PublicUrlFetchError } from './public-url.fetch';
+import {
+  downloadPublicMedia,
+  DriveDownloadError,
+} from './public-media.download';
+import * as fsPromises from 'fs/promises';
 import {
   MediaTransferService,
   MCP_UPLOAD_MAX_BYTES,
@@ -34,7 +46,16 @@ describe('transferencia de midia compartilhada REST e MCP', () => {
       mime: 'image/png',
       ext: 'png',
     });
-    (fetchPublicUrl as jest.Mock).mockResolvedValue({ buffer: bytes });
+    (downloadPublicMedia as jest.Mock).mockImplementation(
+      async (_url, path) => {
+        await fsPromises.writeFile(path, bytes, { mode: 0o600, flag: 'wx' });
+        return { size: bytes.length, filename: 'upload' };
+      }
+    );
+    storage.uploadFromFile.mockResolvedValue({
+      originalname: 'foto.png',
+      path: '/uploads/foto.png',
+    } as never);
     storage.uploadFile.mockResolvedValue({
       originalname: 'foto.png',
       path: '/uploads/foto.png',
@@ -99,9 +120,12 @@ describe('transferencia de midia compartilhada REST e MCP', () => {
     await expect(
       service.fromFile('org', 'p', { buffer: bytes, size: 1 } as never)
     ).rejects.toMatchObject({ status: 400 });
-    (fetchPublicUrl as jest.Mock).mockResolvedValueOnce({
-      buffer: Buffer.alloc(10 * 1024 * 1024 + 1),
-    });
+    (downloadPublicMedia as jest.Mock).mockImplementationOnce(
+      async (_url, path) => {
+        await fsPromises.writeFile(path, Buffer.alloc(10 * 1024 * 1024 + 1));
+        return { size: 10 * 1024 * 1024 + 1, filename: 'large.png' };
+      }
+    );
     await expect(
       service.fromUrl('org', 'p', 'https://cdn.example/a.png')
     ).rejects.toMatchObject({ status: 400 });
@@ -109,11 +133,14 @@ describe('transferencia de midia compartilhada REST e MCP', () => {
   });
   it('URL usa guard compartilhado com limite e sem opt-out SSRF', async () => {
     await service.fromUrl('org', 'p', 'https://cdn.example/a.png');
-    expect(fetchPublicUrl).toHaveBeenCalledWith('https://cdn.example/a.png', {
-      maxBytes: 1024 * 1024 * 1024,
-      timeoutMs: 30000,
-      allowHttp: false,
-      honorSsrfOptOut: false,
+    expect(downloadPublicMedia).toHaveBeenCalledWith(
+      'https://cdn.example/a.png',
+      expect.any(String)
+    );
+    expect(storage.uploadFromFile).toHaveBeenCalled();
+    const path = (downloadPublicMedia as jest.Mock).mock.calls[0][1];
+    await expect(fsPromises.stat(path)).rejects.toMatchObject({
+      code: 'ENOENT',
     });
     expect(media.saveFile).toHaveBeenCalledWith(
       'org',
@@ -126,7 +153,7 @@ describe('transferencia de midia compartilhada REST e MCP', () => {
   it.each(['unsafe', 'http', 'too-large', 'network'] as const)(
     'normaliza falha de URL %s sem vazar segredos',
     async (reason) => {
-      (fetchPublicUrl as jest.Mock).mockRejectedValueOnce(
+      (downloadPublicMedia as jest.Mock).mockRejectedValueOnce(
         new PublicUrlFetchError(reason, 'https://secret.example/?token=SECRET')
       );
       const error = await service
@@ -137,6 +164,147 @@ describe('transferencia de midia compartilhada REST e MCP', () => {
       expect(storage.uploadFile).not.toHaveBeenCalled();
     }
   );
+
+  it.each([
+    'DRIVE_LINK_UNSUPPORTED',
+    'DRIVE_ACCESS_DENIED',
+    'DRIVE_DOWNLOAD_LIMIT',
+    'DRIVE_CONFIRMATION_UNSUPPORTED',
+  ] as const)(
+    'preserva erro acionavel %s e remove temporario sem salvar',
+    async (code) => {
+      (downloadPublicMedia as jest.Mock).mockRejectedValueOnce(
+        new DriveDownloadError(code)
+      );
+      await expect(
+        service.fromUrl(
+          'org',
+          'p',
+          'https://drive.google.com/open?id=TESTFILE123'
+        )
+      ).rejects.toMatchObject({ response: { code } });
+      const path = (downloadPublicMedia as jest.Mock).mock.calls[0][1];
+      await expect(fsPromises.stat(path)).rejects.toMatchObject({
+        code: 'ENOENT',
+      });
+      expect(media.saveFile).not.toHaveBeenCalled();
+    }
+  );
+  it('limpa download parcial e falha de storage e libera admissao', async () => {
+    storage.uploadFromFile.mockRejectedValueOnce(new Error('storage failed'));
+    await expect(
+      service.fromUrl('org', 'p', 'https://cdn.example/x')
+    ).rejects.toThrow('storage failed');
+    const path = (downloadPublicMedia as jest.Mock).mock.calls[0][1];
+    await expect(fsPromises.stat(path)).rejects.toMatchObject({
+      code: 'ENOENT',
+    });
+    await expect(
+      service.fromUrl('org', 'p', 'https://cdn.example/x')
+    ).resolves.toMatchObject({ id: 'm' });
+  });
+  it('limita concorrencia por organizacao antes de iniciar download', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = (
+      downloadPublicMedia as jest.Mock
+    ).getMockImplementation()!;
+    (downloadPublicMedia as jest.Mock).mockImplementation(async (...args) => {
+      await gate;
+      return original(...args);
+    });
+    const first = service.fromUrl('org', 'p', 'https://cdn.example/1');
+    const second = service.fromUrl('org', 'p2', 'https://cdn.example/2');
+    try {
+      await expect(
+        service.fromUrl('org', 'p3', 'https://cdn.example/3')
+      ).rejects.toMatchObject({
+        status: 429,
+        response: { code: 'MEDIA_IMPORT_BUSY' },
+      });
+    } finally {
+      release();
+      await Promise.all([first, second]);
+    }
+  });
+  it('reserva espaco para download e copia final de todas as importacoes ativas', async () => {
+    let release!: () => void;
+    const gate = new Promise<void>((resolve) => {
+      release = resolve;
+    });
+    const original = (
+      downloadPublicMedia as jest.Mock
+    ).getMockImplementation()!;
+    (downloadPublicMedia as jest.Mock).mockImplementationOnce(
+      async (...args) => {
+        await gate;
+        return original(...args);
+      }
+    );
+    const first = service.fromUrl('org', 'p', 'https://cdn.example/1');
+    // Wait until the first admission has passed its disk check.
+    while (!(downloadPublicMedia as jest.Mock).mock.calls.length)
+      await new Promise((resolve) => setImmediate(resolve));
+    (fsPromises.statfs as jest.Mock).mockResolvedValueOnce({
+      bavail: 3 * 1024 ** 3 + 128 * 1024 ** 2,
+      bsize: 1,
+    });
+    try {
+      await expect(
+        service.fromUrl('org', 'p2', 'https://cdn.example/2')
+      ).rejects.toMatchObject({ status: 503 });
+    } finally {
+      release();
+      await first;
+    }
+  });
+  it('preserva recibo salvo quando limpeza temporaria falha', async () => {
+    const { Logger } = await import('@nestjs/common');
+    const log = jest
+      .spyOn(Logger.prototype, 'warn')
+      .mockImplementation(() => undefined);
+    (fsPromises.rm as jest.Mock).mockRejectedValueOnce(
+      new Error('SECRET temp path')
+    );
+    let path: string | undefined;
+    try {
+      await expect(
+        service.fromUrl('org', 'p', 'https://cdn.example/x')
+      ).resolves.toMatchObject({ id: 'm' });
+      path = (downloadPublicMedia as jest.Mock).mock.calls[0][1];
+      expect(log).toHaveBeenCalledWith(
+        'Falha ao remover temporário de importação por URL.'
+      );
+    } finally {
+      log.mockRestore();
+      if (path)
+        await fsPromises.rm(require('path').dirname(path), {
+          recursive: true,
+          force: true,
+        });
+    }
+  });
+  it('nao inicia rede quando falta espaco livre', async () => {
+    (fsPromises.statfs as jest.Mock).mockResolvedValueOnce({
+      bavail: 0,
+      bsize: 4096,
+    });
+    try {
+      await expect(
+        service.fromUrl('org', 'p', 'https://cdn.example/x')
+      ).rejects.toMatchObject({
+        status: 503,
+        response: { code: 'MEDIA_TEMP_SPACE' },
+      });
+      expect(downloadPublicMedia).not.toHaveBeenCalled();
+    } finally {
+      (fsPromises.statfs as jest.Mock).mockImplementation((...args) =>
+        jest.requireActual('fs/promises').statfs(...args)
+      );
+    }
+  });
   it('sem organizacao ou arquivo falha antes de qualquer efeito', async () => {
     await expect(
       service.fromUrl('', 'p', 'https://cdn.example/a.png')
@@ -144,7 +312,7 @@ describe('transferencia de midia compartilhada REST e MCP', () => {
     await expect(service.fromFile('org', 'p', undefined)).rejects.toMatchObject(
       { status: 400 }
     );
-    expect(fetchPublicUrl).not.toHaveBeenCalled();
+    expect(downloadPublicMedia).not.toHaveBeenCalled();
     expect(storage.uploadFile).not.toHaveBeenCalled();
   });
   it('valida tamanho e cabecalho de arquivo temporario, entao usa streaming', async () => {

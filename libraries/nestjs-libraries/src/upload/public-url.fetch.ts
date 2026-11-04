@@ -41,6 +41,10 @@ export interface PublicUrlFetchOptions {
    */
   honorSsrfOptOut?: boolean;
   headers?: Record<string, string>;
+  /** Optional caller deadline, shared across a multi-request download. */
+  signal?: AbortSignal;
+  /** Restrict known-provider redirects in addition to the public-network guard. */
+  allowedUrl?: (url: URL) => boolean;
 }
 
 const DEFAULT_TIMEOUT_MS = 30_000;
@@ -65,9 +69,31 @@ export async function fetchPublicUrl(
   url: string,
   options: PublicUrlFetchOptions
 ): Promise<{ buffer: Buffer; contentType: string }> {
+  return withPublicUrlResponse(url, options, async (response) => {
+    try {
+      return {
+        buffer: await readResponseBodyWithLimit(response, options.maxBytes),
+        contentType:
+          response.headers.get('content-type') || 'application/octet-stream',
+      };
+    } catch (err) {
+      if (err instanceof ResponseBodyTooLargeError) throw err;
+      throw new PublicUrlFetchError('network', 'Network error');
+    }
+  });
+}
+
+/** Consume under the same deadline and redirect guards; the body is always cancelled. */
+export async function withPublicUrlResponse<T>(
+  url: string,
+  options: PublicUrlFetchOptions,
+  consume: (response: Response, finalUrl: string) => Promise<T>
+): Promise<T> {
   const optedOut =
     options.honorSsrfOptOut === true && isSsrfProtectionDisabled();
-  const signal = AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
+  const signal =
+    options.signal ??
+    AbortSignal.timeout(options.timeoutMs ?? DEFAULT_TIMEOUT_MS);
 
   let currentUrl = url;
   let response: Response | undefined;
@@ -126,19 +152,18 @@ export async function fetchPublicUrl(
   }
 
   try {
-    return {
-      buffer: await readResponseBodyWithLimit(response, options.maxBytes),
-      contentType:
-        response.headers.get('content-type') || 'application/octet-stream',
-    };
+    return await consume(response, currentUrl);
   } catch (err) {
+    if (err instanceof PublicUrlFetchError) throw err;
     if (err instanceof ResponseBodyTooLargeError) {
       throw new PublicUrlFetchError(
         'too-large',
         `Response exceeds ${options.maxBytes} bytes`
       );
     }
-    throw new PublicUrlFetchError('network', 'Network error');
+    throw err;
+  } finally {
+    await cancelBody(response);
   }
 }
 
@@ -152,6 +177,10 @@ async function assertAllowedUrl(
     parsed = new URL(url);
   } catch {
     throw new PublicUrlFetchError('unsafe', 'Invalid URL');
+  }
+
+  if (options.allowedUrl && !options.allowedUrl(parsed)) {
+    throw new PublicUrlFetchError('unsafe', 'Unsafe URL');
   }
 
   const protocolAllowed =
