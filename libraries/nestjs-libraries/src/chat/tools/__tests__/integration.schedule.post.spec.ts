@@ -351,6 +351,8 @@ describe('criacao MCP completa de posts', () => {
       ).run() as any
     ).execute({ socialPost: [item()] }, orgContext);
     expect(r.errors).toContain('PROFILE_REQUIRED');
+    expect(JSON.parse(r.errors)[0].message).toContain('getAccountContextTool');
+    expect(JSON.parse(r.errors)[0].message).toContain('socialPost[].profileId');
     expect(posts.createPost).not.toHaveBeenCalled();
     expect(integration.getIntegrationById).not.toHaveBeenCalled();
   });

@@ -26,7 +26,7 @@ export class IntegrationListTool implements AgentToolInterface {
   run() {
     return createTool({
       id: 'integrationList',
-      description: `This tool list available integrations to schedule posts to`,
+      description: `Lista canais e seus perfis para agendar posts. Com chave de organização, use a mesma conexão: sem profileId lista os canais autorizados da organização; com profileId restringe ao cliente. Descubra o ID em getAccountContextTool ou no profileId de cada canal; não peça uma chave nova por cliente nem invente IDs.`,
       inputSchema: z.object({ profileId: agentProfileSelector }).strict(),
       outputSchema: z.object({
         output: z.array(

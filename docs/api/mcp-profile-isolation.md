@@ -6,16 +6,39 @@ organização vem da autenticação e nunca é aceita como argumento. Uma chave 
 perfil ou token OAuth vinculado a perfil continua limitado ao próprio perfil;
 selecionar outro retorna `PROFILE_KEY_MISMATCH` antes de consultar o recurso.
 
+## Descoberta para agentes com chave de organização
+
+A mesma chave da organização serve para operar os clientes autorizados. O ID de
+perfil é um identificador de recurso, não uma chave de autenticação. Não crie ou
+solicite uma chave por cliente somente porque uma operação exige `profileId`.
+
+1. Chame `getAccountContextTool` sem argumentos para identificar o escopo da
+   credencial e obter `profiles[].id` e nome.
+2. Relacione o cliente solicitado aos perfis retornados. Se houver ambiguidade,
+   pergunte qual cliente; não escolha o primeiro nem o Default automaticamente.
+3. Chame `integrationList` com o `profileId` escolhido para obter seus canais.
+4. Reutilize a mesma credencial e passe `profileId` em cada operação de cliente.
+   No agendamento em lote, preencha `socialPost[].profileId` em cada destino.
+5. Ao receber `PROFILE_REQUIRED`, consulte o contexto e refaça a chamada com a
+   seleção explícita; a seleção não permanece para as próximas chamadas.
+
+Chaves de perfil continuam limitadas ao perfil autenticado. `PROFILE_KEY_MISMATCH`
+não autoriza ampliar o acesso; informe a incompatibilidade e use somente uma
+conexão já autorizada para o cliente correto. Perfis ausentes na descoberta não
+podem ser inventados. Instruções de inicialização, descrições das ferramentas,
+schema do seletor e orientações de erro reforçam esse fluxo. Alguns clientes
+podem ignorar instruções de inicialização; a recuperação não depende só delas.
+
 ## Contrato
 
-| Operação | Chave de organização | Chave de perfil |
-|---|---|---|
-| `getAccountContextTool` | Lista perfis acessíveis; não aceita seletor nem troca contexto | Mostra apenas o perfil autenticado |
+| Operação                                                                          | Chave de organização                                                                  | Chave de perfil                                                  |
+| --------------------------------------------------------------------------------- | ------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `getAccountContextTool`                                                           | Lista perfis acessíveis; não aceita seletor nem troca contexto                        | Mostra apenas o perfil autenticado                               |
 | `integrationList`, `mediaListTool`, `listPostsTool`, `listCommentAutomationsTool` | Sem seletor: consulta geral da organização; `profileId` opcional restringe ao cliente | Consulta apenas o próprio perfil; aceita omissão ou o próprio ID |
-| Detalhe, edição, ações e histórico de um post/automação | Exige `profileId` explícito | Usa o perfil autenticado |
-| Criar posts em lote | Exige `socialPost[].profileId` em **cada destino** | Só permite o próprio perfil |
-| Criar automação, upload e fases de upload em partes | Exige `profileId` na chamada | Usa o perfil autenticado |
-| Geração de imagem/vídeo, base de conhecimento, busca e funções de canal | Exige o perfil para selecionar biblioteca, conhecimento e credenciais corretos | Usa o próprio perfil |
+| Detalhe, edição, ações e histórico de um post/automação                           | Exige `profileId` explícito                                                           | Usa o perfil autenticado                                         |
+| Criar posts em lote                                                               | Exige `socialPost[].profileId` em **cada destino**                                    | Só permite o próprio perfil                                      |
+| Criar automação, upload e fases de upload em partes                               | Exige `profileId` na chamada                                                          | Usa o perfil autenticado                                         |
+| Geração de imagem/vídeo, base de conhecimento, busca e funções de canal           | Exige o perfil para selecionar biblioteca, conhecimento e credenciais corretos        | Usa o próprio perfil                                             |
 
 Schemas/catálogos públicos de redes e ferramentas sem dados de cliente não exigem
 seleção. Nenhuma operação de cliente cai silenciosamente no Default. Para operar

@@ -50,7 +50,7 @@ export class UploadMediaTool implements AgentToolInterface {
     return scopedAgentTool(
       this.profiles,
       this.name,
-      'Envia arquivo pequeno para a biblioteca do perfil autenticado/selecionado (chave geral exige profileId) por filename e base64 puro (máximo 2 MiB decodificados; sem data URI). Não lê disco local do agente ou servidor e não publica. Para arquivos maiores use beginMediaUploadTool e envie em partes por cliente/script, uploadMediaFromUrlTool ou POST /public/v1/upload multipart. Retorna id/path reutilizáveis. Não invente base64. Repetir pode criar cópia; consulte mediaListTool após resultado incerto.',
+      'Envia arquivo pequeno para a biblioteca do perfil autenticado/selecionado (chave geral exige profileId) por filename e base64 puro (máximo 6 MiB decodificados nos endpoints MCP HTTP /mcp, /mcp/:id e /mcp-oauth; corpo JSON até 12 MiB; sem data URI). Não lê disco local do agente ou servidor e não publica. Para arquivos maiores use beginMediaUploadTool e envie em partes por cliente/script, uploadMediaFromUrlTool ou POST /public/v1/upload multipart. Retorna id/path reutilizáveis. As partes continuam em 2 MiB. No SSE legado, prefira URL ou partes para arquivos acima de 2 MiB. Gere base64 por código, sem colocar bytes no prompt; não invente base64. Repetir pode criar cópia; consulte mediaListTool após resultado incerto.',
       mediaUploadSchema,
       async ({ organization, profileId }, input) =>
         mediaResult(

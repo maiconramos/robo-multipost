@@ -12,7 +12,13 @@ import {
 export type AgentScope = { organization: Organization; profileId?: string };
 
 // Public guidance is fixed locally: never forward a provider message or signed URL.
-const MEDIA_ERROR_GUIDANCE: Readonly<Record<string, string>> = {
+const TOOL_ERROR_GUIDANCE: Readonly<Record<string, string>> = {
+  PROFILE_REQUIRED:
+    'Descubra o cliente com getAccountContextTool e os canais com integrationList. Use a mesma chave da organização; não precisa de nova chave por perfil. Informe profileId em cada operação; no agendamento, socialPost[].profileId em cada destino. Não escolha Default automaticamente.',
+  PROFILE_KEY_MISMATCH:
+    'Esta credencial está limitada a um perfil. Selecione somente o perfil autenticado; para outro cliente, use uma conexão já autorizada, sem ampliar permissões.',
+  PROFILE_NOT_FOUND:
+    'O perfil não está disponível nesta organização. Consulte getAccountContextTool e use somente um ID retornado para o cliente solicitado.',
   UNSUPPORTED_MEDIA_TYPE:
     'O conteúdo real não é uma imagem compatível nem um vídeo MP4. Envie uma imagem compatível ou converta o vídeo para MP4; apenas renomear a extensão não converte o formato.',
   MEDIA_TOO_LARGE:
@@ -32,6 +38,11 @@ const MEDIA_ERROR_GUIDANCE: Readonly<Record<string, string>> = {
   MEDIA_TEMP_SPACE:
     'O servidor não tem espaço temporário suficiente para importar a mídia. Solicite ao administrador a liberação de espaço antes de tentar novamente.',
 };
+
+export function agentToolErrorGuidance(code: string): string | undefined {
+  const message = TOOL_ERROR_GUIDANCE[code];
+  return typeof message === 'string' ? message : undefined;
+}
 
 // Selection is request-local. Only explicitly permitted reads may remain organization-wide.
 export function scopedAgentTool<T extends z.AnyZodObject>(
@@ -103,7 +114,7 @@ export function scopedAgentTool<T extends z.AnyZodObject>(
               ? candidate
               : `HTTP_${error.getStatus()}`;
         }
-        const message = MEDIA_ERROR_GUIDANCE[code];
+        const message = agentToolErrorGuidance(code);
         return {
           errors: JSON.stringify([
             {

@@ -3,12 +3,16 @@ import { OrganizationService } from '@gitroom/nestjs-libraries/database/prisma/o
 import { OAuthService } from '@gitroom/nestjs-libraries/database/prisma/oauth/oauth.service';
 import { ProfileService } from '@gitroom/nestjs-libraries/database/prisma/profiles/profile.service';
 import { MCPServer } from '@mastra/mcp';
+import { createMcpHttpTransport } from './mcp.http.transport';
 import { getContext } from './async.storage';
 import { startMcp } from './start.mcp';
 
 const mockStartHTTP = jest.fn();
 const mockStartSSE = jest.fn();
 
+jest.mock('./mcp.http.transport', () => ({
+  createMcpHttpTransport: jest.fn(),
+}));
 jest.mock('@mastra/mcp', () => ({
   MCPServer: jest.fn(),
 }));
@@ -46,6 +50,7 @@ const response = () => {
 
 const request = (overrides: Record<string, unknown> = {}) => ({
   method: 'POST',
+  body: {},
   path: '/',
   baseUrl: '',
   originalUrl: '/',
@@ -68,6 +73,10 @@ describe('startMcp', () => {
       startHTTP: mockStartHTTP,
       startSSE: mockStartSSE,
     }));
+    (createMcpHttpTransport as jest.Mock).mockReturnValue({
+      startHTTP: mockStartHTTP,
+      close: jest.fn(),
+    });
     handlers.clear();
     process.env.NEXT_PUBLIC_BACKEND_URL = 'https://backend.example';
     process.env.FRONTEND_URL = 'https://frontend.example';
@@ -96,6 +105,7 @@ describe('startMcp', () => {
     };
 
     app = {
+      getHttpServer: jest.fn().mockReturnValue({ once: jest.fn() }),
       get: jest.fn((token: unknown) => {
         if (token === MastraService) return mastraService;
         if (token === OrganizationService) return organizationService;
@@ -117,8 +127,25 @@ describe('startMcp', () => {
     process.env = originalEnv;
   });
 
+  it('fecha o handler compartilhado somente ao desligar o servidor HTTP', () => {
+    const httpServer = app.getHttpServer();
+    expect(httpServer.once).toHaveBeenCalledWith('close', expect.any(Function));
+    const transport = (createMcpHttpTransport as jest.Mock).mock.results[0]
+      .value;
+    expect(transport.close).not.toHaveBeenCalled();
+    httpServer.once.mock.calls[0][1]();
+    expect(transport.close).toHaveBeenCalledTimes(1);
+  });
+
+  it('distribui orientacao de descoberta e reutilizacao da chave no initialize', () => {
+    const config = (createMcpHttpTransport as jest.Mock).mock.calls[0][0];
+    expect(config.instructions).toContain('getAccountContextTool');
+    expect(config.instructions).toContain('mesma chave');
+    expect(config.instructions).toContain('socialPost[].profileId');
+    expect(config.instructions).toContain('Default');
+  });
   it('anuncia protocolo dual-era sem forcar resposta JSON nos endpoints HTTP', async () => {
-    expect(MCPServer).toHaveBeenCalledWith(
+    expect(createMcpHttpTransport).toHaveBeenCalledWith(
       expect.objectContaining({ protocolVersion: '2026-07-28' })
     );
     await handlers.get('/mcp')!(

@@ -26,7 +26,7 @@ import {
   beginMediaUploadSchema,
   mediaUploadSessionSchema,
   MCP_CHUNK_UPLOAD_MAX_BYTES,
-  MCP_UPLOAD_MAX_BYTES,
+  MCP_UPLOAD_PART_MAX_BYTES,
 } from '../dtos/media/agent-media.dto';
 import { MediaTransferService } from './media-transfer.service';
 
@@ -177,7 +177,7 @@ export class MediaChunkUploadService
       state: session.state,
       size: session.size,
       offset: session.offset,
-      maxChunkBytes: MCP_UPLOAD_MAX_BYTES,
+      maxChunkBytes: MCP_UPLOAD_PART_MAX_BYTES,
       expiresAt: new Date(session.expiresAt).toISOString(),
       ...(session.media ? { media: session.media } : {}),
     };
@@ -310,7 +310,7 @@ export class MediaChunkUploadService
       const bytes = Buffer.from(value, 'base64');
       if (
         !bytes.length ||
-        bytes.length > MCP_UPLOAD_MAX_BYTES ||
+        bytes.length > MCP_UPLOAD_PART_MAX_BYTES ||
         bytes.toString('base64') !== value
       )
         fail('INVALID_BASE64');

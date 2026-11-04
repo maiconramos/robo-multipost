@@ -17,6 +17,7 @@ import {
   POST_CONTENT_DESCRIPTION,
 } from '../../dtos/posts/post-management.dto';
 import { CreatePostDto } from '../../dtos/posts/create.post.dto';
+import { agentToolErrorGuidance } from './scoped-agent-tool.helper';
 import { HttpException } from '@nestjs/common';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import {
@@ -296,12 +297,16 @@ export class IntegrationSchedulePostTool implements AgentToolInterface {
           }
           return { output };
         } catch (error) {
+          const code = automationErrorCode(error);
+          const message = agentToolErrorGuidance(code);
           return {
             ...(output.length ? { output, saved: true } : {}),
             ...(uncertainPosts.length
               ? { uncertainPosts, outcomeUnknown: true }
               : {}),
-            errors: JSON.stringify([{ error: automationErrorCode(error) }]),
+            errors: JSON.stringify([
+              { error: code, ...(message ? { message } : {}) },
+            ]),
           };
         }
       },

@@ -11,7 +11,7 @@ export const agentProfileSelector = z
   .max(100)
   .optional()
   .describe(
-    'Perfil/cliente escolhido nesta chamada. Chave de organização pode selecionar apenas perfis da própria organização; chave de perfil só aceita o próprio. Não troca a sessão. Obrigatório para operações de um cliente quando a chave é da organização.'
+    'Perfil/cliente escolhido nesta chamada: descubra o ID com getAccountContextTool e os canais com integrationList. Reutilize a mesma chave da organização; não solicite uma chave por cliente. profileId é um identificador, não uma credencial. Chave de organização pode selecionar apenas perfis da própria organização; chave de perfil só aceita o próprio. Não troca a sessão. Obrigatório para operações de um cliente quando a chave é da organização.'
   );
 
 export function agentIdentity(options: unknown, requested?: string) {
