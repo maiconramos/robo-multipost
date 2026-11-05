@@ -7,6 +7,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Melhorado — envio direto e descoberta de clientes no MCP
+
+- Envio direto de arquivos por base64 no MCP HTTP passa a aceitar 6 MiB, com corpo JSON limitado a 12 MiB antes do processamento. As partes permanecem em 2 MiB, imagens em 10 MiB e MP4 em 1 GiB.
+- O agente recebe orientações para descobrir o ID do perfil e reutilizar a chave da organização, sem pedir outra chave por cliente. Instruções do MCP, catálogo, retorno de contexto, erros e skill distribuída ficam alinhados, preservando o isolamento e a seleção explícita por chamada.
+
 ### Adicionado — importação de mídia pública do Google Drive
 
 - Erros de mídia no MCP incluem código estável e orientação segura para corrigir formato, tamanho ou acesso ao Drive. Um vídeo MOV renomeado para MP4 é recusado pelo conteúdo e o agente recebe orientação de conversão, sem exposição da mensagem original ou de links assinados.

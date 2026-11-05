@@ -5,21 +5,21 @@
 O MCP reutiliza os serviços da API. Nenhuma ferramenta recebe organização,
 credenciais ou caminho local do servidor como entrada. `profileId` é um seletor validado, conforme [Perfis de clientes no MCP](mcp-profile-isolation.md).
 
-| Ferramenta | Entrada | Resultado / equivalente REST |
-|---|---|---|
-| `uploadMediaFromUrlTool` | `url` HTTPS pública | Mídia salva, `id` e `path`; `POST /public/v1/upload-from-url` |
-| `uploadMediaTool` | `filename`, `base64` puro e canônico | Mídia salva, `id` e `path`; alternativa JSON ao multipart `POST /public/v1/upload` |
-| `beginMediaUploadTool` | `filename`, `size`, `sha256` do arquivo completo, `clientRequestId` opcional | Sessão privada, offset e limites para envio em partes; a mesma chave de requisição recupera o início |
-| `appendMediaUploadTool` | `uploadId`, `offset`, `base64` de uma parte | Próximo offset confirmado; repetição da última parte não duplica bytes |
-| `getMediaUploadTool` | `uploadId` | Andamento ou recibo da mídia concluída |
-| `completeMediaUploadTool` | `uploadId` | Confere SHA-256, tipo e tamanho, salva a mídia; repetição devolve o recibo |
-| `abortMediaUploadTool` | `uploadId` | Cancela e remove temporários; recusa sessão concluída e não exclui a mídia salva |
-| `getAccountContextTool` | nenhuma | Organização, perfil autenticado e perfis acessíveis; `/me` e `/profiles`, sem chaves/tokens |
-| `getAnalyticsTool` | `target: channel ou post`, `id`, `days` (1–365, padrão 7) | Métricas dos serviços usados por `/analytics/:integration` e `/analytics/post/:postId` |
-| `listNotificationsTool` | `page` (base zero, padrão 0) | Notificações paginadas; `/notifications` |
+| Ferramenta                | Entrada                                                                      | Resultado / equivalente REST                                                                         |
+| ------------------------- | ---------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------- |
+| `uploadMediaFromUrlTool`  | `url` HTTPS pública                                                          | Mídia salva, `id` e `path`; `POST /public/v1/upload-from-url`                                        |
+| `uploadMediaTool`         | `filename`, `base64` puro e canônico                                         | Mídia salva, `id` e `path`; alternativa JSON ao multipart `POST /public/v1/upload`                   |
+| `beginMediaUploadTool`    | `filename`, `size`, `sha256` do arquivo completo, `clientRequestId` opcional | Sessão privada, offset e limites para envio em partes; a mesma chave de requisição recupera o início |
+| `appendMediaUploadTool`   | `uploadId`, `offset`, `base64` de uma parte                                  | Próximo offset confirmado; repetição da última parte não duplica bytes                               |
+| `getMediaUploadTool`      | `uploadId`                                                                   | Andamento ou recibo da mídia concluída                                                               |
+| `completeMediaUploadTool` | `uploadId`                                                                   | Confere SHA-256, tipo e tamanho, salva a mídia; repetição devolve o recibo                           |
+| `abortMediaUploadTool`    | `uploadId`                                                                   | Cancela e remove temporários; recusa sessão concluída e não exclui a mídia salva                     |
+| `getAccountContextTool`   | nenhuma                                                                      | Organização, perfil autenticado e perfis acessíveis; `/me` e `/profiles`, sem chaves/tokens          |
+| `getAnalyticsTool`        | `target: channel ou post`, `id`, `days` (1–365, padrão 7)                    | Métricas dos serviços usados por `/analytics/:integration` e `/analytics/post/:postId`               |
+| `listNotificationsTool`   | `page` (base zero, padrão 0)                                                 | Notificações paginadas; `/notifications`                                                             |
 
 Uploads criam mídia na biblioteca, não agendam nem publicam. O envio base64 tem
-limite de **2 MiB de arquivo decodificado**; não aceita data URI, caminho de disco
+limite de **6 MiB de arquivo decodificado via MCP HTTP**; não aceita data URI, caminho de disco
 ou MIME declarado. Para vídeos maiores, use envio em partes, URL HTTPS ou multipart REST.
 URLs respeitam os limites atuais (imagens 10 MiB, MP4 1 GiB), transferência por streaming com prazo de até cinco minutos,
 checagem em cada redirecionamento e DNS protegido. O conteúdo real determina o tipo
@@ -64,8 +64,11 @@ Ter o código local não significa que outra instância já recebeu essas ferram
 ## Vídeos locais grandes
 
 O envio em partes aceita arquivos de até **1 GiB**, sujeito ao limite real do tipo:
-MP4 até 1 GiB e imagens até 10 MiB. Cada chamada transporta até 2 MiB decodificados,
-mantendo base64 e envelope abaixo dos 4 MiB do transporte MCP. Não há arquivo
+MP4 até 1 GiB e imagens até 10 MiB. Cada parte transporta até 2 MiB decodificados; esse limite não aumenta com o
+envio direto. Endpoints HTTP `/mcp`, `/mcp/:id` e `/mcp-oauth` limitam o corpo
+JSON a 12 MiB depois da autenticação e antes de despachar ao MCP. O adaptador HTTP usa as APIs públicas do SDK para encaminhar esse corpo já validado, mantendo instâncias sem sessão e compatibilidade com protocolos 2025/2026. Um arquivo direto de 6 MiB ocupa cerca de 8 MiB
+em base64, deixando margem para o envelope. O SSE legado conserva o transporte
+anterior; prefira os endpoints HTTP para envio direto acima de 2 MiB. Não há arquivo
 local no servidor escolhido pelo agente: o cliente lê seus próprios bytes.
 
 O cliente calcula o SHA-256 do arquivo, inicia a sessão e envia partes sequenciais.

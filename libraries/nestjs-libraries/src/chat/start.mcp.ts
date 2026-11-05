@@ -1,4 +1,7 @@
 import { INestApplication } from '@nestjs/common';
+import { createMcpHttpTransport } from './mcp.http.transport';
+import { prepareMcpHttpBody } from './mcp.http.body';
+import { MCP_AGENT_INSTRUCTIONS } from '../agent/agent.operating.instructions';
 import { Request, Response } from 'express';
 import { MastraService } from '@gitroom/nestjs-libraries/chat/mastra.service';
 import { MCPServer } from '@mastra/mcp';
@@ -56,13 +59,17 @@ export const startMcp = async (app: INestApplication) => {
 
   const serverConfig = {
     name: 'Postiz MCP',
+    instructions: MCP_AGENT_INSTRUCTIONS,
     protocolVersion: '2026-07-28' as const,
     version: '1.0.0',
     tools,
     agents: { postiz: agent },
   };
 
-  const server = new MCPServer(serverConfig);
+  const http = createMcpHttpTransport(serverConfig);
+  app.getHttpServer().once('close', () => {
+    void http.close();
+  });
 
   const oauthResource = new URL(
     '/mcp-oauth',
@@ -165,15 +172,14 @@ export const startMcp = async (app: INestApplication) => {
       const token = result.tokenValidation?.subject;
       const resolved = await resolveAuth(token!);
       if (!resolved) {
-        res
-          .status(401)
-          .json({
-            error: 'invalid_token',
-            error_description: 'Could not resolve organization',
-          });
+        res.status(401).json({
+          error: 'invalid_token',
+          error_description: 'Could not resolve organization',
+        });
         return;
       }
 
+      if (!(await prepareMcpHttpBody(req, res))) return;
       fixAcceptHeader(req);
       endListenStream(req, res);
       await runWithContext(
@@ -183,7 +189,7 @@ export const startMcp = async (app: INestApplication) => {
           profileId: resolved.profileId,
         },
         async () => {
-          await server.startHTTP({
+          await http.startHTTP({
             url: url,
             httpPath: url.pathname,
             options: {
@@ -231,12 +237,13 @@ export const startMcp = async (app: INestApplication) => {
 
     const url = new URL('/mcp', process.env.NEXT_PUBLIC_BACKEND_URL);
 
+    if (!(await prepareMcpHttpBody(req, res))) return;
     fixAcceptHeader(req);
     endListenStream(req, res);
     await runWithContext(
       { requestId: token, auth: resolved.org, profileId: resolved.profileId },
       async () => {
-        await server.startHTTP({
+        await http.startHTTP({
           url,
           httpPath: url.pathname,
           options: {
@@ -272,12 +279,13 @@ export const startMcp = async (app: INestApplication) => {
 
     const url = new URL(`/mcp/${mcpId}`, process.env.NEXT_PUBLIC_BACKEND_URL);
 
+    if (!(await prepareMcpHttpBody(req, res))) return;
     fixAcceptHeader(req);
     endListenStream(req, res);
     await runWithContext(
       { requestId: mcpId, auth: resolved.org, profileId: resolved.profileId },
       async () => {
-        await server.startHTTP({
+        await http.startHTTP({
           url,
           httpPath: url.pathname,
           options: {

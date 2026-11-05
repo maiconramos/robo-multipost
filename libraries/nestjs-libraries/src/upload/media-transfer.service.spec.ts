@@ -108,7 +108,7 @@ describe('transferencia de midia compartilhada REST e MCP', () => {
     ).rejects.toMatchObject({ status: 400 });
     expect(detectAllowedUploadMime).not.toHaveBeenCalled();
   });
-  it('aceita exatamente 2 MiB de base64 canonico sem perder bytes', async () => {
+  it('aceita exatamente 6 MiB de base64 canonico sem perder bytes', async () => {
     const buffer = Buffer.alloc(MCP_UPLOAD_MAX_BYTES, 1);
     await service.fromBase64('org', 'p', 'foto.png', buffer.toString('base64'));
     const file = storage.uploadFile.mock.calls[0][0];

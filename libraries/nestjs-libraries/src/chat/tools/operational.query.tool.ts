@@ -6,6 +6,7 @@ import { IntegrationService } from '../../database/prisma/integrations/integrati
 import { PostManagementService } from '../../database/prisma/posts/post-management.service';
 import { PostsService } from '../../database/prisma/posts/posts.service';
 import { NotificationService } from '../../database/prisma/notifications/notification.service';
+import { MCP_AGENT_INSTRUCTIONS } from '../../agent/agent.operating.instructions';
 import { scopedAgentTool } from './scoped-agent-tool.helper';
 
 @Injectable()
@@ -16,7 +17,7 @@ export class GetAccountContextTool implements AgentToolInterface {
     return scopedAgentTool(
       this.profiles,
       this.name,
-      'Identifica organização, perfil autenticado e perfis acessíveis, sem chaves ou tokens. Chave de perfil mostra só o próprio; chave de organização lista os perfis acessíveis. profileId é seleção validada por chamada, nunca troca a sessão. Listagens gerais abrangem a organização; criação, edição, upload e ações de cliente exigem perfil explícito em chave de organização, sem fallback Default. Não retorna o usuário OAuth.',
+      'Primeiro passo para operar clientes com a mesma chave da organização: descubra profiles[].id, escolha o cliente solicitado e use esse ID como profileId nas chamadas seguintes; não precisa de chave por cliente. Identifica organização, perfil autenticado e perfis acessíveis, sem chaves ou tokens. Chave de perfil mostra só o próprio; chave de organização lista os perfis acessíveis. profileId é seleção validada por chamada, nunca troca a sessão. Listagens gerais abrangem a organização; criação, edição, upload e ações de cliente exigem perfil explícito em chave de organização, sem fallback Default. Não retorna o usuário OAuth.',
       z.object({}).strict(),
       async ({ organization, profileId }) => {
         const available = profileId
@@ -27,6 +28,14 @@ export class GetAccountContextTool implements AgentToolInterface {
           .map((p) => ({ id: p.id, name: p.name, isDefault: p.isDefault }));
         return {
           organization: { id: organization.id, name: organization.name },
+          credentialScope: profileId ? 'profile' : 'organization',
+          profileSelection: {
+            parameter: 'profileId',
+            batchPostParameter: 'socialPost[].profileId',
+            persists: false,
+            canSelectAcrossProfiles: !profileId,
+          },
+          guidance: MCP_AGENT_INSTRUCTIONS,
           profile: profileId ? profiles[0] ?? null : null,
           profiles,
           mediaQueryScope: profileId ? 'profile' : 'organization',

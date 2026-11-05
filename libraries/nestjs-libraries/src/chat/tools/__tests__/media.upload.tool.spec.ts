@@ -1,8 +1,6 @@
-jest.mock(
-  '../../../upload/media-transfer.service',
-  () => ({ MediaTransferService: class {} }),
-  { virtual: true }
-);
+jest.mock('../../../upload/media-transfer.service', () => ({
+  MediaTransferService: class {},
+}));
 jest.mock('../../../database/prisma/profiles/profile.service', () => ({
   ProfileService: class {},
 }));

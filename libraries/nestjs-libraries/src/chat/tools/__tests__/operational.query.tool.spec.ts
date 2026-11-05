@@ -1,3 +1,6 @@
+jest.mock('../../../upload/media-transfer.service', () => ({
+  MediaTransferService: class {},
+}));
 jest.mock('../../../database/prisma/posts/post-management.service', () => ({
   PostManagementService: class {},
 }));
@@ -14,6 +17,7 @@ jest.mock(
   '../../../database/prisma/notifications/notification.service',
   () => ({ NotificationService: class {} })
 );
+import { UploadMediaFromUrlTool } from '../media.upload.tool';
 import { HttpException } from '@nestjs/common';
 import { PostManagementService } from '../../../database/prisma/posts/post-management.service';
 import { createMock } from '../../../test';
@@ -85,6 +89,52 @@ describe('consultas operacionais MCP em paridade com REST', () => {
     expect(result.output.postAutomationScope).toBe('organization');
     expect(result.output.writeProfileRequired).toBe(true);
     expect(JSON.stringify(result)).not.toContain('SECRET');
+  });
+  it('descobre o cliente e envia midia com a mesma credencial geral, sem escolher Default', async () => {
+    const account: any = new GetAccountContextTool(profiles).run();
+    const transfer = {
+      fromUrl: jest
+        .fn()
+        .mockResolvedValue({
+          id: 'midia',
+          name: 'x.png',
+          path: '/uploads/x.png',
+        }),
+    };
+    const upload: any = new UploadMediaFromUrlTool(
+      transfer as never,
+      profiles
+    ).run();
+    const noSelection = await upload.execute(
+      { url: 'https://cdn.example/x.png' },
+      context()
+    );
+    const [failure] = JSON.parse(noSelection.errors);
+    expect(failure.error).toBe('PROFILE_REQUIRED');
+    expect(failure.message).toContain('getAccountContextTool');
+    expect(failure.message).toContain('mesma chave');
+    expect(transfer.fromUrl).not.toHaveBeenCalled();
+    const discovered = await account.execute({}, context());
+    expect(discovered.output.credentialScope).toBe('organization');
+    expect(discovered.output.profileSelection).toMatchObject({
+      parameter: 'profileId',
+      batchPostParameter: 'socialPost[].profileId',
+      persists: false,
+    });
+    const selected = discovered.output.profiles.find(
+      (profile: { name: string }) => profile.name === 'Perfil'
+    );
+    await upload.execute(
+      { url: 'https://cdn.example/x.png', profileId: selected.id },
+      context()
+    );
+    expect(transfer.fromUrl).toHaveBeenCalledWith(
+      'org',
+      'p',
+      'https://cdn.example/x.png'
+    );
+    expect((await account.execute({}, context())).output.profile).toBeNull();
+    expect(JSON.stringify(discovered)).not.toContain('SECRET');
   });
   it('consulta metricas de canal e post com escopo e dias validados', async () => {
     const tool: any = new GetAnalyticsTool(
