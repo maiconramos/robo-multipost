@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { instagramAudioError, isInstagramVideo } from './instagram.audio';
 import { EncryptionService } from '../../crypto/encryption.service';
 import { decryptIntegrationToken } from '../../crypto/integration-token.helper';
@@ -1141,6 +1142,43 @@ export class InstagramProvider
     return '';
   }
 
+  private readonly analyticsLogger = new Logger(InstagramProvider.name);
+
+  private async readAccountInsights(
+    url: string,
+    phase: 'daily' | 'totals',
+    days: number
+  ): Promise<any[]> {
+    // Keep RefreshToken outside the parse guard so existing recovery still runs.
+    const response = await this.analyticsFetch(url);
+    let body: {
+      data?: any[];
+      error?: { code?: unknown; error_subcode?: unknown };
+    };
+    try {
+      body = await response.json();
+    } catch {
+      body = undefined;
+    }
+    if (response.status >= 400 || body?.error || !Array.isArray(body?.data)) {
+      this.analyticsLogger.warn({
+        event: 'instagram-analytics-unavailable',
+        phase,
+        days: Number.isFinite(days) ? days : undefined,
+        status: Number.isInteger(response.status) ? response.status : undefined,
+        code:
+          typeof body?.error?.code === 'number' ? body.error.code : undefined,
+        subcode:
+          typeof body?.error?.error_subcode === 'number'
+            ? body.error.error_subcode
+            : undefined,
+      });
+      // Do not return [] here: the service caches successful provider results.
+      throw new Error('INSTAGRAM_ANALYTICS_UNAVAILABLE');
+    }
+    return body.data;
+  }
+
   async analytics(
     id: string,
     accessToken: string,
@@ -1148,24 +1186,23 @@ export class InstagramProvider
     integration?: Integration,
     type = 'graph.facebook.com'
   ): Promise<AnalyticsData[]> {
-    const until = dayjs().endOf('day').unix();
-    const since = dayjs().subtract(date, 'day').unix();
+    const until = dayjs().unix();
+    const since = until - date * 86400;
 
-    const { data, ...all } = await (
-      await this.analyticsFetch(
-        `${metaGraphUrl(
-          type
-        )}/${id}/insights?metric=follower_count,reach&access_token=${accessToken}&period=day&since=${since}&until=${until}`
-      )
-    ).json();
-
-    const { data: data2, ...all2 } = await (
-      await this.analyticsFetch(
-        `${metaGraphUrl(
-          type
-        )}/${id}/insights?metric_type=total_value&metric=likes,views,comments,shares,saves,replies&access_token=${accessToken}&period=day&since=${since}&until=${until}`
-      )
-    ).json();
+    const data = await this.readAccountInsights(
+      `${metaGraphUrl(
+        type
+      )}/${id}/insights?metric=follower_count,reach&access_token=${accessToken}&period=day&since=${since}&until=${until}`,
+      'daily',
+      date
+    );
+    const data2 = await this.readAccountInsights(
+      `${metaGraphUrl(
+        type
+      )}/${id}/insights?metric_type=total_value&metric=likes,views,comments,shares,saves,replies&access_token=${accessToken}&period=day&since=${since}&until=${until}`,
+      'totals',
+      date
+    );
     const analytics = [];
 
     analytics.push(
