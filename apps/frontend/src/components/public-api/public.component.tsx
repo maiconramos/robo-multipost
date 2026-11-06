@@ -219,7 +219,7 @@ const McpSection = ({
 
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+      <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
         <div>
           <div className="text-[15px] font-[600]">
             {t('mcp_client_configuration', 'MCP Client Configuration')}
@@ -231,14 +231,14 @@ const McpSection = ({
             )}
           </div>
         </div>
-        <div className="flex gap-[6px] shrink-0 pt-[2px]">
+        <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
           <DocsLinkButton
             href="https://docs.postiz.com/mcp/introduction"
             label={t('read_the_docs', 'Docs')}
           />
         </div>
       </div>
-      <div className="p-[20px] flex flex-col gap-[16px]">
+      <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
         <div className="flex flex-col gap-[6px]">
           <div className="text-[13px] font-[600] text-customColor18">
             {t('auth_method', 'Authentication')}
@@ -292,7 +292,7 @@ const McpSection = ({
           <pre className="bg-newBgColorInner border border-newBorder rounded-[8px] p-[16px] text-[13px] whitespace-pre-wrap break-all overflow-x-auto leading-[1.6]">
             {maskedConfig}
           </pre>
-          <div className="flex gap-[8px]">
+          <div className="flex flex-wrap gap-[8px]">
             <button
               type="button"
               onClick={() => setRevealed(!revealed)}
@@ -389,7 +389,7 @@ const CliSection = ({
 
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+      <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
         <div>
           <div className="text-[15px] font-[600]">
             {t('cli_and_skills', 'CLI & AI Skills')}
@@ -401,14 +401,14 @@ const CliSection = ({
             )}
           </div>
         </div>
-        <div className="flex gap-[6px] shrink-0 pt-[2px]">
+        <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
           <DocsLinkButton
             href="https://docs.postiz.com/cli/introduction"
             label={t('read_the_docs', 'Docs')}
           />
         </div>
       </div>
-      <div className="p-[20px] flex flex-col gap-[16px]">
+      <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
         {maskedSteps.map((step, i) => (
           <div key={i} className="flex flex-col gap-[6px]">
             <div className="text-[13px] font-[600] text-customColor18">
@@ -419,7 +419,7 @@ const CliSection = ({
             </pre>
           </div>
         ))}
-        <div className="flex gap-[8px]">
+        <div className="flex flex-wrap gap-[8px]">
           <button
             type="button"
             onClick={() => setRevealed(!revealed)}
@@ -482,13 +482,13 @@ const ApiKeyCard = ({
   const t = useT();
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+      <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
         <div>
           <div className="text-[15px] font-[600]">{title}</div>
           <div className="text-[13px] text-customColor18 mt-[2px]">{description}</div>
         </div>
         {docsUrl && (
-          <div className="flex gap-[6px] shrink-0 pt-[2px]">
+          <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
             <DocsLinkButton
               href={docsUrl}
               label={t('read_the_docs', 'Docs')}
@@ -497,7 +497,7 @@ const ApiKeyCard = ({
           </div>
         )}
       </div>
-      <div className="p-[20px] flex flex-col gap-[16px]">
+      <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
         <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
           <code className="text-[14px] flex-1 truncate">
             {reveal ? (
@@ -510,7 +510,7 @@ const ApiKeyCard = ({
             )}
           </code>
         </div>
-        <div className="flex gap-[8px]">
+        <div className="flex flex-wrap gap-[8px]">
           <button type="button" onClick={onReveal} className="cursor-pointer px-[16px] h-[36px] bg-btnSimple hover:bg-boxHover transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]">
             <RevealEyeIcon revealed={reveal} />
             {reveal ? t('hide', 'Hide') : t('reveal', 'Reveal')}
@@ -564,12 +564,12 @@ const ProfileApiKeySection = ({ profileId }: { profileId: string }) => {
   if (!user.profileApiKey) {
     return (
       <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-        <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+        <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
           <div>
             <div className="text-[15px] font-[600]">{t('profile_api_key', 'Profile API Key')}</div>
             <div className="text-[13px] text-customColor18 mt-[2px]">{t('profile_api_key_description', 'Scoped access to this profile only.')}</div>
           </div>
-          <div className="flex gap-[6px] shrink-0 pt-[2px]">
+          <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
             <DocsLinkButton
               href={docsUrl}
               label={t('read_the_docs', 'Docs')}
@@ -604,7 +604,7 @@ const AgentSkillSection = ({ backendUrl }: { backendUrl: string }) => {
   const skillUrl = `${backendUrl}/public/agent-skill`;
   return (
     <div className="bg-newBgColorInnerInner rounded-[12px] border border-newBorder overflow-hidden">
-      <div className="bg-newBgColorInner px-[20px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px]">
+      <div className="bg-newBgColorInner px-[20px] mobile:px-[14px] py-[14px] border-b border-newBorder flex items-start justify-between gap-[12px] mobile:flex-col">
         <div>
           <div className="text-[15px] font-[600]">
             {t('agent_skill', 'Skill para Agentes de IA')}
@@ -616,7 +616,7 @@ const AgentSkillSection = ({ backendUrl }: { backendUrl: string }) => {
             )}
           </div>
         </div>
-        <div className="flex gap-[6px] shrink-0 pt-[2px]">
+        <div className="flex flex-wrap gap-[6px] shrink-0 pt-[2px]">
           <a
             className="cursor-pointer px-[16px] h-[36px] bg-[#612BD3] hover:bg-[#5520CB] text-white transition-colors rounded-[8px] text-[13px] font-[600] flex items-center gap-[6px]"
             href={skillUrl}
@@ -628,11 +628,11 @@ const AgentSkillSection = ({ backendUrl }: { backendUrl: string }) => {
           </a>
         </div>
       </div>
-      <div className="p-[20px] flex flex-col gap-[16px]">
+      <div className="p-[20px] mobile:p-[14px] flex flex-col gap-[16px]">
         <div className="bg-newBgColorInner border border-newBorder rounded-[8px] px-[16px] h-[44px] flex items-center overflow-hidden">
           <code className="text-[14px] flex-1 truncate">{skillUrl}</code>
         </div>
-        <div className="flex gap-[8px]">
+        <div className="flex flex-wrap gap-[8px]">
           <CopyButton text={skillUrl} label={t('copy_skill_link', 'Copiar link da skill')} />
         </div>
       </div>

@@ -347,10 +347,16 @@ const ChromeExtensionWarning: FC<{
           )}
         </li>
         <li>
-          {t('extension_warning_cookies', 'We will store your cookies securely to facilitate the connection.')}
+          {t(
+            'extension_warning_cookies',
+            'We will store your cookies securely to facilitate the connection.'
+          )}
         </li>
         <li>
-          {t('extension_warning_responsibility', 'Postiz does not take responsibility for any issues arising or account termination due to the use of this method.')}
+          {t(
+            'extension_warning_responsibility',
+            'Postiz does not take responsibility for any issues arising or account termination due to the use of this method.'
+          )}
         </li>
       </ul>
       <div className="flex gap-[10px] mt-[8px]">
@@ -498,7 +504,10 @@ export const AddProviderComponent: FC<{
 
           if (invite) {
             toaster.show(
-              t('invite_link_copied', 'Invite link copied to clipboard, link will be available for 1 hour'),
+              t(
+                'invite_link_copied',
+                'Invite link copied to clipboard, link will be available for 1 hour'
+              ),
               'success'
             );
             modal.closeAll();
@@ -657,7 +666,7 @@ export const AddProviderComponent: FC<{
       <div className="flex flex-col">
         <div
           className={clsx(
-            'grid grid-cols-5 gap-[10px] justify-items-center justify-center',
+            'grid grid-cols-5 mobile:!grid-cols-3 gap-[10px] justify-items-center justify-center',
             onboarding ? 'grid-cols-9' : 'grid-cols-5'
           )}
         >
@@ -688,7 +697,10 @@ export const AddProviderComponent: FC<{
                 {...(!!item.toolTip
                   ? {
                       'data-tooltip-id': 'tooltip',
-                      'data-tooltip-content': t(`tooltip_${item.identifier}`, item.toolTip),
+                      'data-tooltip-content': t(
+                        `tooltip_${item.identifier}`,
+                        item.toolTip
+                      ),
                     }
                   : {})}
                 className={

@@ -4,6 +4,12 @@ Inventário de 24/10/2026. Acesso autenticado em `/settings/guia-visual`.
 
 O projeto tem componentes compartilhados, variáveis de tema e convenções de UI, mas a investigação deste checkout não encontrou um catálogo visual existente ou Storybook configurado. A base atual ainda não constitui um design system uniforme: vários estilos e tamanhos são definidos nas telas consumidoras.
 
+## Tema inicial
+
+Novas instalações e navegadores sem preferência salva iniciam no tema claro, inclusive na tela de autenticação. O seletor de tema continua permitindo o modo escuro, e o cookie `mode` preserva a escolha existente. Cookies inválidos usam o padrão claro, sem aplicar classes arbitrárias.
+
+Os layouts principal e da extensão resolvem a preferência no servidor e fornecem o mesmo valor ao contexto de tema do cliente, evitando um primeiro quadro escuro e divergências de hidratação. Calendário, gráficos, imagens de estado vazio, cobrança e seletor de emojis usam a mesma preferência inicial. O tema do sistema operacional não substitui a escolha salva.
+
 ## Como usar
 
 - Abra o guia para comparar os exemplos reais nos temas claro e escuro. O seletor altera somente a prévia, sem salvar preferências nem modificar o tema da aplicação.

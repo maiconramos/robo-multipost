@@ -57,6 +57,9 @@ Thumbs.db
 
 # ignore Secrets folder
 .secrets/
+# Private resumable MCP upload state generated next to local media.
+*.multipost-upload.json
+*.multipost-upload.json.*.tmp
 libraries/plugins/src/plugins.ts
 i18n.cache
 

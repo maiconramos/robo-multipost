@@ -1,9 +1,9 @@
-import { getAuth, getProfileId } from '@gitroom/nestjs-libraries/chat/async.storage';
+import {
+  getAuth,
+  getProfileId,
+} from '@gitroom/nestjs-libraries/chat/async.storage';
 
-export const checkAuth = (
-  inputData: any,
-  context: any
-) => {
+export const checkAuth = (inputData: any, context: any) => {
   const auth = getAuth();
   const authInfo = context?.mcp?.extra?.authInfo || auth;
   if (authInfo && context?.requestContext) {
@@ -13,8 +13,7 @@ export const checkAuth = (
     );
     (context.requestContext as any).set('ui', 'false');
     const profileId = getProfileId();
-    if (profileId) {
-      (context.requestContext as any).set('profileId', profileId);
-    }
+    // An organization credential must clear a profile left by an earlier call.
+    (context.requestContext as any).set('profileId', profileId);
   }
 };

@@ -49,7 +49,10 @@ export const ApiModal: FC<{
       });
 
       if (add.ok) {
-        toaster.show(t('integration_added', 'Integration added successfully'), 'success');
+        toaster.show(
+          t('integration_added', 'Integration added successfully'),
+          'success'
+        );
         if (closePopup) {
           closePopup();
         } else {
@@ -116,7 +119,9 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
   const addApiKey = useCallback(
     (title: string, identifier: string) => () => {
       modals.openModal({
-        title: t('top_title_add_api_key_for', 'Add API key for {{name}}', { name: title }),
+        title: t('top_title_add_api_key_for', 'Add API key for {{name}}', {
+          name: title,
+        }),
         withCloseButton: false,
         children: (
           <ApiModal identifier={identifier} title={title} update={reload} />
@@ -127,12 +132,12 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
   );
 
   return (
-    <div className="grid grid-cols-4 gap-[10px] justify-items-center justify-center">
+    <div className="grid grid-cols-4 tablet:grid-cols-3 mobile:!grid-cols-2 gap-[10px] justify-items-center justify-center">
       {data?.map((p: any) => (
         <div
           onClick={addApiKey(p.title, p.identifier)}
           key={p.identifier}
-          className="w-full h-full p-[20px] min-h-[100px] text-[14px] bg-newTableHeader hover:bg-newTableBorder rounded-[8px] transition-all text-textColor relative flex flex-col gap-[15px] cursor-pointer"
+          className="w-full h-full p-[20px] mobile:p-[14px] min-h-[100px] text-[14px] bg-newTableHeader hover:bg-newTableBorder rounded-[8px] transition-all text-textColor relative flex flex-col gap-[15px] cursor-pointer"
         >
           <div>
             <img
@@ -141,7 +146,9 @@ export const ThirdPartyListComponent: FC<{ reload: () => void }> = (props) => {
             />
           </div>
           <div className="whitespace-pre-wrap text-left text-lg">{p.title}</div>
-          <div className="whitespace-pre-wrap text-left">{String(t(`thirdparty_desc_${p.identifier}`, p.description))}</div>
+          <div className="whitespace-pre-wrap text-left">
+            {String(t(`thirdparty_desc_${p.identifier}`, p.description))}
+          </div>
           <div className="w-full flex">
             <Button className="w-full">{t('add', 'Add')}</Button>
           </div>

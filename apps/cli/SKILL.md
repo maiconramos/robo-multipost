@@ -1,9 +1,45 @@
+---
+name: multipost-agent
+description: 'Operar uma instância self-hosted do Robô SanPost por MCP ou CLI/REST, incluindo descoberta de perfis de clientes, mídia, agendamentos e automações.'
+---
+
 # Robô SanPost — Skill de Agente
 
 Você controla uma instância **self-hosted do Robô SanPost** (agendador de redes
-sociais, fork do Postiz) pela CLI `multipost`. Cada comando roda no shell e devolve
+sociais, fork do Postiz) por MCP ou pela CLI `multipost`. No CLI, cada comando roda no shell e devolve
 **JSON no stdout**. Em erro, devolve JSON no stderr (`{"ok":false,"error":...}`) e
 sai com código 1 — então sempre cheque o exit code e parseie a saída.
+
+## Conexão MCP da organização: uma chave para os clientes
+
+Se a conexão MCP já está disponível, use suas ferramentas sem instalar o CLI.
+`profileId` é um identificador do cliente; não é uma chave de autenticação.
+Com chave da organização, **reutilize a mesma chave**, sem pedir nova chave por
+cliente apenas porque uma ferramenta exige `profileId`.
+
+1. `getAccountContextTool({})` identifica o escopo da credencial e lista perfis
+   autorizados em `profiles` (`id`, `name`).
+2. Relacione o cliente pedido aos perfis retornados. Se houver ambiguidade,
+   pergunte qual cliente; não invente ID nem escolha o primeiro ou Default.
+3. `integrationList({profileId: ID})` lista os canais desse cliente.
+4. Passe `profileId` em cada operação de cliente com a mesma credencial. Para
+   `integrationSchedulePostTool`, use `socialPost[].profileId` em cada destino.
+5. `PROFILE_REQUIRED` pede descoberta e seleção, não outra chave. A seleção não
+   permanece entre chamadas. Uma chave de perfil continua limitada ao próprio
+   perfil; não amplie escopo diante de `PROFILE_KEY_MISMATCH`.
+
+Uploads: `uploadMediaTool` aceita até 6 MiB por base64 nos endpoints HTTP `/mcp`,
+`/mcp/:id` e `/mcp-oauth` (corpo JSON até 12 MiB). Gere os bytes por código, sem
+colocá-los no prompt. Para maiores, use `uploadMediaFromUrlTool` com link público
+ou Google Drive, ou envio em partes de até 2 MiB. Imagens até 10 MiB; MP4 até
+1 GiB no total. O SSE legado conserva seu transporte anterior.
+
+Consulte schemas e catálogos atuais (`getPostOptionsTool` e
+`getAutomationOptionsTool`) antes de configurar campos de cada rede/gatilho.
+Para o guia completo da instância, leia `<API_URL>/public/agent-skill`.
+
+As seções abaixo descrevem o CLI. Use apenas as flags documentadas; a seleção
+multicliente completa com a chave geral está disponível no MCP, sem criar chave.
 
 ## 1. Configuração (variáveis de ambiente)
 
@@ -32,32 +68,35 @@ Comece sempre validando: `multipost is-connected` → `{ "connected": true }`.
 4. `multipost posts:create …` — agende/publique.
 5. (Opcional) `multipost flows:create …` — automação de comentário.
 
-**Sempre confirme com o usuário** os detalhes (texto, data, canal, e — em flows — o
-gatilho, palavras-chave, resposta e link) **antes** de criar.
+Respeite as decisões e autorizações já fornecidas pelo usuário. Pergunte pelos
+dados faltantes, sem repetir confirmações que ele já deu.
 
 ## 4. ⭐ Regra de ouro dos flows: `next_publication` vs `specific`
 
-Para vincular uma automação a um post, há dois caminhos. **Prefira `next_publication`.**
+Para posts agendados no SanPost, use no MCP `postMode: scheduled` e
+`scheduledPostId` por destino, conforme o catálogo. Para os comandos legados de
+flows do CLI, distinga os modos abaixo sem assumir que próxima publicação é o
+modo adequado para vários agendamentos.
 
-- **`postMode: next_publication` (PADRÃO — use quase sempre):** crie o flow **sem**
+- **`postMode: next_publication` (próxima publicação do canal):** crie o flow **sem**
   saber o id de mídia. Ele fica "pendente" e o sistema o **vincula sozinho** ao
-  **próximo post publicado** naquele canal (e ainda faz *lazy bind* no primeiro
-  comentário). Fluxo ideal: `flows:create` (next_publication) → `posts:create`. **Sem
+  **próximo post publicado** naquele canal (e ainda faz _lazy bind_ no primeiro
+  comentário). Use esse modo apenas quando a intenção for capturar a próxima publicação daquele canal. **Sem
   polling, sem media id.**
 - **`postMode: specific` (só para posts que JÁ existem):** vincula a posts/stories
   específicos via `postIds`/`storyIds` (o **IG media id**). Use apenas quando a
   automação é para uma publicação **antiga/já existente**.
 
-> ⚠️ **Não tente "publicar agora e descobrir o media id por polling" para usar
-> `specific`.** Isso é frágil (a API pública NÃO tem `GET /posts/{id}`; o `state`
-> só vira `PUBLISHED` de forma assíncrona) e desnecessário — é exatamente o caso do
-> `next_publication`. Polling só faz sentido se você precisa do media id de um post
+> Para posts agendados, prefira o vínculo por `scheduledPostId` no MCP.
+> `next_publication` só deve ser usado quando a intenção é a próxima publicação
+> do canal; não o use para substituir vários vínculos a agendamentos. Polling só faz sentido se você precisa do media id de um post
 > antigo: liste com `posts:list --startDate --endDate` e leia `releaseId` (= IG media
 > id) dos itens com `state: PUBLISHED`.
 
 ## 5. Comandos
 
 ### Descoberta
+
 ```bash
 multipost is-connected
 multipost profiles:list                       # [{id, name, isDefault, hasApiKey}]
@@ -66,8 +105,10 @@ multipost integrations:list --profileId <ID>  # (só com chave de org)
 ```
 
 ### Posts
+
 `content` é **HTML**. Tags: `p, br, strong, u, a, ul, li, h1, h2, h3`. Cada linha
 visual é um `<p>`; para **linha em branco** entre parágrafos, use `<p></p>` vazio.
+
 ```bash
 # Simples (1 post de texto):
 multipost posts:create --content "<p>Olá!</p>" --integrationId <ID> --type now
@@ -97,6 +138,7 @@ multipost posts:create --json '{
 multipost posts:list --startDate 2026-06-01T00:00:00.000Z --endDate 2026-06-30T23:59:59.999Z
 multipost posts:delete --id <POST_ID>
 ```
+
 > **Capa de Reels:** `settings.cover` é um `{id, path}` de mídia (use o objeto que
 > `upload:url`/`upload:file` retorna). O `path` precisa ser URL pública (vira
 > `cover_url` na Meta). Só vale para Reels (vídeo `.mp4` único, não story); foto,
@@ -105,14 +147,17 @@ multipost posts:delete --id <POST_ID>
 > `releaseId` e `state` de cada post.
 
 ### Mídia
+
 ```bash
 multipost upload:url --url https://exemplo.com/imagem.jpg   # {id, path}
 multipost upload:file --file ./foto.jpg                     # {id, path}
 ```
+
 Use o `path` retornado em `posts:create` (campo `image[].path`). Só aceita
 imagem/vídeo permitidos (SVG/HTML são rejeitados por segurança).
 
 ### Flows (automações de comentário — Instagram)
+
 ```bash
 multipost flows:list                          # ou --integrationId <ID>
 multipost flows:get --id <FLOW_ID>
@@ -136,24 +181,26 @@ multipost flows:create --json '{
 
 **Campos de `flows:create` / `flows:update` (JSON):**
 
-| Campo | Obrig.? | Descrição |
-|---|---|---|
-| `name` | sim | Nome para identificar na interface (≤200). |
-| `integrationId` | sim | Canal Instagram (`integrations:list`). |
-| `triggerType` | não | `comment_on_post` (padrão) ou `story_reply`. |
-| `postMode` | não | `next_publication` (padrão), `all`, ou `specific`. |
-| `postIds` / `storyIds` | só em `specific` | IG media ids dos posts/stories alvo. |
-| `keywords` | não | Palavras que disparam, ex. `["EU QUERO"]`. |
-| `matchMode` | não | Como casar a palavra (contém/exato). |
-| `matchReactions` | não | (bool) também disparar por reações. |
-| `replyMessage` / `replyMessages` | não | Resposta pública ao comentário. |
-| `dmMessage`, `dmButtonText`, `dmButtonUrl` | não | Direct enviado. `dmButtonUrl` deve ser **https pública**. |
-| `requireFollow` + `followGateMessage`, `openingDmMessage`, `openingDmButtonText`, `alreadyFollowedButtonText`, `gateExhaustedMessage`, `maxGateAttempts` | não | "Follow-gate": exigir seguir antes de liberar o link. |
+| Campo                                                                                                                                                    | Obrig.?          | Descrição                                                 |
+| -------------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------- | --------------------------------------------------------- |
+| `name`                                                                                                                                                   | sim              | Nome para identificar na interface (≤200).                |
+| `integrationId`                                                                                                                                          | sim              | Canal Instagram (`integrations:list`).                    |
+| `triggerType`                                                                                                                                            | não              | `comment_on_post` (padrão) ou `story_reply`.              |
+| `postMode`                                                                                                                                               | não              | `next_publication` (padrão), `all`, ou `specific`.        |
+| `postIds` / `storyIds`                                                                                                                                   | só em `specific` | IG media ids dos posts/stories alvo.                      |
+| `keywords`                                                                                                                                               | não              | Palavras que disparam, ex. `["EU QUERO"]`.                |
+| `matchMode`                                                                                                                                              | não              | Como casar a palavra (contém/exato).                      |
+| `matchReactions`                                                                                                                                         | não              | (bool) também disparar por reações.                       |
+| `replyMessage` / `replyMessages`                                                                                                                         | não              | Resposta pública ao comentário.                           |
+| `dmMessage`, `dmButtonText`, `dmButtonUrl`                                                                                                               | não              | Direct enviado. `dmButtonUrl` deve ser **https pública**. |
+| `requireFollow` + `followGateMessage`, `openingDmMessage`, `openingDmButtonText`, `alreadyFollowedButtonText`, `gateExhaustedMessage`, `maxGateAttempts` | não              | "Follow-gate": exigir seguir antes de liberar o link.     |
 
 ### Analytics
+
 ```bash
 multipost analytics --integration <ID> --days 7    # 7, 30 ou 90 (dias para trás)
 ```
+
 > `--days` é **número de dias**, não data. Pode vir vazio se o canal não tiver
 > analytics ou o token tiver expirado.
 
@@ -171,6 +218,7 @@ multipost analytics --integration <ID> --days 7    # 7, 30 ou 90 (dias para trá
 
 Esta skill é a "fonte de verdade" que o agente lê. **Sempre que a API pública
 (`/public/v1/*`) ganhar/alterar endpoints, parâmetros ou enums, atualize:**
+
 1. o CLI (`apps/cli/bin/multipost.js`) — novo comando/flag;
 2. este `SKILL.md` — documentação do agente;
 3. (se aplicável) o `README.md` e o Swagger dos controllers.

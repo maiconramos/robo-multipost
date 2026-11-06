@@ -7,12 +7,51 @@ import {
 import 'multer';
 import { makeSecureId } from '@gitroom/nestjs-libraries/services/make.secure.id';
 import mime from 'mime-types';
-import { IUploadProvider } from './upload.interface';
+import {
+  IUploadProvider,
+  UploadSourceFile,
+  StoredUploadFile,
+} from './upload.interface';
+import { constants } from 'fs';
+import { open } from 'fs/promises';
+import { extname } from 'path';
 import axios from 'axios';
 import { loadFromUrlOrDataUrl } from './storage.helpers';
 
 class CloudflareStorage implements IUploadProvider {
   private _client: S3Client;
+
+  async uploadFromFile(file: UploadSourceFile): Promise<StoredUploadFile> {
+    const filename = `${makeSecureId(32)}${extname(file.filename)}`;
+    const handle = await open(
+      file.sourcePath,
+      constants.O_RDONLY | constants.O_NOFOLLOW
+    );
+    const body = handle.createReadStream({ autoClose: false });
+    // Keep asynchronous open errors handled even if the provider rejects first.
+    body.on('error', () => undefined);
+    try {
+      await this._client.send(
+        new PutObjectCommand({
+          Bucket: this._bucketName,
+          Key: filename,
+          Body: body,
+          ContentLength: file.size,
+          ContentType: file.mimeType,
+        }),
+        { abortSignal: AbortSignal.timeout(15 * 60_000) }
+      );
+      return {
+        filename,
+        path: `${this._uploadUrl}/${filename}`,
+        mimetype: file.mimeType,
+        originalname: file.filename,
+      };
+    } finally {
+      body.destroy();
+      await handle.close();
+    }
+  }
 
   constructor(
     accountID: string,
@@ -69,9 +108,7 @@ class CloudflareStorage implements IUploadProvider {
   }
 
   async uploadSimple(path: string) {
-    const { buffer, contentType, extension } = await loadFromUrlOrDataUrl(
-      path
-    );
+    const { buffer, contentType, extension } = await loadFromUrlOrDataUrl(path);
     const id = makeSecureId(10);
 
     const params = {

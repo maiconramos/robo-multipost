@@ -27,6 +27,77 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - Identidade de acesso SanPost, removida a opção de autenticação OIDC genérica, textos da tela de login em português e links locais para Termos de Uso e Política de Privacidade. Adicionadas páginas legais próprias e esclarecido no guia do Coolify como liberar cadastro em instalações já inicializadas.
 - Corrigido o layout raiz das páginas legais para que Termos de Uso e Política de Privacidade sejam compilados pelo Next.js como rotas públicas independentes.
 - Temporal passa a usar a configuração dinâmica embutida na imagem oficial, evitando a falha causada pelo arquivo customizado ausente no container do Coolify.
+### Corrigido — intervalo de métricas do Instagram
+
+- Consultas de 7 e 30 dias usam o mesmo instante de referência, sem acrescentar horas futuras ao período. Falhas da Meta passam a gerar diagnóstico com códigos seguros, sem quebrar na leitura de dados ausentes nem armazenar falhas como respostas vazias bem-sucedidas.
+
+### Corrigido — prévias de áudio original no Instagram
+
+- Sons originais recuperam o avatar pelo detalhe da Meta quando ele é omitido na busca, com cache por canal, concorrência limitada e falha opcional sem interromper a seleção.
+- Capas de áudio e avatares de criadores aparecem na busca e na seleção do Reel, com ícone musical quando a imagem não está disponível.
+
+- A busca de áudio preserva o link de prévia da Meta: resultados sem arquivo direto oferecem “Ouvir no Instagram” ou indicam “Prévia indisponível”, mantendo a seleção. O campo também fica disponível na resposta existente de API/MCP.
+- Falhas de reprodução não apagam a lista nem solicitam reconexão; mudanças na busca, fechamento e seleção interrompem a prévia, inclusive quando o carregamento termina com atraso.
+
+### Melhorado — tema claro na primeira visita
+
+- Novas instalações e navegadores sem preferência iniciam no tema claro. A escolha existente de tema claro ou escuro é preservada, com aplicação já no servidor e o mesmo padrão no calendário, gráficos, extensão e seletor de emojis.
+
+### Corrigido — comentários após Stories do Facebook
+
+- Stories do Facebook não oferecem mais a ação de adicionar comentário após publicar. Blocos existentes permanecem disponíveis para remoção, sem descarte automático de conteúdo.
+- Painel, API e MCP recusam essa combinação antes de publicar ou reagendar; execuções antigas recebem uma orientação específica antes de qualquer envio. Feed e Reels mantêm seus comentários.
+
+### Melhorado — envio direto e descoberta de clientes no MCP
+
+- Envio direto de arquivos por base64 no MCP HTTP passa a aceitar 6 MiB, com corpo JSON limitado a 12 MiB antes do processamento. As partes permanecem em 2 MiB, imagens em 10 MiB e MP4 em 1 GiB.
+- O agente recebe orientações para descobrir o ID do perfil e reutilizar a chave da organização, sem pedir outra chave por cliente. Instruções do MCP, catálogo, retorno de contexto, erros e skill distribuída ficam alinhados, preservando o isolamento e a seleção explícita por chamada.
+
+### Adicionado — importação de mídia pública do Google Drive
+
+- Erros de mídia no MCP incluem código estável e orientação segura para corrigir formato, tamanho ou acesso ao Drive. Um vídeo MOV renomeado para MP4 é recusado pelo conteúdo e o agente recebe orientação de conversão, sem exposição da mensagem original ou de links assinados.
+
+- API e MCP aceitam links compartilhados individuais de fotos e vídeos públicos do Drive, com download permitido, sem conectar uma conta Google. O servidor resolve a confirmação pública e salva a mídia no escopo informado.
+- Importação por URL passa a usar temporário privado e streaming, com limites de tamanho, prazo e concorrência, validação do conteúdo real e proteção de rede em cada redirecionamento.
+
+### Corrigido — isolamento de clientes no MCP
+
+- Chave de organização pode consultar posts e automações de todos os clientes, com identificação do perfil, ou selecionar um cliente por chamada. Operações de cliente exigem perfil explícito e validam canal, post, automação e mídia registrada; chave de perfil não pode selecionar outro. Removida a queda silenciosa no Default das operações MCP.
+- Associações antigas de automação/perfil/canal incompatíveis são recusadas no detalhe, canvas, aliases, estado e histórico, sem reatribuição automática.
+- Lotes preservam o perfil validado de cada destino, inclusive nos recibos de resultado incerto. Autenticação por requisição impede conservar um perfil anterior; uploads em partes e retomada do cliente local ficam vinculados ao cliente escolhido. Geração de mídia, persona, conhecimento e credenciais usam o perfil selecionado.
+
+### Adicionado — mídia e consultas pelo MCP
+
+- Agentes podem importar imagens e vídeos MP4 por URL HTTPS ou enviar vídeos locais de até 1 GiB em partes pelo MCP, com confirmação de offset, SHA-256 e gravação por streaming. Cliente programático permite retomar interrupções sem colocar os bytes no prompt da IA. Sessões privadas e temporárias ficam vinculadas à organização e ao perfil da conexão.
+- Arquivos pequenos usam base64 de até 2 MiB por chamada para respeitar o envelope MCP; imagens mantêm o limite total de 10 MiB e vídeos MP4 de 1 GiB. API e MCP compartilham validação do tipo real e limites; repetições da conclusão devolvem o mesmo recibo enquanto a sessão existir, e resultados incertos não são reenviados automaticamente.
+- Novas ferramentas consultam métricas de canais/publicações, notificações e organização/perfis acessíveis, sem expor chaves. Documentada a comparação com a API, incluindo as operações administrativas que continuam fora do MCP e os limites de upload.
+
+### Corrigido — estabilidade da validação no CI
+
+- Teste de privacidade do diagnóstico do Messenger verifica o ID completo do remetente sem confundi-lo com parte de um timestamp válido. A observação continua limitada aos campos estruturais permitidos, sem texto, ID da mensagem ou identificação do remetente.
+
+### Corrigido — capa de Shorts após o processamento
+
+- YouTube nativo aguarda o vídeo e a geração das miniaturas ficarem prontos antes de enviar a capa selecionada. Evita o aceite da imagem enquanto o processamento ainda pode substituí-la por um quadro automático do Short. Espera limitada a dois minutos; falhas preservam o ID e o link do vídeo enviado, sem novo upload automático. Publicações sem capa não aguardam essa etapa.
+
+### Segurança — conteúdo do proxy de vídeo
+
+- Proxy recusa respostas HTML/SVG e outros tipos inesperados, normaliza mídia MP4/binária para `video/mp4` e aplica `nosniff` e CSP com sandbox. Impede que conteúdo ativo da origem seja servido como documento sob o domínio da aplicação.
+
+### Corrigido — avanço do vídeo para selecionar thumbnail
+
+- Proxy do seletor de quadros encaminha intervalos HTTP Range à origem e preserva respostas 206/416. Evita esperar pelo download inteiro do vídeo ao avançar. Intervalos inválidos ou múltiplos são recusados; validação SSRF, redirects seguros e cancelamento permanecem ativos, sem encaminhar cookies ou credenciais à origem.
+
+### Corrigido — nome do log de automações
+
+- Botão de acesso aos comentários sem automação passa a se chamar “Log”. Rota, filtros e comportamento preservados.
+
+### Melhorado — navegação e telas no celular
+
+- Portada a responsividade do Postiz para navegação, canais, filtros do calendário, configurações, notificações e ajustes de largura nas demais telas. Menu e canais abrem em painéis com fechamento por Escape/fundo/rota e foco controlado; organização, perfil, idioma e tema ficam acessíveis por toque e teclado.
+- Calendário novo no celular começa no dia, respeitando a preferência explícita na URL/cookie. Semana e mês preservam os cartões completos com rolagem interna. Filtros de cliente/canal têm seleção pelo teclado e permitem voltar a todos os clientes. Permissões de Visualizador e administração por perfil permanecem preservadas.
+- Configurações têm abas horizontais e seletores empilhados no celular; notificações cabem no viewport e permitem tentar novamente quando a consulta falha. Novo compositor, fuso IANA, sanitização e funcionalidades do fork preservados.
+- Assistentes do compositor, agentes e prévias usam explicitamente o transporte de endpoint único compatível com o backend, preservando cookies de sessão. Evita a tentativa inicial de buscar metadados na rota REST `/info` indisponível no porte, detectada na validação local com subdomínio de API separado.
 
 ### Corrigido — atualização desde a série 0.5
 

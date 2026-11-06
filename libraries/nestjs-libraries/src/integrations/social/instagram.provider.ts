@@ -1,3 +1,4 @@
+import { Logger } from '@nestjs/common';
 import { instagramAudioError, isInstagramVideo } from './instagram.audio';
 import { EncryptionService } from '../../crypto/encryption.service';
 import { decryptIntegrationToken } from '../../crypto/integration-token.helper';
@@ -20,6 +21,11 @@ import {
   SocialAbstract,
   BadBody,
 } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import {
+  safeAudioPreviewUrl,
+  safeInstagramAudioPreviewUrl,
+} from '@gitroom/helpers/utils/instagram-audio-preview';
+import type { InstagramAudioSearchResult } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 import { InstagramDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 import { Integration } from '@prisma/client';
 import {
@@ -70,6 +76,11 @@ export class InstagramProvider
   extends SocialAbstract
   implements SocialProvider
 {
+  private readonly originalAudioImages = new Map<
+    string,
+    { image: string; expiresAt: number }
+  >();
+
   identifier = 'instagram';
   name = 'Instagram\n(Facebook Business)';
   isBetweenSteps = true;
@@ -1141,6 +1152,43 @@ export class InstagramProvider
     return '';
   }
 
+  private readonly analyticsLogger = new Logger(InstagramProvider.name);
+
+  private async readAccountInsights(
+    url: string,
+    phase: 'daily' | 'totals',
+    days: number
+  ): Promise<any[]> {
+    // Keep RefreshToken outside the parse guard so existing recovery still runs.
+    const response = await this.analyticsFetch(url);
+    let body: {
+      data?: any[];
+      error?: { code?: unknown; error_subcode?: unknown };
+    };
+    try {
+      body = await response.json();
+    } catch {
+      body = undefined;
+    }
+    if (response.status >= 400 || body?.error || !Array.isArray(body?.data)) {
+      this.analyticsLogger.warn({
+        event: 'instagram-analytics-unavailable',
+        phase,
+        days: Number.isFinite(days) ? days : undefined,
+        status: Number.isInteger(response.status) ? response.status : undefined,
+        code:
+          typeof body?.error?.code === 'number' ? body.error.code : undefined,
+        subcode:
+          typeof body?.error?.error_subcode === 'number'
+            ? body.error.error_subcode
+            : undefined,
+      });
+      // Do not return [] here: the service caches successful provider results.
+      throw new Error('INSTAGRAM_ANALYTICS_UNAVAILABLE');
+    }
+    return body.data;
+  }
+
   async analytics(
     id: string,
     accessToken: string,
@@ -1148,24 +1196,23 @@ export class InstagramProvider
     integration?: Integration,
     type = 'graph.facebook.com'
   ): Promise<AnalyticsData[]> {
-    const until = dayjs().endOf('day').unix();
-    const since = dayjs().subtract(date, 'day').unix();
+    const until = dayjs().unix();
+    const since = until - date * 86400;
 
-    const { data, ...all } = await (
-      await this.analyticsFetch(
-        `${metaGraphUrl(
-          type
-        )}/${id}/insights?metric=follower_count,reach&access_token=${accessToken}&period=day&since=${since}&until=${until}`
-      )
-    ).json();
-
-    const { data: data2, ...all2 } = await (
-      await this.analyticsFetch(
-        `${metaGraphUrl(
-          type
-        )}/${id}/insights?metric_type=total_value&metric=likes,views,comments,shares,saves,replies&access_token=${accessToken}&period=day&since=${since}&until=${until}`
-      )
-    ).json();
+    const data = await this.readAccountInsights(
+      `${metaGraphUrl(
+        type
+      )}/${id}/insights?metric=follower_count,reach&access_token=${accessToken}&period=day&since=${since}&until=${until}`,
+      'daily',
+      date
+    );
+    const data2 = await this.readAccountInsights(
+      `${metaGraphUrl(
+        type
+      )}/${id}/insights?metric_type=total_value&metric=likes,views,comments,shares,saves,replies&access_token=${accessToken}&period=day&since=${since}&until=${until}`,
+      'totals',
+      date
+    );
     const analytics = [];
 
     analytics.push(
@@ -1278,20 +1325,118 @@ export class InstagramProvider
     }
     if (!response.ok || body?.error || !Array.isArray(body?.audio))
       throw unavailable();
-    return body.audio
-      .map((audio: any) => ({
-        id: String(audio.audio_id || ''),
-        title: String(audio.title || ''),
-        artist: String(audio.display_artist || audio.ig_username || ''),
-        image:
-          audio.cover_artwork_thumbnail_uri ||
-          audio.cover_artwork_thumbnail_url ||
-          audio.profile_picture_url ||
-          '',
-        duration: Number(audio.duration_in_ms) || 0,
-        previewUrl: audio.download_url || '',
-      }))
-      .filter((a: any) => /^\d+$/.test(a.id));
+    const results: InstagramAudioSearchResult[] = body.audio
+      .map(
+        (audio: any): InstagramAudioSearchResult => ({
+          id: String(audio.audio_id || ''),
+          title: String(audio.title || ''),
+          artist: String(audio.display_artist || audio.ig_username || ''),
+          image:
+            safeAudioPreviewUrl(audio.cover_artwork_thumbnail_uri) ||
+            safeAudioPreviewUrl(audio.cover_artwork_thumbnail_url) ||
+            safeAudioPreviewUrl(audio.profile_picture_url) ||
+            '',
+          duration: Number(audio.duration_in_ms) || 0,
+          previewUrl: safeAudioPreviewUrl(audio.download_url) || '',
+          platformPreviewUrl:
+            safeInstagramAudioPreviewUrl(
+              audio.on_platform_audio_preview_link
+            ) || '',
+        })
+      )
+      .filter((a: InstagramAudioSearchResult) => /^\d+$/.test(a.id));
+    if (data?.type === 'original_sound') {
+      await this.enrichOriginalAudioImages(results, userToken, integration);
+    }
+    return results;
+  }
+
+  // Search can omit the original creator image even when the audio detail has it.
+  // This optional enrichment never changes channel authorization or search success.
+  private async enrichOriginalAudioImages(
+    results: InstagramAudioSearchResult[],
+    userToken: string,
+    integration: Integration
+  ): Promise<void> {
+    const groups = new Map<string, InstagramAudioSearchResult[]>();
+    for (const audio of results) {
+      if (audio.image) continue;
+      const rows = groups.get(audio.id) || [];
+      rows.push(audio);
+      groups.set(audio.id, rows);
+    }
+    const pending: {
+      id: string;
+      key?: string;
+      rows: InstagramAudioSearchResult[];
+    }[] = [];
+    for (const [id, rows] of groups) {
+      const key = integration.id
+        ? `${integration.id}:${integration.internalId}:${id}`
+        : undefined;
+      const cached = key ? this.originalAudioImages.get(key) : undefined;
+      if (cached && cached.expiresAt > Date.now()) {
+        for (const row of rows) row.image = cached.image;
+        continue;
+      }
+      if (key) this.originalAudioImages.delete(key);
+      if (pending.length < 10) pending.push({ id, key, rows });
+    }
+    if (!pending.length) return;
+    const controller = new AbortController();
+    const signal = AbortSignal.any([
+      AbortSignal.timeout(5000),
+      controller.signal,
+    ]);
+    let next = 0;
+    const worker = async () => {
+      while (!signal.aborted && next < pending.length) {
+        const item = pending[next++];
+        try {
+          const query = new URLSearchParams({
+            user_id: integration.internalId,
+          });
+          const response = await ssrfSafeFetch(
+            `${META_FACEBOOK_GRAPH_URL}/${item.id}?${query}`,
+            {
+              headers: { Authorization: `Bearer ${userToken}` },
+              signal,
+            }
+          );
+          if (response.status === 429) {
+            controller.abort();
+            return;
+          }
+          if (!response.ok) continue;
+          const detail = await response.json();
+          if (
+            signal.aborted ||
+            detail?.error ||
+            String(detail?.audio_id) !== item.id
+          )
+            continue;
+          const image = safeAudioPreviewUrl(detail.profile_picture_url) || '';
+          if (detail.profile_picture_url && !image) continue;
+          for (const row of item.rows) row.image = image;
+          if (item.key) {
+            if (this.originalAudioImages.size >= 200) {
+              this.originalAudioImages.delete(
+                this.originalAudioImages.keys().next().value!
+              );
+            }
+            this.originalAudioImages.set(item.key, {
+              image,
+              expiresAt: Date.now() + (image ? 10 * 60_000 : 60_000),
+            });
+          }
+        } catch {
+          // Missing avatars, timeouts and provider failures keep the base list usable.
+        }
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(3, pending.length) }, worker)
+    );
   }
 
   async postAnalytics(

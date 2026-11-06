@@ -1,3 +1,8 @@
+import {
+  facebookStoryCommentError,
+  facebookAllowsComments,
+  FACEBOOK_STORY_COMMENTS_ERROR,
+} from './facebook.story-comments';
 import { facebookBackgroundPreset } from './facebook.background';
 import { socialMutationOnce } from './mutation.once';
 import { DashboardFunction } from '@gitroom/nestjs-libraries/integrations/dashboard.function.decorator';
@@ -286,7 +291,8 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
   }
 
   async generateAuthUrl(clientInformation?: ClientInformation) {
-    const clientId = clientInformation?.client_id || process.env.FACEBOOK_APP_ID;
+    const clientId =
+      clientInformation?.client_id || process.env.FACEBOOK_APP_ID;
     const state = makeSecureId(6);
     return {
       url:
@@ -305,7 +311,12 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
 
   private authorizationScopes(clientInformation?: ClientInformation) {
     return clientInformation?.facebookAutomation
-      ? [...new Set([...this.scopes, ...FACEBOOK_COMMENT_AUTOMATION_PERMISSIONS])]
+      ? [
+          ...new Set([
+            ...this.scopes,
+            ...FACEBOOK_COMMENT_AUTOMATION_PERMISSIONS,
+          ]),
+        ]
       : this.scopes;
   }
 
@@ -327,13 +338,18 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     };
   }
 
-  async authenticate(params: {
-    code: string;
-    codeVerifier: string;
-    refresh?: string;
-  }, clientInformation?: ClientInformation) {
-    const clientId = clientInformation?.client_id || process.env.FACEBOOK_APP_ID;
-    const clientSecret = clientInformation?.client_secret || process.env.FACEBOOK_APP_SECRET;
+  async authenticate(
+    params: {
+      code: string;
+      codeVerifier: string;
+      refresh?: string;
+    },
+    clientInformation?: ClientInformation
+  ) {
+    const clientId =
+      clientInformation?.client_id || process.env.FACEBOOK_APP_ID;
+    const clientSecret =
+      clientInformation?.client_secret || process.env.FACEBOOK_APP_SECRET;
 
     const getAccessToken = await (
       await fetchWithTimeout(
@@ -359,7 +375,9 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
           '?grant_type=fb_exchange_token' +
           `&client_id=${clientId}` +
           `&client_secret=${encodeURIComponent(clientSecret || '')}` +
-          `&fb_exchange_token=${encodeURIComponent(getAccessToken.access_token)}&fields=access_token,expires_in`
+          `&fb_exchange_token=${encodeURIComponent(
+            getAccessToken.access_token
+          )}&fields=access_token,expires_in`
       )
     ).json();
 
@@ -370,7 +388,9 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
 
     const permsResponse = await (
       await fetchWithTimeout(
-        `${META_FACEBOOK_GRAPH_URL}/me/permissions?access_token=${encodeURIComponent(access_token)}`
+        `${META_FACEBOOK_GRAPH_URL}/me/permissions?access_token=${encodeURIComponent(
+          access_token
+        )}`
       )
     ).json();
 
@@ -435,7 +455,10 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
         `${META_FACEBOOK_GRAPH_URL}/me/accounts?fields=id,username,name,access_token,picture.type(large)&limit=100&access_token=${accessToken}`
       );
     } catch (err) {
-      console.warn('[Facebook.pages] /me/accounts failed:', (err as Error)?.message);
+      console.warn(
+        '[Facebook.pages] /me/accounts failed:',
+        (err as Error)?.message
+      );
     }
 
     // Also fetch pages via Business Manager API to discover pages not selected
@@ -640,6 +663,11 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     // Facebook Page Stories: publica via /photo_stories e /video_stories.
     // Story nao tem carrossel — cada midia vira um story separado, igual ao IG.
     if (firstPost?.settings?.post_type === 'story') {
+      const error = facebookStoryCommentError(
+        firstPost.settings,
+        postDetails.length
+      );
+      if (error) throw new BadBody(this.identifier, '{}', '{}', error);
       return this.postStory(id, accessToken, firstPost);
     }
 
@@ -915,6 +943,14 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
     integration: Integration
   ): Promise<PostResponse[]> {
     const [commentPost] = postDetails;
+    if (!facebookAllowsComments(commentPost?.settings)) {
+      throw new BadBody(
+        this.identifier,
+        '{}',
+        '{}',
+        FACEBOOK_STORY_COMMENTS_ERROR
+      );
+    }
     const replyToId = lastCommentId || postId;
 
     const data = await (
@@ -1153,7 +1189,11 @@ export class FacebookProvider extends SocialAbstract implements SocialProvider {
         }
 
         if (label) {
-          result.push({ label, percentageChange: 0, data: [{ total, date: today }] });
+          result.push({
+            label,
+            percentageChange: 0,
+            data: [{ total, date: today }],
+          });
         }
       }
 

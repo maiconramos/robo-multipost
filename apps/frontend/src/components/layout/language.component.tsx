@@ -134,9 +134,11 @@ export const LanguageComponent = () => {
     });
   };
   return (
-    <div
+    <button
+      type="button"
+      aria-label={t('change_language', 'Change Language')}
       onClick={openModal}
-      className="rounded-full overflow-hidden h-[22px] w-[22px] relative cursor-pointer"
+      className="rounded-full overflow-hidden h-[44px] w-[44px] relative cursor-pointer"
     >
       <ReactCountryFlag
         countryCode={getCountryCodeForFlag(currentLanguage)}
@@ -152,6 +154,6 @@ export const LanguageComponent = () => {
         }}
         title={currentLanguage}
       />
-    </div>
+    </button>
   );
 };

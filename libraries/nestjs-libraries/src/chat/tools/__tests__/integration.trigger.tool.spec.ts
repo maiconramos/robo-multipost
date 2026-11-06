@@ -11,10 +11,12 @@ import { IntegrationTriggerTool } from '../integration.trigger.tool';
 const makeOptions = (org: any, profileId?: string) => ({
   requestContext: {
     get: (k: string) =>
-      ({
-        organization: org === null ? undefined : JSON.stringify(org),
-        profileId,
-      } as Record<string, any>)[k],
+      ((
+        {
+          organization: org === null ? undefined : JSON.stringify(org),
+          profileId,
+        } as Record<string, any>
+      )[k]),
   },
 });
 
@@ -30,7 +32,8 @@ describe('IntegrationTriggerTool (escopo por perfil)', () => {
       manager as any,
       integrationService as any,
       {} as any,
-      {} as any
+      {} as any,
+      { getProfileById: jest.fn().mockResolvedValue({ id: 'prof-1' }) } as any
     );
     return { exec: (tool.run() as any).execute, manager };
   };
@@ -64,7 +67,12 @@ describe('IntegrationTriggerTool (escopo por perfil)', () => {
       makeOptions({ id: 'org-1' }, 'prof-1')
     );
     const noProfile = await exec(
-      { integrationId: 'int-1', methodName: 'x', dataSchema: [] },
+      {
+        integrationId: 'int-1',
+        methodName: 'x',
+        dataSchema: [],
+        profileId: 'prof-1',
+      },
       makeOptions({ id: 'org-1' })
     );
     expect(JSON.stringify(same)).not.toMatch(/does not belong/);

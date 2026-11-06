@@ -57,6 +57,11 @@ body {
   color: var(--new-btn-text);
 }
 
+body.responsiveDrawerOpen,
+body.bottomSheetOpen {
+  overflow: hidden !important;
+}
+
 body * {
   outline: none !important;
 }

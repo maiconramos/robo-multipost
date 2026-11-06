@@ -1,3 +1,7 @@
+import {
+  facebookStoryCommentError,
+  facebookAllowsComments,
+} from '../../../integrations/social/facebook.story-comments';
 import { xArticleError } from '../../../integrations/social/x.article';
 import { instagramAudioError } from '../../../integrations/social/instagram.audio';
 import type { InstagramDto } from '../../../dtos/posts/providers-settings/instagram.dto';
@@ -1262,10 +1266,23 @@ export class PostsService {
     }
   }
 
-  private async assertSocialExtras(orgId: string, body: CreatePostDto) {
+  private async assertSocialExtras(
+    orgId: string,
+    body: CreatePostDto,
+    existingPosts: Pick<Post, 'id' | 'settings'>[] = []
+  ) {
     if (body.type === 'draft') return;
     for (const post of body.posts || []) {
-      const settings = post.settings as Omit<
+      const stored = existingPosts.find((p) => p.id === post.value?.[0]?.id);
+      let effectiveSettings = post.settings;
+      if (effectiveSettings == null && stored) {
+        try {
+          effectiveSettings = JSON.parse(stored.settings || '{}');
+        } catch {
+          throw new BadRequestException('Configuração do post inválida.');
+        }
+      }
+      const settings = effectiveSettings as Omit<
         Partial<InstagramDto>,
         'post_type'
       > & {
@@ -1288,6 +1305,12 @@ export class PostsService {
         integration.providerIdentifier,
         post.value?.length || 0
       );
+      const storyCommentError = facebookStoryCommentError(
+        settings,
+        post.value?.length || 0,
+        integration.providerIdentifier
+      );
+      if (storyCommentError) throw new BadRequestException(storyCommentError);
       if (settings?.post_type === 'article') {
         const error = xArticleError(
           settings,
@@ -1316,6 +1339,35 @@ export class PostsService {
         );
       }
     }
+  }
+
+  // Runtime guard for chains queued before validation existed. No provider calls.
+  async unsupportedCommentThreadError(
+    integration: Pick<Integration, 'providerIdentifier' | 'organizationId'>,
+    posts: Post[],
+    commenting = false
+  ): Promise<string | undefined> {
+    if (
+      !['facebook', 'zernio-facebook'].includes(
+        integration.providerIdentifier
+      ) ||
+      !posts[0]
+    )
+      return undefined;
+    const firstSettings = JSON.parse(posts[0].settings || '{}');
+    if (!commenting && firstSettings.post_type !== 'story') return undefined;
+    const chain = posts[0].group
+      ? await this._postRepository.getPostsByGroup(
+          integration.organizationId,
+          posts[0].group
+        )
+      : posts;
+    const root = chain?.find((p) => !p.parentPostId) || posts[0];
+    return facebookStoryCommentError(
+      JSON.parse(root.settings || '{}'),
+      Math.max(commenting ? 2 : 0, posts.length, chain?.length || 0),
+      integration.providerIdentifier
+    );
   }
 
   private assertTumblrThread(providerIdentifier: string, count: number) {
@@ -1434,7 +1486,7 @@ export class PostsService {
       }
     }
 
-    await this.assertSocialExtras(orgId, body);
+    await this.assertSocialExtras(orgId, body, existingPosts);
 
     const postList = [];
     // lote (upstream a194e3f4): um por perfil de destino, so com mais de um
@@ -1607,6 +1659,23 @@ export class PostsService {
         settings = JSON.parse(getPostById.settings || '{}');
       } catch {
         throw new BadRequestException('Configuração do post inválida.');
+      }
+      if (
+        !facebookAllowsComments(
+          settings,
+          getPostById.integration.providerIdentifier
+        )
+      ) {
+        const chain = await this._postRepository.getPostsByGroup(
+          orgId,
+          getPostById.group
+        );
+        const error = facebookStoryCommentError(
+          settings,
+          chain.length,
+          getPostById.integration.providerIdentifier
+        );
+        if (error) throw new BadRequestException(error);
       }
       if (settings.post_type === 'article') {
         if (getPostById.integration.providerIdentifier !== 'x')

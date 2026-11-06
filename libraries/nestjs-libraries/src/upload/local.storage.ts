@@ -1,6 +1,12 @@
-import { IUploadProvider } from './upload.interface';
+import {
+  IUploadProvider,
+  UploadSourceFile,
+  StoredUploadFile,
+} from './upload.interface';
 import { constants, mkdirSync, writeFileSync } from 'fs';
-import { access, mkdir, unlink } from 'fs/promises';
+import { access, mkdir, unlink, open } from 'fs/promises';
+import { createWriteStream } from 'fs';
+import { pipeline } from 'stream/promises';
 import { extname } from 'path';
 import { randomBytes } from 'crypto';
 import { loadFromUrlOrDataUrl } from './storage.helpers';
@@ -10,6 +16,40 @@ import {
 } from './safe.upload.path';
 export class LocalStorage implements IUploadProvider {
   constructor(private uploadDirectory: string) {}
+
+  async uploadFromFile(file: UploadSourceFile): Promise<StoredUploadFile> {
+    const now = new Date();
+    const innerPath = `/${now.getFullYear()}/${String(
+      now.getMonth() + 1
+    ).padStart(2, '0')}/${String(now.getDate()).padStart(2, '0')}`;
+    const filename = `${randomBytes(16).toString('hex')}${extname(
+      file.filename
+    )}`;
+    const directory = `${this.uploadDirectory}${innerPath}`;
+    await mkdir(directory, { recursive: true });
+    const destination = `${directory}/${filename}`;
+    const handle = await open(
+      file.sourcePath,
+      constants.O_RDONLY | constants.O_NOFOLLOW
+    );
+    const source = handle.createReadStream({ autoClose: false });
+    try {
+      await pipeline(source, createWriteStream(destination, { flags: 'wx' }));
+    } catch (error) {
+      if ((error as NodeJS.ErrnoException).code !== 'EEXIST')
+        await unlink(destination).catch(() => undefined);
+      throw error;
+    } finally {
+      source.destroy();
+      await handle.close();
+    }
+    return {
+      filename,
+      path: `${process.env.FRONTEND_URL}/uploads${innerPath}/${filename}`,
+      mimetype: file.mimeType,
+      originalname: file.filename,
+    };
+  }
 
   async healthCheck(): Promise<void> {
     if (!this.uploadDirectory) {

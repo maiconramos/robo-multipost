@@ -54,15 +54,21 @@ export const NotificationOpenComponent = () => {
   }, []);
   const t = useT();
 
-  const { data, isLoading } = useSWR('notifications', loadNotifications);
+  const { data, isLoading, error, mutate } = useSWR(
+    'notifications',
+    loadNotifications
+  );
+  const notifications = Array.isArray(data?.notifications)
+    ? data.notifications
+    : null;
   return (
     <div
       id="notification-popup"
-      className="opacity-0 animate-normalFadeDown mt-[10px] absolute w-[420px] min-h-[200px] top-[100%] end-0 bg-third text-textColor rounded-[16px] flex flex-col border border-tableBorder z-[600]"
+      role="region"
+      aria-label={t('notifications', 'Notifications')}
+      className="opacity-0 animate-normalFadeDown mt-[10px] absolute w-[420px] max-w-[calc(100vw-24px)] min-h-[200px] max-h-[70dvh] overflow-y-auto top-[100%] end-0 mobile:fixed mobile:top-[64px] mobile:inset-x-[12px] mobile:w-auto bg-third text-textColor rounded-[16px] flex flex-col border border-tableBorder z-[600]"
     >
-      <div
-        className={`p-[16px] border-b border-tableBorder font-bold`}
-      >
+      <div className={`p-[16px] border-b border-tableBorder font-bold`}>
         {t('notifications', 'Notifications')}
       </div>
 
@@ -72,13 +78,25 @@ export const NotificationOpenComponent = () => {
             <ReactLoading type="spin" color="#fff" width={36} height={36} />
           </div>
         )}
-        {!isLoading && !data.notifications.length && (
+        {!isLoading && (error || !notifications) && (
+          <button
+            type="button"
+            onClick={() => void mutate()}
+            className="p-[16px] text-btnText bg-btnSimple rounded-[8px]"
+          >
+            {t(
+              'notifications_retry',
+              'Could not load notifications. Try again.'
+            )}
+          </button>
+        )}
+        {!isLoading && notifications?.length === 0 && (
           <div className="text-center p-[16px] text-textColor flex-1 flex justify-center items-center mt-[20px]">
             {t('no_notifications', 'No notifications')}
           </div>
         )}
         {!isLoading &&
-          data.notifications.map(
+          notifications?.map(
             (
               notification: {
                 createdAt: string;
@@ -101,6 +119,7 @@ export const NotificationOpenComponent = () => {
 };
 const NotificationComponent = () => {
   const fetch = useFetch();
+  const t = useT();
   const [show, setShow] = useState(false);
   const loadNotifications = useCallback(async () => {
     return await (await fetch('/notifications')).json();
@@ -121,7 +140,13 @@ const NotificationComponent = () => {
   const ref = useClickAway<HTMLDivElement>(() => setShow(false));
   return (
     <div className="relative cursor-pointer select-none" ref={ref}>
-      <div onClick={changeShow}>
+      <button
+        type="button"
+        onClick={changeShow}
+        aria-label={t('notifications', 'Notifications')}
+        aria-expanded={show}
+        className="min-h-[44px] min-w-[24px] flex items-center justify-center"
+      >
         <svg
           xmlns="http://www.w3.org/2000/svg"
           width="24"
@@ -148,7 +173,7 @@ const NotificationComponent = () => {
             />
           )}
         </svg>
-      </div>
+      </button>
       {show && <NotificationOpenComponent />}
     </div>
   );

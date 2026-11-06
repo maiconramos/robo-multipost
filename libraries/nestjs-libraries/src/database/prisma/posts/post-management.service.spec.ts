@@ -1,5 +1,8 @@
 jest.mock('../../../integrations/integration.manager', () => ({
-  socialIntegrationList: [{ identifier: 'instagram', maxLength: () => 2200 }, { identifier: 'threads', maxLength: () => 500 }],
+  socialIntegrationList: [
+    { identifier: 'instagram', maxLength: () => 2200 },
+    { identifier: 'threads', maxLength: () => 500 },
+  ],
 }));
 jest.mock('file-type', () => ({ fileTypeFromBuffer: jest.fn() }));
 import { createMock } from '../../../test';
@@ -85,9 +88,17 @@ describe('posts para agentes', () => {
     });
   });
   it('edicao do Threads respeita bytes UTF8 incorporados da main', async () => {
-    const post = row(); post.integration.providerIdentifier = 'threads';
+    const post = row();
+    post.integration.providerIdentifier = 'threads';
     repo.detail.mockResolvedValueOnce({ rows: [post], version: 'v1' } as any);
-    await expect(service.update(scope, 'post', { expectedVersion: 'v1', configuration: { messages: [{ id: 'post', content: 'á'.repeat(251), media: [] }] } })).rejects.toThrow('POST_CONTENT_TOO_LONG_BYTES');
+    await expect(
+      service.update(scope, 'post', {
+        expectedVersion: 'v1',
+        configuration: {
+          messages: [{ id: 'post', content: 'á'.repeat(251), media: [] }],
+        },
+      })
+    ).rejects.toThrow('POST_CONTENT_TOO_LONG_BYTES');
     expect(repo.write).not.toHaveBeenCalled();
   });
   it('reagenda o mesmo id sem trocar mensagens, canal, grupo ou vinculo', async () => {
@@ -285,5 +296,113 @@ describe('posts para agentes', () => {
       })
     ).rejects.toThrow('POST_CONTENT_TOO_LONG');
     expect(repo.write).not.toHaveBeenCalled();
+  });
+  it('consulta da organizacao preserva filtros e identifica cada cliente sem Default', async () => {
+    const a = {
+      ...row(),
+      id: 'a',
+      profileId: 'a',
+      profile: { id: 'a', name: 'AMZ' },
+    };
+    const b = {
+      ...row(),
+      id: 'b',
+      profileId: 'b',
+      profile: { id: 'b', name: 'Outro' },
+    };
+    repo.listOrganization.mockResolvedValue({ rows: [a, b], nextCursor: null });
+    const r = await service.listOrganization('org', {
+      state: 'QUEUE',
+      limit: 2,
+    });
+    expect(r.posts.map((p) => p.profile)).toEqual([
+      { id: 'a', name: 'AMZ' },
+      { id: 'b', name: 'Outro' },
+    ]);
+    expect(repo.listOrganization).toHaveBeenCalledWith('org', {
+      state: 'QUEUE',
+      limit: 2,
+    });
+    expect(profiles.getDefaultProfile).not.toHaveBeenCalled();
+  });
+  it('canal invalido na consulta geral falha em vez de retornar vazio enganoso', async () => {
+    repo.assertOrganizationChannel.mockRejectedValueOnce(
+      new Error('CHANNEL_NOT_FOUND')
+    );
+    await expect(
+      service.listOrganization('org', { integrationId: 'outro-org' })
+    ).rejects.toThrow('CHANNEL_NOT_FOUND');
+    expect(repo.listOrganization).not.toHaveBeenCalled();
+  });
+  it('midia e capa de outro cliente impedem patch antes da escrita', async () => {
+    repo.assertMediaScope.mockRejectedValueOnce(
+      new Error('POST_MEDIA_PROFILE_MISMATCH')
+    );
+    await expect(
+      service.update(scope, 'post', {
+        expectedVersion: 'v1',
+        configuration: {
+          settings: [
+            {
+              key: 'cover',
+              value: '{"id":"foreign","path":"https://cdn/foreign.jpg"}',
+            },
+          ],
+        },
+      })
+    ).rejects.toThrow('POST_MEDIA_PROFILE_MISMATCH');
+    expect(repo.assertMediaScope).toHaveBeenCalledWith(
+      scope,
+      expect.arrayContaining([expect.objectContaining({ id: 'foreign' })])
+    );
+    expect(repo.write).not.toHaveBeenCalled();
+  });
+
+  it.each(['thumbnail', 'article_cover', 'cover'])(
+    'valida imagem registrada em settings.%s',
+    async (key) => {
+      await service.assertMediaScope(scope, [], {
+        [key]: { id: 'm', path: 'https://cdn/cover.jpg' },
+      });
+      expect(repo.assertMediaScope).toHaveBeenCalledWith(
+        scope,
+        expect.arrayContaining([
+          expect.objectContaining({ id: 'm', path: 'https://cdn/cover.jpg' }),
+        ])
+      );
+    }
+  );
+  it('valida URLs de imagens inline e main_image sem depender de anexos', async () => {
+    await service.assertMediaScope(
+      scope,
+      [],
+      { main_image: 'https://cdn/main.jpg' },
+      ['<p>Artigo</p><img src="https://cdn/inline.jpg">']
+    );
+    expect(repo.assertMediaScope).toHaveBeenCalledWith(
+      scope,
+      expect.arrayContaining([
+        { path: 'https://cdn/main.jpg' },
+        { path: 'https://cdn/inline.jpg' },
+      ])
+    );
+  });
+  it('perfil explicito e canal incompatível nao viram lista vazia enganosa', async () => {
+    repo.channel.mockResolvedValueOnce(null);
+    await expect(
+      service.list(scope, { integrationId: 'canal-b' })
+    ).rejects.toThrow('CHANNEL_NOT_FOUND');
+    expect(repo.list).not.toHaveBeenCalled();
+  });
+  it('preflight de metricas exige propriedade exata sem consulta global', async () => {
+    repo.channel.mockResolvedValueOnce(null);
+    await expect(
+      service.assertAnalyticsScope(scope, 'channel', 'legado')
+    ).rejects.toThrow('CHANNEL_NOT_FOUND');
+    repo.detail.mockRejectedValueOnce(new Error('POST_NOT_FOUND'));
+    await expect(
+      service.assertAnalyticsScope(scope, 'post', 'outro')
+    ).rejects.toThrow('POST_NOT_FOUND');
+    expect(repo.detail).toHaveBeenCalledWith(scope, 'outro');
   });
 });

@@ -19,7 +19,6 @@ import { getAgentMessageText } from './agent.message';
 import { useToaster } from '@gitroom/react/toaster/toaster';
 import { useModals } from '@gitroom/frontend/components/layout/new-modal';
 import {
-  CopilotKit,
   useCopilotAction,
   useCopilotMessagesContext,
 } from '@copilotkit/react-core';
@@ -27,6 +26,7 @@ import {
   MediaPortal,
   PropertiesContext,
 } from '@gitroom/frontend/components/agents/agent';
+import { CopilotProvider } from '@gitroom/frontend/components/layout/copilot.provider';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
 import { useParams } from 'next/navigation';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
@@ -146,12 +146,9 @@ export const AgentChat: FC = () => {
   const toaster = useToaster();
 
   return (
-    <CopilotKit
+    <CopilotProvider
       {...(params.id === 'new' ? {} : { threadId: params.id })}
-      credentials="include"
       runtimeUrl={backendUrl + '/copilot/agent'}
-      showDevConsole={false}
-      enableInspector={false}
       agent="postiz"
       properties={{
         integrations: properties,
@@ -203,7 +200,7 @@ You can also use me as an MCP Server, check Settings >> Public API
           />
         </div>
       </div>
-    </CopilotKit>
+    </CopilotProvider>
   );
 };
 

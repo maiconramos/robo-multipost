@@ -63,7 +63,7 @@ describe('ferramentas de gerenciamento e paridade de campos', () => {
   ])('schema de %p e objeto concreto sem identidade forjavel', (Tool) => {
     const tool: any = new Tool(service as any).run();
     expect(tool.inputSchema._def.typeName).toBe('ZodObject');
-    expect(tool.inputSchema.shape).not.toHaveProperty('profileId');
+    expect(tool.inputSchema.shape).toHaveProperty('profileId');
     expect(tool.inputSchema.shape).not.toHaveProperty('organizationId');
     expect(tool.inputSchema._def.unknownKeys).toBe('strict');
   });
@@ -163,7 +163,7 @@ describe('historico operacional MCP', () => {
     const schema = (new Tool(service as any).run() as any).inputSchema;
     expect(schema._def.typeName).toBe('ZodObject');
     expect(schema._def.unknownKeys).toBe('strict');
-    expect(schema.shape).not.toHaveProperty('profileId');
+    expect(schema.shape).toHaveProperty('profileId');
     expect(schema.shape).not.toHaveProperty('organizationId');
   });
   it('encaminha cursor e filtros sem chamar historia legada, detalhe recebe execucao', async () => {

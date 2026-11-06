@@ -4,6 +4,10 @@ import {
   PostComment,
   withProvider,
 } from '@gitroom/frontend/components/new-launch/providers/high.order.provider';
+import {
+  facebookAllowsComments,
+  facebookStoryCommentError,
+} from '@gitroom/nestjs-libraries/integrations/social/facebook.story-comments';
 import { facebookBackgroundPreset } from '@gitroom/nestjs-libraries/integrations/social/facebook.background';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
 import { getPresetBackground } from './facebook.background';
@@ -62,6 +66,14 @@ export const FacebookSettings = () => {
         ))}
       </Select>
 
+      {postCurrentType === 'story' && (
+        <p role="status" className="text-sm opacity-70">
+          {t(
+            'facebook_story_comments_unavailable',
+            'Comments after publishing are not available for Facebook Stories. Remove comment blocks for this channel before publishing.'
+          )}
+        </p>
+      )}
       {supportsVideoTitle && (
         <div className="flex flex-col gap-2">
           <Select
@@ -145,13 +157,36 @@ export const FacebookSettings = () => {
 };
 
 export default withProvider<FacebookDto>({
+  comments: (settings, identifier) =>
+    facebookAllowsComments(settings, identifier),
   postComment: PostComment.COMMENT,
   minimumCharacters: [],
   SettingsComponent: FacebookSettings,
   CustomPreviewComponent: FacebookPreview,
   dto: FacebookDto,
   defaults: { post_type: 'post' },
-  checkValidity: async ([firstPost, ...otherPosts] = [], settings) => {
+  checkValidity: async (
+    [firstPost, ...otherPosts] = [],
+    settings,
+    _extra,
+    t,
+    identifier = 'facebook'
+  ) => {
+    if (
+      facebookStoryCommentError(
+        settings,
+        (firstPost ? 1 : 0) + otherPosts.length,
+        identifier
+      )
+    ) {
+      return (
+        t?.(
+          'facebook_story_comments_unavailable',
+          'Comments after publishing are not available for Facebook Stories. Remove comment blocks for this channel before publishing.'
+        ) ||
+        'Comments after publishing are not available for Facebook Stories. Remove comment blocks for this channel before publishing.'
+      );
+    }
     if (settings?.post_type !== 'story') {
       return true;
     }

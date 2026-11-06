@@ -26,7 +26,9 @@ export const IntegrationListRow: FC<{
   onClick: () => void;
 }> = ({ integration, selected, onClick }) => {
   return (
-    <div
+    <button
+      type="button"
+      aria-pressed={selected}
       onClick={onClick}
       className="flex items-center gap-[12px] py-[8px] cursor-pointer select-none"
     >
@@ -44,8 +46,10 @@ export const IntegrationListRow: FC<{
       <div className="flex-1 min-w-0 truncate text-[14px] font-[600]">
         {integration.name}
       </div>
-      <Check onChange={() => {}} value={selected} />
-    </div>
+      <span aria-hidden="true">
+        <Check onChange={() => {}} value={selected} />
+      </span>
+    </button>
   );
 };
 

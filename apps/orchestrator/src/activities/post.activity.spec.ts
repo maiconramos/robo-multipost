@@ -652,3 +652,40 @@ describe('PostActivity V112 canal indisponivel', () => {
     }
   );
 });
+
+describe('PostActivity guarda Stories com comentarios', () => {
+  it.each([
+    'postSocialPending',
+    'postSocial',
+    'postCommentV112',
+    'postComment',
+  ])('recusa %s antes de tags, midias ou provider', async (method) => {
+    const { activity, postService, provider } = buildActivity();
+    postService.unsupportedCommentThreadError.mockResolvedValue(
+      'Stories do Facebook: remova os comentarios.'
+    );
+    const run =
+      method === 'postSocialPending'
+        ? activity.postSocialPending('org-1', 'integration-1', [post as any])
+        : method === 'postSocial'
+        ? activity.postSocial({ ...integration } as any, [post as any])
+        : method === 'postCommentV112'
+        ? activity.postCommentV112(
+            'remote',
+            undefined,
+            'org-1',
+            'integration-1',
+            [post as any]
+          )
+        : activity.postComment('remote', undefined, { ...integration } as any, [
+            post as any,
+          ]);
+    await expect(run).rejects.toThrow(
+      'Stories do Facebook: remova os comentarios.'
+    );
+    expect(postService.updateTags).not.toHaveBeenCalled();
+    expect(postService.updateMedia).not.toHaveBeenCalled();
+    expect(provider.post).not.toHaveBeenCalled();
+    expect(provider.postPending).not.toHaveBeenCalled();
+  });
+});

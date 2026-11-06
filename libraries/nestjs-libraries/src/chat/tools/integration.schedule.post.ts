@@ -8,7 +8,7 @@ import { PostsService } from '../../database/prisma/posts/posts.service';
 import { PostManagementService } from '../../database/prisma/posts/post-management.service';
 import { makeId } from '../../services/make.is';
 import { checkAuth } from '../auth.context';
-import { readRequestContext } from './tool.context.helper';
+import { agentIdentity, agentProfileSelector } from './agent-profile-scope';
 import { automationErrorCode } from '../../integrations/automations/automation-management.service';
 import {
   managedMediaSchema,
@@ -17,10 +17,17 @@ import {
   POST_CONTENT_DESCRIPTION,
 } from '../../dtos/posts/post-management.dto';
 import { CreatePostDto } from '../../dtos/posts/create.post.dto';
+import { agentToolErrorGuidance } from './scoped-agent-tool.helper';
 import { HttpException } from '@nestjs/common';
 import { stripHtmlValidation } from '@gitroom/helpers/utils/strip.html.validation';
-import { countPostContent, countLengthUnit } from '@gitroom/helpers/utils/count.length';
-import { coerceJsonSettingValue, stringKeysOf } from './settings.value.coercion';
+import {
+  countPostContent,
+  countLengthUnit,
+} from '@gitroom/helpers/utils/count.length';
+import {
+  coerceJsonSettingValue,
+  stringKeysOf,
+} from './settings.value.coercion';
 import {
   isAllowedMediaPath,
   isRemoteMediaPath,
@@ -36,6 +43,7 @@ export const schedulePostInputSchema = z
       .array(
         z
           .object({
+            profileId: agentProfileSelector,
             integrationId: z.string().min(1).max(100),
             isPremium: z.boolean(),
             date: z.string().datetime({ offset: true }),
@@ -89,7 +97,7 @@ export class IntegrationSchedulePostTool implements AgentToolInterface {
     return createTool({
       id: 'schedulePostTool',
       description:
-        'Cria novos posts/agendamentos/rascunhos. Consulte integrationSchema para regras e settings do provider. Suporta lote, tags, intervalo recorrente, comentários/threads com delay, attachments antigos ou media com id/path/alt/thumbnail. Primeiro item de postsAndComments é a publicação, os demais são comentários/partes do thread conforme a rede. Para editar/reagendar um post existente use getPostTool/updatePostTool/managePostScheduleTool, mantendo o ID. Cada item criado volta com previewUrl (página pública de preview) para mostrar ao usuário. Se retornar saved=true, preserve os IDs retornados e não repita o lote inteiro. outcomeUnknown=true exige consultar uncertainPosts antes de qualquer nova criação. Publicar agora ou agendar deve seguir a intenção autorizada do usuário.',
+        'Cria novos posts/agendamentos/rascunhos. Cada socialPost pode informar profileId; em chave de organização é obrigatório e é validado contra o canal, nunca usa Default. Chave de perfil só permite o próprio. Valida todo o lote antes de gravar, preservando o perfil de cada destino. Consulte integrationSchema para regras e settings do provider. Suporta lote, tags, intervalo recorrente, comentários/threads com delay, attachments antigos ou media com id/path/alt/thumbnail. Primeiro item de postsAndComments é a publicação, os demais são comentários/partes do thread conforme a rede. Para editar/reagendar um post existente use getPostTool/updatePostTool/managePostScheduleTool, mantendo o ID. Cada item criado volta com previewUrl (página pública de preview) para mostrar ao usuário. Se retornar saved=true, preserve os IDs retornados e não repita o lote inteiro. outcomeUnknown=true exige consultar uncertainPosts antes de qualquer nova criação. Publicar agora ou agendar deve seguir a intenção autorizada do usuário.',
       inputSchema: schedulePostInputSchema,
       outputSchema: z.object({
         output: z
@@ -97,6 +105,7 @@ export class IntegrationSchedulePostTool implements AgentToolInterface {
             z.object({
               postId: z.string(),
               integration: z.string(),
+              profileId: z.string(),
               previewUrl: z
                 .string()
                 .optional()
@@ -110,36 +119,45 @@ export class IntegrationSchedulePostTool implements AgentToolInterface {
         saved: z.boolean().optional(),
         outcomeUnknown: z.boolean().optional(),
         uncertainPosts: z
-          .array(z.object({ postId: z.string(), integration: z.string() }))
+          .array(
+            z.object({
+              postId: z.string(),
+              integration: z.string(),
+              profileId: z.string().optional(),
+            })
+          )
           .optional(),
       }),
       execute: async (raw: unknown, options: unknown) => {
         const output: Array<{
           postId: string;
           integration: string;
+          profileId: string;
           previewUrl?: string;
         }> = [];
-        let uncertainPosts: Array<{ postId: string; integration: string }> = [];
+        let uncertainPosts: Array<{
+          postId: string;
+          integration: string;
+          profileId?: string;
+        }> = [];
         try {
           checkAuth(raw, options);
           const input = schedulePostInputSchema.safeParse(raw);
           if (!input.success) fail('INVALID_POST_INPUT');
-          const context = readRequestContext(options);
-          const org = JSON.parse(
-            String(context.get('organization') || 'null')
-          ) as { id?: string };
-          if (!org?.id) fail('ORGANIZATION_REQUIRED');
-          const profileId = context.get('profileId') as string | undefined;
-          const ready: CreatePostDto[] = [];
+          const { organization: org } = agentIdentity(options);
+          const ready: Array<{ body: CreatePostDto; profileId: string }> = [];
           // Validate the whole batch before the first write, including native provider settings.
           for (const post of input.data.socialPost) {
+            const { profileId } = agentIdentity(options, post.profileId);
+            if (!profileId) fail('PROFILE_REQUIRED');
+            const scope = await this.management.scope(org.id, profileId);
             const integration = await this.integrations.getIntegrationById(
               org.id,
               post.integrationId
             );
             if (!integration || integration.deletedAt || integration.disabled)
               fail('CHANNEL_UNAVAILABLE');
-            if (profileId && integration.profileId !== profileId)
+            if (integration.profileId !== scope.profileId)
               fail('CHANNEL_PROFILE_MISMATCH');
             const provider = socialIntegrationList.find(
               (p) => p.identifier === integration.providerIdentifier
@@ -159,13 +177,13 @@ export class IntegrationSchedulePostTool implements AgentToolInterface {
               )
                 fail('POST_SETTING_KEY_INVALID');
               keys.add(field.key);
-              settings[field.key] = coerceJsonSettingValue(stringKeys, field.key, field.value);
+              settings[field.key] = coerceJsonSettingValue(
+                stringKeys,
+                field.key,
+                field.value
+              );
             }
             if (post.tags?.length) {
-              const scope = await this.management.scope(
-                org.id,
-                profileId || integration.profileId || undefined
-              );
               const available = (await this.management.options(scope, {
                 resource: 'tags',
               })) as Array<{ id: string; name: string }>;
@@ -198,9 +216,24 @@ export class IntegrationSchedulePostTool implements AgentToolInterface {
                     checkPublicHttpsUrl(String(item.thumbnail)))
                 )
                   fail('POST_MEDIA_PATH_INVALID');
-              const length = countPostContent(provider.identifier, message.content, settings, index);
-              if (length > (provider.maxLength(post.isPremium, index === 0 ? settings : undefined) || 1000000))
-                fail(countLengthUnit(provider.identifier) === 'bytes' ? 'POST_CONTENT_TOO_LONG_BYTES' : 'POST_CONTENT_TOO_LONG');
+              const length = countPostContent(
+                provider.identifier,
+                message.content,
+                settings,
+                index
+              );
+              if (
+                length >
+                (provider.maxLength(
+                  post.isPremium,
+                  index === 0 ? settings : undefined
+                ) || 1000000)
+              )
+                fail(
+                  countLengthUnit(provider.identifier) === 'bytes'
+                    ? 'POST_CONTENT_TOO_LONG_BYTES'
+                    : 'POST_CONTENT_TOO_LONG'
+                );
               return {
                 id: makeId(10),
                 content: message.content,
@@ -225,37 +258,55 @@ export class IntegrationSchedulePostTool implements AgentToolInterface {
                 },
               ],
             } as CreatePostDto;
+            await this.management.assertMediaScope(
+              scope,
+              value.flatMap((m) => m.image || []),
+              settings,
+              value.map((m) => m.content)
+            );
             const validated = await this.posts.mapTypeToPost(body, org.id);
             validated.type = post.type;
-            ready.push(validated);
+            ready.push({ body: validated, profileId: scope.profileId });
           }
-          for (const body of ready) {
+          for (const { body, profileId } of ready) {
             uncertainPosts = body.posts.map((post) => ({
               postId: post.value[0].id,
               integration: post.integration.id,
+              profileId,
             }));
             // mesma pagina publica do botao "Preview" do calendario (upstream
             // 8c63e686): o agente devolve o link para o usuario conferir
-            const created = await this.posts.createPost(org.id, body, profileId);
+            const created = await this.posts.createPost(
+              org.id,
+              body,
+              profileId
+            );
             output.push(
-              ...created.map((item: { postId: string; integration: string }) => ({
-                ...item,
-                previewUrl: `${(process.env.FRONTEND_URL || '').replace(
-                  /\/+$/,
-                  ''
-                )}/p/${item.postId}?share=true`,
-              }))
+              ...created.map(
+                (item: { postId: string; integration: string }) => ({
+                  ...item,
+                  profileId,
+                  previewUrl: `${(process.env.FRONTEND_URL || '').replace(
+                    /\/+$/,
+                    ''
+                  )}/p/${item.postId}?share=true`,
+                })
+              )
             );
             uncertainPosts = [];
           }
           return { output };
         } catch (error) {
+          const code = automationErrorCode(error);
+          const message = agentToolErrorGuidance(code);
           return {
             ...(output.length ? { output, saved: true } : {}),
             ...(uncertainPosts.length
               ? { uncertainPosts, outcomeUnknown: true }
               : {}),
-            errors: JSON.stringify([{ error: automationErrorCode(error) }]),
+            errors: JSON.stringify([
+              { error: code, ...(message ? { message } : {}) },
+            ]),
           };
         }
       },

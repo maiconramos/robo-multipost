@@ -1,7 +1,6 @@
 'use client';
 import { xMaximumLength } from '@gitroom/nestjs-libraries/integrations/social/x.article';
 
-
 import React, {
   FC,
   useCallback,
@@ -22,6 +21,7 @@ import {
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import EmojiPicker from 'emoji-picker-react';
 import { Theme } from 'emoji-picker-react';
+import { useTheme } from '@gitroom/react/helpers/theme';
 import { BoldText } from '@gitroom/frontend/components/new-launch/bold.text';
 import { UText } from '@gitroom/frontend/components/new-launch/u.text';
 import { SignatureBox } from '@gitroom/frontend/components/signature';
@@ -285,8 +285,8 @@ export const EditorWrapper: FC<{
   // phones show one toolbar, for the post that is being edited
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
-  // without comments only the first post is shown
-  const last = comments ? items.length - 1 : 0;
+  // Existing unsupported comments stay visible for removal.
+  const last = items.length - 1;
   const active = canEdit ? Math.min(activeIndex ?? last, last) : -1;
 
   const setValue = useCallback(
@@ -559,9 +559,9 @@ export const EditorWrapper: FC<{
             'relative flex flex-col gap-[20px] flex-1 bg-newSettings mobile:bg-transparent',
             index !== last && 'mobile:flex-none',
             index === 0 && 'rounded-t-[12px]',
-            (index === items.length - 1 || !comments) && 'rounded-b-[12px]',
+            (index === items.length - 1 || !canEdit) && 'rounded-b-[12px]',
             !canEdit && !isCreateSet && 'blur-s',
-            ((!canEdit && index > 0) || (!comments && index > 0)) && 'hidden'
+            !canEdit && index > 0 && 'hidden'
           )}
         >
           <div className="flex gap-[5px] mobile:gap-[16px] flex-1 w-full min-w-0">
@@ -606,7 +606,7 @@ export const EditorWrapper: FC<{
                 toolBarEnd={active === index ? postButtons(index) : undefined}
               />
             </div>
-            {comments && (
+            {(comments || index > 0) && (
               <div
                 className={clsx(
                   // on phones the icons sit in the corner, next to the first line
@@ -615,13 +615,15 @@ export const EditorWrapper: FC<{
                   index === 0 && 'mobile:hidden'
                 )}
               >
-                <div className="mobile:hidden">
-                  <UpDownArrow
-                    isUp={index !== 0}
-                    isDown={index !== items.length - 1}
-                    onChange={changeOrder(index)}
-                  />
-                </div>
+                {comments && (
+                  <div className="mobile:hidden">
+                    <UpDownArrow
+                      isUp={index !== 0}
+                      isDown={index !== items.length - 1}
+                      onChange={changeOrder(index)}
+                    />
+                  </div>
+                )}
                 {items.length > 1 && (
                   <TrashIcon
                     onClick={deletePost(index)}
@@ -633,7 +635,7 @@ export const EditorWrapper: FC<{
                     className="cursor-pointer text-[#FF3F3F]"
                   />
                 )}
-                {index > 0 && (
+                {comments && index > 0 && (
                   <DelayComponent currentIndex={index} currentDelay={g.delay} />
                 )}
               </div>
@@ -694,6 +696,7 @@ export const Editor: FC<{
   const [id] = useState(makeId(10));
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const t = useT();
+  const [mode] = useTheme();
   const toaster = useToaster();
   const editorRef = useRef<undefined | { editor: any }>(undefined);
   const [loading, setLoading] = useState(false);
@@ -924,12 +927,25 @@ export const Editor: FC<{
     noDrag: internalDrag || (num > 0 && comments === 'no-media'),
   });
 
-  const activeChannelId = useLaunchStore(s => s.current);
-  const articleReplyLimit = identifier === 'x' && props.totalChars === 100000 && (num || 0) > 0
-    ? xMaximumLength(JSON.parse(props.selectedIntegration.find(p => p.integration.id === activeChannelId)?.integration.additionalSettings || '[]')) : props.totalChars;
-  const articleBody = identifier === 'x' && props.totalChars === 100000 && (num || 0) === 0;
+  const activeChannelId = useLaunchStore((s) => s.current);
+  const articleReplyLimit =
+    identifier === 'x' && props.totalChars === 100000 && (num || 0) > 0
+      ? xMaximumLength(
+          JSON.parse(
+            props.selectedIntegration.find(
+              (p) => p.integration.id === activeChannelId
+            )?.integration.additionalSettings || '[]'
+          )
+        )
+      : props.totalChars;
+  const articleBody =
+    identifier === 'x' && props.totalChars === 100000 && (num || 0) === 0;
   const valueWithoutHtml = useMemo(() => {
-    return stripHtmlValidation(articleBody ? 'none' : 'normal', props.value || '', true);
+    return stripHtmlValidation(
+      articleBody ? 'none' : 'normal',
+      props.value || '',
+      true
+    );
   }, [props.value, articleBody]);
 
   const addText = useCallback(
@@ -1185,10 +1201,7 @@ export const Editor: FC<{
                           >
                             <EmojiPicker
                               height={400}
-                              theme={
-                                (localStorage.getItem('mode') as Theme) ||
-                                Theme.DARK
-                              }
+                              theme={mode === 'dark' ? Theme.DARK : Theme.LIGHT}
                               onEmojiClick={(e) => {
                                 addText(e.emoji);
                                 setEmojiPickerOpen(false);

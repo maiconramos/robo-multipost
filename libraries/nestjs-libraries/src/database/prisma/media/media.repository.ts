@@ -27,7 +27,13 @@ export class MediaRepository {
     private _post: PrismaRepository<'post'>
   ) {}
 
-  saveFile(org: string, fileName: string, filePath: string, originalName?: string, profileId?: string) {
+  saveFile(
+    org: string,
+    fileName: string,
+    filePath: string,
+    originalName?: string,
+    profileId?: string
+  ) {
     return this._media.model.media.create({
       data: {
         organization: {
@@ -215,7 +221,12 @@ export class MediaRepository {
     const profileFilter = this.profileFilter(profileId);
     // busca pelo nome original (API publica / MCP, upstream #1926)
     const searchFilter = search?.trim()
-      ? { originalName: { contains: search.trim(), mode: 'insensitive' as const } }
+      ? {
+          originalName: {
+            contains: search.trim(),
+            mode: 'insensitive' as const,
+          },
+        }
       : {};
     const query: Prisma.MediaCountArgs = {
       where: {
@@ -246,6 +257,8 @@ export class MediaRepository {
         originalName: true,
         path: true,
         createdAt: true,
+        profileId: true,
+        profile: { select: { id: true, name: true } },
         thumbnail: true,
         alt: true,
         thumbnailTimestamp: true,

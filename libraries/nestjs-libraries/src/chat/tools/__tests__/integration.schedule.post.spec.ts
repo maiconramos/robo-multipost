@@ -1,7 +1,12 @@
 jest.mock('../../../integrations/integration.manager', () => ({
-  socialIntegrationList: [{ identifier: 'instagram', maxLength: () => 2200 }, { identifier: 'threads', maxLength: () => 500 }],
+  socialIntegrationList: [
+    { identifier: 'instagram', maxLength: () => 2200 },
+    { identifier: 'threads', maxLength: () => 500 },
+  ],
 }));
 jest.mock('file-type', () => ({ fileTypeFromBuffer: jest.fn() }));
+// Unit tests must not start the real telemetry aggregator and its flush timer.
+jest.mock('@sentry/nestjs', () => ({ metrics: { count: jest.fn() } }));
 import {
   IntegrationSchedulePostTool,
   schedulePostInputSchema,
@@ -15,18 +20,17 @@ describe('criacao MCP completa de posts', () => {
       .mockResolvedValue([{ postId: 'novo', integration: 'i' }]),
   };
   const integration = {
-    getIntegrationById: jest
-      .fn()
-      .mockResolvedValue({
-        id: 'i',
-        profileId: 'perfil',
-        providerIdentifier: 'instagram',
-      }),
+    getIntegrationById: jest.fn().mockResolvedValue({
+      id: 'i',
+      profileId: 'perfil',
+      providerIdentifier: 'instagram',
+    }),
   };
   const management = {
     scope: jest
       .fn()
       .mockResolvedValue({ organizationId: 'org', profileId: 'perfil' }),
+    assertMediaScope: jest.fn().mockResolvedValue(undefined),
     options: jest.fn().mockResolvedValue([{ id: 'tag', name: 'Campanha' }]),
   };
   const options = {
@@ -37,9 +41,32 @@ describe('criacao MCP completa de posts', () => {
   };
   beforeEach(() => jest.clearAllMocks());
   it('criacao do Threads usa bytes UTF8 sem perder o contrato novo', async () => {
-    integration.getIntegrationById.mockResolvedValueOnce({ id: 'i', profileId: 'perfil', providerIdentifier: 'threads' });
-    const tool: any = new IntegrationSchedulePostTool(posts as any, integration as any, management as any).run();
-    const result = await tool.execute({ socialPost: [{ integrationId: 'i', isPremium: false, date: '2026-11-01T15:00:00Z', shortLink: false, type: 'schedule', settings: [], postsAndComments: [{ content: 'á'.repeat(251), attachments: [] }] }] }, options);
+    integration.getIntegrationById.mockResolvedValueOnce({
+      id: 'i',
+      profileId: 'perfil',
+      providerIdentifier: 'threads',
+    });
+    const tool: any = new IntegrationSchedulePostTool(
+      posts as any,
+      integration as any,
+      management as any
+    ).run();
+    const result = await tool.execute(
+      {
+        socialPost: [
+          {
+            integrationId: 'i',
+            isPremium: false,
+            date: '2026-11-01T15:00:00Z',
+            shortLink: false,
+            type: 'schedule',
+            settings: [],
+            postsAndComments: [{ content: 'á'.repeat(251), attachments: [] }],
+          },
+        ],
+      },
+      options
+    );
     expect(result.errors).toContain('POST_CONTENT_TOO_LONG_BYTES');
     expect(posts.createPost).not.toHaveBeenCalled();
   });
@@ -134,9 +161,36 @@ describe('criacao MCP completa de posts', () => {
   });
   it('informa ids tentados quando falha apos possivel gravacao parcial da raiz', async () => {
     posts.createPost.mockRejectedValueOnce(new Error('database interrupted'));
-    const tool: any = new IntegrationSchedulePostTool(posts as any, integration as any, management as any).run();
-    const result = await tool.execute({ socialPost: [{ integrationId: 'i', isPremium: false, date: '2026-11-01T15:00:00.000Z', shortLink: false, type: 'schedule', settings: [], postsAndComments: [{ content: 'Post', attachments: [] }] }] }, options);
-    expect(result).toMatchObject({ outcomeUnknown: true, uncertainPosts: [expect.objectContaining({ postId: expect.any(String), integration: 'i' })] });
+    const tool: any = new IntegrationSchedulePostTool(
+      posts as any,
+      integration as any,
+      management as any
+    ).run();
+    const result = await tool.execute(
+      {
+        socialPost: [
+          {
+            integrationId: 'i',
+            isPremium: false,
+            date: '2026-11-01T15:00:00.000Z',
+            shortLink: false,
+            type: 'schedule',
+            settings: [],
+            postsAndComments: [{ content: 'Post', attachments: [] }],
+          },
+        ],
+      },
+      options
+    );
+    expect(result).toMatchObject({
+      outcomeUnknown: true,
+      uncertainPosts: [
+        expect.objectContaining({
+          postId: expect.any(String),
+          integration: 'i',
+        }),
+      ],
+    });
   });
 
   // Porte do upstream 8c63e686: cada post criado volta com a pagina publica de
@@ -145,13 +199,34 @@ describe('criacao MCP completa de posts', () => {
     const previous = process.env.FRONTEND_URL;
     process.env.FRONTEND_URL = 'https://multi.example.com';
     try {
-      const tool: any = new IntegrationSchedulePostTool(posts as any, integration as any, management as any).run();
+      const tool: any = new IntegrationSchedulePostTool(
+        posts as any,
+        integration as any,
+        management as any
+      ).run();
       const result = await tool.execute(
-        { socialPost: [{ integrationId: 'i', isPremium: false, date: '2026-11-01T15:00:00Z', shortLink: false, type: 'schedule', settings: [], postsAndComments: [{ content: 'oi', attachments: [] }] }] },
+        {
+          socialPost: [
+            {
+              integrationId: 'i',
+              isPremium: false,
+              date: '2026-11-01T15:00:00Z',
+              shortLink: false,
+              type: 'schedule',
+              settings: [],
+              postsAndComments: [{ content: 'oi', attachments: [] }],
+            },
+          ],
+        },
         options
       );
       expect(result.output).toEqual([
-        { postId: 'novo', integration: 'i', previewUrl: 'https://multi.example.com/p/novo?share=true' },
+        {
+          postId: 'novo',
+          integration: 'i',
+          profileId: 'perfil',
+          previewUrl: 'https://multi.example.com/p/novo?share=true',
+        },
       ]);
     } finally {
       process.env.FRONTEND_URL = previous;
@@ -177,11 +252,27 @@ describe('criacao MCP completa de posts', () => {
   });
 
   it('repassa a imagem do conteudo ao DTO (o sanitizer decide) e mantem o perfil', async () => {
-    const tool: any = new IntegrationSchedulePostTool(posts as any, integration as any, management as any).run();
+    const tool: any = new IntegrationSchedulePostTool(
+      posts as any,
+      integration as any,
+      management as any
+    ).run();
     const content =
       '<p>a</p><img src="https://multi.example.com/uploads/2026/10/28/a.png" alt="x">';
     await tool.execute(
-      { socialPost: [{ integrationId: 'i', isPremium: false, date: '2026-11-01T15:00:00Z', shortLink: false, type: 'schedule', settings: [], postsAndComments: [{ content, attachments: [] }] }] },
+      {
+        socialPost: [
+          {
+            integrationId: 'i',
+            isPremium: false,
+            date: '2026-11-01T15:00:00Z',
+            shortLink: false,
+            type: 'schedule',
+            settings: [],
+            postsAndComments: [{ content, attachments: [] }],
+          },
+        ],
+      },
       options
     );
     expect(posts.mapTypeToPost).toHaveBeenCalledWith(
@@ -194,17 +285,147 @@ describe('criacao MCP completa de posts', () => {
       }),
       'org'
     );
-    expect(posts.createPost).toHaveBeenCalledWith('org', expect.anything(), 'perfil');
+    expect(posts.createPost).toHaveBeenCalledWith(
+      'org',
+      expect.anything(),
+      'perfil'
+    );
   });
 
   it('canal de outro perfil continua recusado', async () => {
-    integration.getIntegrationById.mockResolvedValueOnce({ id: 'i', profileId: 'outro', providerIdentifier: 'instagram' });
-    const tool: any = new IntegrationSchedulePostTool(posts as any, integration as any, management as any).run();
+    integration.getIntegrationById.mockResolvedValueOnce({
+      id: 'i',
+      profileId: 'outro',
+      providerIdentifier: 'instagram',
+    });
+    const tool: any = new IntegrationSchedulePostTool(
+      posts as any,
+      integration as any,
+      management as any
+    ).run();
     const result = await tool.execute(
-      { socialPost: [{ integrationId: 'i', isPremium: false, date: '2026-11-01T15:00:00Z', shortLink: false, type: 'schedule', settings: [], postsAndComments: [{ content: '<img src="https://multi.example.com/uploads/a.png">', attachments: [] }] }] },
+      {
+        socialPost: [
+          {
+            integrationId: 'i',
+            isPremium: false,
+            date: '2026-11-01T15:00:00Z',
+            shortLink: false,
+            type: 'schedule',
+            settings: [],
+            postsAndComments: [
+              {
+                content: '<img src="https://multi.example.com/uploads/a.png">',
+                attachments: [],
+              },
+            ],
+          },
+        ],
+      },
       options
     );
     expect(result.errors).toContain('CHANNEL_PROFILE_MISMATCH');
+    expect(posts.createPost).not.toHaveBeenCalled();
+  });
+  const item = (profileId?: string, integrationId = 'i') => ({
+    profileId,
+    integrationId,
+    isPremium: false,
+    date: '2027-11-01T15:00:00Z',
+    shortLink: false,
+    type: 'draft',
+    settings: [] as { key: string; value: string }[],
+    postsAndComments: [{ content: 'Teste', attachments: [] as string[] }],
+  });
+  const orgContext = {
+    requestContext: {
+      get: (k: string) => (k === 'organization' ? '{"id":"org"}' : undefined),
+    },
+  };
+  it('chave geral sem perfil nunca grava no Default nem herda conta', async () => {
+    const r = await (
+      new IntegrationSchedulePostTool(
+        posts as any,
+        integration as any,
+        management as any
+      ).run() as any
+    ).execute({ socialPost: [item()] }, orgContext);
+    expect(r.errors).toContain('PROFILE_REQUIRED');
+    expect(JSON.parse(r.errors)[0].message).toContain('getAccountContextTool');
+    expect(JSON.parse(r.errors)[0].message).toContain('socialPost[].profileId');
+    expect(posts.createPost).not.toHaveBeenCalled();
+    expect(integration.getIntegrationById).not.toHaveBeenCalled();
+  });
+  it('lote de dois clientes preserva perfil individual e o informa no recibo', async () => {
+    management.scope
+      .mockImplementationOnce(async (_org, p) => ({
+        organizationId: 'org',
+        profileId: p,
+      }))
+      .mockImplementationOnce(async (_org, p) => ({
+        organizationId: 'org',
+        profileId: p,
+      }));
+    integration.getIntegrationById
+      .mockResolvedValueOnce({
+        id: 'a',
+        profileId: 'a',
+        providerIdentifier: 'instagram',
+      })
+      .mockResolvedValueOnce({
+        id: 'b',
+        profileId: 'b',
+        providerIdentifier: 'instagram',
+      });
+    const r = await (
+      new IntegrationSchedulePostTool(
+        posts as any,
+        integration as any,
+        management as any
+      ).run() as any
+    ).execute({ socialPost: [item('a', 'a'), item('b', 'b')] }, orgContext);
+    expect(r.errors).toBeUndefined();
+    expect(posts.createPost.mock.calls.map((c) => c[2])).toEqual(['a', 'b']);
+    expect(r.output.map((p: { profileId: string }) => p.profileId)).toEqual([
+      'a',
+      'b',
+    ]);
+  });
+  it('segundo canal incompatível recusa lote inteiro antes da primeira gravacao', async () => {
+    management.scope
+      .mockResolvedValueOnce({ organizationId: 'org', profileId: 'a' })
+      .mockResolvedValueOnce({ organizationId: 'org', profileId: 'b' });
+    integration.getIntegrationById
+      .mockResolvedValueOnce({
+        id: 'a',
+        profileId: 'a',
+        providerIdentifier: 'instagram',
+      })
+      .mockResolvedValueOnce({
+        id: 'a',
+        profileId: 'a',
+        providerIdentifier: 'instagram',
+      });
+    const r = await (
+      new IntegrationSchedulePostTool(
+        posts as any,
+        integration as any,
+        management as any
+      ).run() as any
+    ).execute({ socialPost: [item('a', 'a'), item('b', 'a')] }, orgContext);
+    expect(r.errors).toContain('CHANNEL_PROFILE_MISMATCH');
+    expect(posts.createPost).not.toHaveBeenCalled();
+  });
+  it('chave de perfil recusa selecao diferente sem consultar canal ou gravar', async () => {
+    const r = await (
+      new IntegrationSchedulePostTool(
+        posts as any,
+        integration as any,
+        management as any
+      ).run() as any
+    ).execute({ socialPost: [item('outro')] }, options);
+    expect(r.errors).toContain('PROFILE_KEY_MISMATCH');
+    expect(integration.getIntegrationById).not.toHaveBeenCalled();
     expect(posts.createPost).not.toHaveBeenCalled();
   });
 });

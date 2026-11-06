@@ -1,3 +1,5 @@
+import { MCP_AGENT_INSTRUCTIONS } from './agent.operating.instructions';
+
 /**
  * Gera o guia/skill de agente (markdown) servido em `GET /public/agent-skill`,
  * com a URL do backend já injetada. É a "fonte de verdade" comprehensiva que
@@ -12,19 +14,18 @@ export function buildAgentSkillMarkdown(apiUrl: string): string {
   const base = (apiUrl || '').replace(/\/+$/, '');
   return `# Robô SanPost — Guia de Agente
 
-Você opera uma instância **self-hosted do Robô SanPost** (agendador de redes
-sociais, fork do Postiz com automações de comentário "flows"). Este documento é a
-referência completa para um agente de IA controlar esta instância.
+Voc? opera uma inst?ncia **self-hosted do Rob? SanPost** (agendador de redes
+sociais, fork do Postiz com automa??es de coment?rio "flows"). Este guia re?ne a refer?ncia operacional; os schemas da conex?o MCP e o Swagger descrevem as op??es atuais.
 
 - **Backend (API):** \`${base}\`
 - **Documentação interativa (Swagger):** \`${base}/docs\`
 
 ## Autenticação
 
-Toda chamada usa o header \`Authorization: <CHAVE>\`. A chave vem de
+Na REST, cada chamada usa o header \`Authorization: <CHAVE>\`. A chave vem de
 \`Configurações > Integrações\` na interface e pode ser:
 - **chave da organização** — acesso a todos os perfis;
-- **chave de perfil** — escopo apenas àquele perfil (recomendado para isolar um cliente).
+- **chave de perfil** — escopo apenas àquele perfil. É uma opção de isolamento, não um requisito para operar clientes com a chave da organização.
 
 > A chave é secreta — NUNCA a coloque em URLs ou logs. Receba-a por variável de
 > ambiente / config do agente.
@@ -36,15 +37,24 @@ O servidor MCP é servido por este backend e **se autodescreve** (o agente desco
 as ferramentas sozinho, incluindo as de automação). Você só precisa da URL + chave.
 
 - **Endpoint (header auth, recomendado):** \`${base}/mcp\` com header \`Authorization: Bearer <CHAVE>\`
-- **Endpoint (chave na URL):** \`${base}/mcp/<CHAVE>\`
+- **Endpoint (compatibilidade, chave na URL):** \`${base}/mcp/<CHAVE>\`
 
 Exemplo (Claude Code): \`claude mcp add multipost --transport http --header "Authorization: Bearer <CHAVE>" "${base}/mcp"\`
 
-**Ferramentas MCP disponíveis:** \`integrationList\`, \`integrationSchema\`,
-\`schedulePostTool\`, \`mediaListTool\`, \`generateImage\`, \`generateVideoOptions\`/\`generateVideo\`,
-\`webSearchTool\`, \`extractUrlsTool\`, \`knowledgeBaseQuery\`,
-\`createCommentAutomationTool\`, \`listCommentAutomationsTool\`,
-\`setCommentAutomationStatusTool\`. Use uma chave de perfil para escopar tudo a ele.
+### Descoberta e seleção do cliente
+
+${MCP_AGENT_INSTRUCTIONS}
+
+### Ferramentas principais
+
+- Descoberta: \`getAccountContextTool\`, \`integrationList\`, \`integrationSchema\`.
+- Posts: \`listPostsTool\`, \`getPostTool\`, \`getPostOptionsTool\`, \`integrationSchedulePostTool\`, \`updatePostTool\`, \`managePostScheduleTool\`.
+- Mídia: \`mediaListTool\`, \`uploadMediaTool\`, \`uploadMediaFromUrlTool\`, \`beginMediaUploadTool\`, \`appendMediaUploadTool\`, \`completeMediaUploadTool\`, \`getMediaUploadTool\`, \`abortMediaUploadTool\`.
+- Geração: \`generateImageTool\`, \`generateVideoOptions\`, \`generateVideoTool\`.
+- Automações: \`getAutomationOptionsTool\`, \`createCommentAutomationTool\`, \`getCommentAutomationTool\`, \`updateCommentAutomationTool\`, \`setCommentAutomationStatusTool\`, além de canvas, aliases e histórico disponíveis no catálogo.
+- Conhecimento e consultas: \`knowledgeBaseQuery\`, \`webSearchTool\`, \`getAnalyticsTool\`, \`listNotificationsTool\`.
+
+Não instale CLI nem crie outra chave quando a conexão MCP da organização já está disponível.
 
 ### Modo B — CLI / REST (agentes que rodam shell)
 Use o CLI \`@robo-multipost/agent\` (binário \`multipost\`) ou chame a REST direto.
@@ -57,7 +67,7 @@ multipost is-connected
 multipost integrations:list
 multipost posts:create --content "<p>Olá!</p>" --integrationId <ID> --type now
 \`\`\`
-(Instale com \`npm install -g @robo-multipost/agent\`, ou rode do repo com
+(Se o pacote estiver publicado, instale com \`npm install -g @robo-multipost/agent\`; ou rode do repo com
 \`node apps/cli/bin/multipost.js …\`. Saída sempre JSON.)
 
 ## Conceitos
@@ -67,18 +77,20 @@ multipost posts:create --content "<p>Olá!</p>" --integrationId <ID> --type now
 - **Post**: publicação \`now\` (imediata), \`schedule\` (agendada) ou \`draft\` (rascunho).
 - **Flow**: automação de comentário no Instagram (palavra-chave → resposta pública e/ou DM).
 
-## ⭐ Regra de ouro dos flows: \`next_publication\` vs \`specific\`
+## Automações e origem das publicações
 
-- **\`next_publication\` (PADRÃO — use quase sempre):** crie o flow **sem** id de
-  mídia; o sistema o vincula sozinho ao **próximo post publicado** no canal. Fluxo:
-  criar flow → publicar post. **Sem polling, sem media id.**
-- **\`specific\` (só para posts que JÁ existem):** vincula via \`postIds\`/\`storyIds\`
-  (IG media id). Use apenas para uma publicação antiga.
+Consulte \`getAutomationOptionsTool\` para capacidades do canal e gatilho antes
+de criar uma regra de Instagram, Facebook ou Messenger. Use os schemas atuais.
 
-> ⚠️ Não tente "publicar e descobrir o media id por polling" para usar \`specific\` —
-> é frágil e desnecessário (a API NÃO tem \`GET /posts/{id}\`). Esse é o caso do
-> \`next_publication\`. Para um post antigo, liste com \`GET /public/v1/posts?startDate&endDate\`
-> e leia \`releaseId\` (= IG media id) dos itens com \`state: PUBLISHED\`.
+- Para uma publicação agendada no SanPost, use \`postMode: scheduled\` e o
+  \`scheduledPostId\` interno retornado pelo agendamento, por destino. Crie uma
+  automação separada para cada destino; não misture agendamentos com a próxima publicação.
+- \`next_publication\` é para a próxima publicação daquele canal quando essa é a
+  intenção explícita; \`specific\` é para publicações existentes.
+- \`all\` abrange todas as publicações quando solicitado. Messenger usa o modo
+  e as condições indicadas pelo catálogo do gatilho.
+- Use \`getPostTool\` para detalhes de um post e leia \`releaseId\` quando precisar
+  do ID da rede. ID interno de agendamento não é ID de mídia da Meta.
 
 ## Referência da REST API (\`/public/v1\`)
 
@@ -154,19 +166,21 @@ e follow-gate: \`requireFollow\`, \`followGateMessage\`, \`openingDmMessage\`,
 | POST | \`/integration-trigger/:id\` | \`{methodName, data}\` (ações específicas do provider) |
 | GET | \`/social/:integration\` | \`?refresh\` — gera URL de OAuth p/ conectar canal |
 
-## Fluxo recomendado
+## Fluxo CLI / REST (sem conexão MCP)
 
 1. Validar: \`is-connected\`.
 2. (chave de org) \`profiles\` → escolher perfil.
 3. \`integrations\` → pegar o \`id\` do canal.
 4. \`posts\` (POST) → publicar/agendar.
-5. (opcional) \`flows\` (POST, \`next_publication\`) → automação; depois publique o post.
+5. (opcional) Configurar a automação com o modo correspondente à origem, consultando capacidades e schema; no MCP, reaproveitar o perfil escolhido por chamada.
 
-**Sempre confirme com o usuário** os detalhes (texto, data, canal e — em flows —
-gatilho, palavras, resposta, link) antes de criar.
+Respeite a autorização do usuário para conteúdo, data, canal e automação.
+Pergunte apenas pelos dados ou decisões que estiverem faltando; autorização já
+fornecida não exige nova confirmação.
 
 ## Boas práticas
-- Parseie o JSON de resposta; em erro HTTP, leia a mensagem.
+- Parseie o JSON de resposta; no MCP, leia o código estável e a orientação segura de erro.
+- \`customer\` não substitui \`profileId\`. No CLI, não invente flags: use apenas as documentadas; para operações multicliente com a chave geral, o MCP fornece seleção explícita em todos os recursos de cliente.
 - Nunca invente ids — descubra via \`integrations\`/\`profiles\`.
 - Datas em ISO 8601 UTC. \`dmButtonUrl\` deve ser https pública.
 - Para schema completo e exemplos copiáveis, use o Swagger em \`${base}/docs\`.

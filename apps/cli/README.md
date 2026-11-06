@@ -4,6 +4,19 @@ CLI/skill do **Robô SanPost** para agentes de IA. Wrapper fino e sem dependênc
 sobre a API pública (`/public/v1/*`) de uma instância **self-hosted**. Diferente do
 CLI oficial do Postiz, inclui as **automações de comentário (flows)**.
 
+## Agência com conexão MCP da organização
+
+Uma conexão MCP da organização pode operar os perfis autorizados com a mesma
+chave. O agente usa `getAccountContextTool` para descobrir os IDs, escolhe o
+cliente e consulta `integrationList` com `profileId`. Não precisa criar chave por
+cliente. A seleção é explícita por operação; no agendamento, fica em cada item
+`socialPost[]`. Chaves de perfil continuam limitadas ao próprio perfil.
+
+O guia servido pela aplicação está em `<API_URL>/public/agent-skill`. O MCP já
+fornece instruções, descrições e recuperação de erros; não exige instalar o CLI.
+As flags do CLI abaixo são as implementadas; não suponha um seletor global de
+perfil onde ele não está documentado.
+
 ## Configuração
 
 ```bash
@@ -16,12 +29,14 @@ export MULTIPOST_API_URL="https://seu-backend"  # ex.: https://localmultipostapi
 ## Como rodar
 
 **Sem instalar (a partir deste repositório):**
+
 ```bash
 node apps/cli/bin/multipost.js help
 node apps/cli/bin/multipost.js is-connected
 ```
 
 **Como comando global `multipost` (link local):**
+
 ```bash
 cd apps/cli && npm link        # cria o binário `multipost` no PATH
 multipost integrations:list
@@ -47,6 +62,7 @@ Funciona com **qualquer agente que execute comandos de shell**. O agente lê o
 `SKILL.md` para aprender os comandos e os executa, parseando o JSON de saída.
 
 Padrão geral:
+
 1. Garanta que `MULTIPOST_API_KEY` e `MULTIPOST_API_URL` estão no ambiente do agente.
 2. Garanta que o binário `multipost` está acessível (via `npm link`, caminho absoluto,
    ou instalado).

@@ -25,7 +25,10 @@ describe('GenerateVideoTool', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
-    tool = new GenerateVideoTool(mediaService as any);
+    tool = new GenerateVideoTool(
+      mediaService as any,
+      { getProfileById: jest.fn().mockResolvedValue({ id: 'prof-1' }) } as any
+    );
     exec = (tool.run() as any).execute;
   });
 

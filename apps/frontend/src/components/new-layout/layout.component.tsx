@@ -1,7 +1,9 @@
 'use client';
 
 import { setUserTimezone } from '@gitroom/helpers/utils/user.timezone';
-import React, { ReactNode, useCallback } from 'react';
+import React, { ReactNode, useCallback, useState } from 'react';
+import { ResponsiveDrawer } from '@gitroom/frontend/components/ui/responsive.drawer';
+import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { Logo } from '@gitroom/frontend/components/new-layout/logo';
 import { jakartaSans } from '@gitroom/frontend/fonts/plus-jakarta-sans/plus.jakarta.sans.font';
 const ModeComponent = dynamic(
@@ -15,7 +17,7 @@ import clsx from 'clsx';
 import dynamic from 'next/dynamic';
 import { useFetch } from '@gitroom/helpers/utils/custom.fetch';
 import { useVariables } from '@gitroom/react/helpers/variable.context';
-import { useSearchParams } from 'next/navigation';
+import { usePathname, useSearchParams } from 'next/navigation';
 import useSWR from 'swr';
 import { CheckPayment } from '@gitroom/frontend/components/layout/check.payment';
 import { ToolTip } from '@gitroom/frontend/components/layout/top.tip';
@@ -28,7 +30,7 @@ import { NewSubscription } from '@gitroom/frontend/components/layout/new.subscri
 import { Support } from '@gitroom/frontend/components/layout/support';
 import { ContinueProvider } from '@gitroom/frontend/components/layout/continue.provider';
 import { ContextWrapper } from '@gitroom/frontend/components/layout/user.context';
-import { CopilotKit } from '@copilotkit/react-core';
+import { CopilotProvider } from '@gitroom/frontend/components/layout/copilot.provider';
 import { MantineWrapper } from '@gitroom/react/helpers/mantine.wrapper';
 import { Impersonate } from '@gitroom/frontend/components/layout/impersonate';
 import { AnnouncementBanner } from '@gitroom/frontend/components/layout/announcement.banner';
@@ -47,6 +49,9 @@ import { FirstBillingComponent } from '@gitroom/frontend/components/billing/firs
 
 export const LayoutComponent = ({ children }: { children: ReactNode }) => {
   const fetch = useFetch();
+  const t = useT();
+  const pathname = usePathname();
+  const [menuOpen, setMenuOpen] = useState(false);
 
   const { backendUrl, billingEnabled, isGeneral } = useVariables();
 
@@ -76,12 +81,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
 
   return (
     <ContextWrapper user={user}>
-      <CopilotKit
-        credentials="include"
-        runtimeUrl={backendUrl + '/copilot/chat'}
-        showDevConsole={false}
-        enableInspector={false}
-      >
+      <CopilotProvider runtimeUrl={backendUrl + '/copilot/chat'}>
         <MantineWrapper>
           <ToolTip />
           <Toaster />
@@ -95,7 +95,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
             <ContinueProvider />
             <div
               className={clsx(
-                'flex flex-col min-h-screen min-w-screen text-newTextColor p-[12px]',
+                'flex flex-col min-h-screen w-full min-w-0 text-newTextColor p-[12px] mobile:p-[8px]',
                 jakartaSans.className
               )}
             >
@@ -105,9 +105,9 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
               ) : (
                 <>
                   <AnnouncementBanner />
-                  <div className="flex-1 flex gap-[8px]">
+                  <div className="flex-1 min-w-0 flex gap-[8px] mobile:gap-0">
                     <Support />
-                    <div className="flex flex-col bg-newBgColorInner w-[96px] rounded-[12px]">
+                    <div className="flex flex-col bg-newBgColorInner w-[96px] shrink-0 rounded-[12px] mobile:hidden">
                       <div
                         id="left-menu"
                         className={clsx(
@@ -121,28 +121,74 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
                         </div>
                       </div>
                     </div>
-                    <div className="flex-1 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-[1px] blurMe">
-                      <div className="flex bg-newBgColorInner h-[80px] px-[20px] items-center">
-                        <div className="text-[24px] font-[600] flex flex-1">
+                    <ResponsiveDrawer
+                      open={menuOpen}
+                      onClose={() => setMenuOpen(false)}
+                      title={t('navigation', 'Navigation')}
+                      routeKey={pathname}
+                    >
+                      <div
+                        onClick={() => setMenuOpen(false)}
+                        className="mobile-navigation"
+                      >
+                        <TopMenu />
+                      </div>
+                      <div className="flex flex-wrap items-center gap-[16px] border-t border-newBorder pt-[16px]">
+                        <OrganizationSelector />
+                        <LanguageComponent />
+                        <ModeComponent />
+                      </div>
+                    </ResponsiveDrawer>
+                    <div className="flex-1 min-w-0 bg-newBgLineColor rounded-[12px] overflow-hidden flex flex-col gap-[1px] blurMe">
+                      <div className="relative flex bg-newBgColorInner h-[80px] mobile:h-[64px] shrink-0 px-[20px] mobile:px-[12px] gap-[12px] items-center">
+                        <button
+                          type="button"
+                          onClick={() => setMenuOpen(true)}
+                          aria-label={t('open_menu', 'Open menu')}
+                          aria-expanded={menuOpen}
+                          className="hidden mobile:flex items-center justify-center h-[44px] w-[44px] shrink-0 bg-btnSimple rounded-[8px] text-btnText"
+                        >
+                          <svg
+                            width="22"
+                            height="22"
+                            viewBox="0 0 24 24"
+                            fill="none"
+                            aria-hidden="true"
+                          >
+                            <path
+                              d="M3 6H21M3 12H21M3 18H21"
+                              stroke="currentColor"
+                              strokeWidth="1.8"
+                              strokeLinecap="round"
+                            />
+                          </svg>
+                        </button>
+                        <div className="text-[24px] mobile:text-[18px] font-[600] flex-1 min-w-0">
                           <Title />
                         </div>
-                        <div className="flex gap-[20px] text-textItemBlur">
-                          <StreakComponent />
-                          <div className="w-[1px] h-[20px] bg-blockSeparator" />
-                          <OrganizationSelector />
-                          <ProfileSelector />
-                          <div className="hover:text-newTextColor">
-                            <ModeComponent />
+                        <div className="flex gap-[20px] mobile:gap-[10px] items-center min-w-0 text-textItemBlur">
+                          <div className="contents mobile:hidden">
+                            <StreakComponent />
+                            <div className="w-[1px] h-[20px] bg-blockSeparator" />
+                            <OrganizationSelector />
                           </div>
-                          <div className="w-[1px] h-[20px] bg-blockSeparator" />
-                          <LanguageComponent />
-                          <ChromeExtensionComponent />
-                          <div className="w-[1px] h-[20px] bg-blockSeparator" />
-                          <AttachToFeedbackIcon />
+                          <ProfileSelector />
+                          <div className="contents mobile:hidden">
+                            <div className="hover:text-newTextColor">
+                              {!menuOpen && <ModeComponent />}
+                            </div>
+                            <div className="w-[1px] h-[20px] bg-blockSeparator" />
+                            <LanguageComponent />
+                            <ChromeExtensionComponent />
+                            <div className="w-[1px] h-[20px] bg-blockSeparator" />
+                            <AttachToFeedbackIcon />
+                          </div>
                           <NotificationComponent />
                         </div>
                       </div>
-                      <div className="flex flex-1 gap-[1px]">{children}</div>
+                      <div className="flex flex-1 min-w-0 gap-[1px] mobile:flex-col">
+                        {children}
+                      </div>
                     </div>
                   </div>
                 </>
@@ -150,7 +196,7 @@ export const LayoutComponent = ({ children }: { children: ReactNode }) => {
             </div>
           </CheckPayment>
         </MantineWrapper>
-      </CopilotKit>
+      </CopilotProvider>
     </ContextWrapper>
   );
 };

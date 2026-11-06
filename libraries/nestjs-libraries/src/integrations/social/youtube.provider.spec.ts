@@ -139,18 +139,37 @@ describe('YoutubeProvider.post (miniatura)', () => {
   const { google } = jest.requireMock('googleapis');
   const VIDEO = 'vid-123';
 
-  const setup = (thumbnailsSet: jest.Mock) => {
+  const ready = () => ({
+    data: {
+      items: [
+        {
+          id: VIDEO,
+          status: { uploadStatus: 'processed' },
+          processingDetails: {
+            processingStatus: 'succeeded',
+            thumbnailsAvailability: 'available',
+          },
+        },
+      ],
+    },
+  });
+
+  const setup = (
+    thumbnailsSet: jest.Mock,
+    list = jest.fn().mockResolvedValue(ready())
+  ) => {
     google.auth.OAuth2.mockImplementation(() => ({
       setCredentials: jest.fn(),
     }));
+    const insert = jest.fn().mockResolvedValue({ data: { id: VIDEO } });
     google.youtube.mockReturnValue({
-      videos: { insert: jest.fn().mockResolvedValue({ data: { id: VIDEO } }) },
+      videos: { insert, list },
       thumbnails: { set: thumbnailsSet },
     });
     const provider = new YoutubeProvider();
     const axios = jest.fn().mockResolvedValue({ data: 'stream' });
     jest.spyOn(provider as any, 'getSsrfSafeAxios').mockReturnValue(axios);
-    return { provider, axios };
+    return { provider, axios, insert, list };
   };
 
   const post = (settings: any, media: any[]) => [
@@ -161,6 +180,276 @@ describe('YoutubeProvider.post (miniatura)', () => {
       media,
     },
   ];
+
+  describe('processamento antes da capa', () => {
+    const media = [
+      {
+        path: 'https://media.example.com/video.mp4',
+        thumbnail: 'https://media.example.com/cover.jpg',
+      },
+    ];
+
+    beforeEach(() => jest.useFakeTimers());
+    afterEach(() => {
+      jest.useRealTimers();
+      jest.restoreAllMocks();
+    });
+
+    it('aguarda video e miniaturas prontos antes de baixar e enviar a capa', async () => {
+      const set = jest.fn().mockResolvedValue({});
+      const list = jest
+        .fn()
+        .mockResolvedValueOnce({
+          data: {
+            items: [
+              {
+                id: VIDEO,
+                processingDetails: {
+                  processingStatus: 'processing',
+                  thumbnailsAvailability: 'available',
+                },
+              },
+            ],
+          },
+        })
+        .mockResolvedValueOnce({
+          data: {
+            items: [
+              {
+                id: VIDEO,
+                processingDetails: {
+                  processingStatus: 'succeeded',
+                  thumbnailsAvailability: 'inProgress',
+                },
+              },
+            ],
+          },
+        })
+        .mockResolvedValue(ready());
+      const { provider, axios, insert } = setup(set, list);
+      const result = provider.post('channel', 'token', post({}, media) as any);
+      await jest.advanceTimersByTimeAsync(0);
+      expect(insert).toHaveBeenCalledTimes(1);
+      expect(list).toHaveBeenCalledTimes(1);
+      expect(set).not.toHaveBeenCalled();
+      expect(axios).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(5000);
+      expect(list).toHaveBeenCalledTimes(2);
+      expect(set).not.toHaveBeenCalled();
+      expect(axios).toHaveBeenCalledTimes(1);
+      await jest.advanceTimersByTimeAsync(5000);
+      await expect(result).resolves.toEqual([
+        expect.objectContaining({ postId: VIDEO }),
+      ]);
+      expect(list).toHaveBeenLastCalledWith(
+        { id: [VIDEO], part: ['processingDetails', 'status'] },
+        expect.objectContaining({ timeout: expect.any(Number), retry: false })
+      );
+      expect(set).toHaveBeenCalledTimes(1);
+      expect(axios).toHaveBeenCalledTimes(2);
+    });
+
+    it('sem capa nao consulta o processamento nem espera', async () => {
+      const set = jest.fn();
+      const { provider, list } = setup(set);
+      await provider.post(
+        'channel',
+        'token',
+        post({}, [{ path: media[0].path }]) as any
+      );
+      expect(list).not.toHaveBeenCalled();
+      expect(set).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it.each([
+      { processingDetails: { processingStatus: 'failed' } },
+      { processingDetails: { processingStatus: 'terminated' } },
+      { status: { uploadStatus: 'failed' } },
+      { status: { uploadStatus: 'rejected' } },
+      { status: { uploadStatus: 'deleted' } },
+    ])(
+      'processamento terminal preserva o video sem reenviar (%j)',
+      async (state) => {
+        const set = jest.fn();
+        const list = jest.fn().mockResolvedValue({
+          data: { items: [{ ...ready().data.items[0], ...state }] },
+        });
+        const { provider, insert, axios } = setup(set, list);
+        const err = await provider
+          .post('channel', 'token', post({}, media) as any)
+          .catch((e) => e);
+        expect(err).toBeInstanceOf(PublishedWithError);
+        expect(err.releaseId).toBe(VIDEO);
+        expect(err.releaseURL).toBe(`https://www.youtube.com/watch?v=${VIDEO}`);
+        expect(err.message).toMatch(/processing/i);
+        expect(insert).toHaveBeenCalledTimes(1);
+        expect(list).toHaveBeenCalledTimes(1);
+        expect(set).not.toHaveBeenCalled();
+        expect(axios).toHaveBeenCalledTimes(1);
+        expect(jest.getTimerCount()).toBe(0);
+      }
+    );
+
+    it.each([
+      {},
+      { processingDetails: { processingStatus: 'succeeded' } },
+      { processingDetails: { thumbnailsAvailability: 'available' } },
+      {
+        processingDetails: {
+          processingStatus: 'new-state',
+          thumbnailsAvailability: 'available',
+        },
+      },
+      {
+        processingDetails: {
+          processingStatus: 'succeeded',
+          thumbnailsAvailability: 'new-state',
+        },
+      },
+    ])(
+      'estado ausente ou desconhecido expira sem enviar capa (%j)',
+      async (state) => {
+        const set = jest.fn();
+        const list = jest
+          .fn()
+          .mockResolvedValue({ data: { items: [{ id: VIDEO, ...state }] } });
+        const { provider, insert } = setup(set, list);
+        const result = provider
+          .post('channel', 'token', post({}, media) as any)
+          .catch((e) => e);
+        await jest.advanceTimersByTimeAsync(120000);
+        const err = await result;
+        expect(err).toBeInstanceOf(PublishedWithError);
+        expect(err.releaseId).toBe(VIDEO);
+        expect(err.message).toMatch(/processing/i);
+        expect(insert).toHaveBeenCalledTimes(1);
+        expect(set).not.toHaveBeenCalled();
+        expect(list.mock.calls.length).toBeLessThanOrEqual(25);
+        expect(jest.getTimerCount()).toBe(0);
+      }
+    );
+
+    it.each([
+      { items: [] },
+      { items: [{ ...ready().data.items[0], id: 'another-video' }] },
+    ])(
+      'resposta sem o video enviado nao libera a capa (%j)',
+      async ({ items }) => {
+        const set = jest.fn();
+        const { provider, insert } = setup(
+          set,
+          jest.fn().mockResolvedValue({ data: { items } })
+        );
+        const result = provider
+          .post('channel', 'token', post({}, media) as any)
+          .catch((e) => e);
+        await jest.advanceTimersByTimeAsync(120000);
+        expect(await result).toBeInstanceOf(PublishedWithError);
+        expect(insert).toHaveBeenCalledTimes(1);
+        expect(set).not.toHaveBeenCalled();
+      }
+    );
+
+    it('limita o tempo total mesmo quando as consultas sao lentas', async () => {
+      const started = Date.now();
+      const set = jest.fn();
+      const list = jest.fn().mockImplementation(
+        (_params, options) =>
+          new Promise((resolve) => {
+            setTimeout(
+              () =>
+                resolve({
+                  data: {
+                    items: [
+                      {
+                        id: VIDEO,
+                        processingDetails: { processingStatus: 'processing' },
+                      },
+                    ],
+                  },
+                }),
+              Math.min(9000, options.timeout)
+            );
+          })
+      );
+      const { provider, insert } = setup(set, list);
+      const result = provider
+        .post('channel', 'token', post({}, media) as any)
+        .catch((e) => e);
+      await jest.advanceTimersByTimeAsync(120000);
+      expect(await result).toBeInstanceOf(PublishedWithError);
+      expect(Date.now() - started).toBe(120000);
+      expect(
+        list.mock.calls.every(
+          ([, options]) =>
+            options.timeout > 0 &&
+            options.timeout <= 10000 &&
+            options.retry === false
+        )
+      ).toBe(true);
+      expect(
+        list.mock.calls.some(([, options]) => options.timeout < 10000)
+      ).toBe(true);
+      expect(insert).toHaveBeenCalledTimes(1);
+      expect(set).not.toHaveBeenCalled();
+      expect(jest.getTimerCount()).toBe(0);
+    });
+
+    it.each([
+      {
+        name: 'RefreshToken ja classificado',
+        failure: new RefreshToken('youtube', '', {} as any, 'sample-secret'),
+      },
+      {
+        name: 'timeout de rede',
+        failure: Object.assign(new Error('sample-secret'), {
+          code: 'ETIMEDOUT',
+        }),
+      },
+    ])('preserva o video em $name durante o polling', async ({ failure }) => {
+      const set = jest.fn();
+      const list = jest.fn().mockRejectedValue(failure);
+      const { provider, insert, axios } = setup(set, list);
+      jest.spyOn(console, 'error').mockImplementation(() => undefined);
+      const err = await provider
+        .post('channel', 'token', post({}, media) as any)
+        .catch((e) => e);
+      expect(err).toBeInstanceOf(PublishedWithError);
+      expect(err).not.toBeInstanceOf(RefreshToken);
+      expect(err.releaseId).toBe(VIDEO);
+      expect(err.releaseURL).toBe(`https://www.youtube.com/watch?v=${VIDEO}`);
+      expect(err.message).not.toContain('sample-secret');
+      expect(insert).toHaveBeenCalledTimes(1);
+      expect(list).toHaveBeenCalledTimes(1);
+      expect(axios).toHaveBeenCalledTimes(1);
+      expect(set).not.toHaveBeenCalled();
+    });
+
+    it.each([401, 403, 500])(
+      'falha HTTP %s no polling preserva id e URL sem novo upload',
+      async (status) => {
+        const set = jest.fn();
+        const list = jest
+          .fn()
+          .mockRejectedValue(
+            Object.assign(new Error('Unauthorized'), { response: { status } })
+          );
+        const { provider, insert } = setup(set, list);
+        jest.spyOn(console, 'error').mockImplementation(() => undefined);
+        const err = await provider
+          .post('channel', 'token', post({}, media) as any)
+          .catch((e) => e);
+        expect(err).toBeInstanceOf(PublishedWithError);
+        expect(err).not.toBeInstanceOf(RefreshToken);
+        expect(err.postDbId).toBe('post-db-1');
+        expect(err.releaseId).toBe(VIDEO);
+        expect(err.releaseURL).toBe(`https://www.youtube.com/watch?v=${VIDEO}`);
+        expect(insert).toHaveBeenCalledTimes(1);
+        expect(set).not.toHaveBeenCalled();
+      }
+    );
+  });
 
   it.each([false, true])(
     'envia o stream JPEG selecionado a thumbnails.set (override legado=%s)',
@@ -268,11 +557,9 @@ describe('YoutubeProvider.post (miniatura)', () => {
   });
 
   it('miniatura recusada depois do upload mantem id e URL do video (PublishedWithError)', async () => {
-    const set = jest
-      .fn()
-      .mockRejectedValue({
-        errors: [{ domain: 'youtube.thumbnail', reason: 'forbidden' }],
-      });
+    const set = jest.fn().mockRejectedValue({
+      errors: [{ domain: 'youtube.thumbnail', reason: 'forbidden' }],
+    });
     const { provider } = setup(set);
     jest.spyOn(console, 'error').mockImplementation(() => undefined);
 

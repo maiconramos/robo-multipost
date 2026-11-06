@@ -1,12 +1,15 @@
 # Posts e agendamentos por API e MCP
 
+Para importar arquivos e consultar contexto, métricas e notificações, consulte
+[Mídia e consultas operacionais pelo MCP](mcp-media-parity.md).
+
 Gerenciamento de um destino existente, preservando ID, grupo, conta, comentários encadeados e vínculos com automações. Complementa [Automações por API e MCP](automations-agent-api.md). Publicar em Instagram e Facebook gera dois destinos: cada um tem seu ID e pode ter seu horário/automação.
 
 ## Autenticação e escopo
 
-REST usa `Authorization: CHAVE_API`, sem Bearer. Uma chave de perfil só acessa o próprio perfil; `?profileId=outro` é recusado. Na nova fachada, chave de organização sem `profileId` resolve somente Default. No MCP, a identidade vem do contexto autenticado e não pode ser fornecida no payload.
+REST usa `Authorization: CHAVE_API`, sem Bearer. Uma chave de perfil só acessa o próprio perfil; `?profileId=outro` é recusado. Na nova fachada, chave de organização sem `profileId` resolve somente Default. No MCP, a organização e o vínculo da credencial vêm do contexto autenticado. O seletor `profileId` é validado por chamada conforme [Perfis de clientes no MCP](mcp-profile-isolation.md).
 
-Prefira chave de perfil no MCP externo para trabalhar em um perfil específico. A criação MCP antiga mantém sua semântica: chave de organização sem perfil herda o perfil da conta de destino. O gerenciamento novo resolve Default sem perfil explícito. Não supor que listar pelo contexto Default mostre posts criados em outro perfil por aquela criação legada.
+Uma chave de organização pode operar a agência inteira no MCP: listagens gerais abrangem a organização; operações de cliente exigem `profileId` explícito, validado contra a credencial e os recursos. Na criação, cada `socialPost[]` possui seu perfil. Chaves de perfil continuam limitadas ao próprio. Nenhuma operação MCP de cliente resolve Default por omissão. A fachada REST conserva sua semântica legada quando não recebe `?profileId`.
 
 ## Matriz de operações
 
@@ -131,4 +134,4 @@ Editar PUBLISHED exige `localOnly=true`: a alteração vale no registro do Multi
 
 Ao editar/reagendar, o ID interno e os targets de automação permanecem. Os IDs remotos congelados da primeira publicação também são mantidos nos targets; republicar explicitamente um registro não troca silenciosamente a automação para a nova publicação. Outros canais e destinos do grupo não são editados pela operação.
 
-As ferramentas são schemas concretos, sem identidade em input, e usam o mesmo domínio da REST. Esta entrega não altera SDK/CLI, credenciais nem a interface. Testes são automatizados e usam banco temporário isolado; validação local de catálogo é somente leitura. Nenhum post real é criado, reagendado, publicado, cancelado ou excluído nesta revisão.
+As ferramentas são schemas concretos, sem organização ou credenciais em input e com seleção de perfil validada, e usam o mesmo domínio da REST. Esta entrega não altera SDK/CLI, credenciais nem a interface. Testes são automatizados e usam banco temporário isolado; validação local de catálogo é somente leitura. Nenhum post real é criado, reagendado, publicado, cancelado ou excluído nesta revisão.

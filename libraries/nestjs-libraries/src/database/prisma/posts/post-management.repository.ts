@@ -9,6 +9,7 @@ import type {
 } from '../../../dtos/posts/post-management.dto';
 
 const include = {
+  profile: { select: { id: true, name: true } },
   integration: {
     select: {
       id: true,
@@ -55,10 +56,18 @@ export function managedPostVersion(rows: ManagedPostRow[]): string {
       JSON.stringify(
         // batchId fica fora: a coluna nova nao muda a versao de quem ja a
         // tinha (409 em todos os agentes depois do deploy)
-        rows.map(({ integration, tags, batchId: _batch, ...post }) => ({
-          ...post,
-          tags: tags.map((t) => t.tag.id).sort(),
-        }))
+        rows.map(
+          ({
+            integration,
+            tags,
+            profile: _profile,
+            batchId: _batch,
+            ...post
+          }) => ({
+            ...post,
+            tags: tags.map((t) => t.tag.id).sort(),
+          })
+        )
       )
     )
     .digest('hex');
@@ -126,7 +135,79 @@ export class PostManagementRepository {
     if (rows.length !== all.length) postError('POST_CHAIN_AMBIGUOUS', 409);
     return { rows, version: managedPostVersion(rows) };
   }
-  async list(scope: PostScope, q: ManagedPostList) {
+  list(scope: PostScope, q: ManagedPostList) {
+    return this.readPage(scope, q);
+  }
+  listOrganization(organizationId: string, q: ManagedPostList) {
+    return this.readPage({ organizationId }, q);
+  }
+  async assertOrganizationChannel(organizationId: string, id: string) {
+    const channel = await this.db.integration.findFirst({
+      where: { organizationId, id, deletedAt: null },
+      select: { id: true },
+    });
+    if (!channel) postError('CHANNEL_NOT_FOUND', 404);
+  }
+  async assertOrganizationCursor(
+    organizationId: string,
+    id: string,
+    q: ManagedPostList
+  ) {
+    const row = await this.db.post.findFirst({
+      where: {
+        organizationId,
+        id,
+        deletedAt: null,
+        parentPostId: null,
+        ...(q.integrationId ? { integrationId: q.integrationId } : {}),
+        ...(q.state ? { state: q.state } : {}),
+        ...(q.startDate || q.endDate
+          ? {
+              publishDate: {
+                ...(q.startDate ? { gte: new Date(q.startDate) } : {}),
+                ...(q.endDate ? { lte: new Date(q.endDate) } : {}),
+              },
+            }
+          : {}),
+        ...(q.customer ? { integration: { customerId: q.customer } } : {}),
+      },
+      select: { id: true },
+    });
+    if (!row) postError('POST_CURSOR_NOT_FOUND', 404);
+  }
+  async assertMediaScope(
+    scope: PostScope,
+    refs: Array<{ id?: string; path?: string }>
+  ) {
+    const ids = refs.map((r) => r.id).filter(Boolean);
+    const paths = refs.map((r) => r.path).filter(Boolean);
+    if (!ids.length && !paths.length) return;
+    // Lookup only identities, never return metadata across organizations.
+    const known = await this.db.media.findMany({
+      where: { OR: [{ id: { in: ids } }, { path: { in: paths } }] },
+      select: {
+        id: true,
+        path: true,
+        organizationId: true,
+        profileId: true,
+        deletedAt: true,
+      },
+    });
+    for (const item of known) {
+      if (
+        item.organizationId !== scope.organizationId ||
+        (item.profileId && item.profileId !== scope.profileId) ||
+        item.deletedAt
+      )
+        postError('POST_MEDIA_PROFILE_MISMATCH', 403);
+      if (refs.some((r) => r.id === item.id && r.path && r.path !== item.path))
+        postError('POST_MEDIA_REFERENCE_MISMATCH');
+    }
+  }
+  private async readPage(
+    scope: { organizationId: string; profileId?: string },
+    q: ManagedPostList
+  ) {
     const posts = await this.db.post.findMany({
       where: {
         ...scope,
@@ -143,7 +224,7 @@ export class PostManagementRepository {
             }
           : {}),
         integration: {
-          profileId: scope.profileId,
+          ...(scope.profileId ? { profileId: scope.profileId } : {}),
           ...(q.customer ? { customerId: q.customer } : {}),
         },
       },
