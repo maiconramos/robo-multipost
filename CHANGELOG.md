@@ -7,6 +7,11 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Corrigido — comentários após Stories do Facebook
+
+- Stories do Facebook não oferecem mais a ação de adicionar comentário após publicar. Blocos existentes permanecem disponíveis para remoção, sem descarte automático de conteúdo.
+- Painel, API e MCP recusam essa combinação antes de publicar ou reagendar; execuções antigas recebem uma orientação específica antes de qualquer envio. Feed e Reels mantêm seus comentários.
+
 ### Melhorado — envio direto e descoberta de clientes no MCP
 
 - Envio direto de arquivos por base64 no MCP HTTP passa a aceitar 6 MiB, com corpo JSON limitado a 12 MiB antes do processamento. As partes permanecem em 2 MiB, imagens em 10 MiB e MP4 em 1 GiB.

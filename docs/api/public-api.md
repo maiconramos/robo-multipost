@@ -116,6 +116,7 @@ No YouTube:
 
 No Facebook:
 - `settings.post_type` — `"post"` (feed/Reel) ou `"story"`.
+- Em Story do Facebook (`facebook` e `zernio-facebook`), `posts[].value` aceita um único bloco, com as mídias do Story. Blocos seguintes representam comentários após a publicação e são recusados com HTTP 400 em envio, agendamento, edição publicável e reagendamento. Rascunhos antigos podem conservar os blocos para remoção; não são publicáveis enquanto houver comentários. A mesma validação se aplica ao MCP, sem novo campo. Feed/Reels continuam aceitando comentários. Não confundir com respostas que uma pessoa envia ao Story pelo Messenger.
 - `settings.title` — título opcional para **posts de vídeo** (não story); ignorado em foto/texto.
 
 No TikTok Business (`tiktok-business`), além das opções do TikTok (`privacy_level`, `content_posting_method`, `duet`, `stitch`, `comment`, `autoAddMusic`, `brand_content_toggle`, `brand_organic_toggle`, `video_made_with_ai`, `title`):

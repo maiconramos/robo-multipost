@@ -63,6 +63,20 @@ export class PostActivity {
     @Optional() private readonly sharedFlows?: SharedFlowsRepository
   ) {}
 
+  private async assertSupportedThread(
+    integration: Integration,
+    posts: Post[],
+    commenting = false
+  ) {
+    const error = await this._postService.unsupportedCommentThreadError(
+      integration,
+      posts,
+      commenting
+    );
+    if (error)
+      throw new BadBody(integration.providerIdentifier, '{}', '{}', error);
+  }
+
   @ActivityMethod()
   async getIntegrationById(orgId: string, id: string) {
     return this._integrationService.getIntegrationById(orgId, id);
@@ -255,6 +269,7 @@ export class PostActivity {
         runtimeIntegration.providerIdentifier
       );
 
+      await this.assertSupportedThread(runtimeIntegration, posts, true);
       setHeartbeatDetails(`${runtimeIntegration.providerIdentifier}: comment`);
       const newPosts = await this._postService.updateTags(
         runtimeIntegration.organizationId,
@@ -289,6 +304,7 @@ export class PostActivity {
         runtimeIntegration.providerIdentifier
       );
 
+      await this.assertSupportedThread(runtimeIntegration, posts, true);
       setHeartbeatDetails(`${runtimeIntegration.providerIdentifier}: comment`);
       const newPosts = await this._postService.updateTags(
         runtimeIntegration.organizationId,
@@ -321,6 +337,7 @@ export class PostActivity {
         runtimeIntegration.providerIdentifier
       );
 
+      await this.assertSupportedThread(runtimeIntegration, posts, false);
       setHeartbeatDetails('update tags');
       const newPosts = await this._postService.updateTags(
         runtimeIntegration.organizationId,
@@ -448,6 +465,7 @@ export class PostActivity {
       integration.providerIdentifier
     );
 
+    await this.assertSupportedThread(integration, posts);
     const newPosts = await this._postService.updateTags(
       integration.organizationId,
       posts

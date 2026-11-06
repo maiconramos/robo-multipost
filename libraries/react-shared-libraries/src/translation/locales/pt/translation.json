@@ -2874,6 +2874,7 @@
   "instagram_search_audio": "Buscar áudio (vazio mostra tendências)",
   "instagram_audio_search_error": "Não foi possível carregar os áudios. Reconecte pelo Facebook Login e confira as permissões de áudio.",
   "instagram_no_audio_found": "Nenhum áudio encontrado",
+  "facebook_story_comments_unavailable": "Comentários após a publicação não estão disponíveis para Stories do Facebook. Remova os blocos de comentário deste canal antes de publicar.",
   "facebook_background": "Fundo do texto",
   "facebook_background_none": "Sem fundo",
   "facebook_background_note": "Somente texto de até 130 caracteres, sem links. Catálogo não oficial e cores aproximadas; um fundo recusado pode ser publicado como texto simples.",

@@ -48,7 +48,10 @@ interface CharacterCondition {
 }
 
 export const withProvider = function <T extends object>(params: {
-  comments?: boolean | 'no-media';
+  comments?:
+    | boolean
+    | 'no-media'
+    | ((settings: T, identifier: string) => boolean | 'no-media');
   postComment: PostComment;
   minimumCharacters: CharacterCondition[];
   SettingsComponent: FC<{
@@ -190,8 +193,13 @@ export const withProvider = function <T extends object>(params: {
       control: form.control,
       disabled:
         typeof params.inlineImages !== 'function' &&
-        typeof maximumCharacters !== 'function',
+        typeof maximumCharacters !== 'function' &&
+        typeof params.comments !== 'function',
     });
+    const comments =
+      typeof params.comments === 'function'
+        ? params.comments(values, selectedIntegration.integration.identifier)
+        : params.comments ?? true;
     const characterLimit =
       typeof maximumCharacters === 'number'
         ? maximumCharacters
@@ -217,14 +225,19 @@ export const withProvider = function <T extends object>(params: {
       }
 
       if (current) {
-        setComments(
-          typeof params.comments === 'undefined' ? true : params.comments
-        );
+        setComments(comments);
         setEditor(selectedIntegration?.integration.editor);
         setPostComment(postComment);
         setTotalChars(characterLimit);
       }
-    }, [justCurrent, current, isGlobal, setTotalChars, characterLimit]);
+    }, [
+      justCurrent,
+      current,
+      isGlobal,
+      setTotalChars,
+      characterLimit,
+      comments,
+    ]);
 
     const inlineImages =
       typeof params.inlineImages === 'function'
