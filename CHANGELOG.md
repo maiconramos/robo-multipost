@@ -19,6 +19,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 - A busca de áudio preserva o link de prévia da Meta: resultados sem arquivo direto oferecem “Ouvir no Instagram” ou indicam “Prévia indisponível”, mantendo a seleção. O campo também fica disponível na resposta existente de API/MCP.
 - Falhas de reprodução não apagam a lista nem solicitam reconexão; mudanças na busca, fechamento e seleção interrompem a prévia, inclusive quando o carregamento termina com atraso.
 
+### Melhorado — tema claro na primeira visita
+
+- Novas instalações e navegadores sem preferência iniciam no tema claro. A escolha existente de tema claro ou escuro é preservada, com aplicação já no servidor e o mesmo padrão no calendário, gráficos, extensão e seletor de emojis.
+
 ### Melhorado — envio direto e descoberta de clientes no MCP
 
 - Envio direto de arquivos por base64 no MCP HTTP passa a aceitar 6 MiB, com corpo JSON limitado a 12 MiB antes do processamento. As partes permanecem em 2 MiB, imagens em 10 MiB e MP4 em 1 GiB.

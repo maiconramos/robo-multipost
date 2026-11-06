@@ -1,7 +1,6 @@
 'use client';
 import { xMaximumLength } from '@gitroom/nestjs-libraries/integrations/social/x.article';
 
-
 import React, {
   FC,
   useCallback,
@@ -22,6 +21,7 @@ import {
 import { makeId } from '@gitroom/nestjs-libraries/services/make.is';
 import EmojiPicker from 'emoji-picker-react';
 import { Theme } from 'emoji-picker-react';
+import { useTheme } from '@gitroom/react/helpers/theme';
 import { BoldText } from '@gitroom/frontend/components/new-launch/bold.text';
 import { UText } from '@gitroom/frontend/components/new-launch/u.text';
 import { SignatureBox } from '@gitroom/frontend/components/signature';
@@ -694,6 +694,7 @@ export const Editor: FC<{
   const [id] = useState(makeId(10));
   const [emojiPickerOpen, setEmojiPickerOpen] = useState(false);
   const t = useT();
+  const [mode] = useTheme();
   const toaster = useToaster();
   const editorRef = useRef<undefined | { editor: any }>(undefined);
   const [loading, setLoading] = useState(false);
@@ -924,12 +925,25 @@ export const Editor: FC<{
     noDrag: internalDrag || (num > 0 && comments === 'no-media'),
   });
 
-  const activeChannelId = useLaunchStore(s => s.current);
-  const articleReplyLimit = identifier === 'x' && props.totalChars === 100000 && (num || 0) > 0
-    ? xMaximumLength(JSON.parse(props.selectedIntegration.find(p => p.integration.id === activeChannelId)?.integration.additionalSettings || '[]')) : props.totalChars;
-  const articleBody = identifier === 'x' && props.totalChars === 100000 && (num || 0) === 0;
+  const activeChannelId = useLaunchStore((s) => s.current);
+  const articleReplyLimit =
+    identifier === 'x' && props.totalChars === 100000 && (num || 0) > 0
+      ? xMaximumLength(
+          JSON.parse(
+            props.selectedIntegration.find(
+              (p) => p.integration.id === activeChannelId
+            )?.integration.additionalSettings || '[]'
+          )
+        )
+      : props.totalChars;
+  const articleBody =
+    identifier === 'x' && props.totalChars === 100000 && (num || 0) === 0;
   const valueWithoutHtml = useMemo(() => {
-    return stripHtmlValidation(articleBody ? 'none' : 'normal', props.value || '', true);
+    return stripHtmlValidation(
+      articleBody ? 'none' : 'normal',
+      props.value || '',
+      true
+    );
   }, [props.value, articleBody]);
 
   const addText = useCallback(
@@ -1185,10 +1199,7 @@ export const Editor: FC<{
                           >
                             <EmojiPicker
                               height={400}
-                              theme={
-                                (localStorage.getItem('mode') as Theme) ||
-                                Theme.DARK
-                              }
+                              theme={mode === 'dark' ? Theme.DARK : Theme.LIGHT}
                               onEmojiClick={(e) => {
                                 addText(e.emoji);
                                 setEmojiPickerOpen(false);
