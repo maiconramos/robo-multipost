@@ -89,6 +89,19 @@ describe('IntegrationService', () => {
       expect(spy.mock.calls[1]).toEqual([{ id: 'org' }, 'int', '7', true, 'perfil']);
     });
 
+    it('nao guarda falha de analytics no cache nem tenta renovar token saudavel', async () => {
+      const analytics = jest
+        .fn()
+        .mockRejectedValue(new Error('INSTAGRAM_ANALYTICS_UNAVAILABLE'));
+      const { service, refresh } = build(analytics);
+      await expect(
+        service.checkAnalytics({ id: 'org' } as any, 'int', '30', false, 'perfil')
+      ).resolves.toEqual([]);
+      expect(analytics).toHaveBeenCalledTimes(1);
+      expect(ioRedis.set).not.toHaveBeenCalled();
+      expect(refresh.refresh).not.toHaveBeenCalled();
+    });
+
     it('periodo ausente ou invalido usa 7 dias no cache e no provider', async () => {
       const analytics = jest.fn().mockResolvedValue([]);
       const { service } = build(analytics);

@@ -7,6 +7,10 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ## [Unreleased]
 
+### Corrigido — intervalo de métricas do Instagram
+
+- Consultas de 7 e 30 dias usam o mesmo instante de referência, sem acrescentar horas futuras ao período. Falhas da Meta passam a gerar diagnóstico com códigos seguros, sem quebrar na leitura de dados ausentes nem armazenar falhas como respostas vazias bem-sucedidas.
+
 ### Melhorado — envio direto e descoberta de clientes no MCP
 
 - Envio direto de arquivos por base64 no MCP HTTP passa a aceitar 6 MiB, com corpo JSON limitado a 12 MiB antes do processamento. As partes permanecem em 2 MiB, imagens em 10 MiB e MP4 em 1 GiB.
