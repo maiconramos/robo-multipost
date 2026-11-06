@@ -11,6 +11,14 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 - Consultas de 7 e 30 dias usam o mesmo instante de referência, sem acrescentar horas futuras ao período. Falhas da Meta passam a gerar diagnóstico com códigos seguros, sem quebrar na leitura de dados ausentes nem armazenar falhas como respostas vazias bem-sucedidas.
 
+### Corrigido — prévias de áudio original no Instagram
+
+- Sons originais recuperam o avatar pelo detalhe da Meta quando ele é omitido na busca, com cache por canal, concorrência limitada e falha opcional sem interromper a seleção.
+- Capas de áudio e avatares de criadores aparecem na busca e na seleção do Reel, com ícone musical quando a imagem não está disponível.
+
+- A busca de áudio preserva o link de prévia da Meta: resultados sem arquivo direto oferecem “Ouvir no Instagram” ou indicam “Prévia indisponível”, mantendo a seleção. O campo também fica disponível na resposta existente de API/MCP.
+- Falhas de reprodução não apagam a lista nem solicitam reconexão; mudanças na busca, fechamento e seleção interrompem a prévia, inclusive quando o carregamento termina com atraso.
+
 ### Melhorado — envio direto e descoberta de clientes no MCP
 
 - Envio direto de arquivos por base64 no MCP HTTP passa a aceitar 6 MiB, com corpo JSON limitado a 12 MiB antes do processamento. As partes permanecem em 2 MiB, imagens em 10 MiB e MP4 em 1 GiB.
