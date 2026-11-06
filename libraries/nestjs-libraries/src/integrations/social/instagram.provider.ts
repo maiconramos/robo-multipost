@@ -75,6 +75,11 @@ export class InstagramProvider
   extends SocialAbstract
   implements SocialProvider
 {
+  private readonly originalAudioImages = new Map<
+    string,
+    { image: string; expiresAt: number }
+  >();
+
   identifier = 'instagram';
   name = 'Instagram\n(Facebook Business)';
   isBetweenSteps = true;
@@ -1283,16 +1288,16 @@ export class InstagramProvider
     }
     if (!response.ok || body?.error || !Array.isArray(body?.audio))
       throw unavailable();
-    return body.audio
+    const results: InstagramAudioSearchResult[] = body.audio
       .map(
         (audio: any): InstagramAudioSearchResult => ({
           id: String(audio.audio_id || ''),
           title: String(audio.title || ''),
           artist: String(audio.display_artist || audio.ig_username || ''),
           image:
-            audio.cover_artwork_thumbnail_uri ||
-            audio.cover_artwork_thumbnail_url ||
-            audio.profile_picture_url ||
+            safeAudioPreviewUrl(audio.cover_artwork_thumbnail_uri) ||
+            safeAudioPreviewUrl(audio.cover_artwork_thumbnail_url) ||
+            safeAudioPreviewUrl(audio.profile_picture_url) ||
             '',
           duration: Number(audio.duration_in_ms) || 0,
           previewUrl: safeAudioPreviewUrl(audio.download_url) || '',
@@ -1302,7 +1307,99 @@ export class InstagramProvider
             ) || '',
         })
       )
-      .filter((a: any) => /^\d+$/.test(a.id));
+      .filter((a: InstagramAudioSearchResult) => /^\d+$/.test(a.id));
+    if (data?.type === 'original_sound') {
+      await this.enrichOriginalAudioImages(results, userToken, integration);
+    }
+    return results;
+  }
+
+  // Search can omit the original creator image even when the audio detail has it.
+  // This optional enrichment never changes channel authorization or search success.
+  private async enrichOriginalAudioImages(
+    results: InstagramAudioSearchResult[],
+    userToken: string,
+    integration: Integration
+  ): Promise<void> {
+    const groups = new Map<string, InstagramAudioSearchResult[]>();
+    for (const audio of results) {
+      if (audio.image) continue;
+      const rows = groups.get(audio.id) || [];
+      rows.push(audio);
+      groups.set(audio.id, rows);
+    }
+    const pending: {
+      id: string;
+      key?: string;
+      rows: InstagramAudioSearchResult[];
+    }[] = [];
+    for (const [id, rows] of groups) {
+      const key = integration.id
+        ? `${integration.id}:${integration.internalId}:${id}`
+        : undefined;
+      const cached = key ? this.originalAudioImages.get(key) : undefined;
+      if (cached && cached.expiresAt > Date.now()) {
+        for (const row of rows) row.image = cached.image;
+        continue;
+      }
+      if (key) this.originalAudioImages.delete(key);
+      if (pending.length < 10) pending.push({ id, key, rows });
+    }
+    if (!pending.length) return;
+    const controller = new AbortController();
+    const signal = AbortSignal.any([
+      AbortSignal.timeout(5000),
+      controller.signal,
+    ]);
+    let next = 0;
+    const worker = async () => {
+      while (!signal.aborted && next < pending.length) {
+        const item = pending[next++];
+        try {
+          const query = new URLSearchParams({
+            user_id: integration.internalId,
+          });
+          const response = await ssrfSafeFetch(
+            `${META_FACEBOOK_GRAPH_URL}/${item.id}?${query}`,
+            {
+              headers: { Authorization: `Bearer ${userToken}` },
+              signal,
+            }
+          );
+          if (response.status === 429) {
+            controller.abort();
+            return;
+          }
+          if (!response.ok) continue;
+          const detail = await response.json();
+          if (
+            signal.aborted ||
+            detail?.error ||
+            String(detail?.audio_id) !== item.id
+          )
+            continue;
+          const image = safeAudioPreviewUrl(detail.profile_picture_url) || '';
+          if (detail.profile_picture_url && !image) continue;
+          for (const row of item.rows) row.image = image;
+          if (item.key) {
+            if (this.originalAudioImages.size >= 200) {
+              this.originalAudioImages.delete(
+                this.originalAudioImages.keys().next().value!
+              );
+            }
+            this.originalAudioImages.set(item.key, {
+              image,
+              expiresAt: Date.now() + (image ? 10 * 60_000 : 60_000),
+            });
+          }
+        } catch {
+          // Missing avatars, timeouts and provider failures keep the base list usable.
+        }
+      }
+    };
+    await Promise.all(
+      Array.from({ length: Math.min(3, pending.length) }, worker)
+    );
   }
 
   async postAnalytics(

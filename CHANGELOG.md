@@ -9,6 +9,7 @@ Fork do [Postiz](https://github.com/gitroomhq/postiz-app) (AGPL-3.0).
 
 ### Corrigido — prévias de áudio original no Instagram
 
+- Sons originais recuperam o avatar pelo detalhe da Meta quando ele é omitido na busca, com cache por canal, concorrência limitada e falha opcional sem interromper a seleção.
 - Capas de áudio e avatares de criadores aparecem na busca e na seleção do Reel, com ícone musical quando a imagem não está disponível.
 
 - A busca de áudio preserva o link de prévia da Meta: resultados sem arquivo direto oferecem “Ouvir no Instagram” ou indicam “Prévia indisponível”, mantendo a seleção. O campo também fica disponível na resposta existente de API/MCP.
