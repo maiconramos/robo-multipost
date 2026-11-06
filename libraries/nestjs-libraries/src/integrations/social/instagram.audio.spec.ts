@@ -87,17 +87,15 @@ describe('Instagram audio', () => {
   it('busca com User Token cifrado e internalId servidor sem entregar segredo', async () => {
     const enc = new EncryptionService();
     const p = new InstagramProvider();
-    const http = jest
-      .spyOn(transport, 'ssrfSafeFetch')
-      .mockResolvedValue(
-        new Response(
-          JSON.stringify({
-            audio: [
-              { audio_id: '123', title: 'Musica', display_artist: 'Autor' },
-            ],
-          })
-        ) as any
-      );
+    const http = jest.spyOn(transport, 'ssrfSafeFetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          audio: [
+            { audio_id: '123', title: 'Musica', display_artist: 'Autor' },
+          ],
+        })
+      ) as any
+    );
     const integration = {
       providerIdentifier: 'instagram',
       internalId: 'owned',
@@ -117,6 +115,71 @@ describe('Instagram audio', () => {
     );
     expect(JSON.stringify(result)).not.toContain('USER');
     expect(integration.token).toBe('PAGE');
+  });
+  it('preserva as duas formas de previa sem persistir nem expor URLs inseguras', async () => {
+    const entries = [
+      {
+        audio_id: '1',
+        download_url: 'https://cdn.test/audio.mp3',
+        on_platform_audio_preview_link:
+          'https://www.instagram.com/reels/audio/1/',
+      },
+      {
+        audio_id: '2',
+        ig_username: 'criador',
+        on_platform_audio_preview_link:
+          'https://www.instagram.com/reels/audio/2/',
+      },
+      {
+        audio_id: '3',
+        download_url: null,
+        on_platform_audio_preview_link: null,
+      },
+      {
+        audio_id: '4',
+        download_url: 'http://cdn.test/audio',
+        on_platform_audio_preview_link: 'https://instagram.com.evil.test/audio',
+      },
+      {
+        audio_id: '5',
+        download_url: 'https://user:secret@cdn.test/audio',
+        on_platform_audio_preview_link:
+          'https://user:secret@instagram.com/audio',
+      },
+      {
+        audio_id: '6',
+        download_url: {},
+        on_platform_audio_preview_link: ['https://instagram.com/audio'],
+      },
+    ];
+    jest
+      .spyOn(transport, 'ssrfSafeFetch')
+      .mockResolvedValue(
+        new Response(JSON.stringify({ audio: entries })) as any
+      );
+    const result = await new InstagramProvider().audioSearch(
+      'PAGE',
+      {},
+      'owned',
+      {
+        providerIdentifier: 'instagram',
+        internalId: 'owned',
+        refreshToken: 'USER',
+        token: 'PAGE',
+      } as any
+    );
+    expect(result[0]).toMatchObject({
+      id: '1',
+      previewUrl: 'https://cdn.test/audio.mp3',
+      platformPreviewUrl: 'https://www.instagram.com/reels/audio/1/',
+    });
+    expect(result[1]).toMatchObject({
+      artist: 'criador',
+      previewUrl: '',
+      platformPreviewUrl: 'https://www.instagram.com/reels/audio/2/',
+    });
+    for (const item of result.slice(2))
+      expect(item).toMatchObject({ previewUrl: '', platformPreviewUrl: '' });
   });
   it('canal healed sem User Token mostra orientacao sem desconectar', async () => {
     const p = new InstagramProvider();

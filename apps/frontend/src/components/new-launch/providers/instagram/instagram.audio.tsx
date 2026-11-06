@@ -3,23 +3,15 @@ import { useCallback, useEffect, useRef, useState } from 'react';
 import { useSettings } from '@gitroom/frontend/components/launches/helpers/use.values';
 import { useCustomProviderFunction } from '@gitroom/frontend/components/launches/helpers/use.custom.provider.function';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
-import type { InstagramAudio } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
+import {
+  safeAudioPreviewUrl,
+  safeInstagramAudioPreviewUrl,
+} from '@gitroom/helpers/utils/instagram-audio-preview';
+import type {
+  InstagramAudio,
+  InstagramAudioSearchResult,
+} from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 
-type AudioResult = {
-  id: string;
-  title: string;
-  artist: string;
-  image?: string;
-  duration?: number;
-  previewUrl?: string;
-};
-const https = (value?: string) => {
-  try {
-    return new URL(value || '').protocol === 'https:' ? value : undefined;
-  } catch {
-    return undefined;
-  }
-};
 export function InstagramAudioSelector({
   disabled = false,
 }: {
@@ -32,14 +24,20 @@ export function InstagramAudioSelector({
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState('');
   const [kind, setKind] = useState('music');
-  const [results, setResults] = useState<AudioResult[]>([]);
+  const [results, setResults] = useState<InstagramAudioSearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(false);
   const [playing, setPlaying] = useState('');
+  const [previewError, setPreviewError] = useState('');
   const player = useRef<HTMLAudioElement | null>(null);
   const stop = useCallback(() => {
-    player.current?.pause();
+    const sound = player.current;
     player.current = null;
+    if (sound) {
+      sound.onended = null;
+      sound.onerror = null;
+      sound.pause();
+    }
     setPlaying('');
   }, []);
   useEffect(() => stop, [stop]);
@@ -50,6 +48,8 @@ export function InstagramAudioSelector({
     }
   }, [disabled, stop]);
   useEffect(() => {
+    stop();
+    setPreviewError('');
     if (!open || disabled) return;
     let cancelled = false;
     setLoading(true);
@@ -75,26 +75,36 @@ export function InstagramAudioSelector({
       cancelled = true;
       clearTimeout(timer);
     };
-  }, [open, disabled, query, kind, get]);
+  }, [open, disabled, query, kind, get, stop]);
   const save = (value: InstagramAudio | undefined) =>
     setValue('audio', value, { shouldDirty: true, shouldValidate: true });
-  const preview = async (audio: AudioResult) => {
+  const preview = async (audio: InstagramAudioSearchResult) => {
     if (playing === audio.id) {
       stop();
       return;
     }
     stop();
-    const url = https(audio.previewUrl);
+    setPreviewError('');
+    const url = safeAudioPreviewUrl(audio.previewUrl);
     if (!url) return;
     const sound = new Audio(url);
     player.current = sound;
-    sound.onended = stop;
+    const fail = () => {
+      if (player.current !== sound) return;
+      stop();
+      setPreviewError(audio.id);
+    };
+    sound.onended = () => {
+      if (player.current === sound) stop();
+    };
+    sound.onerror = fail;
+    setPlaying(audio.id);
     try {
       await sound.play();
-      setPlaying(audio.id);
+      // A play promise can settle after close, a new query or another preview.
+      if (player.current !== sound) sound.pause();
     } catch {
-      stop();
-      setError(true);
+      fail();
     }
   };
   return (
@@ -219,7 +229,7 @@ export function InstagramAudioSelector({
               {results.map((audio) => (
                 <li
                   key={audio.id}
-                  className="flex gap-2 border-b border-newTableBorder p-2"
+                  className="flex flex-wrap items-center gap-2 border-b border-newTableBorder p-2"
                 >
                   <button
                     type="button"
@@ -230,7 +240,7 @@ export function InstagramAudioSelector({
                         id: audio.id,
                         title: audio.title,
                         artist: audio.artist,
-                        image: https(audio.image),
+                        image: safeAudioPreviewUrl(audio.image),
                         audio_volume: 100,
                         video_volume: 100,
                       });
@@ -242,12 +252,45 @@ export function InstagramAudioSelector({
                     </span>
                     <span className="text-xs opacity-70">{audio.artist}</span>
                   </button>
-                  {https(audio.previewUrl) && (
+                  {safeAudioPreviewUrl(audio.previewUrl) && (
                     <button type="button" onClick={() => preview(audio)}>
                       {playing === audio.id
                         ? t('stop', 'Stop')
                         : t('play', 'Play')}
                     </button>
+                  )}
+                  {(!safeAudioPreviewUrl(audio.previewUrl) ||
+                    previewError === audio.id) &&
+                    (safeInstagramAudioPreviewUrl(audio.platformPreviewUrl) ? (
+                      <a
+                        href={safeInstagramAudioPreviewUrl(
+                          audio.platformPreviewUrl
+                        )}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-sm underline"
+                        onClick={stop}
+                      >
+                        {t(
+                          'instagram_audio_listen_on_instagram',
+                          'Listen on Instagram'
+                        )}
+                      </a>
+                    ) : !safeAudioPreviewUrl(audio.previewUrl) ? (
+                      <span className="text-xs opacity-70">
+                        {t(
+                          'instagram_audio_preview_unavailable',
+                          'Preview unavailable'
+                        )}
+                      </span>
+                    ) : null)}
+                  {previewError === audio.id && (
+                    <p role="alert" className="w-full text-xs">
+                      {t(
+                        'instagram_audio_preview_error',
+                        'Could not play this preview. Try again or use the Instagram link when available.'
+                      )}
+                    </p>
                   )}
                 </li>
               ))}

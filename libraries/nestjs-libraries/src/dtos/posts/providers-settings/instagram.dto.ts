@@ -19,6 +19,17 @@ export class Collaborators {
   @IsString()
   label: string;
 }
+/** Search metadata only; preview links expire and must not be saved in settings. */
+export interface InstagramAudioSearchResult {
+  id: string;
+  title: string;
+  artist: string;
+  image: string;
+  duration: number;
+  previewUrl: string;
+  platformPreviewUrl: string;
+}
+
 export class InstagramAudio {
   @IsString()
   @Matches(/^\d{1,40}$/)

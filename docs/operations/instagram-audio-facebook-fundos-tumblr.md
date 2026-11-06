@@ -10,6 +10,10 @@ Stories, carrosséis, Instagram Login e Zernio não suportam esta API de áudio.
 
 A busca usa o **User Access Token** obtido no Facebook Login, guardado de forma criptografada em `Integration.refreshToken`. A publicação continua usando o token da Página. Canais antigos, ou recuperados pelo self-heal com token de Página, podem precisar ser reconectados pelo Facebook Login para buscar áudio. Falha na busca não desconecta a publicação do canal. Tokens não são enviados ao navegador. A disponibilidade do catálogo depende do acesso concedido pela Meta.
 
+A [API de áudio da Meta](https://developers.facebook.com/documentation/instagram-platform/content-publishing/audio-api) pode retornar uma prévia direta (`download_url`), um link para ouvir no Instagram (`on_platform_audio_preview_link`) ou nenhuma das duas opções. O seletor mostra **Reproduzir**, **Ouvir no Instagram** ou **Prévia indisponível**, respectivamente. Áudios sem prévia continuam selecionáveis. Uma falha de reprodução aparece somente no item, sem apagar a busca ou exigir reconexão do canal.
+
+O resultado de `audioSearch` mantém o formato de lista no painel, API e MCP e acrescenta `platformPreviewUrl` ao lado de `previewUrl`; ambos são strings vazias quando indisponíveis. URLs de prévia são temporárias e não são gravadas nas configurações do post. O link externo aceita apenas HTTPS sem credenciais nos hosts `instagram.com`, `www.instagram.com` e `m.instagram.com`. A disponibilidade de prévia não garante que o áudio estará disponível no momento da publicação.
+
 ## Fundos de texto no Facebook
 
 Na conexão nativa do Facebook, escolha um fundo nas configurações. Só é aplicado em texto não vazio de até **130 caracteres**, sem mídia, story, URL incorporada ou link no texto. O preview se atualiza com a escolha e deixa de mostrar o fundo quando o conteúdo não se enquadra. A escolha permanece salva para voltar a ser usada se o texto ficar elegível.

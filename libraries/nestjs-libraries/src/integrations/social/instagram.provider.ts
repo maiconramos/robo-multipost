@@ -20,6 +20,11 @@ import {
   SocialAbstract,
   BadBody,
 } from '@gitroom/nestjs-libraries/integrations/social.abstract';
+import {
+  safeAudioPreviewUrl,
+  safeInstagramAudioPreviewUrl,
+} from '@gitroom/helpers/utils/instagram-audio-preview';
+import type { InstagramAudioSearchResult } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 import { InstagramDto } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 import { Integration } from '@prisma/client';
 import {
@@ -1279,18 +1284,24 @@ export class InstagramProvider
     if (!response.ok || body?.error || !Array.isArray(body?.audio))
       throw unavailable();
     return body.audio
-      .map((audio: any) => ({
-        id: String(audio.audio_id || ''),
-        title: String(audio.title || ''),
-        artist: String(audio.display_artist || audio.ig_username || ''),
-        image:
-          audio.cover_artwork_thumbnail_uri ||
-          audio.cover_artwork_thumbnail_url ||
-          audio.profile_picture_url ||
-          '',
-        duration: Number(audio.duration_in_ms) || 0,
-        previewUrl: audio.download_url || '',
-      }))
+      .map(
+        (audio: any): InstagramAudioSearchResult => ({
+          id: String(audio.audio_id || ''),
+          title: String(audio.title || ''),
+          artist: String(audio.display_artist || audio.ig_username || ''),
+          image:
+            audio.cover_artwork_thumbnail_uri ||
+            audio.cover_artwork_thumbnail_url ||
+            audio.profile_picture_url ||
+            '',
+          duration: Number(audio.duration_in_ms) || 0,
+          previewUrl: safeAudioPreviewUrl(audio.download_url) || '',
+          platformPreviewUrl:
+            safeInstagramAudioPreviewUrl(
+              audio.on_platform_audio_preview_link
+            ) || '',
+        })
+      )
       .filter((a: any) => /^\d+$/.test(a.id));
   }
 
