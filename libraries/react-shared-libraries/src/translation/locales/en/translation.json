@@ -2877,6 +2877,7 @@
   "instagram_audio_preview_unavailable": "Preview unavailable",
   "instagram_audio_preview_error": "Could not play this preview. Try again or use the Instagram link when available.",
   "instagram_no_audio_found": "No audio found",
+  "facebook_story_comments_unavailable": "Comments after publishing are not available for Facebook Stories. Remove comment blocks for this channel before publishing.",
   "facebook_background": "Text background",
   "facebook_background_none": "No background",
   "facebook_background_note": "For text-only posts up to 130 characters, without links. Curated catalog and approximate colors; rejected backgrounds may be published as plain text.",

@@ -281,4 +281,162 @@ describe('PostsService.createPost - extras sociais antes de persistir', () => {
     expect(repo.changeDate).toHaveBeenCalledTimes(1);
     expect(workflow).toHaveBeenCalledTimes(1);
   });
+  it.each(['now', 'schedule', 'update'])(
+    'recusa Story Facebook com comentario antes de persistir: %s',
+    async (type) => {
+      integrations.getIntegrationById.mockResolvedValue({
+        id: 'int-1',
+        providerIdentifier: 'facebook',
+      } as any);
+      const post = makePost({
+        audio: undefined,
+        post_type: 'story',
+        __type: 'instagram',
+      });
+      post.value.push({ content: '<p>comentario</p>', image: [] });
+      await expect(
+        service.createPost('org-1', makeBody([post], type) as any)
+      ).rejects.toThrow(/Stories do Facebook/);
+      expect(repo.createOrUpdatePost).not.toHaveBeenCalled();
+      expect(workflow).not.toHaveBeenCalled();
+    }
+  );
+  it('recusa Story Zernio Facebook com comentario', async () => {
+    integrations.getIntegrationById.mockResolvedValue({
+      id: 'int-1',
+      providerIdentifier: 'zernio-facebook',
+    } as any);
+    const post = makePost({ audio: undefined, post_type: 'story' });
+    post.value.push({ content: 'extra', image: [] });
+    await expect(
+      service.createPost('org-1', makeBody([post]) as any)
+    ).rejects.toThrow(/Stories do Facebook/);
+    expect(repo.createOrUpdatePost).not.toHaveBeenCalled();
+  });
+
+  it('conserva rascunho com comentarios para permitir a remocao', async () => {
+    integrations.getIntegrationById.mockResolvedValue({
+      id: 'int-1',
+      providerIdentifier: 'facebook',
+    } as any);
+    const post = makePost({
+      audio: undefined,
+      post_type: 'story',
+      __type: 'facebook',
+    });
+    post.value.push({ content: 'extra', image: [] });
+    await service.createPost('org-1', makeBody([post], 'draft') as any);
+    expect(repo.createOrUpdatePost).toHaveBeenCalledTimes(1);
+    expect(repo.createOrUpdatePost.mock.calls[0][3].value).toHaveLength(2);
+  });
+  it('permite Story de um bloco com varias midias', async () => {
+    integrations.getIntegrationById.mockResolvedValue({
+      id: 'int-1',
+      providerIdentifier: 'facebook',
+    } as any);
+    await service.createPost(
+      'org-1',
+      makeBody([
+        makePost({ audio: undefined, post_type: 'story', __type: 'facebook' }, [
+          'a.jpg',
+          'b.jpg',
+        ]),
+      ]) as any
+    );
+    expect(repo.createOrUpdatePost).toHaveBeenCalledTimes(1);
+  });
+  it('changeDate recusa Story antigo com comentarios antes de reagendar', async () => {
+    repo.getPostById.mockResolvedValue({
+      id: 'root',
+      group: 'g',
+      state: 'DRAFT',
+      settings: '{"post_type":"story"}',
+      integration: { providerIdentifier: 'facebook' },
+    } as any);
+    repo.getPostsByGroup.mockResolvedValue([
+      { id: 'root' },
+      { id: 'comment' },
+    ] as any);
+    await expect(
+      service.changeDate('org-1', 'root', '2026-12-01T12:00:00Z', 'schedule')
+    ).rejects.toThrow(/Stories do Facebook/);
+    expect(repo.changeDate).not.toHaveBeenCalled();
+    expect(workflow).not.toHaveBeenCalled();
+  });
+  it('protege publicacao e comentarios de cadeias antigas pelo post raiz armazenado', async () => {
+    const root = {
+      id: 'root',
+      group: 'g',
+      settings: '{"post_type":"story"}',
+      parentPostId: null as string | null,
+    };
+    const comment = {
+      id: 'comment',
+      group: 'g',
+      settings: '{}',
+      parentPostId: 'root',
+    };
+    repo.getPostsByGroup.mockResolvedValue([root, comment] as any);
+    const integration = {
+      providerIdentifier: 'facebook',
+      organizationId: 'org-1',
+    };
+    expect(
+      await service.unsupportedCommentThreadError(integration, [root] as any)
+    ).toContain('Stories do Facebook');
+    expect(
+      await service.unsupportedCommentThreadError(
+        { ...integration, providerIdentifier: 'zernio-facebook' },
+        [comment] as any,
+        true
+      )
+    ).toContain('Stories do Facebook');
+    expect(repo.getPostsByGroup).toHaveBeenCalledWith('org-1', 'g');
+  });
+  it('preserva comentarios de feed e outros providers', async () => {
+    const root = {
+      id: 'root',
+      group: 'g',
+      settings: '{"post_type":"post"}',
+      parentPostId: null as string | null,
+    };
+    repo.getPostsByGroup.mockResolvedValue([
+      root,
+      { parentPostId: 'root' },
+    ] as any);
+    expect(
+      await service.unsupportedCommentThreadError(
+        { providerIdentifier: 'facebook', organizationId: 'org-1' },
+        [root] as any,
+        true
+      )
+    ).toBeUndefined();
+    expect(
+      await service.unsupportedCommentThreadError(
+        { providerIdentifier: 'instagram', organizationId: 'org-1' },
+        [{ ...root, settings: '{"post_type":"story"}' }] as any,
+        true
+      )
+    ).toBeUndefined();
+  });
+  it('edicao sem settings usa configuracao armazenada antes de aceitar comentario', async () => {
+    integrations.getIntegrationById.mockResolvedValue({
+      id: 'int-1',
+      providerIdentifier: 'facebook',
+    } as any);
+    repo.getPostById.mockResolvedValue({
+      id: 'stored-root',
+      settings: '{"post_type":"story"}',
+      state: 'QUEUE',
+      releaseId: null,
+    } as any);
+    const post: any = makePost({ audio: undefined });
+    post.settings = undefined;
+    post.value[0].id = 'stored-root';
+    post.value.push({ content: 'extra', image: [] });
+    await expect(
+      service.createPost('org-1', makeBody([post], 'update') as any)
+    ).rejects.toThrow(/Stories do Facebook/);
+    expect(repo.createOrUpdatePost).not.toHaveBeenCalled();
+  });
 });

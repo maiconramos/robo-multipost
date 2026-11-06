@@ -285,8 +285,8 @@ export const EditorWrapper: FC<{
   // phones show one toolbar, for the post that is being edited
   const [activeIndex, setActiveIndex] = useState<number | null>(null);
   const [focusIndex, setFocusIndex] = useState<number | null>(null);
-  // without comments only the first post is shown
-  const last = comments ? items.length - 1 : 0;
+  // Existing unsupported comments stay visible for removal.
+  const last = items.length - 1;
   const active = canEdit ? Math.min(activeIndex ?? last, last) : -1;
 
   const setValue = useCallback(
@@ -559,9 +559,9 @@ export const EditorWrapper: FC<{
             'relative flex flex-col gap-[20px] flex-1 bg-newSettings mobile:bg-transparent',
             index !== last && 'mobile:flex-none',
             index === 0 && 'rounded-t-[12px]',
-            (index === items.length - 1 || !comments) && 'rounded-b-[12px]',
+            (index === items.length - 1 || !canEdit) && 'rounded-b-[12px]',
             !canEdit && !isCreateSet && 'blur-s',
-            ((!canEdit && index > 0) || (!comments && index > 0)) && 'hidden'
+            !canEdit && index > 0 && 'hidden'
           )}
         >
           <div className="flex gap-[5px] mobile:gap-[16px] flex-1 w-full min-w-0">
@@ -606,7 +606,7 @@ export const EditorWrapper: FC<{
                 toolBarEnd={active === index ? postButtons(index) : undefined}
               />
             </div>
-            {comments && (
+            {(comments || index > 0) && (
               <div
                 className={clsx(
                   // on phones the icons sit in the corner, next to the first line
@@ -615,13 +615,15 @@ export const EditorWrapper: FC<{
                   index === 0 && 'mobile:hidden'
                 )}
               >
-                <div className="mobile:hidden">
-                  <UpDownArrow
-                    isUp={index !== 0}
-                    isDown={index !== items.length - 1}
-                    onChange={changeOrder(index)}
-                  />
-                </div>
+                {comments && (
+                  <div className="mobile:hidden">
+                    <UpDownArrow
+                      isUp={index !== 0}
+                      isDown={index !== items.length - 1}
+                      onChange={changeOrder(index)}
+                    />
+                  </div>
+                )}
                 {items.length > 1 && (
                   <TrashIcon
                     onClick={deletePost(index)}
@@ -633,7 +635,7 @@ export const EditorWrapper: FC<{
                     className="cursor-pointer text-[#FF3F3F]"
                   />
                 )}
-                {index > 0 && (
+                {comments && index > 0 && (
                   <DelayComponent currentIndex={index} currentDelay={g.delay} />
                 )}
               </div>
