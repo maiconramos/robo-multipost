@@ -12,6 +12,42 @@ import type {
   InstagramAudioSearchResult,
 } from '@gitroom/nestjs-libraries/dtos/posts/providers-settings/instagram.dto';
 
+function AudioThumbnail({ image }: { image?: string }) {
+  const src = safeAudioPreviewUrl(image);
+  const [failedSrc, setFailedSrc] = useState<string>();
+  return (
+    <span
+      aria-hidden="true"
+      className="flex h-12 w-12 shrink-0 items-center justify-center overflow-hidden rounded-md bg-newBgColorInner"
+    >
+      {src && src !== failedSrc ? (
+        <img
+          src={src}
+          alt=""
+          width={48}
+          height={48}
+          loading="lazy"
+          referrerPolicy="no-referrer"
+          className="h-full w-full object-cover"
+          onError={() => setFailedSrc(src)}
+        />
+      ) : (
+        <svg
+          viewBox="0 0 24 24"
+          className="h-6 w-6 opacity-50"
+          fill="none"
+          stroke="currentColor"
+          strokeWidth={1.5}
+        >
+          <path d="M9 18V5l12-2v13M9 9l12-2" />
+          <ellipse cx="6" cy="18" rx="3" ry="2" />
+          <ellipse cx="18" cy="16" rx="3" ry="2" />
+        </svg>
+      )}
+    </span>
+  );
+}
+
 export function InstagramAudioSelector({
   disabled = false,
 }: {
@@ -121,6 +157,7 @@ export function InstagramAudioSelector({
       {selected?.id && (
         <div className="flex flex-col gap-3 rounded-lg border border-newTableBorder p-3">
           <div className="flex items-center gap-3">
+            <AudioThumbnail image={selected.image} />
             <div className="min-w-0 flex-1 break-words">
               {selected.title || selected.id}
               <div className="text-xs opacity-70">{selected.artist}</div>
@@ -233,7 +270,7 @@ export function InstagramAudioSelector({
                 >
                   <button
                     type="button"
-                    className="min-w-0 flex-1 text-left"
+                    className="flex min-w-0 flex-1 items-center gap-3 text-left"
                     onClick={() => {
                       stop();
                       save({
@@ -247,10 +284,13 @@ export function InstagramAudioSelector({
                       setOpen(false);
                     }}
                   >
-                    <span className="block break-words">
-                      {audio.title || audio.id}
+                    <AudioThumbnail image={audio.image} />
+                    <span className="min-w-0">
+                      <span className="block break-words">
+                        {audio.title || audio.id}
+                      </span>
+                      <span className="text-xs opacity-70">{audio.artist}</span>
                     </span>
-                    <span className="text-xs opacity-70">{audio.artist}</span>
                   </button>
                   {safeAudioPreviewUrl(audio.previewUrl) && (
                     <button type="button" onClick={() => preview(audio)}>

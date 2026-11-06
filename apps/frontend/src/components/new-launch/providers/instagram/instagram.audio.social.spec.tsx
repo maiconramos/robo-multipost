@@ -331,4 +331,67 @@ describe('seletor de audio do Reel', () => {
       expect(screen.queryByRole('button', { name: 'Stop' })).toBeNull();
     }
   );
+  it('mostra capa na busca e conserva a miniatura apos selecionar', async () => {
+    get.mockResolvedValue([
+      {
+        id: '123',
+        title: 'Com capa',
+        artist: 'Autor',
+        image: 'https://cdn.test/cover.jpg',
+      },
+    ]);
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Add audio' }));
+    const row = await screen.findByRole(
+      'button',
+      { name: 'Com capa Autor' },
+      { timeout: 3000 }
+    );
+    const image = row.querySelector('img')!;
+    expect(image?.getAttribute('src')).toBe('https://cdn.test/cover.jpg');
+    expect(image?.getAttribute('referrerpolicy')).toBe('no-referrer');
+    fireEvent.click(image);
+    expect(screen.getByTestId('saved').textContent).toContain(
+      'https://cdn.test/cover.jpg'
+    );
+    expect(document.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cdn.test/cover.jpg'
+    );
+  });
+  it('substitui imagem quebrada por icone e recupera a imagem ao mudar o audio', async () => {
+    get.mockResolvedValue([
+      { id: '2', title: 'Outro', image: 'https://cdn.test/valid.jpg' },
+    ]);
+    const view = render(
+      <Harness
+        audio={{
+          id: '1',
+          title: 'Salvo',
+          image: 'https://cdn.test/broken.jpg',
+        }}
+      />
+    );
+    const image = view.container.querySelector('img')!;
+    expect(image).toBeTruthy();
+    fireEvent.error(image);
+    expect(view.container.querySelector('img')).toBeNull();
+    expect(view.container.querySelector('svg')).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'Change audio' }));
+    fireEvent.click(
+      await screen.findByRole('button', { name: 'Outro' }, { timeout: 3000 })
+    );
+    expect(view.container.querySelector('img')?.getAttribute('src')).toBe(
+      'https://cdn.test/valid.jpg'
+    );
+  });
+  it.each([
+    undefined,
+    'javascript:alert(1)',
+    'http://cdn.test/a.jpg',
+    'https://user:secret@cdn.test/a.jpg',
+  ])('usa icone para capa ausente ou insegura: %s', (image) => {
+    const view = render(<Harness audio={{ id: '1', title: 'Salvo', image }} />);
+    expect(view.container.querySelector('img')).toBeNull();
+    expect(view.container.querySelector('svg')).toBeTruthy();
+  });
 });

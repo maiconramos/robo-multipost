@@ -181,6 +181,31 @@ describe('Instagram audio', () => {
     for (const item of result.slice(2))
       expect(item).toMatchObject({ previewUrl: '', platformPreviewUrl: '' });
   });
+  it.each([
+    'cover_artwork_thumbnail_uri',
+    'cover_artwork_thumbnail_url',
+    'profile_picture_url',
+  ])('retorna miniatura de %s no campo image existente', async (field) => {
+    jest.spyOn(transport, 'ssrfSafeFetch').mockResolvedValue(
+      new Response(
+        JSON.stringify({
+          audio: [{ audio_id: '123', [field]: 'https://cdn.test/cover.jpg' }],
+        })
+      ) as any
+    );
+    const result = await new InstagramProvider().audioSearch(
+      'PAGE',
+      {},
+      'owned',
+      {
+        providerIdentifier: 'instagram',
+        internalId: 'owned',
+        refreshToken: 'USER',
+        token: 'PAGE',
+      } as any
+    );
+    expect(result[0].image).toBe('https://cdn.test/cover.jpg');
+  });
   it('canal healed sem User Token mostra orientacao sem desconectar', async () => {
     const p = new InstagramProvider();
     const http = jest.spyOn(transport, 'ssrfSafeFetch');
