@@ -29,6 +29,7 @@ import { NewPost } from '@gitroom/frontend/components/launches/new.post';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 import { useIntegrationList } from '@gitroom/frontend/components/launches/helpers/use.integration.list';
 import { PlatformIconBadge } from '@gitroom/frontend/components/launches/helpers/platform-icon.helper';
+import { useTheme } from '@gitroom/react/helpers/theme';
 import useCookie from 'react-use-cookie';
 import { Onboarding } from '@gitroom/frontend/components/onboarding/onboarding';
 import { ResponsiveDrawer } from '@gitroom/frontend/components/ui/responsive.drawer';
@@ -467,7 +468,7 @@ export const LaunchesComponent = () => {
   const [reload, setReload] = useState(false);
   const [collapseMenu, setCollapseMenu] = useCookie('collapseMenu', '0');
   const [channelsOpen, setChannelsOpen] = useState(false);
-  const [mode] = useCookie('mode', 'dark');
+  const [mode] = useTheme();
   const { isLoading, data: integrations, mutate } = useIntegrationList();
 
   const totalNonDisabledChannels = useMemo(() => {

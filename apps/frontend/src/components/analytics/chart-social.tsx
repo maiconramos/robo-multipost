@@ -3,7 +3,7 @@
 import { FC, useEffect, useMemo, useRef } from 'react';
 import DrawChart from 'chart.js/auto';
 import { TotalList } from '@gitroom/frontend/components/analytics/stars.and.forks.interface';
-import useCookie from 'react-use-cookie';
+import { useTheme } from '@gitroom/react/helpers/theme';
 import {
   mergeAnalyticsPoints,
   normalizeAnalyticsPoints,
@@ -16,7 +16,7 @@ export const ChartSocial: FC<{
   average?: boolean;
 }> = (props) => {
   const { data, color = 'purple', average = false } = props;
-  const [mode] = useCookie('mode', 'dark');
+  const [mode] = useTheme();
   const t = useT();
 
   const list = useMemo(() => {

@@ -1,7 +1,7 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
-import useCookie from 'react-use-cookie';
+import { useCallback, useEffect } from 'react';
+import { useTheme } from '@gitroom/react/helpers/theme';
 import EventEmitter from 'events';
 import { useT } from '@gitroom/react/translation/get.transation.service.client';
 
@@ -9,7 +9,7 @@ export const modeEmitter = new EventEmitter();
 
 const ModeComponent = () => {
   const t = useT();
-  const [mode, setMode] = useCookie('mode', 'dark');
+  const [mode, setMode] = useTheme();
 
   const changeMode = useCallback(() => {
     modeEmitter.emit('mode', mode === 'dark' ? 'light' : 'dark');
