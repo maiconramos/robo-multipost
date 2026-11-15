@@ -15,6 +15,7 @@ import type {
 export function AutomationWorkspace(
   props: EditorActionProps & {
     name: string;
+    activationValid?: boolean;
     nameLabel: string;
     onNameChange: (name: string) => void;
     subtitle?: string;
@@ -100,7 +101,7 @@ export function AutomationWorkspace(
             <AutomationStatusSwitch
               status={props.status}
               busy={props.busy || !!nav?.switching}
-              valid={props.valid}
+              valid={props.activationValid ?? props.valid}
               pendingAction={nav?.switching ? undefined : props.pendingAction}
               onChange={(next) => {
                 if (mode === 'history' && next === 'ACTIVE' && props.dirty) {
@@ -150,11 +151,13 @@ export function AutomationWorkspace(
               disabled={item.disabled || nav?.switching}
               title={
                 item.disabled
-                  ? t(
-                      item.mode === 'quick'
-                        ? 'automation_workspace_advanced_only'
-                        : 'automation_workspace_save_first'
-                    )
+                  ? item.mode === 'flow' && nav?.flowDisabledReason
+                    ? nav.flowDisabledReason
+                    : t(
+                        item.mode === 'quick'
+                          ? 'automation_workspace_advanced_only'
+                          : 'automation_workspace_save_first'
+                      )
                   : undefined
               }
               tabIndex={mode === item.mode ? 0 : -1}

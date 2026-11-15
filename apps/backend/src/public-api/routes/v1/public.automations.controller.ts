@@ -57,7 +57,7 @@ export class PublicAutomationsController {
     return this.service.scope(org.id, key || requested);
   }
   private version(value?: string) {
-    if (value !== undefined && !['1', '2'].includes(value))
+    if (value !== undefined && !['1', '2', '3'].includes(value))
       throw new HttpException('INVALID_EXECUTION_VERSION', 400);
     return value ? Number(value) : 1;
   }
@@ -252,9 +252,9 @@ export class PublicAutomationsController {
   @ApiQuery({
     name: 'executionVersion',
     required: false,
-    enum: ['1', '2'],
+    enum: ['1', '2', '3'],
     description:
-      '1=Instagram; 2=Facebook/Messenger. Não há fallback entre motores.',
+      '1=Instagram direto; 2=Facebook/Messenger; 3=Instagram via Zernio. Não há fallback entre motores.',
   })
   async detail(
     @GetOrgFromRequest() org: Organization,
@@ -274,7 +274,7 @@ export class PublicAutomationsController {
     summary:
       'Editar campos parcialmente, preservando os omitidos e recusando grafo personalizado',
     description:
-      'V1 exige expectedUpdatedAt retornado no detalhe. V2 exige expectedRevision. Não altera rede, conta, gatilho ou status.',
+      'V1 exige expectedUpdatedAt retornado no detalhe. V2/V3 exigem expectedRevision. Não altera rede, conta, gatilho ou status.',
   })
   @ApiBody({ type: AutomationUpdateDto })
   @Throttle({ default: { limit: 20, ttl: 3600_000 } })

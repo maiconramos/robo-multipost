@@ -48,6 +48,9 @@ export function AutomationPublicationSelector({
   specificContent,
   showSpecificContentWhenScheduled = false,
   scopeNote,
+  scheduledEnabled = true,
+  allowNext = true,
+  maxSpecificPosts = 100,
 }: PublicationChoice & {
   integrationId: string;
   platform?: 'instagram' | 'facebook';
@@ -63,6 +66,9 @@ export function AutomationPublicationSelector({
   specificContent?: ReactNode;
   showSpecificContentWhenScheduled?: boolean;
   scopeNote?: ReactNode;
+  scheduledEnabled?: boolean;
+  allowNext?: boolean;
+  maxSpecificPosts?: number;
 }) {
   const t = useT();
   const { resolvedLanguage } = useTranslationSettings();
@@ -95,7 +101,7 @@ export function AutomationPublicationSelector({
     ...(scheduledPostId ? { selectedId: scheduledPostId } : {}),
   });
   const result = useSharedFlowData<ScheduledAutomationPostsView>(
-    integrationId
+    integrationId && scheduledEnabled
       ? `/automation-scheduled-posts/${integrationId}?${query}`
       : null
   );
@@ -188,7 +194,9 @@ export function AutomationPublicationSelector({
     .slice(0, 4);
   const isChoiceDisabled = (p: (typeof choices)[number]) =>
     disabled ||
-    (!p.scheduled && postIds.length >= 100 && !postIds.includes(p.id)) ||
+    (!p.scheduled &&
+      postIds.length >= maxSpecificPosts &&
+      !postIds.includes(p.id)) ||
     (p.scheduled && p.status !== 'waiting' && p.id !== scheduledPostId);
   const choose = (p: (typeof choices)[number]) => {
     if (isChoiceDisabled(p)) return;
@@ -200,7 +208,7 @@ export function AutomationPublicationSelector({
         mode: 'specific',
         postIds: ids.includes(p.id)
           ? ids.filter((id) => id !== p.id)
-          : [...ids, p.id].slice(0, 100),
+          : [...ids, p.id].slice(0, maxSpecificPosts),
       });
     }
   };
@@ -351,7 +359,7 @@ export function AutomationPublicationSelector({
                   )}
                 </p>
               )}
-            {postIds.length >= 100 && (
+            {postIds.length >= maxSpecificPosts && (
               <p role="status" className="text-xs text-newTextColor/60">
                 {t('shared_posts_limit')}
               </p>
@@ -380,23 +388,25 @@ export function AutomationPublicationSelector({
           <p className="mt-2 text-xs text-newTextColor/70">{scopeNote}</p>
         )}
       </div>
-      <div
-        className={`rounded-lg border p-3 ${
-          mode === 'next_publication'
-            ? 'border-btnPrimary bg-btnPrimary/5'
-            : 'border-newTableBorder'
-        }`}
-      >
-        {radio('next_publication', t('wizard_next_publication'))}
-        {mode === 'next_publication' && scopeNote && (
-          <p className="mt-2 text-xs text-newTextColor/70">{scopeNote}</p>
-        )}
-        {mode === 'next_publication' && (
-          <p className="text-[11px] text-newTextColor/60 mt-2 ml-6">
-            {t('automation_next_unreserved_hint')}
-          </p>
-        )}
-      </div>
+      {allowNext && (
+        <div
+          className={`rounded-lg border p-3 ${
+            mode === 'next_publication'
+              ? 'border-btnPrimary bg-btnPrimary/5'
+              : 'border-newTableBorder'
+          }`}
+        >
+          {radio('next_publication', t('wizard_next_publication'))}
+          {mode === 'next_publication' && scopeNote && (
+            <p className="mt-2 text-xs text-newTextColor/70">{scopeNote}</p>
+          )}
+          {mode === 'next_publication' && (
+            <p className="text-[11px] text-newTextColor/60 mt-2 ml-6">
+              {t('automation_next_unreserved_hint')}
+            </p>
+          )}
+        </div>
+      )}
       {open && (
         <div
           className="fixed inset-0 z-[60] flex items-center justify-center bg-black/60 p-4"
@@ -503,9 +513,11 @@ export function AutomationPublicationSelector({
               )}
             </div>
             <div className="border-t border-newTableBorder p-4 space-y-3">
-              <p className="text-xs text-newTextColor/60">
-                {t('automation_scheduled_exclusive_hint')}
-              </p>
+              {scheduledEnabled && (
+                <p className="text-xs text-newTextColor/60">
+                  {t('automation_scheduled_exclusive_hint')}
+                </p>
+              )}
               <button
                 type="button"
                 onClick={() => setOpen(false)}

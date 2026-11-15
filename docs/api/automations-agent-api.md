@@ -1,65 +1,67 @@
 # Automações por API e MCP
 
-Referência dos recursos disponíveis para agentes de IA em 28/10/2026. A API e as ferramentas MCP usam a mesma fachada de domínio, com regras separadas por destino. Instagram, Facebook e Messenger mantêm seus executores, autorizações e limites próprios.
+Referência dos recursos disponíveis para agentes de IA em 14/11/2026. A API e as ferramentas MCP usam a mesma fachada de domínio, com regras separadas por destino. Instagram, Facebook e Messenger mantêm seus executores, autorizações e limites próprios.
 
 ## Autenticação e identidade
 
-Na REST, envie `Authorization: SUA_CHAVE_API` (sem `Bearer`). A chave de perfil só opera naquele perfil; pedir outro `profileId` resulta em `403 PROFILE_KEY_MISMATCH`. Uma chave de organização pode usar `?profileId=...`; omitir o parâmetro resolve **somente o perfil Default**, nunca todos os perfis. Use o ID interno do canal retornado pela descoberta, não o ID da Página na Meta.
+Na REST, envie `Authorization: SUA_CHAVE_API` (sem `Bearer`). A chave de perfil só opera naquele perfil; pedir outro `profileId` resulta em `403 PROFILE_KEY_MISMATCH`. Uma chave de organização deve selecionar o cliente com `?profileId=...`; sem essa seleção, as operações de cliente são recusadas, sem fallback para Default. Use o ID interno do canal retornado pela descoberta, não o ID da Página na Meta.
 
-No MCP, organização e perfil vêm exclusivamente do contexto autenticado. Não existem campos de entrada `organizationId` ou `profileId` nas ferramentas. O transporte `/mcp` aceita `Authorization: Bearer SUA_CHAVE_API`; o transporte OAuth existente também usa o contexto autenticado. Credenciais, App Secret e tokens das redes nunca fazem parte do contrato de automação.
+No MCP, a organização vem exclusivamente do contexto autenticado. Com chave de organização, liste os perfis e informe `profileId` em cada operação de cliente; a seleção é local à chamada. Com chave de perfil, o perfil já está vinculado e outro valor é recusado. `organizationId` nunca é aceito como entrada. O transporte `/mcp` aceita `Authorization: Bearer SUA_CHAVE_API`; o transporte OAuth existente também usa o contexto autenticado. Credenciais, App Secret e tokens das redes nunca fazem parte do contrato de automação.
 
-A conta precisa pertencer ao perfil efetivo. Chave de organização sem perfil não pode criar no Default usando conta de outro perfil; a negativa ocorre antes de salvar qualquer rascunho ou executar efeitos na Meta. Use `?profileId=...` correto na REST ou chave/contexto daquele perfil no MCP. A publicação de um Reel pela ferramenta de posts é uma operação separada: não faz a automação herdar o perfil da conta. Edição rápida e reativação legadas também recusam conta incompatível com o perfil armazenado; pausar/arquivar continuam permitidos. A exceção histórica de conta org-wide sem perfil no caminho legado permanece, sem migração automática.
+A conta precisa pertencer ao perfil efetivo. Chave de organização sem perfil não pode criar no Default usando conta de outro perfil; a negativa ocorre antes de salvar qualquer rascunho ou executar efeitos na Meta. Use `?profileId=...` correto na REST ou `profileId` daquele cliente por chamada MCP; não é necessário criar outra chave. A publicação de um Reel pela ferramenta de posts é uma operação separada: não faz a automação herdar o perfil da conta. Edição rápida e reativação legadas também recusam conta incompatível com o perfil armazenado; pausar/arquivar continuam permitidos. A exceção histórica de conta org-wide sem perfil no caminho legado permanece, sem migração automática.
 
 ## Endpoints canônicos
 
 Base: `/public/v1/automations`. O Swagger do backend (`/docs`) apresenta o contrato dos corpos. `/public/v1/flows` e `/public/v1/flows-v2` continuam disponíveis para compatibilidade; seus payloads não são intercambiáveis com os desta referência. Esta expansão atende REST e MCP; não pressupõe atualização simultânea dos wrappers SDK/CLI.
 
-| Método | Caminho relativo à base | Uso |
-|---|---|---|
-| GET | `/capabilities` | Gatilhos, campos, modos, variáveis e limites reais |
-| GET | `/options?resource=...` | Descoberta e prontidão |
-| GET | `/` | Lista os dois motores; filtros `integrationId` e `executionVersion` opcionais |
-| POST | `/` | Cria configuração declarativa; `activate=false` mantém rascunho |
-| GET | `/:id?executionVersion=1\|2` | Detalhe, configuração recuperável e grafo |
-| PUT | `/:id?executionVersion=1\|2` | Edição parcial em `configuration`, com controle de concorrência |
-| PUT | `/:id/canvas?executionVersion=1\|2` | Substituição explícita do grafo completo |
-| POST | `/:id/status?executionVersion=1\|2` | Ativar, pausar ou arquivar o mesmo ID |
-| GET | `/:id/executions?executionVersion=1\|2` | Histórico legado, formato preservado |
-| GET | `/:id/history?executionVersion=1\|2` | Histórico normalizado, filtros e cursor |
-| GET | `/:id/history/:executionId?executionVersion=1\|2` | Interação, etapas registradas e referências técnicas |
-| POST | `/:id/aliases` | Aliases de comentários Instagram: listar/adicionar/remover |
-| POST | `/repost` | Operações do recurso separado de repost |
+| Método | Caminho relativo à base                              | Uso                                                                           |
+| ------ | ---------------------------------------------------- | ----------------------------------------------------------------------------- |
+| GET    | `/capabilities`                                      | Gatilhos, campos, modos, variáveis e limites reais                            |
+| GET    | `/options?resource=...`                              | Descoberta e prontidão                                                        |
+| GET    | `/`                                                  | Lista os três motores; filtros `integrationId` e `executionVersion` opcionais |
+| POST   | `/`                                                  | Cria configuração declarativa; `activate=false` mantém rascunho               |
+| GET    | `/:id?executionVersion=1\|2\|3`                      | Detalhe, configuração recuperável e grafo                                     |
+| PUT    | `/:id?executionVersion=1\|2\|3`                      | Edição parcial em `configuration`, com controle de concorrência               |
+| PUT    | `/:id/canvas?executionVersion=1\|2`                  | Substituição explícita do grafo completo                                      |
+| POST   | `/:id/status?executionVersion=1\|2\|3`               | Ativar, pausar ou arquivar o mesmo ID                                         |
+| GET    | `/:id/executions?executionVersion=1\|2\|3`           | Histórico legado, formato preservado                                          |
+| GET    | `/:id/history?executionVersion=1\|2\|3`              | Histórico normalizado, filtros e cursor                                       |
+| GET    | `/:id/history/:executionId?executionVersion=1\|2\|3` | Interação, etapas registradas e referências técnicas                          |
+| POST   | `/:id/aliases`                                       | Aliases de comentários Instagram: listar/adicionar/remover                    |
+| POST   | `/repost`                                            | Operações do recurso separado de repost                                       |
 
-`executionVersion=1` identifica Instagram legado; `2` identifica Facebook/Messenger e fluxos compartilhados V2 já existentes. Nas rotas por ID, a omissão usa `1`, sem fallback para outro motor. Nas listas, a omissão inclui ambos. Preserve o valor retornado ao continuar o trabalho.
+`executionVersion=1` identifica Instagram legado; `2` identifica Facebook/Messenger e fluxos compartilhados V2 já existentes; `3` identifica Instagram via Zernio. Nas rotas por ID, a omissão usa `1`, sem fallback para outro motor. Nas listas, a omissão inclui os três motores. Preserve o valor retornado ao continuar o trabalho.
 
 ## Descoberta antes de configurar
 
-| `resource` | Parâmetros adicionais | Retorno/finalidade |
-|---|---|---|
-| `capabilities` | nenhum | Mesmo catálogo de `/capabilities` |
-| `channels` | `platform` opcional | Canais do perfil com ID, nome, provider e imagem |
-| `posts` | `integrationId`, `cursor` opcional | Publicações da conta/Página e cursor |
-| `stories` | `integrationId` Instagram | Stories disponíveis |
-| `scheduled_posts` | `integrationId`; `cursor`, `selectedId` opcionais | `posts`, `nextCursor`, seleção atual e IDs publicados quando já vinculados |
-| `resolve_post` | `integrationId` Facebook, `reference` | Resolve ID/URL permanente de publicação, comprova a Página e devolve a prévia |
-| `readiness` | `integrationId`, `triggerType` opcional | Prontidão da conexão; não autoriza, inscreve ou envia |
+| `resource`        | Parâmetros adicionais                             | Retorno/finalidade                                                            |
+| ----------------- | ------------------------------------------------- | ----------------------------------------------------------------------------- |
+| `capabilities`    | nenhum                                            | Mesmo catálogo de `/capabilities`                                             |
+| `channels`        | `platform` opcional                               | Canais do perfil com ID, nome, provider e imagem                              |
+| `posts`           | `integrationId`, `cursor` opcional                | Publicações da conta/Página e cursor                                          |
+| `stories`         | `integrationId` Instagram                         | Stories disponíveis                                                           |
+| `scheduled_posts` | `integrationId`; `cursor`, `selectedId` opcionais | `posts`, `nextCursor`, seleção atual e IDs publicados quando já vinculados    |
+| `resolve_post`    | `integrationId` Facebook, `reference`             | Resolve ID/URL permanente de publicação, comprova a Página e devolve a prévia |
+| `readiness`       | `integrationId`, `triggerType` opcional           | Prontidão da conexão; não autoriza, inscreve ou envia                         |
 
 O resolvedor Facebook aceita referências que o serviço consiga comprovar como publicação da Página. Link de prévia de anúncio ou ID de vídeo não é automaticamente um ID de Page Post. Agentes não devem construir/adivinhar IDs compostos.
 
-## Matriz de capacidades
+## Matriz de capacidades nativas
 
-| Recurso | IG comentário | IG resposta ao Story | Facebook comentário | Messenger mensagem |
-|---|---|---|---|---|
-| `triggerType` | `comment_on_post` | `story_reply` | `comment_on_post` | `messenger_message` |
-| `executionVersion` na criação | 1 | 1 | 2 | 2 |
-| Modos | all/specific/next_publication/scheduled | all/specific/next_publication | all/specific/next_publication/scheduled | all |
-| Palavras-chave | opcionais | opcionais | opcionais | obrigatórias |
-| Resposta pública/variações | sim | não | sim, inclusive sem DM | não |
-| DM e botão/link | sim | sim | sim | sim |
-| Follow-gate | completo | `requireFollow`/`followGateMessage` | não | não |
-| Reações (`matchReactions`) | não | sim | não | não |
-| Dark Post | aliases numéricos | não | resolver referência e usar `postIds` | não |
-| Prioridade | não | não | não | 1–1000 |
+A tabela abaixo cobre V1/V2. Para o canal `zernio-instagram` (V3), use `capabilities.remoteEngines` e a seção específica ao final; os recursos nativos não se aplicam automaticamente.
+
+| Recurso                       | IG comentário                           | IG resposta ao Story                | Facebook comentário                     | Messenger mensagem  |
+| ----------------------------- | --------------------------------------- | ----------------------------------- | --------------------------------------- | ------------------- |
+| `triggerType`                 | `comment_on_post`                       | `story_reply`                       | `comment_on_post`                       | `messenger_message` |
+| `executionVersion` na criação | 1                                       | 1                                   | 2                                       | 2                   |
+| Modos                         | all/specific/next_publication/scheduled | all/specific/next_publication       | all/specific/next_publication/scheduled | all                 |
+| Palavras-chave                | opcionais                               | opcionais                           | opcionais                               | obrigatórias        |
+| Resposta pública/variações    | sim                                     | não                                 | sim, inclusive sem DM                   | não                 |
+| DM e botão/link               | sim                                     | sim                                 | sim                                     | sim                 |
+| Follow-gate                   | completo                                | `requireFollow`/`followGateMessage` | não                                     | não                 |
+| Reações (`matchReactions`)    | não                                     | sim                                 | não                                     | não                 |
+| Dark Post                     | aliases numéricos                       | não                                 | resolver referência e usar `postIds`    | não                 |
+| Prioridade                    | não                                     | não                                 | não                                     | 1–1000              |
 
 Story do Facebook não é um gatilho com origem comprovada. Não o apresentar como tal: uma palavra-chave recebida pelo Messenger pode vir de diferentes origens. QR Code, links de referência e follow-gate no Facebook também não são oferecidos. Campos incompatíveis e campos desconhecidos são recusados, sem descarte silencioso.
 
@@ -67,36 +69,36 @@ Story do Facebook não é um gatilho com origem comprovada. Não o apresentar co
 
 `name` e `integrationId` são obrigatórios na criação. Na edição, envie apenas o que deseja mudar dentro de `configuration`. Arrays vazios removem condições/respostas quando a combinação continuar válida; aliases têm operação própria.
 
-| Campo | Tipo/limite | Significado |
-|---|---|---|
-| `platform` | instagram/facebook | Padrão Instagram; Messenger pertence a Facebook |
-| `name` | string não vazia, 200 | Nome da automação |
-| `integrationId` | string, 64 | ID interno do canal no perfil |
-| `triggerType` | enum da matriz | Padrão `comment_on_post` |
-| `postMode` | all/specific/next_publication/scheduled | Padrão próxima publicação; Messenger usa all |
-| `postIds` | até 100 strings, 100 cada | IDs remotos de posts específicos, incluindo Page Posts de anúncios |
-| `storyIds` | até 100 strings, 64 cada | Stories específicos Instagram |
-| `scheduledPostId` | string, 80 | `Post.id` interno de um único destino agendado |
-| `aliasMediaIds` | até 100 IDs numéricos, 30 dígitos | Dark Posts Instagram na criação; coexistem com `postIds` |
-| `keywords` | até 50 strings, 100 cada | Vazio/omitido: qualquer comentário; Messenger exige ao menos uma |
-| `matchMode` | any/all/exact | Qualquer termo, todos os termos ou texto igual a algum termo |
-| `matchReactions` | boolean | Incluir reações no gatilho Story Instagram |
-| `priority` | inteiro 1–1000 | Messenger; padrão 10; menor número vence |
-| `replyMessage` | string, 2200 | Uma resposta pública |
-| `replyMessages` | até 10 strings não vazias, 2200 cada | Variações públicas; não enviar junto de `replyMessage` |
-| `dmMessage` | string, 2000 | Mensagem privada/final |
-| `dmVariants` | objeto[], 1–10 | Texto e botão/link próprios por alternativa; uma escolhida por execução |
-| `dmMessages` | string[], 1–10 | Alternativas de uma única mensagem privada; 640 por alternativa com botão |
-| `dmButtonText` | string, IG 80/FB 20 | Texto do botão; enviar com URL e mensagem |
-| `dmButtonUrl` | HTTPS público, IG 2048/FB 2000 | URL do botão; redes privadas, credenciais na URL e protocolo inseguro são recusados |
-| `requireFollow` | boolean | Habilita verificação de seguidor nos fluxos Instagram suportados |
-| `followGateMessage` | string, 2000 | Mensagem para quem ainda não segue |
-| `openingDmMessage` | string, 2000 | Abertura do gate em comentário Instagram |
-| `openingDmButtonText` | string, 80 | Botão para iniciar o gate |
-| `alreadyFollowedButtonText` | string, 80 | Botão para confirmar que já segue |
-| `gateExhaustedMessage` | string, 2000 | Mensagem ao esgotar tentativas |
-| `maxGateAttempts` | inteiro 1–10 | Limite de tentativas do gate |
-| `activate` | boolean | Criação: padrão true; false salva rascunho. Edição: omitir e usar operação de status |
+| Campo                       | Tipo/limite                             | Significado                                                                          |
+| --------------------------- | --------------------------------------- | ------------------------------------------------------------------------------------ |
+| `platform`                  | instagram/facebook                      | Padrão Instagram; Messenger pertence a Facebook                                      |
+| `name`                      | string não vazia, 200                   | Nome da automação                                                                    |
+| `integrationId`             | string, 64                              | ID interno do canal no perfil                                                        |
+| `triggerType`               | enum da matriz                          | Padrão `comment_on_post`                                                             |
+| `postMode`                  | all/specific/next_publication/scheduled | Padrão próxima publicação; Messenger usa all                                         |
+| `postIds`                   | até 100 strings, 100 cada               | IDs remotos de posts específicos, incluindo Page Posts de anúncios                   |
+| `storyIds`                  | até 100 strings, 64 cada                | Stories específicos Instagram                                                        |
+| `scheduledPostId`           | string, 80                              | `Post.id` interno de um único destino agendado                                       |
+| `aliasMediaIds`             | até 100 IDs numéricos, 30 dígitos       | Dark Posts Instagram na criação; coexistem com `postIds`                             |
+| `keywords`                  | até 50 strings, 100 cada                | Vazio/omitido: qualquer comentário; Messenger exige ao menos uma                     |
+| `matchMode`                 | any/all/exact                           | Qualquer termo, todos os termos ou texto igual a algum termo                         |
+| `matchReactions`            | boolean                                 | Incluir reações no gatilho Story Instagram                                           |
+| `priority`                  | inteiro 1–1000                          | Messenger; padrão 10; menor número vence                                             |
+| `replyMessage`              | string, 2200                            | Uma resposta pública                                                                 |
+| `replyMessages`             | até 10 strings não vazias, 2200 cada    | Variações públicas; não enviar junto de `replyMessage`                               |
+| `dmMessage`                 | string, 2000                            | Mensagem privada/final                                                               |
+| `dmVariants`                | objeto[], 1–10                          | Texto e botão/link próprios por alternativa; uma escolhida por execução              |
+| `dmMessages`                | string[], 1–10                          | Alternativas de uma única mensagem privada; 640 por alternativa com botão            |
+| `dmButtonText`              | string, IG 80/FB 20                     | Texto do botão; enviar com URL e mensagem                                            |
+| `dmButtonUrl`               | HTTPS público, IG 2048/FB 2000          | URL do botão; redes privadas, credenciais na URL e protocolo inseguro são recusados  |
+| `requireFollow`             | boolean                                 | Habilita verificação de seguidor nos fluxos Instagram suportados                     |
+| `followGateMessage`         | string, 2000                            | Mensagem para quem ainda não segue                                                   |
+| `openingDmMessage`          | string, 2000                            | Abertura do gate em comentário Instagram                                             |
+| `openingDmButtonText`       | string, 80                              | Botão para iniciar o gate                                                            |
+| `alreadyFollowedButtonText` | string, 80                              | Botão para confirmar que já segue                                                    |
+| `gateExhaustedMessage`      | string, 2000                            | Mensagem ao esgotar tentativas                                                       |
+| `maxGateAttempts`           | inteiro 1–10                            | Limite de tentativas do gate                                                         |
+| `activate`                  | boolean                                 | Criação: padrão true; false salva rascunho. Edição: omitir e usar operação de status |
 
 Facebook com botão limita a mensagem a 640 caracteres. A criação ativa exige resposta pública ou DM; Messenger e Story precisam de DM. Rascunhos Facebook também exigem uma ação válida, pois o motor V2 valida o grafo ao salvar. `activate=false` evita a ativação, não ignora a validação dos campos.
 
@@ -110,13 +112,26 @@ Instagram agendado com variações e follow-gate completo:
 
 ```json
 {
-  "platform": "instagram", "name": "Material de novembro", "integrationId": "ID_INTERNO_IG",
-  "triggerType": "comment_on_post", "postMode": "scheduled", "scheduledPostId": "POST_ID_INTERNO_IG",
-  "keywords": ["QUERO"], "matchMode": "any", "replyMessages": ["Te chamei no direct!", "Enviei por mensagem!"],
-  "dmMessage": "Aqui está o material", "dmButtonText": "Abrir material", "dmButtonUrl": "https://example.com/material",
-  "requireFollow": true, "openingDmMessage": "Toque para receber", "openingDmButtonText": "Receber",
-  "followGateMessage": "Siga a conta para continuar", "alreadyFollowedButtonText": "Já sigo",
-  "gateExhaustedMessage": "Confira se está seguindo e tente depois", "maxGateAttempts": 3, "activate": false
+  "platform": "instagram",
+  "name": "Material de novembro",
+  "integrationId": "ID_INTERNO_IG",
+  "triggerType": "comment_on_post",
+  "postMode": "scheduled",
+  "scheduledPostId": "POST_ID_INTERNO_IG",
+  "keywords": ["QUERO"],
+  "matchMode": "any",
+  "replyMessages": ["Te chamei no direct!", "Enviei por mensagem!"],
+  "dmMessage": "Aqui está o material",
+  "dmButtonText": "Abrir material",
+  "dmButtonUrl": "https://example.com/material",
+  "requireFollow": true,
+  "openingDmMessage": "Toque para receber",
+  "openingDmButtonText": "Receber",
+  "followGateMessage": "Siga a conta para continuar",
+  "alreadyFollowedButtonText": "Já sigo",
+  "gateExhaustedMessage": "Confira se está seguindo e tente depois",
+  "maxGateAttempts": 3,
+  "activate": false
 }
 ```
 
@@ -126,10 +141,19 @@ Facebook comentário, inclusive post de anúncio:
 
 ```json
 {
-  "platform": "facebook", "name": "Comentários do anúncio", "integrationId": "ID_INTERNO_FB",
-  "triggerType": "comment_on_post", "postMode": "specific", "postIds": ["ID_COMPROVADO_PELO_RESOLVEDOR"],
-  "keywords": ["QUERO"], "matchMode": "any", "replyMessages": ["Enviei no Messenger!", "Confira sua conversa!"],
-  "dmMessage": "Aqui está o material", "dmButtonText": "Abrir", "dmButtonUrl": "https://example.com/material", "activate": false
+  "platform": "facebook",
+  "name": "Comentários do anúncio",
+  "integrationId": "ID_INTERNO_FB",
+  "triggerType": "comment_on_post",
+  "postMode": "specific",
+  "postIds": ["ID_COMPROVADO_PELO_RESOLVEDOR"],
+  "keywords": ["QUERO"],
+  "matchMode": "any",
+  "replyMessages": ["Enviei no Messenger!", "Confira sua conversa!"],
+  "dmMessage": "Aqui está o material",
+  "dmButtonText": "Abrir",
+  "dmButtonUrl": "https://example.com/material",
+  "activate": false
 }
 ```
 
@@ -139,9 +163,16 @@ Messenger:
 
 ```json
 {
-  "platform": "facebook", "name": "Preço no Messenger", "integrationId": "ID_INTERNO_FB",
-  "triggerType": "messenger_message", "postMode": "all", "keywords": ["preço", "preco"],
-  "matchMode": "any", "priority": 10, "dmMessage": "Veja os detalhes: https://example.com/preco", "activate": false
+  "platform": "facebook",
+  "name": "Preço no Messenger",
+  "integrationId": "ID_INTERNO_FB",
+  "triggerType": "messenger_message",
+  "postMode": "all",
+  "keywords": ["preço", "preco"],
+  "matchMode": "any",
+  "priority": 10,
+  "dmMessage": "Veja os detalhes: https://example.com/preco",
+  "activate": false
 }
 ```
 
@@ -149,7 +180,7 @@ Messenger:
 
 1. Liste para verificar se a regra já existe; consulte o detalhe com o motor retornado.
 2. Se `quickEditable=true`, use atualização parcial. Campos omitidos, alvos, gate e variações são preservados; labels/coordenadas existentes também são conservados. Conta, rede e gatilho não mudam nesta operação.
-3. V1: copie `updatedAt` para `expectedUpdatedAt`. V2: copie `revision` para `expectedRevision`. O controle é atômico; `409 REVISION_CONFLICT` exige reler e reconciliar, sem repetir cegamente o payload antigo.
+3. V1: copie `updatedAt` para `expectedUpdatedAt`. V2/V3: copie `revision` para `expectedRevision`. O controle é atômico; `409 REVISION_CONFLICT` exige reler e reconciliar, sem repetir cegamente o payload antigo.
 4. Se `quickEditable=false`, preserve o grafo e use a operação canvas. Nunca converter uma regra com condições, ramificações ou atrasos em configuração rápida.
 5. Ative, pause ou arquive explicitamente. Ativar revalida conexão, origem e conflitos existentes. Reautorizar uma conta não exige recriar a regra.
 
@@ -170,13 +201,13 @@ O detalhe V1 retorna `canvas`; V2 retorna `definition` e `channels`. Na REST, a 
 
 Cada nó tem `id`, `type`, `data` (**string JSON**), `positionX`, `positionY` e `label` opcional. Arestas têm `sourceNodeId`, `targetNodeId`, `id` e `sourceHandle` opcionais. Não enviar opcionais como null. Campos de `data` permitidos:
 
-| Nó | Campos |
-|---|---|
-| TRIGGER | triggerType, keywords, matchMode; priority só Messenger. V1 também mode, postIds, storyIds, scheduledPostId e campos Instagram do gate/reações |
-| CONDITION | keywords, matchMode |
-| REPLY_COMMENT | message, messages |
-| SEND_DM | message ou messages com buttonText/buttonUrl comuns; ou variants com texto e CTA próprios (representações exclusivas) |
-| DELAY | duration inteiro 0–86400, unit seconds/minutes/hours |
+| Nó            | Campos                                                                                                                                         |
+| ------------- | ---------------------------------------------------------------------------------------------------------------------------------------------- |
+| TRIGGER       | triggerType, keywords, matchMode; priority só Messenger. V1 também mode, postIds, storyIds, scheduledPostId e campos Instagram do gate/reações |
+| CONDITION     | keywords, matchMode                                                                                                                            |
+| REPLY_COMMENT | message, messages                                                                                                                              |
+| SEND_DM       | message ou messages com buttonText/buttonUrl comuns; ou variants com texto e CTA próprios (representações exclusivas)                          |
+| DELAY         | duration inteiro 0–86400, unit seconds/minutes/hours                                                                                           |
 
 `sourceHandle="match"`/`"no_match"` só em condição. Um gatilho, sem ciclos, nós conectados e ações compatíveis com o canal. V1: até 100 nós/200 arestas/128 KiB; V2: 30 nós/60 arestas/64 KiB. Limites de mensagem e URLs continuam aplicáveis. Campos fora da lista são recusados.
 
@@ -190,8 +221,10 @@ REST: `GET /public/v1/automations/ID/history?executionVersion=2&status=unknown&l
 
 ```json
 {
-  "flowId": "ID_DA_AUTOMACAO", "executionVersion": 2,
-  "status": "unknown", "limit": 25
+  "flowId": "ID_DA_AUTOMACAO",
+  "executionVersion": 2,
+  "status": "unknown",
+  "limit": 25
 }
 ```
 
@@ -225,37 +258,37 @@ Para consultar, editar conteúdo ou reagendar esse destino sem recriar o ID, use
 
 `get`, `update`, `toggle`, `archive`, `history`, `run_now`, `reset_checkpoint` usam `ruleId`. `toggle` exige `enabled`; `destinations` aceita `sourceType`; `history` aceita page/limit (1–100). create/update usam `configuration`:
 
-| Campo | Tipo/limite |
-|---|---|
-| name | string, 120; obrigatório na criação |
-| sourceIntegrationId | ID interno; obrigatório na criação |
-| sourceType | INSTAGRAM_STORY/INSTAGRAM_POST; obrigatório na criação |
-| destinations | 1–50 objetos `{integrationId, format}`; obrigatório na criação |
-| intervalMinutes | inteiro 5–360 |
-| filterIncludeVideos / filterIncludeImages | boolean |
-| filterMaxDurationSeconds | inteiro 1–900 ou null |
-| filterHashtag | string 100 ou null |
-| captionTemplate | string 2200 ou null |
-| enabled | boolean; use false para preparar sem iniciar |
+| Campo                                     | Tipo/limite                                                    |
+| ----------------------------------------- | -------------------------------------------------------------- |
+| name                                      | string, 120; obrigatório na criação                            |
+| sourceIntegrationId                       | ID interno; obrigatório na criação                             |
+| sourceType                                | INSTAGRAM_STORY/INSTAGRAM_POST; obrigatório na criação         |
+| destinations                              | 1–50 objetos `{integrationId, format}`; obrigatório na criação |
+| intervalMinutes                           | inteiro 5–360                                                  |
+| filterIncludeVideos / filterIncludeImages | boolean                                                        |
+| filterMaxDurationSeconds                  | inteiro 1–900 ou null                                          |
+| filterHashtag                             | string 100 ou null                                             |
+| captionTemplate                           | string 2200 ou null                                            |
+| enabled                                   | boolean; use false para preparar sem iniciar                   |
 
 Formatos de destino: INSTAGRAM_POST, INSTAGRAM_STORY, FACEBOOK_REEL, FACEBOOK_STORY, TIKTOK_FEED, YOUTUBE_SHORT, LINKEDIN_POST, X_POST, THREADS_POST, PINTEREST_PIN. A combinação depende do provider e dos candidatos retornados; não supor elegibilidade só por constar no enum. Atualização é parcial e reutiliza as validações do domínio de repost. Não confundir esse recurso de publicação com resposta a Story.
 
 ## Ferramentas MCP
 
-| Ferramenta | Uso |
-|---|---|
-| getAutomationOptionsTool | capabilities, canais, posts, Stories, agendados, resolver ID e prontidão |
-| createCommentAutomationTool | Todos os campos declarativos desta referência |
-| listCommentAutomationsTool | Ambos os motores por padrão, filtro de integração opcional |
-| getCommentAutomationTool | Configuração, grafo e snapshot |
-| updateCommentAutomationTool | Patch seguro, sem recriar nem mudar estado |
-| setCommentAutomationStatusTool | Ativar/pausar/arquivar, com revisão V2 |
-| getAutomationHistoryTool | Legado preservado; V1 paginado, V2 histórico recente limitado a 100 |
-| getAutomationExecutionHistoryTool | Histórico normalizado de ambos os motores, filtros e cursor |
-| getAutomationExecutionDetailTool | Detalhe de uma execução no mesmo escopo/motor |
-| manageAutomationAliasesTool | Aliases de comentários Instagram |
-| saveAutomationCanvasTool | Grafo explícito e completo |
-| manageRepostAutomationTool | Contrato separado de repost |
+| Ferramenta                        | Uso                                                                                                                  |
+| --------------------------------- | -------------------------------------------------------------------------------------------------------------------- |
+| getAutomationOptionsTool          | capabilities, canais, posts, Stories, agendados, resolver ID e prontidão                                             |
+| createCommentAutomationTool       | Todos os campos declarativos desta referência                                                                        |
+| listCommentAutomationsTool        | Todos os motores por padrão, filtro de integração opcional                                                           |
+| getCommentAutomationTool          | Configuração, grafo e snapshot                                                                                       |
+| updateCommentAutomationTool       | Patch seguro, sem recriar nem mudar estado                                                                           |
+| setCommentAutomationStatusTool    | Ativar/pausar/arquivar, com revisão V2/V3                                                                            |
+| getAutomationHistoryTool          | Legado preservado; V1 paginado, V2 histórico recente limitado a 100; V3 primeira página (usar histórico normalizado) |
+| getAutomationExecutionHistoryTool | Histórico normalizado de todos os motores, filtros e cursor                                                          |
+| getAutomationExecutionDetailTool  | Detalhe de uma execução no mesmo escopo/motor                                                                        |
+| manageAutomationAliasesTool       | Aliases de comentários Instagram                                                                                     |
+| saveAutomationCanvasTool          | Grafo explícito e completo                                                                                           |
+| manageRepostAutomationTool        | Contrato separado de repost                                                                                          |
 
 As ferramentas por regra usam `flowId` e `executionVersion`. Todos os schemas têm raiz objeto e tipos concretos. Erros são códigos controlados, sem resposta bruta de credenciais/Meta. Os passos recomendados são descoberta → consulta existente → criação/patch → revisão → ativação autorizada → histórico.
 
@@ -273,9 +306,7 @@ Mutações e consultas remotas da API aplicam o guard de requisições por organ
 
 `options?resource=resolve_post` (e a ferramenta MCP equivalente) aceita também ID de vídeo e link HTTPS Facebook `/reel/ID`. O retorno `post.id` é o **Page Post canônico**, comprovado por `Video.post_id`, `from.id` e a relação com o vídeo; pode diferir da referência enviada. Use esse retorno em `configuration.postIds`, nunca construa `Página_IDdoVídeo`. O painel usa o mesmo resolvedor. Sem prova da relação: `412 POST_VIDEO_RELATION_REQUIRED`; ativar ou editar regra ativa com alias de vídeo: `412 POST_REFERENCE_NOT_CANONICAL`. Nenhum endpoint ou contrato de escrita mudou; a prévia recebeu apenas metadado opcional de leitura. Não há migração silenciosa ou reprocessamento. O orçamento de localização permanece 20 por aplicativo/Página/minuto e 120/app/minuto; respeite `POST_LOOKUP_RATE_LIMITED` (429) e tente novamente após um minuto.
 
-
 Na prévia retornada por `resolve_post`, `isPublished?: boolean` é metadado opcional, somente leitura: aparece apenas quando a Meta confirma `is_published` como booleano. `false` significa Page Post não publicado, não comprova anúncio pago/veiculação. Não enviar esse metadado em `configuration`; `postIds` continua aceitando juntos posts normais e Dark Posts canônicos no modo `specific`, sem tipo separado.
-
 
 ## Alternativas de mensagem privada (28/10)
 
@@ -284,7 +315,15 @@ Na prévia retornada por `resolve_post`, `isPublished?: boolean` é metadado opc
 Na edição parcial, omitir ambos preserva a mensagem existente; informar `dmMessages` substitui o singular, e informar `dmMessage` substitui a lista. Campos omitidos de botão, escopo, alvo agendado e gate continuam preservados. Exemplo de corpo de PUT V2 (use a revisão real):
 
 ```json
-{"expectedRevision": 3, "configuration": {"dmMessages": ["Olá {{comment_name}}, aqui está o conteúdo!", "Obrigado pelo interesse, {{comment_name}}!"]}}
+{
+  "expectedRevision": 3,
+  "configuration": {
+    "dmMessages": [
+      "Olá {{comment_name}}, aqui está o conteúdo!",
+      "Obrigado pelo interesse, {{comment_name}}!"
+    ]
+  }
+}
 ```
 
 No canvas V1/V2, a representação é `SEND_DM.data = JSON.stringify({messages:[...],buttonText,buttonUrl})`. Não se trata de mensagens em sequência: vários SEND_DM continuam respeitando a composição de uma resposta do motor. As ferramentas MCP de criação, edição e canvas usam o mesmo schema e as mesmas validações.
@@ -295,7 +334,6 @@ Tokens V1 continuam `{commenter_name}`, `{commenter_id}`, `{comment_text}`, `{me
 
 Variar textos não garante evitar bloqueios. Botão de URL abre o site e não cria uma continuação da conversa. Envio após interação depende do evento e da janela aplicável; não existe permissão para mensagens ilimitadas.
 
-
 ### Texto e botão próprios por alternativa
 
 Use `dmVariants: [{message, buttonText?, buttonUrl?}]` para variar também o botão. Cada objeto é indivisível: somente uma alternativa, com seu texto e CTA, é entregue. No canvas V1/V2 use `SEND_DM.variants`. O rápido, o construtor, REST e MCP preservam essa representação ao reabrir/editar.
@@ -303,13 +341,87 @@ Use `dmVariants: [{message, buttonText?, buttonUrl?}]` para variar também o bot
 Texto não vazio, até 2.000 caracteres sem botão ou 640 com botão; título até 20 e URL HTTPS pública até 2.000, sem credenciais. Título e URL são opcionais juntos. A alternativa sem botão não herda o de outra. Limites são correlacionados: 2.000 sem botão e 600 com botão podem coexistir. A composição entre vários SEND_DM conserva o último botão configurado e valida o comprimento resultante, inclusive após interpolação do texto. Título/URL não interpolam variáveis.
 
 ```json
-{"expectedRevision": 3, "configuration": {"dmVariants": [
-  {"message": "Aqui está o conteúdo!", "buttonText": "Ver conteúdo", "buttonUrl": "https://example.com/conteudo"},
-  {"message": "Preparei o link para você.", "buttonText": "Acessar agora", "buttonUrl": "https://example.com/conteudo"},
-  {"message": "Obrigado pelo interesse!"}
-]}}
+{
+  "expectedRevision": 3,
+  "configuration": {
+    "dmVariants": [
+      {
+        "message": "Aqui está o conteúdo!",
+        "buttonText": "Ver conteúdo",
+        "buttonUrl": "https://example.com/conteudo"
+      },
+      {
+        "message": "Preparei o link para você.",
+        "buttonText": "Acessar agora",
+        "buttonUrl": "https://example.com/conteudo"
+      },
+      { "message": "Obrigado pelo interesse!" }
+    ]
+  }
+}
 ```
 
 Não combinar `dmVariants` com `dmMessage`, `dmMessages` ou botão comum. Ao editar parcialmente, omitir os campos preserva a representação atual; informar `dmVariants` substitui singular/lista/botão comum, e informar singular/lista substitui os objetos. Alterar somente o botão comum de uma regra com `dmVariants` é recusado: envie a lista de objetos atualizada. O singular e `dmMessages` anteriores permanecem compatíveis.
 
 V2 congela texto e botão juntos em `snapshot.actions` na ingestão, também no Messenger. V1 usa `patched('private-message-button-variants-v1')`, sem mudar o ramo anterior; escolha estável por execução/nó e snapshot do par no gate. Retry/clique não escolhem outra alternativa. Não é uma sequência de mensagens nem uma garantia contra bloqueios.
+
+## Instagram conectado via Zernio (motor 3)
+
+`options?resource=channels&platform=instagram` inclui `providerIdentifier=zernio-instagram`, com `executionVersion=3`. A criação escolhe o motor pela integração autorizada; não envie token nem IDs remotos de perfil/conta. Todas as operações seguintes devem conservar a versão retornada. Instagram direto continua V1 e Facebook/Messenger V2.
+
+Exemplo de criação (chave de organização: sempre informe `profileId` do cliente):
+
+```http
+POST /public/v1/automations?profileId=PERFIL_MULTIPOST
+Content-Type: application/json
+```
+
+```json
+{
+  "name": "Link do Reel",
+  "integrationId": "CANAL_ZERNIO_INSTAGRAM",
+  "platform": "instagram",
+  "triggerType": "comment_on_post",
+  "postMode": "specific",
+  "postIds": ["ID_MIDIA_INSTAGRAM"],
+  "keywords": ["QUERO"],
+  "matchMode": "any",
+  "dmVariants": [
+    {
+      "message": "Olá {commenter_name}, aqui está!",
+      "buttonText": "Abrir",
+      "buttonUrl": "https://example.com"
+    },
+    {
+      "message": "Aqui está seu link!",
+      "buttonText": "Abrir",
+      "buttonUrl": "https://example.com"
+    }
+  ],
+  "replyMessages": ["Enviei no privado!"],
+  "activate": false
+}
+```
+
+- Use `executionVersion=3` no detalhe, edição, estado e histórico; `expectedRevision` é obrigatório para editar/alterar estado, inclusive arquivar. Na edição, campos omitidos são preservados e a conta permanece imutável. Ative explicitamente com a operação de estado.
+- `postMode=all` ou `specific` com **um** ID de mídia obtido em `options?resource=posts&integrationId=...`. A lista usa a conexão do Zernio. Não use Post.id interno, ID do objeto de publicação do Zernio ou ID extraído arbitrariamente da URL.
+- Até seis textos na DM e na resposta pública; DM de até 1.000 caracteres ou 640 com botão de título de até 20. Botão é o mesmo em todas as variações. Exige DM e aceita resposta pública opcional. `matchMode=any` corresponde a `contains` e `exact` mantém comparação exata; sem palavras-chave corresponde a qualquer comentário. Cada pessoa recebe uma DM por regra (`repeatPolicy=once`).
+- Tokens aceitos: `{commenter_name}` (convertido em `{{name}}`), `{{name}}`, `{{first_name}}`, `{{username}}`. Outros tokens do motor nativo são recusados.
+- Esta fase não oferece `scheduled`, `next_publication`, múltiplos posts, `matchMode=all`, Story, aliases, gate nativo ou canvas. A resposta de capacidades também anuncia essas diferenças. Campos não representáveis são recusados, nunca convertidos para todas as publicações.
+- `options?resource=readiness` confirma conta, perfil remoto, autorização disponível e áreas `comments`/`messaging` quando informadas pelo Zernio. Não comprova entrega. Contas antigas podem exigir reconexão. Chave do perfil tem prioridade; perfil padrão usa a chave da organização e outros clientes só herdam quando o compartilhamento está explicitamente habilitado.
+
+### Resultado incerto e recuperação
+
+Rascunho local precede a criação remota. Ela é criada pausada e seu ID é persistido antes da ativação. `saved=true` e `activationError` conservam o ID local para retomar; não crie outra regra como retry.
+
+Uma operação `pending` não pode ser assumida por outra requisição. Se o processo morrer nessa condição, mantenha a regra bloqueada e solicite inspeção operacional; não edite o banco automaticamente nem reinicie a criação remota.
+
+Em `unknown`, uma nova tentativa de edição/estado faz somente uma consulta de recuperação, após pelo menos 30 segundos. A correlação da criação só permite adotar uma regra pausada da mesma conta/perfil e com configuração correspondente. A fase anterior ao PATCH é persistida para não declarar pausada uma ativação incerta. Se a leitura confirmar o resultado anterior, retorna HTTP 409 `ZERNIO_RECOVERED_RETRY_ACTION`, com revisão atual e `actionApplied=false`: a ação atual **não** foi aplicada. Confira o estado e repita explicitamente usando a nova revisão. Se não houver confirmação, `ZERNIO_RECONCILIATION_REQUIRED` conserva o bloqueio. Não há repetição automática de POST/PATCH.
+
+### Histórico no painel, REST e MCP
+
+Histórico e detalhe usam os mesmos contratos normalizados, com `engine=zernio` e `executionVersion=3`. O painel consulta `/automation-history/zernio/:flowId`; REST e MCP usam as operações de histórico já existentes. Cursor é vinculado a perfil, regra e filtros. A busca por âncora é limitada e pode exigir atualizar a lista quando o cursor expira. Apenas logs da automação vinculada são acessíveis.
+
+Logs do Zernio não fornecem snapshot do texto escolhido em cada envio, revisão histórica ou horário exato da DM. Esses campos ficam nulos; nunca são preenchidos com o texto atual do editor. `sent` é normalizado para etapa aceita, sem afirmar entrega/leitura. Erros externos brutos, chaves e tokens não são retornados.
+
+No V3, a descoberta de publicações retorna as 25 publicações recentes disponibilizadas pelo Zernio. Um alvo já confirmado é preservado ao sair dessa lista e continua editável/reativável. Novos alvos precisam ser comprovados pela descoberta; ausência na lista não é tratada como autorização para ampliar para todas as publicações. A resposta pública usa explicitamente `publicReplyPolicy=after_dm`: só é enviada após a DM bem-sucedida.

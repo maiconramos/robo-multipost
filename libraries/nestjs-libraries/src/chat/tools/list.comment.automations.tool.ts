@@ -11,10 +11,10 @@ export class ListCommentAutomationsTool implements AgentToolInterface {
     return automationTool(
       this.service,
       this.name,
-      'Lista automações de Instagram, Facebook e Messenger do perfil autenticado/selecionado; chave geral sem profileId lista todos os clientes com identificação do perfil e executionVersion explícita. Omitir versão lista os dois motores; 1=Instagram, 2=Facebook/Messenger. Consulte o detalhe antes de editar.',
+      'Lista automações de Instagram, Facebook e Messenger do perfil autenticado/selecionado; chave geral sem profileId lista todos os clientes com identificação do perfil e executionVersion explícita. Omitir versão lista todos os motores; 1=Instagram direto, 2=Facebook/Messenger, 3=Instagram via Zernio. Consulte o detalhe antes de editar.',
       z
         .object({
-          executionVersion: z.number().int().min(1).max(2).optional(),
+          executionVersion: z.number().int().min(1).max(3).optional(),
           integrationId: z.string().max(80).optional(),
         })
         .strict(),

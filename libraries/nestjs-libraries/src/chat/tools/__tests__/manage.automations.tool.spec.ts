@@ -13,6 +13,7 @@ import {
   SaveAutomationCanvasTool,
   ManageRepostAutomationTool,
 } from '../manage.automations.tool';
+import { zernioHistory } from '../../../integrations/automations/zernio-automation.history';
 import { automationConfigurationSchema } from '../../../dtos/flows/automation-management.dto';
 import { QuickCreateFlowDto } from '../../../dtos/flows/flow.dto';
 import { getMetadataStorage } from 'class-validator';
@@ -152,6 +153,7 @@ describe('historico operacional MCP', () => {
   const scope = { organizationId: 'org', profileId: 'perfil' };
   const service = {
     scope: jest.fn().mockResolvedValue(scope),
+    detail: jest.fn(),
     executionHistory: jest.fn(),
     executionDetail: jest.fn(),
   };
@@ -219,4 +221,62 @@ describe('historico operacional MCP', () => {
     expect(JSON.stringify(output)).toContain('AUTOMATION_OPERATION_FAILED');
     expect(JSON.stringify(output)).not.toContain('SECRET');
   });
+  it('preserva executionVersion3 no schema e contexto MCP, sem cair no Instagram nativo', async () => {
+    const tool: any = new GetCommentAutomationTool(service as any).run();
+    expect(
+      tool.inputSchema.safeParse({ flowId: 'z', executionVersion: 3 }).success
+    ).toBe(true);
+    await tool.execute({ flowId: 'z', executionVersion: 3 }, options);
+    expect(service.detail).toHaveBeenCalledWith(scope, 'z', 3);
+    const history: any = new GetAutomationExecutionHistoryTool(
+      service as any
+    ).run();
+    expect(
+      history.inputSchema.safeParse({ flowId: 'z', executionVersion: 3 })
+        .success
+    ).toBe(true);
+    await history.execute({ flowId: 'z', executionVersion: 3 }, options);
+    expect(service.executionHistory).toHaveBeenCalledWith(scope, 'z', 3, {});
+  });
+});
+
+it('aceita no MCP o identificador retornado pelo historico Zernio', async () => {
+  const read = jest
+    .fn()
+    .mockResolvedValue({
+      logs: [
+        { id: 'remote-log', status: 'sent', createdAt: '2026-11-14T12:00:00Z' },
+      ],
+      pagination: { hasMore: false },
+    });
+  const args = {
+    scope,
+    flowId: 'z',
+    integrationId: 'zi',
+    accountName: 'Conta',
+    query: {},
+    read,
+  };
+  const page: any = await zernioHistory(args);
+  const service = {
+    scope: jest.fn().mockResolvedValue(scope),
+    executionDetail: jest
+      .fn()
+      .mockImplementation((_s, _f, _v, executionId) =>
+        zernioHistory({ ...args, executionId })
+      ),
+  };
+  const tool: any = new GetAutomationExecutionDetailTool(service as any).run();
+  expect(page.items[0].id.length).toBeGreaterThan(100);
+  const result: any = await tool.execute(
+    { flowId: 'z', executionVersion: 3, executionId: page.items[0].id },
+    options
+  );
+  expect(service.executionDetail).toHaveBeenCalledWith(
+    scope,
+    'z',
+    3,
+    page.items[0].id
+  );
+  expect(JSON.stringify(result)).toContain('accepted');
 });

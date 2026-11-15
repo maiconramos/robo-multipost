@@ -912,7 +912,7 @@ describe('historico normalizado da fachada', () => {
     }
   );
   it('recusa versao invalida e parametros desconhecidos antes da consulta', async () => {
-    await expect(facade().executionHistory(scope, 'f', 3, {})).rejects.toThrow(
+    await expect(facade().executionHistory(scope, 'f', 4, {})).rejects.toThrow(
       'INVALID_EXECUTION_VERSION'
     );
     await expect(

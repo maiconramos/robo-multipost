@@ -22,7 +22,9 @@ export function AutomationConnectionIndicator({
     loading
       ? 'shared_checking'
       : ready
-      ? 'automation_webhook_configured'
+      ? provider === 'zernio-instagram'
+        ? 'zernio_account_authorized'
+        : 'automation_webhook_configured'
       : 'automation_connection_settings'
   );
   const icon = (

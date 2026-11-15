@@ -2,6 +2,11 @@
 export const automationEntryOptions = {
   instagram: [
     {
+      key: 'zernio_comment',
+      icon: 'instagram',
+      href: '/automations/zernio/new',
+    },
+    {
       key: 'comment',
       icon: 'instagram',
       href: '/automations/instagram/new?type=comment',

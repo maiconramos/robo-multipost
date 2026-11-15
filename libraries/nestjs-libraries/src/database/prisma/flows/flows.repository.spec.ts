@@ -161,3 +161,24 @@ describe('isolamento em execucoes legadas ja ativas', () => {
     expect(await (repo[method] as any)('pb', {senderIgsid:'original',igAccountId:'account'})).toBeNull();
   });
 });
+
+describe('isolamento de motores no detalhe legado', () => {
+  it.each([2, 3])(
+    'recusa versao %s antes de devolver grafo',
+    async (executionVersion) => {
+      const m = createPrismaRepositoryMock('flow');
+      m.model.flow.findFirst.mockResolvedValue({ executionVersion });
+      const repo = new FlowsRepository(
+        m as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any,
+        {} as any
+      );
+      await expect(repo.getFlow('o', 'f', 'p')).rejects.toThrow();
+    }
+  );
+});

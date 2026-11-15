@@ -11,7 +11,7 @@ import {
 } from 'class-validator';
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { z } from 'zod';
-export type HistoryEngine = 'instagram' | 'shared';
+export type HistoryEngine = 'instagram' | 'shared' | 'zernio';
 export const historyStatuses = [
   'completed',
   'waiting',
@@ -175,7 +175,8 @@ export class AutomationExecutionStep {
 }
 export class AutomationExecutionTechnical {
   @ApiProperty() flowId: string;
-  @ApiProperty({ enum: ['instagram', 'shared'] }) engine: HistoryEngine;
+  @ApiProperty({ enum: ['instagram', 'shared', 'zernio'] })
+  engine: HistoryEngine;
   @ApiProperty({ type: String, nullable: true }) integrationId: string | null;
   @ApiProperty({ type: Number, nullable: true }) revision: number | null;
   @ApiProperty({ type: String, nullable: true }) postId: string | null;

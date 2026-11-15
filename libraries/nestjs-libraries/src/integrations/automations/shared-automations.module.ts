@@ -1,3 +1,6 @@
+import { ZernioAutomationsRepository } from '../../database/prisma/zernio-automations/zernio-automations.repository';
+import { ZernioAutomationsService } from './zernio-automations.service';
+import { ZernioAutomationClient } from './zernio-automation.client';
 import { ScheduledAutomationProcessor } from './scheduled-automation.processor';
 import { AutomationManagementService } from './automation-management.service';
 import { FacebookSystemUserService } from './facebook-system-user.service';
@@ -14,6 +17,9 @@ import { SharedAutomationBootstrap } from './shared-automation.bootstrap';
 @Module({
   imports: [DatabaseModule],
   providers: [
+    ZernioAutomationClient,
+    ZernioAutomationsRepository,
+    ZernioAutomationsService,
     AutomationManagementService,
     SharedFlowsService,
     ScheduledAutomationProcessor,
@@ -43,6 +49,9 @@ import { SharedAutomationBootstrap } from './shared-automation.bootstrap';
     },
   ],
   exports: [
+    ZernioAutomationClient,
+    ZernioAutomationsRepository,
+    ZernioAutomationsService,
     AutomationManagementService,
     SharedFlowsService,
     CommentChannelService,

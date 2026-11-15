@@ -1,5 +1,7 @@
+import { ZernioAutomationsService } from '@gitroom/nestjs-libraries/integrations/automations/zernio-automations.service';
 import {
   Controller,
+  Optional,
   Get,
   Header,
   Param,
@@ -16,11 +18,14 @@ import {
   AutomationHistoryQueryDto,
   HistoryEngine,
 } from '@gitroom/nestjs-libraries/dtos/flows/automation-history.dto';
-const engines = { instagram: 'instagram', shared: 'shared' };
+const engines = { instagram: 'instagram', shared: 'shared', zernio: 'zernio' };
 @Controller('/automation-history')
 @Throttle({ default: { limit: 60, ttl: 60000 } })
 export class AutomationHistoryController {
-  constructor(private readonly service: AutomationHistoryService) {}
+  constructor(
+    private readonly service: AutomationHistoryService,
+    @Optional() private readonly zernio?: ZernioAutomationsService
+  ) {}
   @Get('/:engine/:flowId') @Header('Cache-Control', 'no-store') list(
     @GetOrgFromRequest() org: Organization,
     @GetProfileFromRequest() profile: Profile | null,
@@ -35,6 +40,12 @@ export class AutomationHistoryController {
     )
     query: AutomationHistoryQueryDto
   ) {
+    if (engine === 'zernio')
+      return this.zernio!.history(
+        { organizationId: org.id, profileId: profile?.id || '' },
+        flowId,
+        query
+      );
     return this.service.list(
       { organizationId: org.id, profileId: profile?.id || '' },
       engine,
@@ -51,6 +62,13 @@ export class AutomationHistoryController {
     @Param('flowId') flowId: string,
     @Param('executionId') id: string
   ) {
+    if (engine === 'zernio')
+      return this.zernio!.history(
+        { organizationId: org.id, profileId: profile?.id || '' },
+        flowId,
+        {},
+        id
+      );
     return this.service.detail(
       { organizationId: org.id, profileId: profile?.id || '' },
       engine,

@@ -66,7 +66,11 @@ export class FlowsRepository {
         edges: true,
       },
     });
-    if (flow && flow.executionVersion === 2) throw new HttpException('FLOW_REQUIRES_V2', 409);
+    if (flow && flow.executionVersion !== 1)
+      throw new HttpException(
+        flow.executionVersion === 2 ? 'FLOW_REQUIRES_V2' : 'FLOW_REQUIRES_REMOTE_ENGINE',
+        409
+      );
     return flow;
   }
 

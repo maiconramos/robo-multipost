@@ -17,7 +17,7 @@ export function AutomationMessageVariables({
   textareaId: string;
   onChange: (value: string) => void;
   disabled?: boolean;
-  engine?: 'legacy' | 'shared';
+  engine?: 'legacy' | 'shared' | 'zernio';
   messenger?: boolean;
   variables?: boolean;
   resetKey?: unknown;
@@ -194,7 +194,9 @@ export function AutomationMessageVariables({
     requestAnimationFrame(() => restore());
   };
   const names =
-    engine === 'legacy'
+    engine === 'zernio'
+      ? ['name', 'first_name', 'username']
+      : engine === 'legacy'
       ? ['commenter_name', 'commenter_id', 'comment_text', 'media_id']
       : messenger
       ? ['comment_text', 'comment_id']

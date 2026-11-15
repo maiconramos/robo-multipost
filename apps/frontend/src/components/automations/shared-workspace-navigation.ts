@@ -7,6 +7,7 @@ export type WorkspaceNavigation = {
   onModeChange: (mode: WorkspaceMode) => void;
   quickDisabled?: boolean;
   flowDisabled?: boolean;
+  flowDisabledReason?: string;
   historyDisabled?: boolean;
   error?: string | null;
   readOnly?: boolean;
