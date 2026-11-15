@@ -15,6 +15,7 @@ const state = vi.hoisted(() => ({
   mutate: vi.fn(),
   shared: [] as any[],
   legacy: [] as any[],
+  zernio: [] as any[],
   integrations: [] as any[],
   error: undefined as any,
 }));
@@ -33,8 +34,8 @@ vi.mock('./hooks/use-flows', () => ({
   useFlows: () => ({ data: state.legacy, mutate: state.mutate }),
 }));
 vi.mock('./hooks/use-shared-flows', () => ({
-  useSharedFlowData: () => ({
-    data: state.shared,
+  useSharedFlowData: (path: string) => ({
+    data: path === '/managed-automations' ? state.zernio : state.shared,
     error: state.error,
     mutate: state.mutate,
   }),
@@ -54,6 +55,7 @@ beforeEach(() => {
   vi.clearAllMocks();
   state.error = undefined;
   state.legacy = [];
+  state.zernio = [];
   state.integrations = [
     { id: 'ig', name: 'Instagram teste', identifier: 'instagram' },
   ];
@@ -176,4 +178,42 @@ describe('entrada e lista unificadas', () => {
     fireEvent.click(screen.getByRole('switch'));
     await waitFor(() => expect(state.mutate).toHaveBeenCalled());
   });
+});
+
+it('abre e gerencia regra Zernio pela rota correta', async () => {
+  state.shared = [];
+  state.zernio = [
+    {
+      id: 'z',
+      name: 'Zernio teste',
+      integrationId: 'zi',
+      executionVersion: 3,
+      revision: 9,
+      status: 'ACTIVE',
+      configuration: { postMode: 'all', dmMessage: 'Oi' },
+      syncState: 'idle',
+    },
+  ];
+  render(<FlowListComponent />);
+  expect(screen.getByText('Zernio teste')).toBeTruthy();
+  const row = screen.getByText('Zernio teste').closest('tr')!;
+  expect(row.querySelector('a')?.getAttribute('href')).toBe(
+    '/automations/zernio/z?view=history'
+  );
+  fireEvent.click(
+    Array.from(row.querySelectorAll('button')).find(
+      (b) => b.textContent === 'flow_action_edit'
+    )!
+  );
+  expect(state.push).toHaveBeenCalledWith('/automations/zernio/z');
+  fireEvent.click(row.querySelector('[role="switch"]')!);
+  await waitFor(() =>
+    expect(state.fetch).toHaveBeenCalledWith(
+      '/managed-automations/z/status',
+      expect.objectContaining({
+        method: 'POST',
+        body: JSON.stringify({ expectedRevision: 9, status: 'PAUSED' }),
+      })
+    )
+  );
 });

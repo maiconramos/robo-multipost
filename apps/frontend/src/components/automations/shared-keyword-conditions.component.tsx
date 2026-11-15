@@ -12,6 +12,7 @@ export function AutomationKeywordConditions({
   matchMode,
   onMatchModeChange,
   onFocus,
+  allowedMatchModes = ['any', 'all', 'exact'],
 }: {
   specific: boolean;
   keywords: string[];
@@ -22,6 +23,7 @@ export function AutomationKeywordConditions({
   matchMode?: string;
   onMatchModeChange?: (mode: string) => void;
   onFocus?: () => void;
+  allowedMatchModes?: string[];
 }) {
   const t = useT();
   return (
@@ -106,7 +108,7 @@ export function AutomationKeywordConditions({
                   value={matchMode}
                   onChange={(e) => onMatchModeChange(e.target.value)}
                 >
-                  {['any', 'all', 'exact'].map((mode) => (
+                  {allowedMatchModes.map((mode) => (
                     <option key={mode} value={mode}>
                       {t(`match_${mode}`)}
                     </option>

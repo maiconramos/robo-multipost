@@ -6,6 +6,7 @@ import {
 import type { FlowChannelDto } from '@gitroom/nestjs-libraries/dtos/flows/flow-v2.dto';
 
 export function connectionSettingsUrl(provider: string, integrationId: string) {
+  if (provider === 'zernio-instagram') return '/settings?tab=credentials';
   const key =
     provider === 'facebook' ? 'facebookAutomation' : 'instagramAutomation';
   return `/settings?tab=credentials&${key}=${encodeURIComponent(

@@ -13,7 +13,7 @@ import { automationHistoryQuerySchema } from '../../dtos/flows/automation-histor
 import { automationTool } from './automation-tool.helper';
 const identity = {
   flowId: z.string().max(80),
-  executionVersion: z.number().int().min(1).max(2).optional(),
+  executionVersion: z.number().int().min(1).max(3).optional(),
 };
 @Injectable()
 export class GetCommentAutomationTool implements AgentToolInterface {
@@ -23,7 +23,7 @@ export class GetCommentAutomationTool implements AgentToolInterface {
     return automationTool(
       this.service,
       this.name,
-      'Detalha regra com configuração completa, grafo, alvos, aliases e versão. quickEditable=false exige saveAutomationCanvasTool para preservar ramificações. Na edição Instagram use updatedAt como expectedUpdatedAt; Facebook/Messenger usa revision como expectedRevision.',
+      'Detalha regra com configuração completa, grafo, alvos, aliases e versão. quickEditable=false exige saveAutomationCanvasTool para preservar ramificações. Na edição Instagram use updatedAt como expectedUpdatedAt; Facebook/Messenger e Instagram via Zernio (executionVersion=3) usam revision como expectedRevision.',
       z.object(identity).strict(),
       (scope, i) =>
         this.service.detail(scope, i.flowId, i.executionVersion || 1)
@@ -38,7 +38,7 @@ export class UpdateCommentAutomationTool implements AgentToolInterface {
     return automationTool(
       this.service,
       this.name,
-      'Edita campos de uma regra rápida existente, preservando campos omitidos e o ID. Consulte getCommentAutomationTool primeiro. Exige expectedUpdatedAt em V1 ou expectedRevision em V2. Não muda rede/conta/gatilho, não achata grafo avançado e não muda estado; para aliases use manageAutomationAliasesTool.',
+      'Edita campos de uma regra rápida existente, preservando campos omitidos e o ID. Consulte getCommentAutomationTool primeiro. Exige expectedUpdatedAt em V1 ou expectedRevision em V2/V3. Não muda rede/conta/gatilho, não achata grafo avançado e não muda estado; para aliases use manageAutomationAliasesTool.',
       z
         .object({
           ...identity,
@@ -115,7 +115,7 @@ export class GetAutomationExecutionHistoryTool implements AgentToolInterface {
     return automationTool(
       this.service,
       this.name,
-      'Consulta o mesmo histórico do painel, no perfil autenticado. Filtros status/from/to e cursor opaco; limit 1–50 (padrão 25). Preserve executionVersion (1 Instagram V1, 2 Facebook/Messenger/V2). Retorna items e nextCursor, sem total inferido. UNKNOWN não é falha comprovada; aceite não comprova entrega. Nunca executa nem reenvia.',
+      'Consulta o mesmo histórico do painel, no perfil autenticado. Filtros status/from/to e cursor opaco; limit 1–50 (padrão 25). Preserve executionVersion (1 Instagram V1, 2 Facebook/Messenger/V2, 3 Instagram via Zernio). Retorna items e nextCursor, sem total inferido. UNKNOWN não é falha comprovada; aceite não comprova entrega. Nunca executa nem reenvia.',
       automationHistoryQuerySchema.extend(identity).strict(),
       (scope, input) => {
         const { flowId, executionVersion = 1, ...filters } = input;
@@ -139,7 +139,7 @@ export class GetAutomationExecutionDetailTool implements AgentToolInterface {
       this.name,
       'Detalha uma execução específica da regra/motor/perfil autenticado: interação recebida, etapas registradas, resultados, avisos de recorte e IDs técnicos. Não retorna snapshot/payload/erro bruto. No Instagram antigo uma etapa de DM concluída pode ser só preparação. Aceito pela Meta não comprova entrega. Nunca reenvia.',
       z
-        .object({ ...identity, executionId: z.string().min(1).max(100) })
+        .object({ ...identity, executionId: z.string().min(1).max(512) })
         .strict(),
       (scope, input) =>
         this.service.executionDetail(

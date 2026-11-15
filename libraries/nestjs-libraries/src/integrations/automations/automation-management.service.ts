@@ -1,4 +1,5 @@
-import { HttpException, Injectable } from '@nestjs/common';
+import { ZernioAutomationsService } from './zernio-automations.service';
+import { HttpException, Injectable, Optional } from '@nestjs/common';
 import { FlowStatus } from '@prisma/client';
 import { plainToInstance } from 'class-transformer';
 import { validateSync } from 'class-validator';
@@ -67,7 +68,8 @@ export class AutomationManagementService {
     private readonly profiles: ProfileService,
     private readonly repostService: RepostService,
     private readonly executionHistoryService: AutomationHistoryService,
-    private readonly integrations: IntegrationService
+    private readonly integrations: IntegrationService,
+    @Optional() private readonly zernio?: ZernioAutomationsService
   ) {}
   async scope(organizationId: string, profileId?: string): Promise<FlowScope> {
     if (!organizationId) failAutomation('ORGANIZATION_REQUIRED', 401);
@@ -96,7 +98,7 @@ export class AutomationManagementService {
       executionHistory: {
         normalized: true,
         operations: ['list', 'detail'],
-        executionVersions: [1, 2],
+        executionVersions: [1, 2, 3],
         filters: ['status', 'from', 'to'],
         pagination: 'cursor',
         defaultLimit: 25,
@@ -104,6 +106,44 @@ export class AutomationManagementService {
         noReplay: true,
         acceptanceIsNotDelivery: true,
       },
+      remoteEngines: [
+        {
+          providerIdentifier: 'zernio-instagram',
+          executionVersion: 3,
+          platform: 'instagram',
+          triggerType: 'comment_on_post',
+          postModes: ['all', 'specific'],
+          maxSpecificPosts: 1,
+          matchModes: ['any', 'exact'],
+          maxVariations: 6,
+          buttonTextMax: 20,
+          dmTextMax: 1000,
+          dmTextWithButtonMax: 640,
+          sharedButtonAcrossVariations: true,
+          dmRequired: true,
+          repeatPolicy: 'once_per_person_per_rule',
+          publicReplyPolicy: 'after_dm',
+          postDiscovery: 'recent_25; confirmed_existing_targets_preserved',
+          variables: [
+            '{commenter_name}',
+            '{{name}}',
+            '{{first_name}}',
+            '{{username}}',
+          ],
+          unsupported: [
+            'canvas',
+            'story_reply',
+            'requireFollow',
+            'aliasMediaIds',
+            'next_publication',
+            'scheduled',
+            'matchMode=all',
+            'perVariantButtons',
+          ],
+          revisionRequired: true,
+          historyEngine: 'zernio',
+        },
+      ],
       triggers: [
         {
           platform: 'instagram',
@@ -265,12 +305,22 @@ export class AutomationManagementService {
         'Use configured account credentials (login or compatible system user). These operations never return tokens or configure app secrets.',
     };
   }
+  private async availableChannels(scope: FlowScope) {
+    return [
+      ...(await this.shared.listChannels(scope)),
+      ...((await this.zernio?.channels(scope)) || []),
+    ];
+  }
+  private remoteEngine() {
+    if (!this.zernio) failAutomation('ZERNIO_UNAVAILABLE', 412);
+    return this.zernio!;
+  }
   private async channel(
     scope: FlowScope,
     integrationId: string,
     platform?: string
   ) {
-    const channel = (await this.shared.listChannels(scope)).find(
+    const channel = (await this.availableChannels(scope)).find(
       (c) => c.id === integrationId
     );
     if (
@@ -335,7 +385,9 @@ export class AutomationManagementService {
   }
   async create(scope: FlowScope, input: unknown) {
     const c = validateAutomationConfiguration(input);
-    await this.channel(scope, c.integrationId, c.platform);
+    const channel = await this.channel(scope, c.integrationId, c.platform);
+    if (channel.providerIdentifier === 'zernio-instagram')
+      return this.remoteEngine().create(scope, c);
     let id: string | undefined;
     const version = c.platform === 'facebook' ? 2 : 1;
     try {
@@ -405,6 +457,7 @@ export class AutomationManagementService {
     } else failAutomation('INVALID_EXECUTION_VERSION');
   }
   async detail(scope: FlowScope, id: string, version: number) {
+    if (version === 3) return this.remoteEngine().get(scope, id);
     if (version === 2) {
       const flow = await this.shared.get(scope, id);
       await this.assertChannelOwners(
@@ -572,6 +625,13 @@ export class AutomationManagementService {
         : {}),
       activate: false,
     });
+    if (version === 3) {
+      const { activate, ...configuration } = c;
+      return this.remoteEngine().update(scope, id, {
+        configuration,
+        expectedRevision: input.expectedRevision,
+      });
+    }
     if (version === 2) {
       if (!input.expectedRevision) failAutomation('REVISION_REQUIRED');
       const body = this.sharedInput(c, input.expectedRevision);
@@ -651,6 +711,8 @@ export class AutomationManagementService {
             triggerType: getTriggerType(f.definition),
             channels: f.channels,
           });
+    if ((!version || version === 3) && this.zernio)
+      result.push(...(await this.zernio.list(scope, integrationId)));
     return result;
   }
   async listOrganization(
@@ -693,6 +755,8 @@ export class AutomationManagementService {
     status: string,
     expectedRevision?: number
   ) {
+    if (version === 3)
+      return this.remoteEngine().status(scope, id, expectedRevision, status);
     if (!['ACTIVE', 'PAUSED', 'ARCHIVED', 'DRAFT'].includes(status))
       failAutomation('INVALID_STATUS');
     if (version === 2) {
@@ -731,15 +795,35 @@ export class AutomationManagementService {
     const q = parsed.data;
     if (q.resource === 'capabilities') return this.capabilities();
     if (q.resource === 'channels')
-      return (await this.shared.listChannels(scope)).filter(
-        (c) =>
-          !q.platform ||
-          (c.providerIdentifier === 'facebook' ? 'facebook' : 'instagram') ===
-            q.platform
-      );
+      return (await this.availableChannels(scope))
+        .map((c) => ({
+          ...c,
+          executionVersion:
+            c.providerIdentifier === 'zernio-instagram'
+              ? 3
+              : c.providerIdentifier === 'facebook'
+              ? 2
+              : 1,
+        }))
+        .filter(
+          (c) =>
+            !q.platform ||
+            (c.providerIdentifier === 'facebook' ? 'facebook' : 'instagram') ===
+              q.platform
+        );
     if (!q.integrationId) failAutomation('INTEGRATION_REQUIRED');
     const channel = await this.channel(scope, q.integrationId, q.platform);
     const facebook = channel.providerIdentifier === 'facebook';
+    if (channel.providerIdentifier === 'zernio-instagram') {
+      if (q.resource === 'posts')
+        return this.remoteEngine().posts(scope, q.integrationId);
+      if (
+        q.resource === 'readiness' &&
+        (!q.triggerType || q.triggerType === 'comment_on_post')
+      )
+        return this.remoteEngine().readiness(scope, q.integrationId);
+      failAutomation('ZERNIO_OPTION_UNSUPPORTED');
+    }
     if (q.resource === 'scheduled_posts')
       return this.scheduled.list(
         scope,
@@ -789,6 +873,7 @@ export class AutomationManagementService {
     version: number,
     query: AutomationHistoryQueryDto
   ) {
+    if (version === 3) return this.remoteEngine().history(scope, id, query);
     const engine = this.historyEngine(version);
     const parsed = automationHistoryQuerySchema.safeParse(query);
     if (!parsed.success) failAutomation('INVALID_HISTORY_QUERY');
@@ -801,6 +886,8 @@ export class AutomationManagementService {
     version: number,
     executionId: string
   ) {
+    if (version === 3)
+      return this.remoteEngine().history(scope, id, {}, executionId);
     const engine = this.historyEngine(version);
     await this.assertOwnership(scope, id, version);
     return this.executionHistoryService.detail(scope, engine, id, executionId);
@@ -812,6 +899,12 @@ export class AutomationManagementService {
     page = 1,
     limit = 20
   ) {
+    if (version === 3) {
+      if (page !== 1) failAutomation('ZERNIO_CURSOR_REQUIRED');
+      return this.remoteEngine().history(scope, id, {
+        limit: Math.min(limit, 50),
+      });
+    }
     await this.detail(scope, id, version);
     if (
       !Number.isInteger(page) ||
@@ -865,6 +958,7 @@ export class AutomationManagementService {
     return this.flows.removeAlias(scope.organizationId, q.aliasId);
   }
   async canvas(scope: FlowScope, id: string, version: number, raw: unknown) {
+    if (version === 3) failAutomation('ZERNIO_CANVAS_UNSUPPORTED');
     const parsed = automationCanvasSchema.safeParse(raw);
     if (!parsed.success) failAutomation('INVALID_GRAPH');
     const body = parsed.data as AutomationCanvasDto;

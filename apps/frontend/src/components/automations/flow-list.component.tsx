@@ -1,4 +1,6 @@
 'use client';
+import type { ZernioAutomationView } from '@gitroom/nestjs-libraries/dtos/flows/zernio-automation.dto';
+import { simpleDefinition } from '@gitroom/nestjs-libraries/database/prisma/flows-v2/flow-definition';
 
 import { sharedFailureCode } from './shared-flow-ui';
 import { useSharedFlowData } from './hooks/use-shared-flows';
@@ -36,6 +38,7 @@ interface FlowListItem {
   nodes?: FlowTriggerNode[];
   _count?: { nodes: number; executions: number };
   shared?: SharedFlowView;
+  zernio?: ZernioAutomationView;
 }
 
 interface TriggerSummary {
@@ -86,6 +89,12 @@ export const FlowListComponent: FC = () => {
     isLoading: sharedLoading,
     mutate: mutateShared,
   } = useSharedFlowData<SharedFlowView[]>('/flows-v2');
+  const {
+    data: zernioFlows,
+    error: zernioError,
+    isLoading: zernioLoading,
+    mutate: mutateZernio,
+  } = useSharedFlowData<ZernioAutomationView[]>('/managed-automations');
   const [busyId, setBusyId] = useState<string | null>(null);
   const [listError, setListError] = useState<string | null>(null);
   const [showNovaModal, setShowNovaModal] = useState(false);
@@ -181,7 +190,86 @@ export const FlowListComponent: FC = () => {
       setBusyId(null);
     }
   };
+  const zernioAction = async (flow: ZernioAutomationView, archive = false) => {
+    if (busyId) return;
+    if (archive && !window.confirm(t('shared_archive_confirm'))) return;
+    setBusyId(flow.id);
+    setListError(null);
+    try {
+      const response = await fetchApi(
+        `/managed-automations/${flow.id}/status`,
+        {
+          method: 'POST',
+          body: JSON.stringify({
+            expectedRevision: flow.revision,
+            status: archive
+              ? 'ARCHIVED'
+              : flow.status === 'ACTIVE'
+              ? 'PAUSED'
+              : 'ACTIVE',
+          }),
+        }
+      );
+      if (!response.ok) {
+        const body = await response.json().catch(() => ({}));
+        setListError(
+          t(
+            `zernio_error_${
+              typeof body.message === 'string'
+                ? body.message.toLowerCase()
+                : 'unknown'
+            }`,
+            t('zernio_operation_failed')
+          )
+        );
+      }
+      await mutateZernio();
+    } catch {
+      setListError(t('zernio_operation_failed'));
+    } finally {
+      setBusyId(null);
+    }
+  };
   const rows: FlowListItem[] = [
+    ...(Array.isArray(zernioFlows)
+      ? zernioFlows
+          .filter((f) => f.executionVersion === 3 && f.status !== 'ARCHIVED')
+          .map(
+            (f) =>
+              ({
+                id: f.id,
+                name: f.name,
+                status: f.status,
+                triggerPostIds: null,
+                zernio: f,
+                shared: {
+                  id: f.id,
+                  name: f.name,
+                  status: f.status,
+                  revision: f.revision,
+                  executionVersion: 3,
+                  definition: simpleDefinition({
+                    message:
+                      f.configuration.dmMessage ||
+                      f.configuration.dmVariants?.[0]?.message ||
+                      '',
+                    keywords: f.configuration.keywords,
+                  }),
+                  channels: [
+                    {
+                      id: f.integrationId,
+                      integrationId: f.integrationId,
+                      platform: 'instagram',
+                      remoteAccountId: '',
+                      postMode: f.configuration.postMode || 'all',
+                      postIds: f.configuration.postIds || [],
+                      name: f.integration?.name || 'Instagram · Zernio',
+                    },
+                  ],
+                },
+              } as FlowListItem)
+          )
+      : []),
     ...(Array.isArray(flows) ? flows : []),
     ...(Array.isArray(sharedFlows)
       ? sharedFlows
@@ -236,7 +324,7 @@ export const FlowListComponent: FC = () => {
         onCreated={() => mutate()}
       />
 
-      {(legacyError || sharedError || listError) && (
+      {(legacyError || sharedError || zernioError || listError) && (
         <div
           role="alert"
           className="rounded-xl border border-amber-600/40 p-4 text-sm space-y-2"
@@ -248,13 +336,14 @@ export const FlowListComponent: FC = () => {
               setListError(null);
               void mutate();
               void mutateShared();
+              void mutateZernio();
             }}
           >
             {t('fb_auto_retry')}
           </button>
         </div>
       )}
-      {(isLoading || sharedLoading) && (
+      {(isLoading || sharedLoading || zernioLoading) && (
         <p role="status" className="text-sm text-newTextColor/60">
           {t('loading')}
         </p>
@@ -263,8 +352,10 @@ export const FlowListComponent: FC = () => {
       {!rows.length &&
       !isLoading &&
       !sharedLoading &&
+      !zernioLoading &&
       !legacyError &&
-      !sharedError ? (
+      !sharedError &&
+      !zernioError ? (
         <div className="flex flex-col items-center justify-center py-[64px] text-customColor18 border border-fifth rounded-[8px] bg-sixth">
           <svg
             width="48"
@@ -313,17 +404,25 @@ export const FlowListComponent: FC = () => {
                   isLast={idx === rows.length - 1}
                   busy={busyId === flow.id}
                   onToggle={() =>
-                    flow.shared ? sharedAction(flow.shared) : toggleFlow(flow)
+                    flow.zernio
+                      ? zernioAction(flow.zernio)
+                      : flow.shared
+                      ? sharedAction(flow.shared)
+                      : toggleFlow(flow)
                   }
                   onEdit={() =>
                     router.push(
-                      flow.shared
+                      flow.zernio
+                        ? `/automations/zernio/${flow.id}`
+                        : flow.shared
                         ? `/automations/${flow.id}`
                         : `/automations/instagram/${flow.id}`
                     )
                   }
                   onDelete={() =>
-                    flow.shared
+                    flow.zernio
+                      ? zernioAction(flow.zernio, true)
+                      : flow.shared
                       ? sharedAction(flow.shared, true)
                       : handleDelete(flow.id)
                   }
@@ -368,7 +467,10 @@ const FlowRow: FC<RowProps> = ({
   const t = useT();
   const isActive = flow.status === 'ACTIVE';
   const isToggleDisabled =
-    busy || flow.status === 'DRAFT' || flow.status === 'ARCHIVED';
+    busy ||
+    flow.status === 'DRAFT' ||
+    flow.status === 'ARCHIVED' ||
+    (!!flow.zernio && flow.zernio.syncState !== 'idle');
   const execCount = flow.shared ? '—' : flow._count?.executions ?? 0;
   const integration = flow.integration;
   const summary = buildTriggerSummary(flow);
@@ -380,7 +482,11 @@ const FlowRow: FC<RowProps> = ({
   }
 
   const statusLabel =
-    flow.status === 'ACTIVE'
+    flow.zernio?.syncState === 'unknown'
+      ? t('history_status_unknown')
+      : flow.zernio?.syncState === 'pending'
+      ? t('zernio_sync_pending')
+      : flow.status === 'ACTIVE'
       ? t('flow_status_active', 'Ativa')
       : flow.status === 'PAUSED'
       ? t('flow_status_paused', 'Pausada')
@@ -494,7 +600,10 @@ const FlowRow: FC<RowProps> = ({
                 key={c.integrationId}
                 className="flex items-center gap-2 text-xs"
               >
-                <PlatformIconBadge identifier={c.platform} size={24} />
+                <PlatformIconBadge
+                  identifier={flow.zernio ? 'zernio-instagram' : c.platform}
+                  size={24}
+                />
                 <span>{c.name}</span>
               </div>
             ))}
@@ -522,7 +631,11 @@ const FlowRow: FC<RowProps> = ({
         {flow.shared ? (
           <a
             className="text-sm underline"
-            href={`/automations/${flow.id}?tab=history`}
+            href={
+              flow.zernio
+                ? `/automations/zernio/${flow.id}?view=history`
+                : `/automations/${flow.id}?tab=history`
+            }
           >
             {t('show_history')}
           </a>

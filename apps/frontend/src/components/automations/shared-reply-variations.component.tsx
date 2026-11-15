@@ -17,7 +17,7 @@ export function SharedReplyVariations({
   disabled?: boolean;
   onFocus?: (index: number) => void;
   maxVariants?: number | null;
-  engine?: 'legacy' | 'shared';
+  engine?: 'legacy' | 'shared' | 'zernio';
 }) {
   const t = useT(),
     id = useId();

@@ -15,6 +15,7 @@ export function PrivateMessageVariations({
   disabled = false,
   onFocus,
   maxLength = 2000,
+  maxVariants = 10,
   engine = 'legacy',
   messenger = false,
 }: {
@@ -27,7 +28,8 @@ export function PrivateMessageVariations({
   disabled?: boolean;
   onFocus?: (index: number) => void;
   maxLength?: number;
-  engine?: 'legacy' | 'shared';
+  maxVariants?: number;
+  engine?: 'legacy' | 'shared' | 'zernio';
   messenger?: boolean;
 }) {
   const t = useT(),
@@ -133,14 +135,16 @@ export function PrivateMessageVariations({
       <div className="flex justify-between gap-2 text-xs">
         <button
           type="button"
-          disabled={disabled || entries.length >= 10}
+          disabled={disabled || entries.length >= maxVariants}
           className="text-btnPrimary disabled:opacity-40"
           onClick={() => change([...entries, { message: '' }])}
         >
           <span aria-hidden="true">+ </span>
           {t('wizard_add_reply_variant')}
         </button>
-        <span className="text-newTextColor/50">{entries.length}/10</span>
+        <span className="text-newTextColor/50">
+          {entries.length}/{maxVariants}
+        </span>
       </div>
       {entries.length > 1 && (
         <p className="text-xs text-newTextColor/60">

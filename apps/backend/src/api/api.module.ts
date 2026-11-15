@@ -1,3 +1,4 @@
+import { ManagedAutomationsController } from './routes/managed-automations.controller';
 import { AutomationHistoryController } from './routes/automation-history.controller';
 import { ScheduledAutomationPostsController } from './routes/scheduled-automation-posts.controller';
 import { SharedAutomationsModule } from '@gitroom/nestjs-libraries/integrations/automations/shared-automations.module';
@@ -49,7 +50,10 @@ import { ProfilesController } from '@gitroom/backend/api/routes/profiles.control
 import { ZernioIntegrationsController } from '@gitroom/backend/api/routes/zernio.integrations.controller';
 import { OAuthAppController } from '@gitroom/backend/api/routes/oauth-app.controller';
 import { ApprovedAppsController } from '@gitroom/backend/api/routes/approved-apps.controller';
-import { OAuthController, OAuthAuthorizedController } from '@gitroom/backend/api/routes/oauth.controller';
+import {
+  OAuthController,
+  OAuthAuthorizedController,
+} from '@gitroom/backend/api/routes/oauth.controller';
 import { AnnouncementsController } from '@gitroom/backend/api/routes/announcements.controller';
 import { FlowsController } from '@gitroom/backend/api/routes/flows.controller';
 import { AutomationsInboxController } from '@gitroom/backend/api/routes/automations-inbox.controller';
@@ -62,7 +66,10 @@ import { FarcasterProvider } from '@gitroom/backend/services/auth/providers/farc
 import { FarcasterSignerService } from '@gitroom/nestjs-libraries/integrations/social/farcaster.signer.service';
 import { WalletProvider } from '@gitroom/backend/services/auth/providers/wallet.provider';
 import { OauthProvider } from '@gitroom/backend/services/auth/providers/oauth.provider';
-import { FacebookAutomationsController, FacebookAutomationsWebhookController } from './routes/facebook-automations.controller';
+import {
+  FacebookAutomationsController,
+  FacebookAutomationsWebhookController,
+} from './routes/facebook-automations.controller';
 import { FacebookAutomationSetupService } from '@gitroom/nestjs-libraries/integrations/automations/facebook-automation-setup.service';
 import { FacebookAutomationSetupRepository } from '@gitroom/nestjs-libraries/integrations/automations/facebook-automation-setup.repository';
 import { MetaAutomationGraphClient } from '@gitroom/nestjs-libraries/integrations/automations/meta-automation-graph.client';
@@ -72,6 +79,7 @@ import { FacebookAutomationProofService } from '@gitroom/nestjs-libraries/integr
 import { FacebookAutomationProofRepository } from '@gitroom/nestjs-libraries/integrations/automations/facebook-automation-proof.repository';
 
 const authenticatedController = [
+  ManagedAutomationsController,
   AutomationHistoryController,
   ScheduledAutomationPostsController,
   FacebookAutomationsController,

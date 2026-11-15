@@ -141,7 +141,13 @@ identificador, ex. \`"instagram"\`).
 Retornam \`{id, path}\` — use \`path\` em \`posts[].value[].image[].path\`. Só aceita
 imagem/vídeo permitidos (SVG/HTML rejeitados por segurança).
 
-### Flows (automações de comentário — Instagram)
+### Automações do Instagram via Zernio
+
+O canal \`zernio-instagram\` também pode ter automação de comentários. Consulte as capacidades e canais pela fachada \`/automations\` da API pública ou pelo MCP. A criação retorna \`executionVersion=3\`; conserve-a em detalhe, edição, estado e histórico e use \`expectedRevision\`. Não use as rotas legadas \`/flows\` para esse motor, nem escolha versão 1 apenas porque a rede é Instagram.
+
+Nesta etapa: comentário em um post específico ou em todos; DM obrigatória com botão opcional, compartilhado entre até seis variações; resposta pública opcional. Sem agendados/próxima publicação, Story, gate nativo, aliases ou canvas. Leia \`remoteEngines\` em capabilities para limites. A conta e o perfil Zernio são resolvidos no servidor, dentro do cliente selecionado. Se houver \`saved=true\` ou resultado incerto, preserve o ID e não recrie. Recuperação confirmada retorna \`ZERNIO_RECOVERED_RETRY_ACTION\`: obtenha a nova revisão e repita a ação explicitamente.
+
+### Flows (automações de comentário — Instagram direto)
 | Método | Caminho | Corpo / Query |
 |---|---|---|
 | GET | \`/flows\` \`[?integrationId]\` | lista automações |
