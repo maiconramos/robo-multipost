@@ -391,6 +391,19 @@ function ZernioEditorForm({ id }: { id?: string }) {
                 ) : undefined
               }
             />
+            {!accounts.isLoading && !accounts.error && !available.length && (
+              <p className="text-sm text-newTextColor/70">
+                {t('zernio_no_accounts')}{' '}
+                <a
+                  href="/launches"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="underline"
+                >
+                  {t('zernio_connect_account')}
+                </a>
+              </p>
+            )}
             {accounts.error && (
               <button type="button" onClick={() => accounts.mutate()}>
                 {t('try_again')}

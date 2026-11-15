@@ -29,3 +29,14 @@ API autenticada usa os mesmos DTOs e serviço da API pública/MCP; políticas de
 TDD para mapeamento, limites, escopo, troca de chave/conta, revisão concorrente, timeout e criação pausada, histórico filtrado e cursor, contratos REST/MCP, descoberta/lista/editor. Teste remoto real somente com conta autorizada e regra temporária pausada; ativação e comentários reais precisam de destino de teste definido. Não publicar nem alterar automações existentes durante a validação.
 
 Referências verificadas em 14/11/2026: https://docs.zernio.com/comment-automations/create-comment-automation, https://docs.zernio.com/comment-automations/update-comment-automation, https://docs.zernio.com/comment-automations/list-comment-automation-logs e OpenAPI oficial https://zernio.com/openapi.json.
+
+## Validação realizada
+
+- Domínio, repositórios, fachada, histórico e ferramentas MCP: 188 testes de regressão aprovados em 12 suítes; criação/estado MCP também aprovados na rodada específica.
+- HTTP: 11 testes aprovados, com guarda real de perfil, escrita negada para Visualizador e campos de identidade forjados recusados.
+- Interface: suíte de 49 arquivos aprovada (347 testes) e regressão adicional do estado vazio aprovada junto dos cinco testes do novo editor. Inclui navegação aguardando a ativação e preservação do mesmo ID após erro.
+- TypeScript do frontend/backend sem emissão aprovado. Builds normais de backend e orchestrator aprovados no checkout local; o build com node_modules compartilhado por symlink no worktree apresentou TS2742 em inferências de arquivos existentes, sem reproduzir no checkout normal.
+- Navegador Chrome autenticado: entrada Instagram via Zernio, editor rápido reutilizado, estados de validação e indisponibilidade do construtor conferidos no perfil Escorpiano. REST e MCP locais retornam capacidades V3; catálogo MCP aceita versão 3 para leitura, edição, estado e histórico.
+- O perfil de teste possui Instagram direto, sem canal zernio-instagram. Nenhuma automação existente foi modificada ou ativada e nenhum conteúdo foi publicado. A comprovação de envio/histórico remoto depende de conectar uma conta Zernio de teste com comentários/mensagens autorizados.
+
+Limitação de ferramentas: pnpm lint não tem script no package.json e resolveu um executável externo; ESLint direto encontrou erro circular na configuração existente. Isso não foi apresentado como lint aprovado. Nenhuma imagem Docker foi gerada.

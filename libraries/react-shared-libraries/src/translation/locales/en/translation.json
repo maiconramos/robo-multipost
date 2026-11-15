@@ -3025,5 +3025,7 @@
   "zernio_error_zernio_rate_limited": "Zernio rate-limited requests. Wait before trying again.",
   "zernio_error_zernio_post_unavailable": "Could not confirm this post on the connected account. Refresh the list.",
   "zernio_dm_delivery_hint": "One DM per person for this automation. When enabled, the public reply is sent after the DM.",
-  "zernio_sync_pending": "Syncing"
+  "zernio_sync_pending": "Syncing",
+  "zernio_no_accounts": "This profile does not have an Instagram account connected through Zernio yet.",
+  "zernio_connect_account": "Connect account"
 }

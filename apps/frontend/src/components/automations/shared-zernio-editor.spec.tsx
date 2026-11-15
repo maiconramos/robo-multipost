@@ -12,6 +12,7 @@ const state = vi.hoisted(() => ({
   push: vi.fn(),
   profile: 'p',
   flow: undefined as any,
+  noAccounts: false,
 }));
 vi.mock('@gitroom/react/translation/get.transation.service.client', () => ({
   useT: () => (k: string) => k,
@@ -30,13 +31,15 @@ vi.mock('@gitroom/helpers/utils/custom.fetch', () => ({
 vi.mock('./hooks/use-shared-flows', () => ({
   useSharedFlowData: (path: string | null) => ({
     data: path?.includes('resource=channels')
-      ? [
-          {
-            id: 'zi',
-            name: 'Instagram Z',
-            providerIdentifier: 'zernio-instagram',
-          },
-        ]
+      ? state.noAccounts
+        ? []
+        : [
+            {
+              id: 'zi',
+              name: 'Instagram Z',
+              providerIdentifier: 'zernio-instagram',
+            },
+          ]
       : path?.includes('resource=readiness')
       ? { ready: true }
       : path?.includes('resource=posts')
@@ -64,6 +67,7 @@ afterEach(() => {
   vi.clearAllMocks();
   state.flow = undefined;
   state.profile = 'p';
+  state.noAccounts = false;
 });
 it('salva rascunho no servico compartilhado sem chamar rotas Meta', async () => {
   state.api.mockImplementation(
@@ -247,4 +251,15 @@ it('preserva ID apos falha de ativacao e nao cria outro rascunho ao tentar novam
     '/managed-automations/saved/status',
     '/managed-automations/saved/status',
   ]);
+});
+
+it('orienta a conectar uma conta quando o perfil nao tem Instagram Zernio', () => {
+  state.noAccounts = true;
+  render(<ZernioInstagramEditor />);
+  expect(screen.getByText('zernio_no_accounts')).toBeTruthy();
+  expect(
+    screen
+      .getByRole('link', { name: 'zernio_connect_account' })
+      .getAttribute('href')
+  ).toBe('/launches');
 });
